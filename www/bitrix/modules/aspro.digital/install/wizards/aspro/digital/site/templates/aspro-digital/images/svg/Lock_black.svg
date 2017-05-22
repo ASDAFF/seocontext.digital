@@ -1,0 +1,11 @@
+<svg id="Lock_black.svg" xmlns="http://www.w3.org/2000/svg" width="16" height="17" viewBox="0 0 16 17">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #222;
+        fill-rule: evenodd;
+      }
+    </style>
+  </defs>
+  <path id="Ellipse_72_copy_6" data-name="Ellipse 72 copy 6" class="cls-1" d="M1219,50h-12a2,2,0,0,1-2-2V41a2,2,0,0,1,2-2h1V37a4,4,0,0,1,4-4h2a4,4,0,0,1,4,4v2h1a2,2,0,0,1,2,2v7A2,2,0,0,1,1219,50Zm-3-13c0-1.38-1.34-2-3-2s-3,.62-3,2l-0.01,2h6.02Zm3,4h-12v7h12V41Zm-6,1a1,1,0,0,1,1,1v2a1,1,0,0,1-2,0V43A1,1,0,0,1,1213,42Z" transform="translate(-1205 -33)"/>
+</svg>

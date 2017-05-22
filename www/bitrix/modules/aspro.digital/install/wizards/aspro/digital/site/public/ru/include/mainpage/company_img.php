@@ -1,0 +1,1 @@
+<img alt="companypic.png" src="#SITE_DIR#images/company/about_company.jpg" title="companypic.png">

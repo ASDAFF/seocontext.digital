@@ -1,0 +1,12 @@
+/* 15px/24px Open Sans (Default) */
+body{font: 15px/24px "Open Sans", Arial, sans-serif;}
+
+.btn{font-size:0.933em;}
+.stickers .stickers-wrapper > div{font-size:10px;}
+.main-block .prop_title_table .item .prop-block, .main-block .item .prop-block{font-size:13px;}
+.side-menu .submenu{font-size:13px;}
+.bx_item_detail_inc_two .list-type-block.item-views .item > .body-info .title{font-size:13px;}
+.item-views .item .price .price_old .price_val, .item-views .item .price .price_old .fa, .order-block .price .price_old .price_val, .order-block .price .price_old .fa{font-size:14px;}
+.item-views .item .price .price_val, .order-block .price .price_val{font-size:18px;}
+
+.item-views.sections .item .title a{}

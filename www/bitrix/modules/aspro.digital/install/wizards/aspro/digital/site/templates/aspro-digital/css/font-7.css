@@ -1,0 +1,26 @@
+/* 15px/24px Ubuntu (Default) */
+body { font: 15px/24px "Ubuntu", Arial, sans-serif; }
+h1,h2,h3,h4,h5,h6{font-family: "Ubuntu", Arial, sans-serif;}
+
+.btn{font-size:1em;}
+
+/*menu*/
+.side-menu > li > a{font-size:15px;}
+.side-menu .submenu{font-size:14px;}
+.dropdown-menu{font-size:15px;}
+
+blockquote{font-size:16px;}
+
+/*catalog*/
+.stickers .stickers-wrapper > div{font-size:10px;line-height: 17px;}
+.main-block .prop_title_table .item .prop-block, .main-block .item .prop-block{font-size:13px;}
+.bx_item_detail_inc_two .list-type-block.item-views .item > .body-info .title{font-size:13px;}
+.item-views .item .price .price_old .price_val, .item-views .item .price .price_old .fa, .order-block .price .price_old .price_val, .order-block .price .price_old .fa{font-size:14px;}
+.item-views .item .price .price_val, .order-block .price .price_val{font-size:18px;}
+.select-outer select{font-size:13px;}
+.item-views.sections .item .title a{}
+body .buy_block .counter input, body .footer-button .buy_block .counter input{height:41px;}
+
+.list-type-block.item-views .item .previewtext{line-height:20px;}
+
+blockquote.danger, blockquote.info, blockquote.code{line-height:28px;}

@@ -1,0 +1,56 @@
+/* 14px PT Sans Caption (Default) */
+body{font: 14px/22px "PT Sans Caption", Arial, sans-serif;}
+h1,h2,h3,h4,h5,h6{font-family: "PT Sans Caption", Arial, sans-serif;}
+
+/*menu*/
+.side-menu .submenu > li > a{font-size: 14px; line-height: 14px;}
+.mega-menu table td .wrap > a{font-size:15px;}
+.side-menu > li > a{font-size:15px;}
+.side-menu .submenu{font-size:14px;}
+.dropdown-menu{font-size:15px;}
+#headerfixed .menu-block .navs ul li a{font-size:14px;}
+
+.item-views.list .item .title{font-size: 15px;}
+.form-control{ height: 45px;}
+.phone .more_phone{font-size:13px;}
+.subscribe-block-wrapper .text{font-size:16px;}
+
+.banners-small .item .image .type-block{font-size:12px;}
+.banners-small .item .title{ font-size: 14px; }
+
+.stickers .stickers-wrapper > div{font-size:10px;line-height: 17px;}
+.main-block .prop_title_table .item .prop-block, .main-block .item .prop-block{font-size:12px;}
+
+/*catalog*/
+.item-views.sections .item .title a{line-height:20px;}
+.bx_item_detail_inc_two .list-type-block.item-views .item > .body-info .title{font-size:12px;}
+.item-views .item .price .price_old .price_val, .item-views .item .price .price_old .fa, .order-block .price .price_old .price_val, .order-block .price .price_old .fa{font-size:13px;}
+.item-views .item .price .price_val, .order-block .price .price_val{font-size:17px;}
+.properties .inner-wrapper{font-size:13px;}
+body .buy_block .counter input, body .footer-button .buy_block .counter input{height:38px;}
+.btn-inline.sm{font-size:13px;}
+.select-outer select{font-size:12px;}
+
+/*basket*/
+.top-block .top-block-item .basket-link  .count{}
+
+/*news*/
+.item-views .item .period span, .detail .period span{font-size:12px;}
+
+/*services*/
+.item-views.sections.front .item .title a, .item-views.sections .row_block .item .title a{font-size:15px;}
+
+/*staff*/
+.item-views.staff-items.table-type-block .item .post{font-size:13px;}
+.staff.item-views.list .item .post{font-size:13px;}
+
+/*reviews*/
+.reviews.item-views .item .post{}
+.reviews.item-views .item .text{font-size:14px;}
+
+/*search path*/
+.search-page .path{font-size:10px;}
+
+/*contacts*/
+.form.contacts .title{font-size:20px;}
+.contacts.contacts-page-map-overlay table td{font-size:11px;}

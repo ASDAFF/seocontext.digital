@@ -1,0 +1,5 @@
+<?
+$arDirProperties = Array(
+   "MENU" => "N"
+);
+?>

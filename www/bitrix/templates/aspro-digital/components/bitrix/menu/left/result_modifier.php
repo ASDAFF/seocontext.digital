@@ -1,0 +1,1 @@
+<?$arResult = CDigital::getChilds($arResult);?>

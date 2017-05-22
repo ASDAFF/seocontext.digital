@@ -1,0 +1,13 @@
+body  .maxwidth-theme { max-width: 1200px; }
+
+@media (min-width: 992px){
+	body .header-v4 .logo_and_menu-row .logo-row>.maxwidth-theme>.col-md-4{width:33.33333333333333%;}
+	.detail .gallery-block .bigs.flexslider .slides .item{height:578px;line-height:575px;}
+}
+@media (min-width:1200px){
+	body  .header-v4 .logo_and_menu-row .logo-row>.maxwidth-theme>.col-md-4{width:36.6%;}
+	
+	/*tarifs*/
+	.tarifs .items_view td{width:224px;min-width:224px;}
+	.tarifs .data_table_props.items_view td:first-child{width:195px;min-width:195px;max-width:195px;}
+}
