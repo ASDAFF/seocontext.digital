@@ -109,3 +109,5 @@ class BotTokenTable extends Entity\DataManager
 		return new \Bitrix\Main\Type\DateTime();
 	}
 }
+
+class_alias("Bitrix\\Im\\Model\\BotTokenTable", "Bitrix\\Im\\BotTokenTable", false);

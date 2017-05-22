@@ -138,10 +138,12 @@ class PaymentTable extends Main\Entity\DataManager
 				'validation' => array(__CLASS__, 'validateXmlId'),
 				'title' => Loc::getMessage('ORDER_PAYMENT_ENTITY_XML_ID_FIELD'),
 			),
-			'SUM' => array(
-				'data_type' => 'float',
-				'default_value' => '0.0000',
-				'title' => Loc::getMessage('ORDER_PAYMENT_ENTITY_SUM_FIELD'),
+			new Main\Entity\FloatField(
+				'SUM',
+				array(
+					'default_value' => '0.0000',
+					'required' => true,
+				)
 			),
 			'PRICE_COD' => array(
 				'data_type' => 'float',
@@ -229,6 +231,25 @@ class PaymentTable extends Main\Entity\DataManager
 			),
 
 			new Main\Entity\BooleanField(
+				'MARKED',
+				array(
+					'values' => array('N','Y'),
+					'default_value' => 'N'
+				)
+			),
+
+			new Main\Entity\DatetimeField('DATE_MARKED'),
+
+			new Main\Entity\IntegerField('EMP_MARKED_ID'),
+
+			new Main\Entity\ReferenceField(
+				'EMP_MARKED_BY',
+				'\Bitrix\Main\User',
+				array('=this.EMP_MARKED_ID' => 'ref.ID'),
+				array('join_type' => 'INNER')
+			),
+
+			new Main\Entity\BooleanField(
 				'UPDATED_1C',
 				array(
 					'values' => array('N', 'Y')
@@ -289,7 +310,7 @@ class PaymentTable extends Main\Entity\DataManager
 	public static function validatePsStatusDescription()
 	{
 		return array(
-			new Main\Entity\Validator\Length(null, 250),
+			new Main\Entity\Validator\Length(null, 512),
 		);
 	}
 	/**

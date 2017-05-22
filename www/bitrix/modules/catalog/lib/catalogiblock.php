@@ -71,13 +71,13 @@ class CatalogIblockTable extends Main\Entity\DataManager
 			)),
 			'IBLOCK' => new Main\Entity\ReferenceField(
 				'IBLOCK',
-				'Bitrix\Iblock\Iblock',
+				'\Bitrix\Iblock\Iblock',
 				array('=this.IBLOCK_ID' => 'ref.ID'),
 				array('join_type' => 'INNER')
 			),
 			'PRODUCT_IBLOCK' => new Main\Entity\ReferenceField(
 				'PRODUCT_IBLOCK',
-				'Bitrix\Iblock\Iblock',
+				'\Bitrix\Iblock\Iblock',
 				array('=this.PRODUCT_IBLOCK_ID' => 'ref.ID'),
 				array('join_type' => 'LEFT')
 			)

@@ -412,9 +412,6 @@ function getResultColumnDataType(&$viewColumnInfo, &$customColumnTypes = array()
 										// convert type of value
 										switch ($chartInfo['requestData']['columnTypes'][$columnIndex])
 										{
-											case 'boolean':
-												$dataValue = ($dataValue) ? true : false;
-												break;
 											case 'date':
 											case 'datetime':
 												if (!empty($dataValue))
@@ -430,6 +427,7 @@ function getResultColumnDataType(&$viewColumnInfo, &$customColumnTypes = array()
 												if (is_string($dataValue)) $dataValue = str_replace(' ', '', $dataValue);
 												$dataValue = (int)$dataValue;
 												break;
+											case 'boolean':
 											case 'string':
 											case 'text':
 											case 'enum':

@@ -14,7 +14,7 @@ class CIMEvent
 		while ($row = $result->fetch())
 		{
 			IM\Model\ChatTable::update($row['ID'], Array('AVATAR' => ''));
-			
+
 			$obCache = new CPHPCache();
 			$arRel = CIMChat::GetRelationById($row['ID']);
 			foreach ($arRel as $rel)
@@ -47,7 +47,7 @@ class CIMEvent
 				}
 			}
 		}
-		
+
 		if (isset($params['EMAIL']) && !empty($params['EMAIL']))
 		{
 			$orm = \Bitrix\Main\UserTable::getList(Array(
@@ -72,7 +72,7 @@ class CIMEvent
 
 		if (
 			$arParams['ENTITY_TYPE_ID'] == 'LISTS_NEW_ELEMENT'
-			&& CModule::IncludeModule("socialnetwork")
+			&& $bSocialnetworkInstalled
 		) // BP
 		{
 			$rsLog = CSocNetLog::GetList(
@@ -162,8 +162,8 @@ class CIMEvent
 					array(
 						'|\[DISK\sFILE\sID=[n]*\d+\]|',
 						'|\[DOCUMENT\sID=[n]*\d+\]|'
-					), 
-					'', 
+					),
+					'',
 					$arComment["MESSAGE"]
 				);
 
@@ -254,8 +254,8 @@ class CIMEvent
 							{
 								$arParams['ENTITY_LINK'] = self::GetMessageRatingLogCommentURL(
 									$arComment,
-									intval($mentioned_user_id), 
-									$arSites, 
+									intval($mentioned_user_id),
+									$arSites,
 									$intranet_site_id,
 									$extranet_site_id
 								);
@@ -282,7 +282,27 @@ class CIMEvent
 		else // with source
 		{
 			if (
-				!CModule::IncludeModule("search") 
+				$arParams['OWNER_ID'] != $arParams['USER_ID']
+				&& $bSocialnetworkInstalled
+				&& $arParams['ENTITY_TYPE_ID'] == 'BLOG_COMMENT'
+				&& CModule::IncludeModule('blog')
+				&& ($arBlogComment = CBlogComment::GetByID($arParams['ENTITY_ID']))
+			) // AUX
+			{
+				$handlerManager = new Bitrix\Socialnetwork\CommentAux\HandlerManager();
+				/** @var bool|object $handler */
+				if($handler = $handlerManager->getHandlerByPostText($arBlogComment["POST_TEXT"]))
+				{
+					$handler->setOptions(array(
+						'im' => true
+					));
+					$handler->sendRatingNotification($arBlogComment, $arParams);
+					return true;
+				}
+			}
+
+			if (
+				!CModule::IncludeModule("search")
 				|| BX_SEARCH_VERSION <= 1
 			)
 			{
@@ -290,10 +310,10 @@ class CIMEvent
 			}
 
 			$CSI = new CSearchItem;
-			
+
 			$arFSearch = Array('=ENTITY_TYPE_ID' => $arParams['ENTITY_TYPE_ID'], '=ENTITY_ID' => $arParams['ENTITY_ID']);
 			if (
-				defined("SITE_ID") 
+				defined("SITE_ID")
 				&& strlen(SITE_ID) > 0
 			)
 			{
@@ -304,6 +324,7 @@ class CIMEvent
 			if ($arItem = $res->GetNext(true, false))
 			{
 				// notify mentioned users
+				$arMentionedUserID = array();
 				$arSearchItemParams = CSearch::GetContentItemParams($arItem['ID'], 'mentioned_user_id');
 				if (
 					is_array($arSearchItemParams)
@@ -317,19 +338,21 @@ class CIMEvent
 				// send to author
 				if (
 					$arParams['OWNER_ID'] != $arParams['USER_ID']
-					|| $arMentionedUserID
+					|| !empty($arMentionedUserID)
 				)
 				{
 					$arParams["ENTITY_LINK"] = $arItem['URL'];
 					$arParams["ENTITY_PARAM"] = $arItem['PARAM1'];
-					$arParams["ENTITY_TITLE"] = trim(strip_tags(str_replace(array("\r\n","\n","\r"), ' ', htmlspecialcharsback($arItem['TITLE']))));
-					$arParams["ENTITY_MESSAGE"] = trim(strip_tags(str_replace(array("\r\n","\n","\r"), ' ', htmlspecialcharsback($arItem['BODY']))));
+					$arParams["ENTITY_TITLE"] = trim(strip_tags(str_replace(array("\r\n","\n","\r"), ' ', $arItem['TITLE'])));
+					$arParams["ENTITY_MESSAGE"] = trim(strip_tags(str_replace(array("\r\n","\n","\r"), ' ', $arItem['BODY'])));
+
+					$arParams["ENTITY_BODY"] = preg_replace('/(.+?)(\r|\n)+.*/is'.BX_UTF_PCRE_MODIFIER,'\\1',$arItem['BODY']);
 
 					if (
 						(
-							strlen($arParams["ENTITY_TITLE"]) > 0 
+							strlen($arParams["ENTITY_TITLE"]) > 0
 							|| strlen($arParams["ENTITY_MESSAGE"]) > 0
-						) 
+						)
 						&& strlen($arParams["ENTITY_LINK"]) > 0
 					)
 					{
@@ -350,7 +373,7 @@ class CIMEvent
 								);
 							}
 						}
-
+						$bSentToOwner = false;
 						if ($arParams['OWNER_ID'] != $arParams['USER_ID'])
 						{
 							$followValue = "Y";
@@ -367,9 +390,9 @@ class CIMEvent
 							if ($followValue != "N")
 							{
 								$arParams['ENTITY_LINK'] = self::GetMessageRatingEntityURL(
-									$originalLink, 
-									intval($arParams['OWNER_ID']), 
-									$arSites, 
+									$originalLink,
+									intval($arParams['OWNER_ID']),
+									$arSites,
 									$intranet_site_id,
 									$extranet_site_id
 								);
@@ -385,7 +408,7 @@ class CIMEvent
 									"NOTIFY_MESSAGE" => self::GetMessageRatingVote($arParams),
 									"NOTIFY_MESSAGE_OUT" => self::GetMessageRatingVote($arParams, true)
 								);
-								CIMNotify::Add($arMessageFields);
+								$bSentToOwner = CIMNotify::Add($arMessageFields);
 							}
 						}
 
@@ -437,6 +460,7 @@ class CIMEvent
 								{
 									if (
 										$mentioned_user_id != $arParams['USER_ID']
+										&& ($mentioned_user_id != $arParams['OWNER_ID'] || !$bSentToOwner)
 										&& CSocNetLogRights::CheckForUserOnly($log_id, $mentioned_user_id)
 									)
 									{
@@ -454,9 +478,9 @@ class CIMEvent
 										if ($followValue != "N")
 										{
 											$arParams['ENTITY_LINK'] = self::GetMessageRatingEntityURL(
-												$originalLink, 
-												intval($mentioned_user_id), 
-												$arSites, 
+												$originalLink,
+												intval($mentioned_user_id),
+												$arSites,
 												$intranet_site_id,
 												$extranet_site_id
 											);
@@ -490,7 +514,7 @@ class CIMEvent
 		CIMNotify::DeleteByTag("RATING|".$arParams['ENTITY_TYPE_ID']."|".$arParams['ENTITY_ID'], $arParams['USER_ID']);
 	}
 
-	private static function GetMessageRatingVote($arParams, $bForMail = false)
+	public static function GetMessageRatingVote($arParams, $bForMail = false)
 	{
 		$like = $arParams['VALUE'] >= 0? '_LIKE': '_DISLIKE';
 
@@ -505,7 +529,7 @@ class CIMEvent
 		}
 
 		if (
-			$arParams['ENTITY_TYPE_ID'] == 'FORUM_POST' 
+			$arParams['ENTITY_TYPE_ID'] == 'FORUM_POST'
 			|| $arParams['ENTITY_TYPE_ID'] == 'BLOG_COMMENT'
 		)
 		{
@@ -548,7 +572,11 @@ class CIMEvent
 				&& $arParams['ENTITY_PARAM'] == 'photos'
 			)
 			{
-				if (is_numeric($arParams["ENTITY_TITLE"]))
+				if (isset($arParams["ENTITY_BODY"]))
+				{
+					$message = str_replace(Array('#TITLE#', '#A_START#', '#A_END#'), Array($arParams["ENTITY_BODY"], '', ''), GetMessage('IM_EVENT_RATING_PHOTO'.$like).' ('.$arParams['ENTITY_LINK'].')');
+				}
+				elseif (is_numeric($arParams["ENTITY_TITLE"]))
 				{
 					$message = str_replace(Array('#A_START#', '#A_END#'), Array('', ''), GetMessage('IM_EVENT_RATING_PHOTO1'.$like).' ('.$arParams['ENTITY_LINK'].')');
 				}
@@ -612,7 +640,11 @@ class CIMEvent
 				&& $arParams['ENTITY_PARAM'] == 'photos'
 			)
 			{
-				if (is_numeric($arParams["ENTITY_TITLE"]))
+				if (isset($arParams["ENTITY_BODY"]))
+				{
+					$message = str_replace(Array('#TITLE#', '#A_START#', '#A_END#'), Array($arParams["ENTITY_BODY"], '<a href="'.$arParams['ENTITY_LINK'].'" class="bx-notifier-item-action">', '</a>'), GetMessage('IM_EVENT_RATING_PHOTO'.$like));
+				}
+				elseif (is_numeric($arParams["ENTITY_TITLE"]))
 				{
 					$message = str_replace(Array('#A_START#', '#A_END#'), Array('<a href="'.$arParams['ENTITY_LINK'].'" class="bx-notifier-item-action">', '</a>'), GetMessage('IM_EVENT_RATING_PHOTO1'.$like));
 				}
@@ -646,11 +678,10 @@ class CIMEvent
 				$message = str_replace('#LINK#', strlen($arParams['ENTITY_LINK'])>0?'<a href="'.$arParams['ENTITY_LINK'].'" class="bx-notifier-item-action">'.$arParams["ENTITY_TITLE"].'</a>': '<i>'.$arParams["ENTITY_TITLE"].'</i>', GetMessage('IM_EVENT_RATING_ELSE'.$like));
 			}
 		}
-
 		return $message;
 	}
 
-	private static function GetMessageRatingEntityURL($url, $user_id = false, $arSites = false, $intranet_site_id = false, $extranet_site_id = false)
+	public static function GetMessageRatingEntityURL($url, $user_id = false, $arSites = false, $intranet_site_id = false, $extranet_site_id = false)
 	{
 		static $arSiteData = false;
 
@@ -751,11 +782,11 @@ class CIMEvent
 
 		return $url;
 	}
-	
+
 	private static function GetMessageRatingLogCommentURL($arComment, $user_id = false, $arSites = false, $intranet_site_id = false, $extranet_site_id = false)
 	{
 		$url = false;
-		
+
 		if (
 			!is_array($arComment)
 			|| !isset($arComment["ENTITY_TYPE"]) || strlen($arComment["ENTITY_TYPE"]) <= 0
@@ -859,6 +890,9 @@ class CIMEvent
 				{
 					if (\Bitrix\Im\User::getInstance($arParams["ID"])->isBot())
 						return true;
+					
+					if (!\Bitrix\Im\User::getInstance($arParams["ID"])->isActive())
+						return true;
 
 					$userInChat = CIMChat::GetRelationById($commonChatId, $arParams["ID"]);
 					$userCanJoin = CIMChat::CanJoinGeneralChatId($arParams["ID"]);
@@ -955,7 +989,9 @@ class DesktopApplication extends Bitrix\Main\Authentication\Application
 {
 	protected $validUrls = array(
 		"/desktop_app/",
+		"/online/",
 		"/bitrix/tools/disk/",
+		"/disk/downloadFile/",
 		"/bitrix/services/disk/index.php"
 	);
 

@@ -234,7 +234,7 @@
 					me.popup = new BX.PopupWindow('bx-bizproc-selector', this, {
 						lightShadow : true,
 						offsetTop: 0,
-						closeIcon : {'top': '3px', 'right': '10px'},
+						closeIcon : true,
 						offsetLeft: 0,
 						autoHide: true,
 						bindOptions: {position: "bottom"},

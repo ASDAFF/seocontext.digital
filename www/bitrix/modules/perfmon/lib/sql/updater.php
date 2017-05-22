@@ -164,6 +164,7 @@ class Updater
 			$this->conditions[""][] = $this->multiLinePhp("\t\t\$DB->Query(\"", $ddl, "\", true);\n");
 
 			$stmt = $this->createStatement("\$DB->Query(\"", $ddl, "\", true);");
+			$stmt->dependOn = $this->tableCheck->getLowercasedName();
 			$stmt->addCondition("\$updater->CanUpdateDatabase()");
 			$stmt->addCondition("\$DB->type == \"".EscapePHPString($this->dbType)."\"");
 			$stmt->addCondition("\$updater->TableExists(\"".EscapePHPString($this->tableCheck->getLowercasedName())."\")");
@@ -177,6 +178,7 @@ class Updater
 			$this->conditions[$cond][] = $this->multiLinePhp("\t\t\t\$DB->Query(\"\n\t\t\t\t", str_replace("\n", "\n\t\t\t\t", $ddl), "\n\t\t\t\");\n");
 
 			$stmt = $this->createStatement("\$DB->Query(\"", $ddl, "\", true);");
+			$stmt->tableName = $object->getLowercasedName();
 			$stmt->addCondition("\$updater->CanUpdateDatabase()");
 			$stmt->addCondition("\$DB->type == \"".EscapePHPString($this->dbType)."\"");
 			$stmt->addCondition("\$updater->TableExists(\"".EscapePHPString($this->tableCheck->getLowercasedName())."\")");
@@ -196,6 +198,7 @@ class Updater
 				"\t\t\t}\n";
 
 			$stmt = $this->createStatement("\$DB->Query(\"", $ddl, "\");");
+			$stmt->dependOn = $object->parent->getLowercasedName();
 			$stmt->addCondition("\$updater->CanUpdateDatabase()");
 			$stmt->addCondition("\$DB->type == \"".EscapePHPString($this->dbType)."\"");
 			$stmt->addCondition("\$updater->TableExists(\"".EscapePHPString($object->parent->getLowercasedName())."\")");
@@ -215,6 +218,7 @@ class Updater
 				"\t\t\t}\n";
 
 			$stmt = $this->createStatement("\$DB->Query(\"", $ddl, "\");");
+			$stmt->dependOn = $object->parent->getLowercasedName();
 			$stmt->addCondition("\$updater->CanUpdateDatabase()");
 			$stmt->addCondition("\$DB->type == \"".EscapePHPString($this->dbType)."\"");
 			$stmt->addCondition("\$updater->TableExists(\"".EscapePHPString($object->parent->getLowercasedName())."\")");
@@ -229,6 +233,7 @@ class Updater
 			$this->conditions[$cond][] = $this->multiLinePhp("\t\t\t\$DB->Query(\"", $ddl, "\", true);\n");
 
 			$stmt = $this->createStatement("\$DB->Query(\"", $ddl, "\", true);");
+			$stmt->dependOn = $object->parent->getLowercasedName();
 			$stmt->addCondition("\$updater->CanUpdateDatabase()");
 			$stmt->addCondition("\$DB->type == \"".EscapePHPString($this->dbType)."\"");
 			$stmt->addCondition("\$updater->TableExists(\"".EscapePHPString($object->parent->getLowercasedName())."\")");
@@ -356,6 +361,7 @@ class Updater
 			$dropStmt = $this->createStatement("\$DB->Query(\"", $source->getDropDdl($this->dbType), "\", true);");
 			$createStmt = $this->createStatement("\$DB->Query(\"", $target->getCreateDdl($this->dbType), "\", true);");
 			$stmt = new Php\Statement;
+			$stmt->dependOn = $this->tableCheck->getLowercasedName();
 			$stmt->merge($dropStmt);
 			$stmt->merge($createStmt);
 			$stmt->addCondition("\$updater->CanUpdateDatabase()");
@@ -376,6 +382,7 @@ class Updater
 				"\t\t\t}\n";
 
 			$stmt = $this->createStatement("\$DB->Query(\"", $ddl, "\");");
+			$stmt->dependOn = $source->parent->getLowercasedName();
 			$stmt->addCondition("\$updater->CanUpdateDatabase()");
 			$stmt->addCondition("\$DB->type == \"".EscapePHPString($this->dbType)."\"");
 			$stmt->addCondition("\$updater->TableExists(\"".EscapePHPString($source->parent->getLowercasedName())."\")");
@@ -393,6 +400,7 @@ class Updater
 			$dropStmt = $this->createStatement("\$DB->Query(\"", $source->getDropDdl($this->dbType), "\", true);");
 			$createStmt = $this->createStatement("\$DB->Query(\"", $target->getCreateDdl($this->dbType), "\", true);");
 			$stmt = new Php\Statement;
+			$stmt->dependOn = $source->parent->getLowercasedName();
 			$stmt->merge($dropStmt);
 			$stmt->merge($createStmt);
 			$stmt->addCondition("\$updater->CanUpdateDatabase()");
@@ -409,6 +417,7 @@ class Updater
 
 			$this->conditions[$cond][] = $this->multiLinePhp("\t\t\t\$DB->Query(\"", $ddl, "\", true);\n");
 			$stmt = $this->createStatement("\$DB->Query(\"", $ddl, "\", true);");
+			$stmt->dependOn = $source->parent->getLowercasedName();
 			$stmt->addCondition("\$updater->CanUpdateDatabase()");
 			$stmt->addCondition("\$DB->type == \"".EscapePHPString($this->dbType)."\"");
 			$stmt->addCondition("\$updater->TableExists(\"".EscapePHPString($source->parent->getLowercasedName())."\")");

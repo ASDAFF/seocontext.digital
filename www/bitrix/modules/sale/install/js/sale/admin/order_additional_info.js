@@ -17,7 +17,7 @@ BX.Sale.Admin.OrderAdditionalInfo =
 			responsibleId = BX('RESPONSIBLE_ID').value;
 
 		if(node)
-			node.href = '/bitrix/admin/user_edit.php?lang='+BX.lang+'&ID='+responsibleId;
+			node.href = '/bitrix/admin/user_edit.php?lang='+BX.Sale.Admin.OrderEditPage.languageId+'&ID='+responsibleId;
 
 		var params = {
 			action : 'changeResponsibleUser',

@@ -21,31 +21,62 @@ $arParams["DESKTOP"] = isset($arParams['DESKTOP']) && $arParams['DESKTOP'] == 'Y
 
 $arResult = Array();
 
+if ($arParams['CONTEXT'] == 'DESKTOP' || $arParams['DESKTOP'] == 'Y')
+{
+	$GLOBALS["APPLICATION"]->SetPageProperty("BodyClass", "im-desktop");
+
+	CIMMessenger::SetDesktopStatusOnline();
+	CIMMessenger::SetDesktopVersion(empty($_GET['BXD_API_VERSION'])? 0 : $_GET['BXD_API_VERSION']);
+	$arParams["DESIGN"] = "DESKTOP";
+	$arResult["CONTEXT"] = "DESKTOP";
+}
+else if ($arParams["CONTEXT"] == "FULLSCREEN" || $arParams['FULLSCREEN'] == 'Y')
+{
+	$APPLICATION->SetPageProperty("BodyClass", "bx-im-fullscreen bx-language-".LANGUAGE_ID);
+	if (!isset($arParams["DESIGN"]))
+	{
+		$arParams["DESIGN"] = "DESKTOP";
+	}
+	$arResult["CONTEXT"] = "FULLSCREEN";
+}
+else if ($arParams["CONTEXT"] == "PAGE")
+{
+	$arResult["CONTEXT"] = "PAGE";
+	$arParams["DESIGN"] = "DESKTOP";
+}
+else if ($arParams["CONTEXT"] == "POPUP-FULLSCREEN")
+{
+	$arResult["CONTEXT"] = "POPUP-FULLSCREEN";
+	$arParams["DESIGN"] = "DESKTOP";
+}
+else if ($arParams["CONTEXT"] == "DIALOG")
+{
+	$arResult["CONTEXT"] = "DIALOG";
+	$arParams["DESIGN"] = "DESKTOP";
+}
+else if ($arParams["CONTEXT"] == "LINES")
+{
+	$arResult["CONTEXT"] = "LINES";
+	$arParams["DESIGN"] = "DESKTOP";
+}
+else
+{
+	$arResult["CONTEXT"] = "MESSENGER";
+	$arResult["DESIGN"] = "POPUP";
+}
+
 // Counters
 $arResult["COUNTERS"] = CUserCounter::GetValues($USER->GetID(), SITE_ID);
 
-CIMContactList::SetOnline(null, $arParams['DESKTOP'] == 'N');
+CIMContactList::SetOnline(null, $arResult["CONTEXT"] != "DESKTOP");
 
 $arSettings = CIMSettings::Get();
 $arResult['SETTINGS'] = $arSettings['settings'];
 
-if ($arParams['DESKTOP'] == 'Y')
+if (isset($arParams['DESIGN']))
 {
-	$GLOBALS["APPLICATION"]->SetPageProperty("BodyClass", "im-desktop");
-	CIMMessenger::SetDesktopStatusOnline();
-	CIMMessenger::SetDesktopVersion(empty($_GET['BXD_API_VERSION'])? 0 : $_GET['BXD_API_VERSION']);
-	$arParams["DESIGN"] = 'DESKTOP';
+	$arResult["DESIGN"] = $arParams['DESIGN'];
 }
-else if ($arParams['FULLSCREEN'] == 'Y')
-{
-	$GLOBALS["APPLICATION"]->SetPageProperty("BodyClass", "bx-im-fullscreen bx-language-".LANGUAGE_ID);
-	if (!isset($arParams['DESIGN']))
-	{
-		$arParams["DESIGN"] = 'DESKTOP';
-	}
-}
-
-$arResult["DESIGN"] = isset($arParams['DESIGN']) && $arParams['DESIGN'] == 'DESKTOP'? 'DESKTOP': 'POPUP';
 
 if ($arResult['SETTINGS']['bxdNotify'] && CIMMessenger::CheckInstallDesktop())
 {
@@ -80,19 +111,12 @@ if ($arParams["INIT"] == 'Y')
 if ($arParams["INIT"] == 'Y')
 {
 	$arRecent = Array();
-	$arResult['CHAT'] = Array(
-		'chat' => Array(),
-		'userInChat' => Array(),
-	);
+	$arResult['CHAT'] = Array('chat' => Array(), 'userInChat' => Array(),);
 
 	$arResult['ONLINE_COUNT'] = 0;
 	if ($arParams['RECENT'] == 'Y')
 	{
-		$arRecent = CIMContactList::GetRecentList(Array(
-			'LOAD_LAST_MESSAGE' => 'Y',
-			'USE_TIME_ZONE' => 'N',
-			'USE_SMILES' => 'N'
-		));
+		$arRecent = CIMContactList::GetRecentList(Array('LOAD_LAST_MESSAGE' => 'Y', 'USE_TIME_ZONE' => 'N', 'USE_SMILES' => 'N'));
 		$arResult['RECENT'] = Array();
 
 		$arSmile = CIMMessenger::PrepareSmiles();
@@ -118,10 +142,16 @@ if ($arParams["INIT"] == 'Y')
 			}
 		}
 
-		$arResult['ONLINE_COUNT'] = $onlineCount <= 0? 1: $onlineCount;
+		$arResult['ONLINE_COUNT'] = $onlineCount <= 0 ? 1 : $onlineCount;
 	}
 
-	if ($arParams['DESKTOP'] == 'Y')
+	if ($arResult["CONTEXT"] == "LINES")
+	{
+		$arResult['PATH_TO_IM'] = '/online/im.ajax.php';
+		$arResult['PATH_TO_CALL'] = '/online/call.ajax.php';
+		$arResult['PATH_TO_FILE'] = '/online/file.ajax.php';
+	}
+	if ($arResult["CONTEXT"] == "DESKTOP")
 	{
 		$CIMContactList = new CIMContactList();
 		$arResult['CONTACT_LIST'] = $CIMContactList->GetList();
@@ -206,7 +236,7 @@ if ($arParams["INIT"] == 'Y')
 		foreach ($arChatMessage['woUserInGroup'] as $key => $value)
 			$arResult['MESSAGE']['woUserInGroup'][$key] = $value;
 
-		if ($arParams['DESKTOP'] == 'Y')
+		if ($arResult["CONTEXT"] == "DESKTOP")
 		{
 			foreach ($arChatMessage['chat'] as $key => $value)
 				$arResult['CHAT']['chat'][$key] = $value;
@@ -242,7 +272,7 @@ if ($arParams["INIT"] == 'Y')
 		}
 		else
 		{
-			if ($arParams['DESKTOP'] == 'N')
+			if ($arResult["CONTEXT"] != "DESKTOP")
 			{
 				$arResult['CONTACT_LIST']['users'][$value['USER']['id']] = $value['USER'];
 			}
@@ -313,6 +343,11 @@ if ($arParams["INIT"] == 'Y')
 		$arResult['CONTACT_LIST']['users'][$USER->GetID()] = $arUsers['users'][$USER->GetID()];
 	}
 	$arResult['CURRENT_TAB'] = CIMMessenger::GetCurrentTab();
+	if (isset($arParams['CURRENT_TAB']))
+	{
+		$_GET['IM_DIALOG'] = $arParams['CURRENT_TAB'];
+		$arResult['CURRENT_TAB'] = $arParams['CURRENT_TAB'];
+	}
 }
 else
 {
@@ -321,12 +356,14 @@ else
 $arResult['BOT'] = \Bitrix\Im\Bot::getListForJs();
 $arResult['COMMAND'] = \Bitrix\Im\Command::getListForJs();
 
-$arResult['DESKTOP'] = $arParams['DESKTOP'] == 'Y'? 'true': 'false';
-$arResult["INIT"] = $arParams['INIT'];
+$arResult['INIT'] = $arParams['INIT'];
+$arResult['DESKTOP'] = $arResult["CONTEXT"] == "DESKTOP"? 'true': 'false';
 $arResult['PHONE_ENABLED'] = CIMMessenger::CheckPhoneStatus();
+$arResult['OL_OPERATOR'] = CModule::IncludeModule('imopenlines') && count(\Bitrix\ImOpenLines\Config::getQueueList($USER->GetID())) > 0;
 $arResult['DESKTOP_LINK_OPEN'] = $arParams['DESKTOP_LINK_OPEN'] == 'Y'? 'true': 'false';
 $arResult['PATH_TO_USER_PROFILE_TEMPLATE'] = CIMContactList::GetUserPath();
 $arResult['PATH_TO_USER_PROFILE'] = CIMContactList::GetUserPath($USER->GetId());
+$arResult['PATH_TO_LF'] = IsModuleInstalled('intranet') && \Bitrix\Main\IO\File::isFileExists(\Bitrix\Main\Application::getDocumentRoot().'/stream/index.php')? '/stream/': '/';
 
 $arResult['TURN_SERVER'] = COption::GetOptionString('im', 'turn_server');
 $arResult['TURN_SERVER_FIREFOX'] = COption::GetOptionString('im', 'turn_server_firefox');
@@ -335,12 +372,13 @@ $arResult['TURN_SERVER_PASSWORD'] = COption::GetOptionString('im', 'turn_server_
 
 CIMMessenger::InitCounters($USER->GetID());
 
-$jsInit = array('im');
-if (defined('LANGUAGE_ID') && LANGUAGE_ID == 'ru')
-{
-	$jsInit[] = 'translit';
-}
-CJSCore::Init($jsInit);
+$initJs = 'im_web';
+if ($arResult["CONTEXT"] == 'DESKTOP')
+	$initJs = 'im_desktop';
+else if ($arResult["DESIGN"] == 'DESKTOP')
+	$initJs = 'im_page';
+
+CJSCore::Init($initJs);
 
 if (!(isset($arParams['TEMPLATE_HIDE']) && $arParams['TEMPLATE_HIDE'] == 'Y'))
 	$this->IncludeComponentTemplate();

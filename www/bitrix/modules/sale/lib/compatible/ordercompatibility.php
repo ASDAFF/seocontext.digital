@@ -158,6 +158,11 @@ class OrderCompatibility
 
 		unset($orderFields['TAX_PRICE']);
 
+		if (array_key_exists('STATUS_ID', $orderFields) && $order->getId() > 0)
+		{
+			$order->setField('STATUS_ID', $orderFields['STATUS_ID']);
+			unset($orderFields['STATUS_ID']);
+		}
 
 		$order->setFieldsNoDemand($orderFields);
 
@@ -219,13 +224,29 @@ class OrderCompatibility
 
 		if (isset($fields['MARKED']))
 		{
-			if ($order->getId() > 0 && $order->getField('MARKED') != $fields['MARKED'])
+			if ($order->getId() > 0)
 			{
-				/** @var Sale\Result $r */
-				$r = $order->setField('MARKED', $fields['MARKED']);
-				if (!$r->isSuccess())
+				if ($fields['MARKED'] == 'Y')
 				{
-					$result->addErrors($r->getErrors());
+					$reasonMarked = '';
+					if (!empty($fields['REASON_MARKED']))
+					{
+						$reasonMarked = trim($fields['REASON_MARKED']);
+					}
+
+					$r = new Sale\Result();
+					$r->addError(new Sale\ResultWarning($reasonMarked, 'SALE_ORDER_MARKER_ERROR'));
+					Sale\EntityMarker::addMarker($order, $order, $r);
+				}
+
+				if ($order->getField('MARKED') != $fields['MARKED'])
+				{
+					/** @var Sale\Result $r */
+					$r = $order->setField('MARKED', $fields['MARKED']);
+					if (!$r->isSuccess())
+					{
+						$result->addErrors($r->getErrors());
+					}
 				}
 			}
 		}
@@ -1235,6 +1256,10 @@ class OrderCompatibility
 			if ($order = $this->getOrder())
 			{
 				$order->refreshVat();
+				if ($tax = $order->getTax())
+				{
+					$tax->resetTaxList();
+				}
 			}
 		}
 
@@ -1881,17 +1906,10 @@ class OrderCompatibility
 				$r = $shipment->tryReserve();
 				if (!$r->isSuccess())
 				{
-					$shipment->setField('MARKED', 'Y');
-
-					if (is_array($r->getErrorMessages()))
+					Sale\EntityMarker::addMarker($order, $shipment, $r);
+					if (!$shipment->isSystem())
 					{
-						$oldErrorText = $shipment->getField('REASON_MARKED');
-						foreach($r->getErrorMessages() as $error)
-						{
-							$oldErrorText .= (strval($oldErrorText) != '' ? "\n" : ""). $error;
-						}
-
-						$shipment->setField('REASON_MARKED', $oldErrorText);
+						$shipment->setField('MARKED', 'Y');
 					}
 
 					$result->addErrors($r->getErrors());
@@ -1905,6 +1923,11 @@ class OrderCompatibility
 					$r = $shipment->tryUnreserve();
 					if (!$r->isSuccess())
 					{
+						Sale\EntityMarker::addMarker($order, $shipment, $r);
+						if (!$shipment->isSystem())
+						{
+							$shipment->setField('MARKED', 'Y');
+						}
 						$result->addErrors($r->getErrors());
 					}
 				}
@@ -2632,6 +2655,9 @@ class OrderCompatibility
 			'BASKET_CURRENCY' => 'BASKET.CURRENCY',
 			'BASKET_VAT_RATE' => 'BASKET.VAT_RATE',
 			'BASKET_RECOMMENDATION' => 'BASKET.RECOMMENDATION',
+            'BASKET_DISCOUNT_PRICE' => 'BASKET.DISCOUNT_PRICE',
+            'BASKET_DISCOUNT_NAME' => 'BASKET.DISCOUNT_NAME',
+            'BASKET_DISCOUNT_VALUE' => 'BASKET.DISCOUNT_VALUE',
 		);
 	}
 
@@ -2715,9 +2741,12 @@ class OrderCompatibility
 			'STATUS_ID',
 			'ACCOUNT_NUMBER',
 			'DATE_INSERT',
+			'MARKED',
+			'EMP_MARKED_ID',
 			'DATE_MARKED',
 			'REASON_MARKED',
 			'DATE_CANCELED',
+			'EMP_CANCELED_ID',
 		);
 	}
 
@@ -2728,7 +2757,11 @@ class OrderCompatibility
 	protected static function getPaymentClearFields()
 	{
 		return array(
-			'ACCOUNT_NUMBER'
+			'ACCOUNT_NUMBER',
+			'MARKED',
+			'EMP_MARKED_ID',
+			'DATE_MARKED',
+			'REASON_MARKED',
 		);
 	}
 	

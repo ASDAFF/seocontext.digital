@@ -231,7 +231,7 @@ class CIMStatus
 				$enable = self::Enable();
 
 				$query = new \Bitrix\Main\Entity\Query(\Bitrix\Main\UserTable::getEntity());
-				$query->registerRuntimeField('', new \Bitrix\Main\Entity\ReferenceField('ref', 'Bitrix\Im\StatusTable', array('=this.ID' => 'ref.USER_ID')));
+				$query->registerRuntimeField('', new \Bitrix\Main\Entity\ReferenceField('ref', 'Bitrix\Im\Model\StatusTable', array('=this.ID' => 'ref.USER_ID')));
 				$query->addSelect('ID')->addSelect('ref.COLOR', 'COLOR')->addSelect('PERSONAL_GENDER');
 				if ($enable)
 				{

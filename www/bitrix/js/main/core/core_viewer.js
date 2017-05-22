@@ -253,7 +253,7 @@ BX.CViewCoreElement.prototype.runAction = function(action, params){
 				//first run. We have to show setting window.
 				if(!BX.message('disk_document_service'))
 				{
-					params.obElementViewer.openWindowForSelectDocumentService({viewInUf: !!BX.message('disk_render_uf')});
+					params.obElementViewer.openWindowForSelectDocumentService({viewInUf: !!BX.message.disk_render_uf});
 					return;
 				}
 			}
@@ -281,7 +281,7 @@ BX.CViewCoreElement.prototype.localEditProcess = function(obElementViewer, param
 	{
 		if(!this.isFromUserLib && editUrl)
 		{
-			if (editUrl.indexOf(window.location.hostname) === -1) {
+			if (editUrl.indexOf('/') === 0) {
 				window.location.origin = window.location.origin || (window.location.protocol + "//" + window.location.hostname + (window.location.port ? ':' + window.location.port: ''));
 				editUrl = window.location.origin + editUrl;
 			}
@@ -293,6 +293,7 @@ BX.CViewCoreElement.prototype.localEditProcess = function(obElementViewer, param
 			}
 			else
 			{
+				editUrl = BX.util.remove_url_param(editUrl, 'filename');
 				BX.CViewer.goToBx('bx://editFile'
 					+ '/externalId/' + (this.externalId? encodeURIComponent(this.externalId) : '0')
 					+ '/objectId/' + (this.objectId? encodeURIComponent(this.objectId) : '0')
@@ -318,12 +319,13 @@ BX.CViewCoreElement.prototype.localViewProcess = function(obElementViewer)
 	{
 		if(!this.isFromUserLib && downloadUrl)
 		{
-			if (downloadUrl.indexOf(window.location.hostname) === -1) {
+			if (downloadUrl.indexOf('/') === 0) {
 				window.location.origin = window.location.origin || (window.location.protocol + "//" + window.location.hostname + (window.location.port ? ':' + window.location.port: ''));
 				downloadUrl = window.location.origin + downloadUrl;
 			}
 			//editUrl = this.addToLinkParam(editUrl, 'action', 'start');
 			downloadUrl = CViewerUrlHelper.getUrlEditFile(downloadUrl, 'l');
+			downloadUrl = BX.util.remove_url_param(downloadUrl, 'filename');
 			BX.CViewer.goToBx('bx://viewFile'
 				+ '/externalId/' + (this.externalId? encodeURIComponent(this.externalId) : '0')
 				+ '/objectId/' + (this.objectId? encodeURIComponent(this.objectId) : '0')
@@ -430,6 +432,13 @@ BX.CViewCoreElement.prototype.getComplexEditButton = function(selfViewer, params
 							}, this)},
 							(BX.CViewer.enableInVersionDisk(6)? {text: BX.message('JS_CORE_VIEWER_EDIT_IN_SERVICE').replace('#SERVICE#', this.getNameEditService('office365')), className: "bx-viewer-popup-item item-office365", href: "#", onclick: BX.delegate(function (e) {
 								this.setEditService('office365');
+								BX.fireEvent(BX('bx-viewer-edit-btn'), 'click');
+								this.closeMenu();
+
+								return BX.PreventDefault(e);
+							}, this)} : null),
+							(BX.message('DISK_MYOFFICE')? {text: BX.message('JS_CORE_VIEWER_EDIT_IN_SERVICE').replace('#SERVICE#', this.getNameEditService('myoffice')), className: "bx-viewer-popup-item item-myoffice", href: "#", onclick: BX.delegate(function (e) {
+								this.setEditService('myoffice');
 								BX.fireEvent(BX('bx-viewer-edit-btn'), 'click');
 								this.closeMenu();
 
@@ -552,7 +561,7 @@ BX.CViewCoreElement.prototype.getComplexSaveButton = function(selfViewer, params
 				{
 					var ele = event.srcElement || event.target;
 					selfViewer.openMenu('bx-viewer-popup-down', BX(ele), [
-						(BX.CViewer.isDisabledLocalEdit? null :
+						((BX.CViewer.isDisabledLocalEdit || !BX.message.disk_revision_api)? null :
 							{text: BX.message('JS_CORE_VIEWER_SAVE_TO_OWN_FILES'), className: "bx-viewer-popup-item item-b24", href: '#', onclick: BX.delegate(function(e){
 								var link = this.addToLinkParam(BX.CViewer.enableInVersionDisk(2)? downloadUrl : this.src, 'saveToDisk', 1);
 								link = this.addToLinkParam(link, 'toWDController', 1);
@@ -887,6 +896,7 @@ BX.CViewEditableElement = function(params)
 	this.idToPost = params.idToPost || '';
 	this.isNowConverted = false;
 	this.version = parseInt(params.version) || 0;
+	this.dateModify = params.dateModify;
 	this.currentModalWindow = params.currentModalWindow || false;
 }
 
@@ -963,7 +973,7 @@ BX.CViewEditableElement.prototype.runAction = function(action, params){
 				//first run. We have to show setting window.
 				if(!BX.message('disk_document_service'))
 				{
-					params.obElementViewer.openWindowForSelectDocumentService({viewInUf: !!BX.message('disk_render_uf')});
+					params.obElementViewer.openWindowForSelectDocumentService({viewInUf: !!BX.message.disk_render_uf});
 					return;
 				}
 			}
@@ -1400,6 +1410,16 @@ BX.CViewEditableElement.prototype.commitFile = function(parameters)
 			this.src = BX.CViewer._convertElementsMatch[this.src].src;
 			this.isNowConverted = true;
 		}
+
+		if(this.title.split('.').pop() == 'xodt' && BX.message.disk_document_service === 'myoffice')
+		{
+			this.dateModify = BX.date.format(
+				BX.date.convertBitrixFormat(BX.message('FORMAT_DATETIME')),
+				new Date(),
+				null
+			);
+		}
+
 		if(BX.type.isFunction(parameters.success))
 		{
 			parameters.success(this, result);
@@ -2418,13 +2438,13 @@ BX.CViewErrorIframeElement.prototype.load = function(successLoadCallback)
 									},
 									text: this.title
 								})),
-								(BX.create('div', {
+								(!this.disableGoogleViewer? BX.create('div', {
 									props: {
 										className: 'bx-viewer-too-big-title'
 									},
 									text: BX.message('JS_CORE_VIEWER_IFRAME_DESCR_ERROR')
-								})),
-								(BX.create('a', {
+								}) : null),
+								(!this.disableGoogleViewer? BX.create('a', {
 									props: {
 										className: 'bx-viewer-btn',
 										target: '_blank',
@@ -2434,7 +2454,25 @@ BX.CViewErrorIframeElement.prototype.load = function(successLoadCallback)
 										click: BX.eventCancelBubble
 									},
 									text: BX.message('JS_CORE_VIEWER_OPEN_WITH_GVIEWER')
-								}))
+								}) : null),
+								(this.disableGoogleViewer? BX.create('div', {
+									props: {
+										className: 'bx-viewer-cap-text'
+									},
+									html:'<span class="bx-viewer-cap-text-title">' + BX.message('JS_CORE_VIEWER_DESCR_LAST_MODIFY') + ': </span> ' + BX.util.htmlspecialchars(this.dateModify) + '<br/>' + (this.size || '')
+								}) : null),
+								(this.disableGoogleViewer? BX.create('span', {
+									props: {
+										className: 'bx-viewer-btn'
+									},
+									events: {
+										click: BX.delegate(function(e){
+											document.location.href = this.downloadUrl;
+											return false;
+										}, this)
+									},
+									text: BX.message('JS_CORE_VIEWER_DOWNLOAD')
+								}) : null)
 							]
 						}))
 					]
@@ -2600,9 +2638,13 @@ BX.CViewUnknownElement.prototype.show = function()
 BX.CViewUnknownElement.prototype.hide = function(isCloseElement)
 {
 	isCloseElement = isCloseElement || false;
-	this.domElement.style.opacity = 0;
-	this.titleButtons.style.display = 'none';
-	//this.domElement.style.display = 'none';
+	if(this.loaded)
+	{
+		this.domElement.style.opacity = 0;
+		this.titleButtons.style.display = 'none';
+		//this.domElement.style.display = 'none';
+	}
+
 	this.preventTimeout();
 	this.loaded = false;
 	this.preventShow = false;
@@ -2788,7 +2830,7 @@ BX.CViewer.enableInVersionDesktop = function(version)
 
 BX.CViewer.enableInVersionDisk = function(version)
 {
-	var revisionApi = BX.message('disk_revision_api');
+	var revisionApi = BX.message.disk_revision_api;
 	if(!revisionApi)
 	{
 		revisionApi = 0;
@@ -3609,7 +3651,10 @@ BX.CViewer.prototype._hide = function()
 
 BX.CViewer.prototype.add = function(data)
 {
-	this.list.push(data);
+	if (!BX.util.in_array(data.src, this.list.map(function(ob) {return ob.src})))
+	{
+		this.list.push(data);
+	}
 };
 
 BX.CViewer.prototype.setList = function(list)
@@ -3700,7 +3745,7 @@ BX.CViewer.prototype.show = function(element, force)
 		//first run. We have to show setting window.
 		if(!BX.message('disk_document_service'))
 		{
-			this.openWindowForSelectDocumentService({viewInUf: !!BX.message('disk_render_uf')});
+			this.openWindowForSelectDocumentService({viewInUf: !!BX.message.disk_render_uf});
 			this.close();
 			return;
 		}
@@ -3804,6 +3849,13 @@ BX.CViewer.prototype.show = function(element, force)
 	this._unhide();
 
 	BX.onCustomEvent(this, 'onElementViewShow', [currentElement]);
+
+	if (BX.type.isDomNode(document.activeElement))
+	{
+		document.activeElement.blur();
+	}
+
+	BX.focus(window);
 };
 
 BX.CViewer.prototype.showLoading = function(params)
@@ -4153,6 +4205,8 @@ BX.CViewer.prototype.getNameEditService = function(service)
 			return BX.message('JS_CORE_VIEWER_SERVICE_SKYDRIVE');
 		case 'office365':
 			return BX.message('JS_CORE_VIEWER_SERVICE_OFFICE365');
+		case 'myoffice':
+			return BX.message('JS_CORE_VIEWER_SERVICE_MYOFFICE');
 		case 'l':
 		case 'local':
 			return BX.message('JS_CORE_VIEWER_SERVICE_LOCAL');
@@ -4316,6 +4370,15 @@ BX.CViewer.prototype.createElementByType = function(element, params)
 {
 	var type = element.getAttribute('data-bx-viewer');
 	params = params || {};
+
+	if(element.getAttribute('data-bx-title').split('.').pop() == 'xodt')
+	{
+		var elementIframte = this.createErrorIframeElementFromEditable(this.createIframeElement(element, params));
+		elementIframte.disableGoogleViewer = true;
+
+		return elementIframte;
+	}
+
 	switch(type)
 	{
 		case 'onlyedit':
@@ -4427,6 +4490,7 @@ BX.CViewer.prototype.createIframeElement = function(element, params)
 	var iframeElement = new BX.CViewIframeElement({
 		baseElementId: element.getAttribute('data-bx-baseElementId'),
 		title: element.getAttribute('data-bx-title'),
+		dateModify: element.getAttribute('data-bx-dateModify'),
 
 		isFromUserLib: !!element.getAttribute('data-bx-isFromUserLib'),
 		externalId: element.getAttribute('data-bx-externalId'),
@@ -4489,6 +4553,9 @@ var CViewerUrlHelper = {
 				break;
 			case 'office365':
 				service = 'office365';
+				break;
+			case 'myoffice':
+				service = 'myoffice';
 				break;
 			case 'l':
 			case 'local':

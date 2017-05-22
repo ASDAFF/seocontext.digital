@@ -247,4 +247,21 @@ abstract class EntityCollection
 	{
 		return $this->isClone;
 	}
+
+	/**
+	 * @internal
+	 */
+	public function clearChanged()
+	{
+		if (!empty($this->collection))
+		{
+			foreach ($this->collection as $entityItem)
+			{
+				if ($entityItem instanceof Entity)
+				{
+					$entityItem->clearChanged();
+				}
+			}
+		}
+	}
 }

@@ -123,4 +123,6 @@ $MESS["BT_MOD_COND_ERR_CHECK_DATA_LIST_ABSENT"] = "Selected value is not in the 
 $MESS["BT_MOD_COND_ERR_CONTROL_DOUBLE"] = "Handler duplication for condition ID #CONTROL#.";
 $MESS["BT_MOD_COND_ERR_CONTROLS_EMPTY"] = "There are no condition handlers.";
 $MESS["BT_MOD_COND_ERR_SHOW_DATA_UNSERIALIZE"] = "Incorrect condition format";
+$MESS["BT_MOD_COND_ERR_CHECK_DATA_ENUM_VALUE_ABSENT_MULTI"] = "The selected property values do not exist.";
+$MESS["BT_MOD_COND_ERR_CHECK_DATA_ENUM_VALUE_ABSENT"] = "The selected property value does not exist.";
 ?>

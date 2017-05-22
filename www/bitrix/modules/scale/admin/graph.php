@@ -72,7 +72,7 @@ if(\Bitrix\Scale\Helper::checkBxEnvVersion())
 				<td width="0%" nowrap>
 					<select id="SERVER_HOSTNAME" name="SERVER_HOSTNAME" onchange="changeGraphCategories();">
 						<?foreach($serversList as $hostName => $data):?>
-							<option value="<?=$hostName?>"<?=($hostName == $serverHostname ? " selected" : "")?>><?=$hostName?></option>
+							<option value="<?=htmlspecialcharsbx($hostName)?>"<?=($hostName == $serverHostname ? " selected" : "")?>><?=htmlspecialcharsbx($hostName)?></option>
 						<?endforeach;?>
 					</select>
 				</td>
@@ -82,7 +82,7 @@ if(\Bitrix\Scale\Helper::checkBxEnvVersion())
 				<td width="0%" nowrap>
 					<select id="GRAPH_CATEGORY" name="GRAPH_CATEGORY">
 						<?foreach($graphCategories[$serverHostname] as $categoryId => $category):?>
-							<option value="<?=$categoryId?>"<?=($categoryId == $monitoringCategoryId ? " selected" : "")?>><?=$category?></option>
+							<option value="<?=htmlspecialcharsbx($categoryId)?>"<?=($categoryId == $monitoringCategoryId ? " selected" : "")?>><?=htmlspecialcharsbx($category)?></option>
 						<?endforeach;?>
 					</select>
 				</td>
@@ -113,7 +113,7 @@ if(\Bitrix\Scale\Helper::checkBxEnvVersion())
 						<div class="bx-scale-graph-category"><?=$graphs[$monitoringCategoryId]["NAME"]?></div>
 						<?if( isset($graphs[$monitoringCategoryId]["ITEMS"]) && is_array($graphs[$monitoringCategoryId]["ITEMS"])): ?>
 							<?foreach($graphs[$monitoringCategoryId]["ITEMS"] as $param):?>
-								<div><img class="adm-scale-graph-img" src="scale_image.php?SERVER=<?=$serverHostname?>&PARAM=<?=$param?>&PERIOD=<?=$period?>"></div>
+								<div><img class="adm-scale-graph-img" src="scale_image.php?SERVER=<?=htmlspecialcharsbx($serverHostname)?>&PARAM=<?=$param?>&PERIOD=<?=$period?>"></div>
 							<?endforeach;?>
 						<?endif;?>
 					</div>

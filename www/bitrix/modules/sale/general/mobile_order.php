@@ -939,13 +939,12 @@ class CSaleMobileOrderPush
 	public static function getSubscribers($eventId, $arParams)
 	{
 		$arResult = array();
-
 		$arSubscriptions = self::getData();
 
 		if(is_array($arSubscriptions))
 			foreach ($arSubscriptions as $subsId => $arSubscription)
 				if(
-					$arSubscription["E"] == self::$arEvents[$eventId]
+					$arSubscription["E"] == array_search($eventId, self::$arEvents)
 					&&
 					$arSubscription["V"] == "Y"
 					)

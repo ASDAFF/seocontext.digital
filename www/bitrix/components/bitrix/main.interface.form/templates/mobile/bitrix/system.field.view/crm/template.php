@@ -10,7 +10,7 @@ if (!empty($arResult["VALUE"]))
 		$r = array();
 		foreach($arEntity as $entityId => $entity)
 		{
-			$r[] = '<a href="' . $entity['url'] . '" onclick="if(window[\'BXMobileApp\']){BXMobileApp.PageManager.loadPageUnique({url:this.href,bx24ModernStyle:false});return BX.PreventDefault(event);}">' . htmlspecialcharsbx($entity['title']) . '</a>';
+			$r[] = '<a href="' . $entity['url'] . '" onclick="if(window[\'BXMobileApp\']){BXMobileApp.PageManager.loadPageUnique({url:this.href,bx24ModernStyle:true});return BX.PreventDefault(event);}">' . htmlspecialcharsbx($entity['title']) . '</a>';
 		}
 		if (!empty($r))
 		{

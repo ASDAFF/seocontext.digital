@@ -156,4 +156,5 @@ $MESS["CAT_PRODUCT_SETTINGS_CHANGE"] = "Change";
 $MESS["CAT_PRODUCT_SUBSCRIBE_TITLE"] = "Product subscriptions";
 $MESS["CAT_PRODUCT_SUBSCRIBE_LABLE_ENABLE"] = "Enable product subscription";
 $MESS["CAT_PRODUCT_SUBSCRIBE_LABLE_REPEATED_NOTIFY"] = "Send another message when product is sold out again";
+$MESS["CAT_ENABLE_SHOW_CATALOG_TAB_WITH_OFFERS"] = "This is a legacy option. Checking it will disable automatic calculation of SKU based product stock. Instead, product in-stock status will be calculated based on the product data.";
 ?>

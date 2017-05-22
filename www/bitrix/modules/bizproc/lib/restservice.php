@@ -29,12 +29,23 @@ class RestService extends \IRestService
 
 	public static function onRestServiceBuildDescription()
 	{
+		if (!\CBPRuntime::isFeatureEnabled())
+			return false;
+
 		return array(
 			static::SCOPE => array(
 				'bizproc.activity.add' => array(__CLASS__, 'addActivity'),
 				'bizproc.activity.delete' => array(__CLASS__, 'deleteActivity'),
 				'bizproc.activity.log' => array(__CLASS__, 'writeActivityLog'),
 				'bizproc.activity.list' => array(__CLASS__, 'getActivityList'),
+
+				'bizproc.robot.add' => array(__CLASS__, 'addRobot'),
+				'bizproc.robot.delete' => array(__CLASS__, 'deleteRobot'),
+				'bizproc.robot.list' => array(__CLASS__, 'getRobotList'),
+
+				'bizproc.provider.add' => array(__CLASS__, 'addProvider'),
+				'bizproc.provider.delete' => array(__CLASS__, 'deleteProvider'),
+				'bizproc.provider.list' => array(__CLASS__, 'getProviderList'),
 				
 				'bizproc.event.send' => array(__CLASS__, 'sendEvent'),
 				
@@ -74,6 +85,16 @@ class RestService extends \IRestService
 		{
 			RestActivityTable::delete($activity['ID']);
 		}
+
+		$iterator = RestProviderTable::getList(array(
+			'select' => array('ID'),
+			'filter' => array('=APP_ID' => $app['CLIENT_ID'])
+		));
+
+		while ($activity = $iterator->fetch())
+		{
+			RestProviderTable::delete($activity['ID']);
+		}
 	}
 
 	/**
@@ -95,9 +116,35 @@ class RestService extends \IRestService
 	 */
 	public static function addActivity($params, $n, $server)
 	{
+		return self::addActivityInternal($params, $server, false);
+	}
+
+	/**
+	 * @param array $params Input params.
+	 * @param int $n Offset.
+	 * @param \CRestServer $server Rest server instance.
+	 * @return bool
+	 * @throws \Exception
+	 */
+	public static function addRobot($params, $n, $server)
+	{
+		return self::addActivityInternal($params, $server, true);
+	}
+
+	private static function addActivityInternal($params, $server, $isRobot = false)
+	{
+		if(!$server->getAppId())
+		{
+			throw new AccessException("Application context required");
+		}
+
 		self::checkAdminPermissions();
 		$params = self::prepareActivityData($params);
-		self::validateActivity($params, $server);
+
+		if ($isRobot)
+			self::validateRobot($params, $server);
+		else
+			self::validateActivity($params, $server);
 
 		$params['APP_ID'] = $server->getAppId();
 		$params['INTERNAL_CODE'] = self::generateInternalCode($params);
@@ -110,10 +157,14 @@ class RestService extends \IRestService
 		$result = $iterator->fetch();
 		if ($result)
 		{
-			throw new RestException('Activity already installed!', self::ERROR_ACTIVITY_ALREADY_INSTALLED);
+			throw new RestException('Activity or Robot already installed!', self::ERROR_ACTIVITY_ALREADY_INSTALLED);
 		}
 
 		$params['AUTH_USER_ID'] = isset($params['AUTH_USER_ID'])? (int) $params['AUTH_USER_ID'] : 0;
+		$params['IS_ROBOT'] = $isRobot ? 'Y' : 'N';
+
+		if ($isRobot)
+			$params['USE_SUBSCRIPTION'] = 'N';
 
 		$result = RestActivityTable::add($params);
 
@@ -132,6 +183,28 @@ class RestService extends \IRestService
 	 */
 	public static function deleteActivity($params, $n, $server)
 	{
+		return self::deleteActivityInternal($params, $server, false);
+	}
+
+	/**
+	 * @param array $params Input params.
+	 * @param int $n Offset.
+	 * @param \CRestServer $server Rest server instance.
+	 * @return bool
+	 * @throws \Exception
+	 */
+	public static function deleteRobot($params, $n, $server)
+	{
+		return self::deleteActivityInternal($params, $server, true);
+	}
+
+	private static function deleteActivityInternal($params, $server, $isRobot = false)
+	{
+		if(!$server->getAppId())
+		{
+			throw new AccessException("Application context required");
+		}
+
 		$params = array_change_key_case($params, CASE_UPPER);
 		self::checkAdminPermissions();
 		self::validateActivityCode($params['CODE']);
@@ -140,14 +213,18 @@ class RestService extends \IRestService
 
 		$iterator = RestActivityTable::getList(array(
 			'select' => array('ID'),
-			'filter' => array('=INTERNAL_CODE' => $internalCode)
+			'filter' => array(
+				'=INTERNAL_CODE' => $internalCode,
+				'=IS_ROBOT' => $isRobot ? 'Y' : 'N'
+			)
 		));
 		$result = $iterator->fetch();
 		if (!$result)
 		{
-			throw new RestException('Activity not found!', self::ERROR_ACTIVITY_NOT_FOUND);
+			throw new RestException('Activity or Robot not found!', self::ERROR_ACTIVITY_NOT_FOUND);
 		}
 		RestActivityTable::delete($result['ID']);
+
 		return true;
 	}
 
@@ -218,10 +295,36 @@ class RestService extends \IRestService
 	 */
 	public static function getActivityList($params, $n, $server)
 	{
+		return self::getActivityListInternal($params, $server, false);
+	}
+
+	/**
+	 * @param array $params Input params.
+	 * @param int $n Offset.
+	 * @param \CRestServer $server Rest server instance.
+	 * @return array
+	 * @throws AccessException
+	 * @throws \Bitrix\Main\ArgumentException
+	 */
+	public static function getRobotList($params, $n, $server)
+	{
+		return self::getActivityListInternal($params, $server, true);
+	}
+
+	private static function getActivityListInternal($params, $server, $isRobot = false)
+	{
+		if(!$server->getAppId())
+		{
+			throw new AccessException("Application context required");
+		}
+
 		self::checkAdminPermissions();
 		$iterator = RestActivityTable::getList(array(
 			'select' => array('CODE'),
-			'filter' => array('=APP_ID' => $server->getAppId())
+			'filter' => array(
+				'=APP_ID' => $server->getAppId(),
+				'=IS_ROBOT' => $isRobot ? 'Y' : 'N'
+			)
 		));
 
 		$result = array();
@@ -353,6 +456,116 @@ class RestService extends \IRestService
 			$result[] = $row;
 		}
 
+		return $result;
+	}
+
+	/**
+	 * @param array $params Input params.
+	 * @param int $n Offset.
+	 * @param \CRestServer $server Rest server instance.
+	 * @return bool
+	 * @throws \Exception
+	 */
+	public static function addProvider($params, $n, $server)
+	{
+		if(!$server->getClientId())
+		{
+			throw new AccessException("Application context required");
+		}
+
+		self::checkAdminPermissions();
+		$params = self::prepareActivityData($params);
+
+		self::validateProvider($params, $server);
+
+		$params['APP_ID'] = $server->getClientId();
+		$params['APP_NAME'] = self::getAppName($params['APP_ID']);
+
+		$iterator = RestProviderTable::getList(array(
+			'select' => array('ID'),
+			'filter' => array(
+				'=APP_ID' => $params['APP_ID'],
+				'=CODE' => $params['CODE']
+			)
+		));
+		$result = $iterator->fetch();
+		if ($result)
+		{
+			throw new RestException('Provider already installed!', self::ERROR_ACTIVITY_ALREADY_INSTALLED);
+		}
+
+		$result = RestProviderTable::add($params);
+
+		if ($result->getErrors())
+			throw new RestException('Activity save error!', self::ERROR_ACTIVITY_ADD_FAILURE);
+
+		return true;
+	}
+
+	/**
+	 * @param array $params Input params.
+	 * @param int $n Offset.
+	 * @param \CRestServer $server Rest server instance.
+	 * @return bool
+	 * @throws \Exception
+	 */
+	public static function deleteProvider($params, $n, $server)
+	{
+		if(!$server->getClientId())
+		{
+			throw new AccessException("Application context required");
+		}
+
+		$params = array_change_key_case($params, CASE_UPPER);
+		self::checkAdminPermissions();
+		self::validateActivityCode($params['CODE']);
+		$params['APP_ID'] = $server->getClientId();
+
+		$iterator = RestProviderTable::getList(array(
+			'select' => array('ID'),
+			'filter' => array(
+				'=APP_ID' => $params['APP_ID'],
+				'=CODE' => $params['CODE']
+			)
+		));
+		$result = $iterator->fetch();
+		if (!$result)
+		{
+			throw new RestException('Provider not found!', self::ERROR_ACTIVITY_NOT_FOUND);
+		}
+		RestProviderTable::delete($result['ID']);
+
+		return true;
+	}
+
+	/**
+	 * @param array $params Input params.
+	 * @param int $n Offset.
+	 * @param \CRestServer $server Rest server instance.
+	 * @return array
+	 * @throws AccessException
+	 * @throws \Bitrix\Main\ArgumentException
+	 */
+	public static function getProviderList($params, $n, $server)
+	{
+		if(!$server->getClientId())
+		{
+			throw new AccessException("Application context required");
+		}
+
+		self::checkAdminPermissions();
+		$iterator = RestProviderTable::getList(array(
+			'select' => array('CODE'),
+			'filter' => array(
+				'=APP_ID' => $server->getClientId()
+			)
+		));
+
+		$result = array();
+		while ($row = $iterator->fetch())
+		{
+			$result[] = $row['CODE'];
+		}
 		return $result;
 	}
 
@@ -495,6 +708,44 @@ class RestService extends \IRestService
 			throw new RestException('Wrong activity FILTER!', self::ERROR_ACTIVITY_VALIDATION_FAILURE);
 	}
 
+	private static function validateProvider($data, $server)
+	{
+		if (!is_array($data) || empty($data))
+			throw new RestException('Empty data!', self::ERROR_ACTIVITY_VALIDATION_FAILURE);
+
+		static::validateActivityCode($data['CODE']);
+		static::validateActivityHandler($data['HANDLER'], $server);
+		if (empty($data['NAME']))
+			throw new RestException('Empty provider NAME!', self::ERROR_ACTIVITY_VALIDATION_FAILURE);
+
+		if (empty($data['TYPE']))
+			throw new RestException('Empty provider TYPE!', self::ERROR_ACTIVITY_VALIDATION_FAILURE);
+
+		if (!in_array($data['TYPE'], RestProviderTable::getTypesList(), true))
+			throw new RestException('Unknown provider TYPE!', self::ERROR_ACTIVITY_VALIDATION_FAILURE);
+	}
+
+	private static function validateRobot($data, $server)
+	{
+		if (!is_array($data) || empty($data))
+			throw new RestException('Empty data!', self::ERROR_ACTIVITY_VALIDATION_FAILURE);
+
+		static::validateActivityCode($data['CODE']);
+		static::validateActivityHandler($data['HANDLER'], $server);
+		if (empty($data['NAME']))
+			throw new RestException('Empty activity NAME!', self::ERROR_ACTIVITY_VALIDATION_FAILURE);
+
+		if (isset($data['PROPERTIES']))
+			static::validateActivityProperties($data['PROPERTIES'], true);
+
+		if (isset($data['RETURN_PROPERTIES']))
+			throw new RestException('Return properties is not supported in Robots!', self::ERROR_ACTIVITY_VALIDATION_FAILURE);
+		if (isset($data['USE_SUBSCRIPTION']) && $data['USE_SUBSCRIPTION'] !== 'N')
+			throw new RestException('USE_SUBSCRIPTION is not supported in Robots!', self::ERROR_ACTIVITY_VALIDATION_FAILURE);
+		if (isset($data['FILTER']) && !is_array($data['FILTER']))
+			throw new RestException('Wrong activity FILTER!', self::ERROR_ACTIVITY_VALIDATION_FAILURE);
+	}
+
 	private static function validateActivityCode($code)
 	{
 		if (empty($code))
@@ -557,16 +808,36 @@ class RestService extends \IRestService
 		}
 	}
 
-	private static function validateActivityProperties($properties)
+	private static function validateActivityProperties($properties, $isRobot = false)
 	{
 		if (!is_array($properties))
 			throw new RestException('Wrong properties array!', self::ERROR_ACTIVITY_VALIDATION_FAILURE);
+
+		$map = 	array(
+			FieldType::BOOL => true,
+			FieldType::DATE => true,
+			FieldType::DATETIME => true,
+			FieldType::DOUBLE => true,
+			FieldType::INT => true,
+			FieldType::SELECT => true,
+			FieldType::STRING => true,
+			FieldType::TEXT => true,
+			FieldType::USER => true,
+		);
+
 		foreach ($properties as $key => $property)
 		{
 			if (!preg_match('#^[a-z][a-z0-9_]*$#i', $key))
 				throw new RestException('Wrong property key ('.$key.')!', self::ERROR_ACTIVITY_VALIDATION_FAILURE);
 			if (empty($property['NAME']))
 				throw new RestException('Empty property NAME ('.$key.')!', self::ERROR_ACTIVITY_VALIDATION_FAILURE);
+
+			if ($isRobot)
+			{
+				$type = isset($property['TYPE']) ? $property['TYPE'] : FieldType::STRING;
+				if (!array_key_exists($type, $map))
+					throw new RestException('Unsupported property type ('.$type.')!', self::ERROR_ACTIVITY_VALIDATION_FAILURE);
+			}
 		}
 	}
 

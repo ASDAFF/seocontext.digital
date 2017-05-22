@@ -68,7 +68,7 @@ $arResult["OUTPUT_LIST"] = $APPLICATION->IncludeComponent(
 			"MODERATE" => ($arResult["Perm"] >= BLOG_PERMS_MODERATE ? "Y" : "N"),
 			"EDIT" => $rights,
 			"DELETE" => $rights,
-			"CREATETASK" => (IsModuleInstalled("tasks") ? "Y" : "N")
+			"CREATETASK" => ($arResult["bTasksAvailable"] ? "Y" : "N")
 		),
 		"VISIBLE_RECORDS_COUNT" => (
 			$arResult["newCount"] > $arParams["PAGE_SIZE"]
@@ -96,7 +96,7 @@ $arResult["OUTPUT_LIST"] = $APPLICATION->IncludeComponent(
 			array($arParams["ID"], $arParams["ID"], "#ID#", ""),
 			$arResult["urlToDelete"]
 		),
-		"AUTHOR_URL" => ($arParams["bPublicPage"] ? "javascript:void(0);" : $arParams["PATH_TO_USER"]),
+		"AUTHOR_URL" => ($arParams["bPublicPage"] ? "" : $arParams["PATH_TO_USER"]),
 
 		"AVATAR_SIZE" => $arParams["AVATAR_SIZE_COMMENT"],
 		"NAME_TEMPLATE" => $arParams["NAME_TEMPLATE"],
@@ -160,8 +160,10 @@ if ($arResult["CanUserComment"])
 		top.postFollow<?=$arParams["ID"]?> = postFollow<?=$arParams["ID"]?> = '<?=$arParams["FOLLOW"]?>';
 	</script>
 	<?
-	if ( empty($_REQUEST["bxajaxid"]) && empty($_REQUEST["logajax"]) ||
-		($_REQUEST["RELOAD"] == "Y" && !(empty($_REQUEST["bxajaxid"]) && empty($_REQUEST["logajax"])) )
+	if (
+		(empty($_REQUEST["bxajaxid"]) && empty($_REQUEST["logajax"]))
+		|| ($_REQUEST["RELOAD"] == "Y" && !(empty($_REQUEST["bxajaxid"]) && empty($_REQUEST["logajax"])))
+		|| (isset($_REQUEST["noblog"]) && $_REQUEST["noblog"] == "Y")
 	)
 	{
 		include_once(__DIR__."/script.php");

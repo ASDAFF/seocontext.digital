@@ -133,4 +133,16 @@ $MESS["CC_BSC1_SHIPMENT_ERROR_15"] = "Document ID: #XML_1C_DOCUMENT_ID#. Error l
 $MESS["CC_BSC1_SHIPMENT_ERROR_16"] = "Document ID #XML_1C_DOCUMENT_ID#. Error deleting item. Shipment for order ##ORDER_ID# was not found.";
 $MESS["CC_BSC1_SHIPMENT_ERROR_17"] = "Document ID #XML_1C_DOCUMENT_ID#: shipment was not created. The new shipment was marked for deletion.";
 $MESS["CC_BSC1_SHIPMENT_ERROR_18"] = "Document ID #XML_1C_DOCUMENT_ID#. Shipment for order ##ORDER_ID# cannot be created or changed because underlying document is in final status.";
+$MESS["CC_BSC1_CONTAINER"] = "Bucket";
+$MESS["CC_BSC1_1C_TRACKING_NUMBER"] = "Tracking number";
+$MESS["CC_BSC1_PAYMENT_ERROR_11"] = "Document ID #XML_1C_DOCUMENT_ID#. Cannot create or edit payment for order ##ORDER_ID# because the initiating entity was deleted.";
+$MESS["CC_BSC1_PROPERTY_VALUES"] = "PropertyValues";
+$MESS["CC_BSC1_PROPERTY_VALUE"] = "PropertyValue";
+$MESS["CC_BSC1_CASHBOX_CHECKS"] = "ReceiptInfo";
+$MESS["CC_BSC1_CASHBOX_CHECK"] = "ReceiptInfo";
+$MESS["CC_BSC1_CASHBOX_PRINT_CHECK"] = "PRINT_CHECK";
+$MESS["CC_BSC1_CASHBOX_URL"] = "URL";
+$MESS["CC_BSC1_CASHBOX_FISCAL_SIGN"] = "FISCAL_SIGN";
+$MESS["CC_BSC1_CASHBOX_REG_NUMBER_KKT"] = "REG_NUMBER_KKT";
+$MESS["CC_BSC1_ORDER_ERROR_5"] = "Document ID #XML_1C_DOCUMENT_ID#. Order currency #CURRENCY_FROM# does not match the site currency #CURRENCY_TO#";
 ?>

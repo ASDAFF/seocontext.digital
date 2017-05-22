@@ -10,6 +10,7 @@ Loc::loadMessages(__FILE__);
 
 class ShipmentItem
 	extends Internals\CollectableEntity
+	implements \IEntityMarker
 {
 	/** @var BasketItem */
 	protected $basketItem;
@@ -751,8 +752,6 @@ class ShipmentItem
 			OrderHistory::collectEntityFields('SHIPMENT_ITEM', $order->getId(), $id);
 		}
 
-		$this->fields->clearChanged();
-
 		return $result;
 	}
 
@@ -856,6 +855,10 @@ class ShipmentItem
 	 * @param null $name
 	 * @param null $oldValue
 	 * @param null $value
+	 *
+	 * @return bool
+	 * @throws Main\NotSupportedException
+	 * @throws Main\ObjectNotFoundException
 	 */
 	public function onBasketModify($action, BasketItem $basketItem, $name = null, $oldValue = null, $value = null)
 	{
@@ -1171,4 +1174,97 @@ class ShipmentItem
 		return $shipmentItemClone;
 	}
 
+
+	/**
+	 * @param $value
+	 *
+	 * @return string
+	 */
+	public function getErrorEntity($value)
+	{
+		$className = null;
+		$errorsList = static::getAutoFixErrorsList();
+		if (is_array($errorsList) && in_array($value, $errorsList))
+		{
+			$className = static::getClassName();
+		}
+		else
+		{
+			/** @var ShipmentItemStoreCollection $shipmentItemStoreCollection */
+			if ($shipmentItemStoreCollection = $this->getShipmentItemStoreCollection())
+			{
+				$className = $shipmentItemStoreCollection->getErrorEntity($value);
+			}
+		}
+
+		return $className;
+	}
+
+
+	/**
+	 * @param $value
+	 *
+	 * @return bool
+	 */
+	public function canAutoFixError($value)
+	{
+		$autoFix = false;
+		$errorsList = static::getAutoFixErrorsList();
+		if (is_array($errorsList) && in_array($value, $errorsList))
+		{
+			$autoFix = true;
+		}
+		else
+		{
+			/** @var ShipmentItemStoreCollection $shipmentItemStoreCollection */
+			if ($shipmentItemStoreCollection = $this->getShipmentItemStoreCollection())
+			{
+				$autoFix = $shipmentItemStoreCollection->canAutoFixError($value);
+			}
+		}
+
+		return $autoFix;
+	}
+	
+	/**
+	 * @return array
+	 */
+	public function getAutoFixErrorsList()
+	{
+		return array();
+	}
+
+	/**
+	 * @param $code
+	 *
+	 * @return Result
+	 */
+	public function tryFixError($code)
+	{
+		return new Result();
+	}
+
+	public function canMarked()
+	{
+		return false;
+	}
+
+	public function getMarkField()
+	{
+		return null;
+	}
+
+	/**
+	 * @internal
+	 */
+	public function clearChanged()
+	{
+		if ($shipmentItemStoreCollection = $this->getShipmentItemStoreCollection())
+		{
+			foreach ($shipmentItemStoreCollection as $shipmentItemStore)
+			{
+				$shipmentItemStore->clearChanged();
+			}
+		}
+	}
 }

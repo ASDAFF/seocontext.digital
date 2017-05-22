@@ -116,13 +116,13 @@ abstract class CBaseSaleReportHelper extends CReportHelper
 			unset($row, $result);
 
 			// Initializing list of pay systems of orders.
-			$result = Bitrix\Sale\PaySystemTable::getList(array(
-				'select' => array('ID', 'LID', 'NAME')/*,
+			$result = \Bitrix\Sale\PaySystem\Manager::getList(array(
+				'select' => array('ID', 'NAME')/*,
 				'filter' => array('=ACTIVE', 'Y')*/
 			));
 			while ($row = $result->fetch())
 			{
-				self::$paySystemList[$row['ID']] = array('value' => $row['NAME'], 'site_id' => $row['LID']);
+				self::$paySystemList[$row['ID']] = array('value' => $row['NAME'], 'site_id' => '');
 			}
 			unset($row, $result);
 
@@ -2921,9 +2921,9 @@ class CSaleReportSaleProductHelper extends CBaseSaleReportHelper
 		$entity->addField(array(
 			'data_type' => 'integer',
 			'expression' => array(
-				'(SELECT  SUM(1) FROM b_catalog_product, b_sale_viewed_product WHERE %s = b_sale_viewed_product.PRODUCT_ID
-				AND b_catalog_product.ID = b_sale_viewed_product.PRODUCT_ID
-				AND b_sale_viewed_product.DATE_VISIT '.$sqlTimeInterval.' AND b_sale_viewed_product.LID = \''.$DB->ForSql(self::getDefaultSiteId()).'\')', 'ID'
+				'(SELECT  SUM(1) FROM b_catalog_product, b_catalog_viewed_product WHERE %s = b_catalog_viewed_product.PRODUCT_ID
+				AND b_catalog_product.ID = b_catalog_viewed_product.PRODUCT_ID
+				AND b_catalog_viewed_product.DATE_VISIT '.$sqlTimeInterval.' AND b_catalog_viewed_product.SITE_ID = \''.$DB->ForSql(self::getDefaultSiteId()).'\')', 'ID'
 			)
 		), 'VIEWS_IN_PERIOD_BY_SHOP');
 

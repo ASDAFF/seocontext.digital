@@ -11,7 +11,6 @@ if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
 		</a></span>
 	</span><span class="bx-notifier-panel-right"></span>
 </div>
-
 <script type="text/javascript">
 <?=CIMMessenger::GetTemplateJS(Array(), $arResult)?>
 </script>

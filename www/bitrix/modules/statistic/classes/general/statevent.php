@@ -1,4 +1,4 @@
-<?
+<?php
 class CAllStatEvent
 {
 	///////////////////////////////////////////////////////////////////
@@ -38,7 +38,6 @@ class CAllStatEvent
 	public static function AddCurrent($event1, $event2="", $event3="", $money="", $currency="", $goto="", $chargeback="N", $site_id=false)
 	{
 		$err_mess = "File: ".__FILE__."<br>Line: ";
-		global $APPLICATION;
 		$DB = CDatabase::GetModuleConnection('statistic');
 
 		$event1 = trim($event1);
@@ -340,6 +339,7 @@ class CAllStatEvent
 		{
 			return CStatEvent::Add($EVENT_ID, $EVENT3, $DATE_ENTER, $PARAM, $MONEY, $CURRENCY, $CHARGEBACK);
 		}
+		return 0;
 	}
 
 	public static function GetHandlerList(&$arUSER_HANDLERS)
@@ -351,7 +351,6 @@ class CAllStatEvent
 		$i=0;
 
 		// system loaders
-		$path = "";
 		$path = COption::GetOptionString("statistic", "EVENTS_LOAD_HANDLERS_PATH");
 		$handle=@opendir($_SERVER["DOCUMENT_ROOT"].$path);
 		if($handle)

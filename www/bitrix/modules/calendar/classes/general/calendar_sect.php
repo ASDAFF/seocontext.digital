@@ -261,7 +261,7 @@ class CCalendarSect
 				$bOwner = $sect['CAL_TYPE'] == 'user' && $sect['OWNER_ID'] == $userId;
 
 				$bManager = false;
-				if(CModule::IncludeModule('intranet') && $sect['CAL_TYPE'] == 'user' && $settings['dep_manager_sub'])
+				if(\Bitrix\Main\Loader::includeModule('intranet') && $sect['CAL_TYPE'] == 'user' && $settings['dep_manager_sub'])
 				{
 					if(!$userId)
 						$userId = CCalendar::GetUserId();
@@ -595,7 +595,7 @@ class CCalendarSect
 				$arFields['CREATED_BY'] = CCalendar::GetCurUserId();
 
 			unset($arFields['ID']);
-			$ID = CDatabase::Add("b_calendar_section", $arFields, array('DESCRIPTION'));
+			$ID = $DB->Add("b_calendar_section", $arFields, array('DESCRIPTION'));
 		}
 		else // Update
 		{
@@ -631,7 +631,8 @@ class CCalendarSect
 			self::SavePermissions($ID, CCalendarSect::GetDefaultAccess($arFields['CAL_TYPE'], $arFields['OWNER_ID']));
 		}
 
-		CCalendar::ClearCache('section_list');
+		CCalendar::ClearCache(array('section_list', 'event_list'));
+
 		if ($ID > 0 && isset(self::$Permissions[$ID]))
 		{
 			unset(self::$Permissions[$ID]);
@@ -647,25 +648,21 @@ class CCalendarSect
 		if ($checkPermissions !== false && !CCalendarSect::CanDo('calendar_edit_section', $id))
 			return CCalendar::ThrowError('EC_ACCESS_DENIED');
 
-		$arEvents = CCalendarEvent::GetList(
-			array(
-				'arFilter' => array(
-					"SECTION" => array(IntVal($id))
-				),
-				'setDefaultLimit' => false,
-				'parseRecursion' => false,
-				'checkPermissions' => false
-			)
-		);
-
 		$meetingIds = array();
-		foreach($arEvents as $event)
+		// Here we don't use GetList to speed up delete process
+		// mantis: 82918
+		$strSql = "SELECT CE.ID, CE.PARENT_ID, CE.DELETED, CES.SECT_ID, CES.EVENT_ID FROM b_calendar_event CE
+			LEFT JOIN b_calendar_event_sect CES ON (CE.ID=CES.EVENT_ID)
+			WHERE CES.SECT_ID=".intval($id)."
+			AND (CE.PARENT_ID=CE.ID)
+			AND (CE.IS_MEETING='1' and CE.IS_MEETING is not null)
+			AND (CE.DELETED='N' and CE.DELETED is not null)";
+
+		$res = $DB->Query($strSql , false, "File: ".__FILE__."<br>Line: ".__LINE__);
+		while($ev = $res->Fetch())
 		{
-			if ($event['IS_MEETING'] && $event['PARENT_ID'] === $event['ID'])
-			{
-				$meetingIds[] = intval($event['PARENT_ID']);
-				CCalendarLiveFeed::OnDeleteCalendarEventEntry($event['PARENT_ID'], $event);
-			}
+			$meetingIds[] = intval($ev['PARENT_ID']);
+			CCalendarLiveFeed::OnDeleteCalendarEventEntry($ev['PARENT_ID']);
 		}
 
 		if (count($meetingIds) > 0)
@@ -808,6 +805,7 @@ class CCalendarSect
 
 	public static function GetOperations($sectId, $userId = false)
 	{
+		global $USER;
 		if (!$userId)
 			$userId = CCalendar::GetCurUserId();
 
@@ -818,6 +816,9 @@ class CCalendarSect
 
 		if (!in_array('G2', $arCodes))
 			$arCodes[] = 'G2';
+
+		if (!in_array('AU', $arCodes) && $USER && $USER->GetId() == $userId)
+			$arCodes[] = 'AU';
 
 		$key = $sectId.'|'.implode(',', $arCodes);
 		if (self::$bClearOperationCache || !is_array(self::$arOp[$key]))
@@ -888,7 +889,7 @@ class CCalendarSect
 
 	public static function GetOutlookLink($Params)
 	{
-		if (CModule::IncludeModule('intranet'))
+		if (Bitrix\Main\Loader::includeModule('intranet'))
 			return CIntranetUtils::GetStsSyncURL($Params);
 	}
 
@@ -1072,7 +1073,6 @@ class CCalendarSect
 				'UID:'.$uid."\n".
 				'SUMMARY:'.self::_ICalPaste($event['NAME'])."\n".
 				'DESCRIPTION:'.self::_ICalPaste($event['DESCRIPTION'])."\n".$period."\n".
-				'CLASS:PRIVATE'."\n".
 				'LOCATION:'.self::_ICalPaste(CCalendar::GetTextLocation($event['LOCATION']))."\n".
 				'SEQUENCE:0'."\n".
 				'STATUS:CONFIRMED'."\n".
@@ -1281,6 +1281,11 @@ class CCalendarSect
 			$DB->Query("DELETE FROM b_calendar_access WHERE SECT_ID in (".$strItems.")", false,
 					"FILE: ".__FILE__."<br> LINE: ".__LINE__);
 		}
+	}
+
+	public static function CheckGoogleVirtualSection($davXmlId = '')
+	{
+		return $davXmlId !== '' && preg_match('/@virtual\/events\//i', $davXmlId);
 	}
 }
 ?>

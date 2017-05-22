@@ -168,58 +168,17 @@ $arTabs = array(
 			</td>
 		</tr>
 		<?if ($event['RRULE'])
-		{
-			if (!is_array($event['RRULE']))
-				$event['RRULE'] = CCalendarEvent::ParseRRULE($event['RRULE']);
-			switch ($event['RRULE']['FREQ'])
-			{
-				case 'DAILY':
-					if ($event['RRULE']['INTERVAL'] == 1)
-						$repeatHTML = GetMessage('EC_RRULE_EVERY_DAY');
-					else
-						$repeatHTML = GetMessage('EC_RRULE_EVERY_DAY_1', array('#DAY#' => $event['RRULE']['INTERVAL']));
-					break;
-				case 'WEEKLY':
-					$daysList = array();
-					foreach ($event['RRULE']['BYDAY'] as $day)
-						$daysList[] = GetMessage('EC_'.$day);
-					$daysList = implode(', ', $daysList);
-					if ($event['RRULE']['INTERVAL'] == 1)
-						$repeatHTML = GetMessage('EC_RRULE_EVERY_WEEK', array('#DAYS_LIST#' => $daysList));
-					else
-						$repeatHTML = GetMessage('EC_RRULE_EVERY_WEEK_1', array('#WEEK#' => $event['RRULE']['INTERVAL'], '#DAYS_LIST#' => $daysList));
-					break;
-				case 'MONTHLY':
-					if ($event['RRULE']['INTERVAL'] == 1)
-						$repeatHTML = GetMessage('EC_RRULE_EVERY_MONTH');
-					else
-						$repeatHTML = GetMessage('EC_RRULE_EVERY_MONTH_1', array('#MONTH#' => $event['RRULE']['INTERVAL']));
-					break;
-				case 'YEARLY':
-					if ($event['RRULE']['INTERVAL'] == 1)
-						$repeatHTML = GetMessage('EC_RRULE_EVERY_YEAR', array('#DAY#' => $event['FROM_MONTH_DAY'], '#MONTH#' => $event['FROM_MONTH']));
-					else
-						$repeatHTML = GetMessage('EC_RRULE_EVERY_YEAR_1', array('#YEAR#' => $event['RRULE']['INTERVAL'], '#DAY#' => $event['FROM_MONTH_DAY'], '#MONTH#' => $event['FROM_MONTH']));
-					break;
-			}
-
-			$repeatHTML .= '<br>'.GetMessage('EC_RRULE_FROM', array('#FROM_DATE#' => CCalendar::Date(CCalendar::Timestamp($event['~DATE_FROM']), false)));
-
-			if ($event['RRULE']['UNTIL'] != CCalendar::GetMaxDate())
-			{
-				$repeatHTML .= ' '.GetMessage('EC_RRULE_UNTIL', array('#UNTIL_DATE#' => CCalendar::Date(CCalendar::Timestamp($event['RRULE']['UNTIL']), false)));
-			}
-			?>
+		{?>
 			<tr>
 				<td class="bx-cal-view-text-cell-l"><?=GetMessage('EC_T_REPEAT')?>:</td>
-				<td class="bx-cal-view-text-cell-r"><?= $repeatHTML?></td>
+				<td class="bx-cal-view-text-cell-r"><?= CCalendarEvent::GetRRULEDescription($event, true)?></td>
 			</tr>
 		<?} /* if ($event['RRULE']) */?>
 		<?if (!empty($event['LOCATION']))
 		{?>
 			<tr>
 				<td class="bx-cal-view-text-cell-l"><?= GetMessage('EC_LOCATION')?>:</td>
-				<td class="bx-cal-view-text-cell-r"><span class="bx-cal-location"><?= CCalendar::GetTextLocation($event['LOCATION'])?></span></td>
+				<td class="bx-cal-view-text-cell-r"><span class="bx-cal-location"><?= htmlspecialcharsEx(CCalendar::GetTextLocation($event['LOCATION']))?></span></td>
 			</tr>
 		<?} /* if (!empty($event['LOCATION'])) */?>
 	</table>
@@ -343,13 +302,11 @@ $arTabs = array(
 			<?if($curUserStatus == 'Q'): /* User still haven't take a decision*/?>
 				<div id="<?=$id?>status-conf-cnt2" class="bxc-conf-cnt">
 					<span data-bx-set-status="Y" class="popup-window-button popup-window-button-accept"><span class="popup-window-button-left"></span><span class="popup-window-button-text"><?= GetMessage('EC_ACCEPT_MEETING')?></span><span class="popup-window-button-right"></span></span>
-					<?/*<span data-bx-set-status="M" class="popup-window-button"><span class="popup-window-button-left"></span><span class="popup-window-button-text"><?= GetMessage('EC_ACCEPT_MAYBE_MEETING')?></span><span class="popup-window-button-right"></span></span>*/ ?>
 					<a data-bx-set-status="N" class="bxc-decline-link" href="javascript:void(0)" title="<?= GetMessage('EC_EDEV_CONF_N_TITLE')?>" id="<?=$id?>decline-link-2"><?= GetMessage('EC_EDEV_CONF_N')?></a>
 				</div>
 			<?elseif($curUserStatus == 'Y' || $curUserStatus == 'H'):/* User accepts inviting */?>
 				<div id="<?=$id?>status-conf-cnt1" class="bxc-conf-cnt">
 					<span><?= GetMessage('EC_ACCEPTED_STATUS')?></span>
-					<? /*<span data-bx-set-status="M" class="popup-window-button"><span class="popup-window-button-left"></span><span class="popup-window-button-text"><?= GetMessage('EC_ACCEPT_MAYBE_MEETING_2')?></span><span class="popup-window-button-right"></span></span> */?>
 					<a data-bx-set-status="N" class="bxc-decline-link" href="javascript:void(0)" title="<?= GetMessage('EC_EDEV_CONF_N_TITLE')?>"><?= GetMessage('EC_EDEV_CONF_N')?></a>
 				</div>
 			<?elseif($curUserStatus == 'N'): /* User declines inviting*/ ?>
@@ -404,11 +361,11 @@ $arTabs = array(
 <?/* ####### END TAB 1 ####### */?>
 </div>
 
-<?if ($viewComments):?>
+<?if ($viewComments && CModule::IncludeModule("forum")):?>
 	<div class="bxec-d-cont-comments-title">
 		<?= GetMessage('EC_COMMENTS')?>
 	</div>
-	<div class="bxec-d-cont bxec-d-cont-comments">
+	<div class="bxec-d-cont bxec-d-cont-comments" id="<?=$id?>comments-cont" style="opacity: 0;">
 		<?
 		if ($userId == $event['CREATED_BY'] && ($event['PARENT_ID'] == $event['ID'] || !$event['PARENT_ID']))
 			$permission = "Y";
@@ -425,7 +382,7 @@ $arTabs = array(
 				"FORUM_ID" => $set['forum_id'],
 				"ENTITY_TYPE" => "EV", //
 				"ENTITY_ID" => $eventCommentId, //Event id
-				"ENTITY_XML_ID" => "EVENT_".$eventCommentId, //
+				"ENTITY_XML_ID" => CCalendarEvent::GetEventCommentXmlId($event), //
 				"PERMISSION" => $permission, //
 				"URL_TEMPLATES_PROFILE_VIEW" => $set['path_to_user'],
 				"SHOW_RATING" => "Y",

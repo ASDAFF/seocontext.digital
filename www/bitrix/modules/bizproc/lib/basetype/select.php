@@ -137,7 +137,7 @@ class Select extends Base
 			if (\CBPActivity::isExpression($v))
 				$selectorValue = $v;
 			else
-				$typeValue[] = $v;
+				$typeValue[] = (string)$v;
 		}
 		// need to show at least one control
 		if (empty($typeValue))
@@ -151,12 +151,55 @@ class Select extends Base
 		if (!$fieldType->isRequired() || $allowSelection)
 			$renderResult .= '<option value="">['.Loc::getMessage('BPCGHLP_NOT_SET').']</option>';
 
-		$options = static::getFieldOptions($fieldType);
+		$settings = static::getFieldSettings($fieldType);
+		$groups = $settings['Groups'] ? $settings['Groups'] : null;
 
-		foreach ($options as $k => $v)
+		if(is_array($groups) && !empty($groups))
 		{
-			$ind = array_search($k, $typeValue);
-			$renderResult .= '<option value="'.htmlspecialcharsbx($k).'"'.($ind !== false ? ' selected' : '').'>'.htmlspecialcharsbx($v).'</option>';
+			foreach($groups as $group)
+			{
+				if(!is_array($group))
+				{
+					continue;
+				}
+
+				$name = isset($group['name']) ? $group['name'] : '';
+
+				if($name !== '')
+				{
+					$renderResult .= '<optgroup label="'.htmlspecialcharsbx($name).'">';
+				}
+
+				$options = isset($group['items']) && is_array($group['items']) ? $group['items'] : array();
+				foreach($options as $k => $v)
+				{
+					$renderResult .= '<option value="';
+					$renderResult .= htmlspecialcharsbx($k);
+					$renderResult .= '"';
+
+					if(in_array((string)$k, $typeValue, true))
+					{
+						$renderResult .= ' selected';
+					}
+
+					$renderResult .= '>';
+					$renderResult .= htmlspecialcharsbx($v);
+					$renderResult .= '</option>';
+				}
+
+				if($name !== '')
+				{
+					$renderResult .= '</optgroup>';
+				}
+			}
+		}
+		else
+		{
+			$options = static::getFieldOptions($fieldType);
+			foreach ($options as $k => $v)
+			{
+				$renderResult .= '<option value="'.htmlspecialcharsbx($k).'"'.(in_array((string)$k, $typeValue) ? ' selected' : '').'>'.htmlspecialcharsbx($v).'</option>';
+			}
 		}
 
 		$renderResult .= '</select>';
@@ -217,7 +260,7 @@ class Select extends Base
 		$str = '';
 		foreach ($options as $k => $v)
 		{
-			if ($k != $v)
+			if ((string)$k !== (string)$v)
 				$str .= '['.$k.']'.$v;
 			else
 				$str .= $v;
@@ -370,6 +413,16 @@ class Select extends Base
 	{
 		$options = $fieldType->getOptions();
 		return self::normalizeOptions($options);
+	}
+
+	/**
+	 * Get field settings
+	 * @param FieldType $fieldType
+	 * @return array
+	 */
+	protected static function getFieldSettings(FieldType $fieldType)
+	{
+		return $fieldType->getSettings();
 	}
 
 	/**

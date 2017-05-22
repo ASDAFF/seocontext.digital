@@ -121,24 +121,11 @@ $arComponentParameters = array(
 			"PARENT" => "BASE",
 			"REFRESH" => "Y"
 		),
-		"PER_PAGE" => array(
-			"NAME" => GetMessage("SPS_ORDERS_PER_PAGE"),
-			"TYPE" => "STRING",
-			"MULTIPLE" => "N",
-			"DEFAULT" => "20",
-			"PARENT" => "ADDITIONAL_SETTINGS",
-		),
-		"NAV_TEMPLATE" => array(
-			"NAME" => GetMessage("SPS_NAV_TEMPLATE"),
-			"TYPE" => "STRING",
-			"DEFAULT" => "",
-			"PARENT" => "ADDITIONAL_SETTINGS",
-		),
 		"PATH_TO_PAYMENT" => array(
 			"NAME" => GetMessage("SPS_PATH_TO_PAYMENT"),
 			"TYPE" => "STRING",
 			"MULTIPLE" => "N",
-			"DEFAULT" => "/personal/order/payment",
+			"DEFAULT" => "/personal/order/payment/",
 			"COLS" => 25,
 			"PARENT" => "URL_TEMPLATES",
 		),
@@ -146,7 +133,7 @@ $arComponentParameters = array(
 			"NAME" => GetMessage("SPS_PATH_TO_CONTACT"),
 			"TYPE" => "STRING",
 			"MULTIPLE" => "N",
-			"DEFAULT" => "/about/contacts",
+			"DEFAULT" => "/about/contacts/",
 			"COLS" => 25,
 			"PARENT" => "URL_TEMPLATES",
 		),
@@ -154,7 +141,7 @@ $arComponentParameters = array(
 			"NAME" => GetMessage("SPS_PATH_TO_BASKET"),
 			"TYPE" => "STRING",
 			"MULTIPLE" => "N",
-			"DEFAULT" => "/personal/cart",
+			"DEFAULT" => "/personal/cart/",
 			"COLS" => 25,
 			"PARENT" => "URL_TEMPLATES",
 		),
@@ -165,6 +152,14 @@ $arComponentParameters = array(
 			"DEFAULT" => "/catalog/",
 			"COLS" => 25,
 			"PARENT" => "URL_TEMPLATES",
+		),
+		"MAIN_CHAIN_NAME" => array(
+			"NAME" => GetMessage("SPS_CHAIN_MAIN_FIELD"),
+			"TYPE" => "STRING",
+			"MULTIPLE" => "N",
+			"DEFAULT" => GetMessage("SPS_CHAIN_MAIN"),
+			"COLS" => 25,
+			"PARENT" => "ADDITIONAL_SETTINGS",
 		),
 		'SET_TITLE' => array(),		
 		"CACHE_TIME"  =>  array("DEFAULT"=>3600),		
@@ -360,6 +355,23 @@ if ($arCurrentValues["SHOW_ORDER_PAGE"] !== "N")
 	if(CModule::IncludeModule("sale"))
 	{
 		$dbPerson = CSalePersonType::GetList(array("SORT" => "ASC", "NAME" => "ASC"));
+
+		$userInfo = array(
+			"LOGIN" => GetMessage("SPS_USER_INFO_LOGIN"),
+			"EMAIL" => GetMessage("SPS_USER_INFO_EMAIL"),
+			"PERSON_TYPE_NAME" => GetMessage("SPS_USER_INFO_PERSON_TYPE_NAME"),
+			0 => GetMessage("SPS_SHOW_ALL"),
+		);
+
+		$arComponentParameters['PARAMETERS']['ORDER_HIDE_USER_INFO'] = array(
+			"NAME" => GetMessage("SPS_ORDER_HIDE_USER_INFO"),
+			"TYPE" => "LIST",
+			"VALUES" => $userInfo,
+			"MULTIPLE" => "Y",
+			"DEFAULT" => 0,
+			"PARENT" => "ORDER"
+		);
+
 		while($arPerson = $dbPerson->GetNext())
 		{
 
@@ -389,7 +401,7 @@ if ($arCurrentValues["SHOW_ORDER_PAGE"] !== "N")
 
 		$statusList = array();
 
-		$listStatusNames = Bitrix\Sale\OrderStatus::getAllStatusesNames();
+		$listStatusNames = Bitrix\Sale\OrderStatus::getAllStatusesNames(LANGUAGE_ID);
 		foreach($listStatusNames as $key => $data)
 		{
 			$statusList[$key] = $data;
@@ -401,6 +413,77 @@ if ($arCurrentValues["SHOW_ORDER_PAGE"] !== "N")
 			"VALUES" => $statusList,
 			"MULTIPLE" => "Y",
 			"DEFAULT" => "F",
+			"PARENT" => "ORDER",
+		);
+
+		array_unshift($statusList, GetMessage("SPS_NOT_CHOSEN"));
+
+		$arComponentParameters['PARAMETERS']['ORDER_RESTRICT_CHANGE_PAYSYSTEM'] = array(
+			"NAME" => GetMessage("SPS_RESTRICT_CHANGE_PAYSYSTEM"),
+			"TYPE" => "LIST",
+			"VALUES" => $statusList,
+			"MULTIPLE" => "Y",
+			"DEFAULT" => 0,
+			"PARENT" => "ORDER",
+			"SIZE" => 5,
+		);
+
+		$orderSortList = array(
+			'STATUS' => GetMessage("SPS_ORDER_LIST_SORT_STATUS"),
+			'ID' => GetMessage("SPS_ORDER_LIST_SORT_ID"),
+			'ACCOUNT_NUMBER'=> GetMessage("SPS_ORDER_LIST_SORT_ACCOUNT_NUMBER"),
+			'DATE_INSERT'=> GetMessage("SPS_ORDER_LIST_SORT_DATE_CREATE"),
+			'PRICE'=> GetMessage("SPS_ORDER_LIST_SORT_PRICE")
+		);
+
+		$arComponentParameters['PARAMETERS']['ORDER_DEFAULT_SORT'] = array(
+			"NAME" => GetMessage("SPS_ORDER_LIST_DEFAULT_SORT"),
+			"TYPE" => "LIST",
+			"VALUES" => $orderSortList,
+			"MULTIPLE" => "N",
+			"DEFAULT" => "STATUS",
+			"PARENT" => "ORDER",
+		);
+
+
+		$arComponentParameters['PARAMETERS']['ACCOUNT_PAYMENT_SELL_USER_INPUT'] = array(
+			"NAME"=>GetMessage("SPS_ACCEPT_USER_AMOUNT"),
+			"TYPE"=>"CHECKBOX",
+			"MULTIPLE"=>"N",
+			"DEFAULT" => "Y",
+			"ADDITIONAL_VALUES"=>"N",
+			"PARENT" => "ACCOUNT",
+		);
+
+		if (CBXFeatures::IsFeatureEnabled('SaleAccounts'))
+		{
+			$arComponentParameters['PARAMETERS']['ALLOW_INNER'] = array(
+				"NAME" => GetMessage("SPS_ALLOW_INNER"),
+				"TYPE" => "CHECKBOX",
+				"DEFAULT" => "N",
+				"PARENT" => "ORDER",
+			);
+
+			$arComponentParameters['PARAMETERS']['ONLY_INNER_FULL'] = array(
+				"NAME" => GetMessage("SPS_ONLY_INNER_FULL"),
+				"TYPE" => "CHECKBOX",
+				"DEFAULT" => "N",
+				"PARENT" => "ORDER",
+			);
+		}
+
+		$arComponentParameters['PARAMETERS']['NAV_TEMPLATE'] = array(
+			"NAME" => GetMessage("SPS_NAV_TEMPLATE"),
+			"TYPE" => "STRING",
+			"DEFAULT" => "",
+			"PARENT" => "ORDER",
+		);
+
+		$arComponentParameters['PARAMETERS']['ORDERS_PER_PAGE'] = array(
+			"NAME" => GetMessage("SPS_ORDERS_PER_PAGE"),
+			"TYPE" => "STRING",
+			"MULTIPLE" => "N",
+			"DEFAULT" => "20",
 			"PARENT" => "ORDER",
 		);
 	}
@@ -436,6 +519,13 @@ if ($arCurrentValues["SHOW_PROFILE_PAGE"] !== "N")
 		"NAME" => GetMessage("SPS_COMPATIBLE_LOCATION_MODE"),
 		"TYPE" => "CHECKBOX",
 		"DEFAULT" => "N",
+		"PARENT" => "PROFILE",
+	);
+	$arComponentParameters['PARAMETERS']['PROFILES_PER_PAGE'] = array(
+		"NAME" => GetMessage("SPS_PROFILES_PER_PAGE"),
+		"TYPE" => "STRING",
+		"MULTIPLE" => "N",
+		"DEFAULT" => "20",
 		"PARENT" => "PROFILE",
 	);
 }

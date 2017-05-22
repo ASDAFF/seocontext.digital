@@ -123,4 +123,9 @@ $MESS["SEO_DETAIL_CRAWL_ISSUES_CODE"] = "Error code";
 $MESS["SEO_DETAIL_CRAWL_ISSUES_COUNT"] = "Quantity";
 $MESS["SEO_ERROR_ACCESS_EXPIRED"] = "Authentication expired.";
 $MESS["SEO_ERROR_ACCESS_EXPIRED_LINK"] = "Renew authentication";
+$MESS["SEO_VERIFY_STATUS_NONE"] = "No";
+$MESS["SEO_VERIFY_STATUS_VERIFIED"] = "Yes";
+$MESS["SEO_VERIFY_STATUS_IN_PROGRESS"] = "Access permissions are being confirmed...";
+$MESS["SEO_VERIFY_STATUS_VERIFICATION_FAILED"] = "Verification has failed. Access permissions were not confirmed.";
+$MESS["SEO_VERIFY_STATUS_INTERNAL_ERROR"] = "Unknown error confirming access permissions.";
 ?>

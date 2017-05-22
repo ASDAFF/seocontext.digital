@@ -1,9 +1,8 @@
-
 <html xmlns="http://www.w3.org/1999/xhtml"><head>
 	<meta name="viewport" content="width=device-width">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
 	<meta http-equiv="Content-Type" content="text/html; charset=Windows-1251">
-	<title>test test</title>
+	<title>#SUBJECT#</title>
 
 	<style type="text/css">
 		@media (max-width: 480px){

@@ -92,7 +92,7 @@ class CListFileControl
 					'data-bx-image' => $img_src,
 				),
 			));
-			$html .= '</div><script>BX.ready(function(){BX.viewElementBind("'.$divId.'");});</script>';
+			$html .= '</div><script>BX.ready(function(){if(BX["viewElementBind"]){BX.viewElementBind("'.$divId.'");}});</script>';
 		}
 
 		$html .= $this->_ob_file->GetLinkHtml(array(

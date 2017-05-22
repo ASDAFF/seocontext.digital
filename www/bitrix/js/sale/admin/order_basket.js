@@ -8,8 +8,7 @@ BX.namespace("BX.Sale.Admin.OrderBasket");
 
 BX.Sale.Admin.OrderBasket = function (params)
 {
-	var i,
-		l;
+	var i,l;
 
 	this.tableId = params.tableId;
 	this.objName = params.objName;
@@ -283,8 +282,8 @@ BX.Sale.Admin.OrderBasket.prototype.productAdd = function(product)
 	if(productRow)
 		return;
 
-	if(parseFloat(product.PRICE) != parseFloat(product.PRICE_BASE) && product.CUSTOM_PRICE && product.CUSTOM_PRICE == 'Y')
-		this.customPrices[product.OFFER_ID] = product.PRICE;
+	if(parseFloat(product.PRICE) != parseFloat(product.BASE_PRICE) && product.CUSTOM_PRICE && product.CUSTOM_PRICE == 'Y')
+		this.customPrices[basketCode] = product.PRICE;
 
 	productRow = this.createProductRow(basketCode, product);
 	var table = BX(this.tableId);
@@ -335,6 +334,33 @@ BX.Sale.Admin.OrderBasket.prototype.productSet = function(product, isReplaceExis
 	}
 
 	this.setRowNumbers();
+};
+
+BX.Sale.Admin.OrderBasket.prototype.productReplace = function(product, oldProductBasketCode)
+{
+	var oldProductRow = BX(this.createProductRowId(oldProductBasketCode, product));
+
+	if(!oldProductRow)
+		return;
+
+	this.onProductDelete(oldProductBasketCode);
+
+	var	basketCode = this.getProductBasketCode(product),
+		newProductRow = this.createProductRow(basketCode, product);
+
+	if(!newProductRow)
+		return;
+
+	if(!BX.hasClass(oldProductRow, "basket-bundle-child-hidden"))
+		BX.removeClass(newProductRow, "basket-bundle-child-hidden");
+
+	oldProductRow.parentNode.replaceChild(newProductRow, oldProductRow);
+	this.setRowNumbers();
+};
+
+BX.Sale.Admin.OrderBasket.prototype.onProductDelete = function(basketCode)
+{
+	BX.Sale.Admin.OrderEditPage.unRegisterProductFieldsUpdaters(basketCode);
 };
 
 BX.Sale.Admin.OrderBasket.prototype.roundQuantity = function(quantity)
@@ -736,6 +762,9 @@ BX.Sale.Admin.OrderBasket.prototype.createProductCell = function(basketCode, pro
 
 			if(product.EDIT_PAGE_URL)
 			{
+				if(!fieldValue)
+					fieldValue = BX.message('SALE_ORDER_BASKET_NO_NAME');
+
 				node = BX.create('a',{
 						props:{
 							href:product.EDIT_PAGE_URL,
@@ -746,9 +775,10 @@ BX.Sale.Admin.OrderBasket.prototype.createProductCell = function(basketCode, pro
 			}
 			else
 			{
+				var name = product[fieldId] ? product[fieldId] : BX.message('SALE_ORDER_BASKET_NO_NAME');
 				node = BX.create('span', {
 					style: {fontWeight: "bold"},
-					html: BX.util.htmlspecialchars(product[fieldId])
+					html: BX.util.htmlspecialchars(name)
 				});
 			}
 
@@ -797,10 +827,10 @@ BX.Sale.Admin.OrderBasket.prototype.createProductCell = function(basketCode, pro
 
 		case "SUM":
 			var price;
-			if(typeof(this.customPrices[product.OFFER_ID]) == "undefined")
+			if(typeof(this.customPrices[basketCode]) == "undefined")
 				price = product.PRICE;
 			else
-				price = this.customPrices[product.OFFER_ID];
+				price = this.customPrices[basketCode];
 
 			var sum = price*product.QUANTITY;
 
@@ -939,97 +969,6 @@ BX.Sale.Admin.OrderBasket.prototype.onToggleBundleChildren = function(oldParentI
 			BX.toggleClass(bundleChildren[i], "basket-bundle-child-hidden");
 };
 
-BX.Sale.Admin.OrderBasket.prototype.createSkuPropsTable = function(basketCode, product)
-{
-	var table = BX.create('table'),
-		html,
-		skuCodes = [],
-		result = null;
-
-	if(product.SKU_PROPS)
-	{
-		for(var skuId in product.SKU_PROPS)
-		{
-			if(!product.SKU_PROPS.hasOwnProperty(skuId))
-				continue;
-
-			// Unlinked property of type E
-			if(!product.SKU_PROPS[skuId]["VALUE"])
-				product.SKU_PROPS[skuId]["VALUE"] = {"NAME": skuId};
-
-			if(product.SKU_PROPS[skuId]["VALUE"]["PICT"])
-				html = '<div style="width: 17px; height: 17px; text-align: center; border: 1px solid gray;">'+
-				'<img  width="17" height="17" src="'+product.SKU_PROPS[skuId]["VALUE"]["PICT"]+'">'+
-				'</div>';
-			else
-				html = '<div style="font-size: 9px; padding: 2px 5px; text-align: center; border: 1px solid gray;">'+BX.util.htmlspecialchars(product.SKU_PROPS[skuId]["VALUE"]["NAME"])+'</div>';
-
-			// Unlinked property of type E
-			if(!product.SKU_PROPS[skuId]["NAME"])
-				product.SKU_PROPS[skuId]["NAME"] = skuId;
-
-			var tdPropName = BX.create('td',{
-				html: '<span style="color: gray; font-size: 11px">'+BX.util.htmlspecialchars(product.SKU_PROPS[skuId]["NAME"])+' </span>',
-				style : {
-					'text-align' : 'left'
-				}
-			});
-
-			table.appendChild(
-				BX.create('tr',{
-					children: [
-						tdPropName,
-						BX.create('td',{html: html})
-					]
-				})
-			);
-
-			skuCodes.push(product.SKU_PROPS[skuId]["CODE"]);
-		}
-	}
-
-	if(product.PROPS)
-	{
-		for(var i in product.PROPS)
-		{
-			if(!product.PROPS.hasOwnProperty(i))
-				continue;
-
-			if(!product.PROPS[i] || skuCodes.indexOf(product.PROPS[i]["CODE"]) != -1)
-				continue;
-
-			if(!product.PROPS[i]["NAME"]) product.PROPS[i]["NAME"] = "";
-			if(!product.PROPS[i]["VALUE"])product.PROPS[i]["VALUE"] = "";
-
-			if(!this.isShowXmlId && (product.PROPS[i]["CODE"] == "PRODUCT.XML_ID" || product.PROPS[i]["CODE"] == "CATALOG.XML_ID"))
-				continue;
-
-			var tdPropName = BX.create('td',{
-				html: '<span style="color: gray; font-size: 11px">'+product.PROPS[i]["NAME"]+' </span>',
-				style : {
-					'text-align' : 'left'
-				}
-			});
-
-			var tr = BX.create('tr',{
-				children: [
-					tdPropName,
-					BX.create('td',{
-						html: '<div style="font-size: 9px; padding: 2px 5px; text-align: center;">'+BX.util.htmlspecialchars(product.PROPS[i]["VALUE"])+'</div>'
-					})
-				]
-			});
-
-			table.appendChild(tr);
-		}
-	}
-
-	if(table.children.length)
-		result = table;
-
-	return result;
-};
-
 BX.Sale.Admin.OrderBasket.prototype.createFieldSkuProps = function(basketCode, product, fieldId)
 {
 	return this.createSkuPropsTable(basketCode, product);
@@ -1052,21 +991,26 @@ BX.Sale.Admin.OrderBasket.prototype.createSkuPropsTable = function(basketCode, p
 			if(!product.SKU_PROPS[skuId]["VALUE"])
 				continue;
 
+			if(product.SKU_PROPS[skuId]["VALUE"]["ID"] == "-")
+				continue;
+
 			if(product.SKU_PROPS[skuId]["VALUE"] && product.SKU_PROPS[skuId]["VALUE"]["PICT"])
+			{
 				html = '<div style="width: 17px; height: 17px; text-align: center; border: 1px solid gray;">'+
-						'<img  width="17" height="17" src="'+product.SKU_PROPS[skuId]["VALUE"]["PICT"]+'">'+
-						'</div>';
+					'<img  width="17" height="17" src="'+product.SKU_PROPS[skuId]["VALUE"]["PICT"]+'">'+
+					'</div>';
+			}
 			else
 			{
-				if(product.SKU_PROPS[skuId]["VALUE"] == null)
-				{
-					BX.debug('createSkuPropsTable');
-					BX.debug(skuId);
-					BX.debug(product.SKU_PROPS[skuId]);
-				}
+				if(!product.SKU_PROPS[skuId]["VALUE"]["NAME"])
+					product.SKU_PROPS[skuId]["VALUE"]["NAME"] = skuId;
 
 				html = '<div style="font-size: 9px; padding: 2px 5px; text-align: center; border: 1px solid gray;">'+BX.util.htmlspecialchars(product.SKU_PROPS[skuId]["VALUE"]["NAME"])+'</div>';
 			}
+
+			// Unlinked property of type E
+			if(!product.SKU_PROPS[skuId]["NAME"])
+				product.SKU_PROPS[skuId]["NAME"] = skuId;
 
 			table.appendChild(
 					BX.create('tr',{
@@ -1095,12 +1039,12 @@ BX.Sale.Admin.OrderBasket.prototype.createSkuPropsTable = function(basketCode, p
 				continue;
 
 			if(!product.PROPS[i]["NAME"]) product.PROPS[i]["NAME"] = "";
-			if(!product.PROPS[i]["VALUE"])product.PROPS[i]["VALUE"] = "";
+			if(!product.PROPS[i]["VALUE"]) product.PROPS[i]["VALUE"] = "";
 
 			var tr = BX.create('tr',{
 				children: [
 					BX.create('td',{
-						html: '<span style="color: gray; font-size: 11px">'+product.PROPS[i]["NAME"]+': </span>'
+						html: '<span style="color: gray; font-size: 11px">'+BX.util.htmlspecialchars(product.PROPS[i]["NAME"])+': </span>'
 					}),
 					BX.create('td',{
 						html: '<div style="font-size: 9px; padding: 2px 5px; text-align: center;">'+BX.util.htmlspecialchars(product.PROPS[i]["VALUE"])+'</div>'
@@ -1190,7 +1134,7 @@ BX.Sale.Admin.OrderBasket.prototype.createFieldPrice = function(basketCode, prod
 	{
 		var display = "none";
 
-		if(parseFloat(product.PRICE_BASE) > 0 && parseFloat(product.PRICE) != parseFloat(product.PRICE_BASE))
+		if(parseFloat(product.BASE_PRICE) > 0 && parseFloat(product.PRICE) != parseFloat(product.BASE_PRICE))
 			display = "";
 
 		var basePrice = BX.create('div',{
@@ -1198,7 +1142,7 @@ BX.Sale.Admin.OrderBasket.prototype.createFieldPrice = function(basketCode, prod
 			style: {display: display},
 			children: [
 				BX.create('span',{
-					html: BX.Sale.Admin.OrderEditPage.currencyFormat(product.PRICE_BASE)
+					html: BX.Sale.Admin.OrderEditPage.currencyFormat(product.BASE_PRICE)
 				})
 			]
 		}),
@@ -1249,18 +1193,7 @@ BX.Sale.Admin.OrderBasket.prototype.onProductRowMouseOut = function(rowNode)
 
 BX.Sale.Admin.OrderBasketEdit = function(params)
 {
-	this.productsOffersSkuParams = {};
 	this.productEditDialog = new BX.Sale.Admin.OrderBasketProductEditDialog(this);
-
-	if(params.productsOffersSkuParams)
-	{
-		for(var i in params.productsOffersSkuParams)
-		{
-			if(params.productsOffersSkuParams.hasOwnProperty(i))
-				this.setProductsOffersSkuParams(i, params.productsOffersSkuParams[i]);
-		}
-	}
-
 	BX.Sale.Admin.OrderBasket.call(this, params);
 
 	this.settingsDialog = new BX.Sale.Admin.OrderBasket.SettingsDialog({
@@ -1270,113 +1203,11 @@ BX.Sale.Admin.OrderBasketEdit = function(params)
 
 BX.Sale.Admin.OrderBasketEdit.prototype = Object.create(BX.Sale.Admin.OrderBasket.prototype);
 
-/**
- * Returns list of sku properties for product
- * @param {int} productId
- * @param {int} iblock
- * @param {object} skuProps
- * @returns {object}
- */
-BX.Sale.Admin.OrderBasketEdit.prototype.getSkuPropsList = function(productId, iblock, skuProps)
+BX.Sale.Admin.OrderBasketEdit.prototype.getProductIdBySkuProps = function(params)
 {
-	if(!skuProps)
-		return {};
-
-	if(!this.productsOffersSkuParams[productId])
-		return {};
-
-	var result = {},
-		prodOffers = this.productsOffersSkuParams[productId];
-
-	for(var propId in skuProps)
-		if(skuProps.hasOwnProperty(propId))
-			result[propId] = {};
-
-	for(var offId in prodOffers)
-	{
-		if(!prodOffers.hasOwnProperty(offId))
-			continue;
-
-		for(var propOrderIdx in this.iblocksSkuParamsOrder[iblock])
-		{
-			if(!this.iblocksSkuParamsOrder[iblock].hasOwnProperty(propOrderIdx))
-				continue;
-
-			propId = this.iblocksSkuParamsOrder[iblock][propOrderIdx];
-
-			if(this.iblocksSkuParams[iblock][propId] !== undefined)
-			{
-				if(prodOffers[offId][propId])
-				{
-					if(this.iblocksSkuParams[iblock][propId]["VALUES"][prodOffers[offId][propId]])
-					{
-						result[propId][prodOffers[offId][propId]] = BX.util.htmlspecialchars(
-							this.iblocksSkuParams[iblock][propId]["VALUES"][prodOffers[offId][propId]]["NAME"]
-						);
-					}
-					else //if property value inactive or deleted
-					{
-						result[propId][prodOffers[offId][propId]] = "-";
-					}
-				}
-			}
-
-			if(skuProps[propId] && typeof skuProps[propId]["ID"] != 'undefined')
-				if(prodOffers[offId][propId] != skuProps[propId]["ID"])
-					break;
-		}
-	}
-
-	return result;
-};
-
-BX.Sale.Admin.OrderBasketEdit.prototype.getProductIdBySkuProps = function(productId, propsVal, iBlockId)
-{
-	if(!this.productsOffersSkuParams[productId])
-	{
-		BX.debug("No such product: ".productId);
-		return false;
-	}
-
-	var ids = {},
-		maxCoinc = 0,
-		maxCoincOfferId = 0;
-
-	for(var offerId in this.productsOffersSkuParams[productId])
-	{
-		if(!this.productsOffersSkuParams[productId].hasOwnProperty(offerId))
-			continue;
-
-		ids[offerId] = 0;
-
-		for(var i = 0; i < this.iblocksSkuParamsOrder[iBlockId].length; i++)
-		{
-			var propId = this.iblocksSkuParamsOrder[iBlockId][i];
-
-			if(ids[offerId] >= 0)
-			{
-				if(propsVal[propId] == this.productsOffersSkuParams[productId][offerId][propId])
-				{
-					ids[offerId]++;
-
-					if(ids[offerId] == this.iblocksSkuParamsOrder[iBlockId].length)
-						return offerId;
-
-					if(maxCoinc < ids[offerId])
-					{
-						maxCoinc = ids[offerId];
-						maxCoincOfferId = offerId;
-					}
-				}
-				else
-				{
-					ids[offerId] = -1;
-				}
-			}
-		}
-	}
-
-	return maxCoincOfferId;
+	BX.Sale.Admin.OrderAjaxer.sendRequest(
+		BX.Sale.Admin.OrderEditPage.ajaxRequests.getProductIdBySkuProps(params)
+	);
 };
 
 BX.Sale.Admin.OrderBasketEdit.prototype.setBasket = function(basket)
@@ -1395,11 +1226,6 @@ BX.Sale.Admin.OrderBasketEdit.prototype.setBasket = function(basket)
 		for(i in basket.IBLOCKS_SKU_PARAMS_ORDER)
 			if(basket.IBLOCKS_SKU_PARAMS_ORDER.hasOwnProperty(i))
 				this.setIblocksSkuParamsOrder(i, basket.IBLOCKS_SKU_PARAMS_ORDER[i]);
-
-	if(basket.PRODUCTS_OFFERS_SKU)
-		for(i in basket.PRODUCTS_OFFERS_SKU)
-			if(basket.PRODUCTS_OFFERS_SKU.hasOwnProperty(i))
-				this.setProductsOffersSkuParams(i, basket.PRODUCTS_OFFERS_SKU[i]);
 
 	if(typeof basket.WEIGHT_FOR_HUMAN !== "undefined")
 		this.totalBlock.setFieldValue('WEIGHT', basket.WEIGHT_FOR_HUMAN);
@@ -1479,8 +1305,8 @@ BX.Sale.Admin.OrderBasketEdit.prototype.updateProductPriceCell = function(produc
 		return;
 
 	/*
-	if(this.customPrices[product.OFFER_ID])
-		delete this.customPrices[product.OFFER_ID];
+	if(this.customPrices[basketCode])
+		delete this.customPrices[basketCode];
 	*/
 	var newPriceCell = this.createFieldPrice(basketCode, product),
 		priceParent = oldPriceCell.parentNode;
@@ -1562,12 +1388,32 @@ BX.Sale.Admin.OrderBasketEdit.prototype.getCustomPrice = function(basketCode)
 	return form.elements[this.getFieldName(basketCode, "CUSTOM_PRICE")].value;
 };
 
+BX.Sale.Admin.OrderBasketEdit.prototype.getParamsBySkuProps = function(params)
+{
+	var customPrice = false;
+
+	if(this.customPrices[params.replaceBasketCode] !== undefined)
+		customPrice = this.customPrices[params.replaceBasketCode];
+
+	BX.Sale.Admin.OrderAjaxer.sendRequest(
+		BX.Sale.Admin.OrderEditPage.ajaxRequests.addProductToBasketBySkuProps({
+			oldProductId: params.oldProductId,
+			oldProductIblock: params.oldProductIblock,
+			quantity: params.quantity,
+			replaceBasketCode: params.replaceBasketCode,
+			skuPropsVal: params.skuPropsVal,
+			columns: this.visibleColumns,
+			customPrice: customPrice
+		})
+	);
+};
+
 BX.Sale.Admin.OrderBasketEdit.prototype.getParamsByProductId = function(params, iBlockId, callback)
 {
 	var customPrice = false;
 
-	if(this.customPrices[params.id] !== undefined)
-		customPrice = this.customPrices[params.id];
+	if(this.customPrices[params.replaceBasketCode] !== undefined)
+		customPrice = this.customPrices[params.replaceBasketCode];
 
 	BX.Sale.Admin.OrderAjaxer.sendRequest(
 		BX.Sale.Admin.OrderEditPage.ajaxRequests.addProductToBasket(
@@ -1584,8 +1430,8 @@ BX.Sale.Admin.OrderBasketEdit.prototype.createProductBasementSkuCell = function(
 {
 	var td = BX.create('td',{props:{id: this.idPrefix+"sale-order-basket-product-"+basketCode+"-basement-sku"}}),
 		divSku = BX.create('div',{props:{className: 'adm-s-order-table-ddi-table-sku'}}),
-		possibleSkuProps = this.getSkuPropsList(product.PRODUCT_ID, product.OFFERS_IBLOCK_ID, product.SKU_PROPS),
-		title, currentSkuValue;
+		possibleSkuProps = product.SKU_PROPS_POSSIBLE_VALUES,
+		title, currentSkuId;
 
 	for(var i in this.iblocksSkuParamsOrder[product.OFFERS_IBLOCK_ID])
 	{
@@ -1598,10 +1444,10 @@ BX.Sale.Admin.OrderBasketEdit.prototype.createProductBasementSkuCell = function(
 			continue;
 
 		title = this.iblocksSkuParams[product.OFFERS_IBLOCK_ID][idx]["NAME"];
-		currentSkuValue = product.SKU_PROPS[idx]["ID"];
+		currentSkuId = product.SKU_PROPS[idx]["VALUE"]["ID"];
 
 		divSku.appendChild(
-			this.createSkuSelector(basketCode, idx, title, currentSkuValue, possibleSkuProps[idx], product)
+			this.createSkuSelector(basketCode, idx, title, currentSkuId, possibleSkuProps[idx], product)
 		);
 	}
 
@@ -1609,7 +1455,7 @@ BX.Sale.Admin.OrderBasketEdit.prototype.createProductBasementSkuCell = function(
 	return td;
 };
 
-BX.Sale.Admin.OrderBasketEdit.prototype.createSkuSelector = function(basketCode, skuId, title, activeItemValue, items, product)
+BX.Sale.Admin.OrderBasketEdit.prototype.createSkuSelector = function(basketCode, skuId, title, activeItemId, items, product)
 {
 	var ul = BX.create('ul', {
 			attrs: {
@@ -1624,12 +1470,26 @@ BX.Sale.Admin.OrderBasketEdit.prototype.createSkuSelector = function(basketCode,
 		if(!this.iblocksSkuParams[product.OFFERS_IBLOCK_ID][skuId]["ORDER"].hasOwnProperty(idx))
 			continue;
 
-		var item = this.iblocksSkuParams[product.OFFERS_IBLOCK_ID][skuId]["ORDER"][idx];
+		var item = this.iblocksSkuParams[product.OFFERS_IBLOCK_ID][skuId]["ORDER"][idx],
+			found = false;
 
-		if(!items[item])
+		for(var i in items)
+		{
+			if(!items.hasOwnProperty(i))
+				continue;
+
+			if(items[i] == this.iblocksSkuParams[product.OFFERS_IBLOCK_ID][skuId]['VALUES'][item]['ID'])
+			{
+				found = true;
+				break;
+			}
+		}
+
+		if(!found)
 			continue;
 
-		var html;
+		var html,
+			itemId = this.iblocksSkuParams[product.OFFERS_IBLOCK_ID][skuId]["VALUES"][item]["ID"];
 
 		if(this.iblocksSkuParams[product.OFFERS_IBLOCK_ID][skuId]["VALUES"][item]["PICT"])
 		{
@@ -1649,12 +1509,13 @@ BX.Sale.Admin.OrderBasketEdit.prototype.createSkuSelector = function(basketCode,
 			}),
 			li = BX.create('li',{
 				attrs: {
-					"data-value": item
+					"data-value": BX.util.htmlspecialchars(item),
+					"data-id": itemId
 				},
 				children:[span]
 			});
 
-		if(item == activeItemValue)
+		if(itemId == activeItemId)
 		{
 			BX.addClass(li,'bx-active');
 			activeVariant = variantsCount;
@@ -1665,33 +1526,52 @@ BX.Sale.Admin.OrderBasketEdit.prototype.createSkuSelector = function(basketCode,
 			function(e) {
 
 				var span = e.target || e.srcElement,
-					newOfferId = span.parentNode.getAttribute("data-value") || span.parentNode.parentNode.getAttribute("data-value");
+					activeValue = span.parentNode.getAttribute("data-value") || span.parentNode.parentNode.getAttribute("data-value"),
+					activeId = span.parentNode.getAttribute("data-id") || span.parentNode.parentNode.getAttribute("data-id"),
+					propsVal = this.getSkuProps(basketCode, product.SKU_PROPS);
 
-				if(!newOfferId)
+				activeValue = BX.util.htmlspecialcharsback(activeValue);
+
+				if(activeId == activeItemId)
 					return;
 
-				if(newOfferId == activeItemValue)
-					return false;
+				propsVal[skuId] = activeId;
 
-				var propsVal = this.getSkuProps(basketCode, product.SKU_PROPS);
-				propsVal[skuId] = newOfferId;
-				var offerId = this.getProductIdBySkuProps(product.PRODUCT_ID, propsVal, product.OFFERS_IBLOCK_ID);
+				this.getProductIdBySkuProps({
+					productId: product.PRODUCT_ID,
+					iBlockId: product.OFFERS_IBLOCK_ID,
+					skuProps: propsVal,
+					skuOrder: this.iblocksSkuParamsOrder[product.OFFERS_IBLOCK_ID],
+					changedSkuId: skuId,
+					callback: BX.delegate(
+						function(result){
 
-				for(var i in this.products)
-				{
-					if(!this.products.hasOwnProperty(i))
-						continue;
+							if(!result.OFFER_ID)
+							{
+								BX.debug("can't find product id for set of sku props");
+								return;
+							}
 
-					if(i == basketCode)
-						continue;
+							var offerId = result.OFFER_ID;
 
-					if(this.products[i].OFFER_ID == offerId)
-						if(!confirm(BX.message("SALE_ORDER_BASKET_POSITION_EXISTS").replace("#NAME#", this.products[i].NAME)))
-							return;
-				}
+							for(var i in this.products)
+							{
+								if(!this.products.hasOwnProperty(i))
+									continue;
 
-				this.onSkuSelectorClick(basketCode, ul, skuId, newOfferId);
-				this.onSkuPropSelect(basketCode, offerId);
+								if(i == basketCode)
+									continue;
+
+								if(this.products[i].OFFER_ID == offerId)
+									if(!confirm(BX.message("SALE_ORDER_BASKET_POSITION_EXISTS").replace("#NAME#", this.products[i].NAME)))
+										return;
+							}
+
+							this.onSkuSelectorClick(basketCode, ul, skuId, activeValue, activeId);
+							this.onSkuPropSelect(basketCode, offerId);						},
+						this
+					)}
+				);
 			},
 			this
 		));
@@ -1716,7 +1596,6 @@ BX.Sale.Admin.OrderBasketEdit.prototype.createSkuSelector = function(basketCode,
 			}
 		});
 
-
 	var result = BX.create('div',{
 		props: {
 			className: "adm-s-item-detail-sku"
@@ -1740,7 +1619,7 @@ BX.Sale.Admin.OrderBasketEdit.prototype.createSkuSelector = function(basketCode,
 									props: {
 										type: 'hidden',
 										name: this.getFieldName(basketCode, "SKU")+"["+skuId+"]",
-										value: activeItemValue
+										value: activeItemId
 									}
 								}
 							)
@@ -1812,7 +1691,7 @@ BX.Sale.Admin.OrderBasketEdit.prototype.setProductPrice = function(basketCode, p
 {
 	var form = BX.Sale.Admin.OrderEditPage.getForm(),
 		pInput = form.elements[this.getFieldName(basketCode, "PRICE")],
-		bpInput = form.elements[this.getFieldName(basketCode, "PRICE_BASE")],
+		bpInput = form.elements[this.getFieldName(basketCode, "BASE_PRICE")],
 		bpDiv = BX(this.idPrefix+"sale-order-basket-product-"+basketCode+"-base_price"),
 		fpDiv = BX(this.idPrefix+"sale-order-basket-product-"+basketCode+"-formatted_price");
 
@@ -1830,9 +1709,9 @@ BX.Sale.Admin.OrderBasketEdit.prototype.setProductPrice = function(basketCode, p
 		fpDiv.innerHTML = BX.Sale.Admin.OrderEditPage.currencyFormat(price);
 
 	if(this.products[basketCode].CUSTOM_PRICE == 'Y')
-		this.customPrices[this.products[basketCode].OFFER_ID] = price;
+		this.customPrices[basketCode] = price;
 	else
-		delete(this.customPrices[this.products[basketCode].OFFER_ID]);
+		delete(this.customPrices[basketCode]);
 
 	if(bpInput && bpDiv)
 	{
@@ -1948,7 +1827,7 @@ BX.Sale.Admin.OrderBasketEdit.prototype.addProductSearch = function(params)
 	window[funcName] = BX.proxy(function(params, iblockId){this.getParamsByProductId(params, iblockId);}, this);
 
 	var popup = new BX.CDialog({
-		content_url: '/bitrix/admin/cat_product_search_dialog.php?'+
+		content_url: '/bitrix/tools/sale/product_search_dialog.php?'+
 			'lang='+BX.Sale.Admin.OrderEditPage.languageId+
 			'&LID='+BX.Sale.Admin.OrderEditPage.siteId+
 			'&caller=order_edit'+
@@ -1993,8 +1872,15 @@ BX.Sale.Admin.OrderBasketEdit.prototype.getSkuProps = function(basketCode, skuPr
 		form = BX.Sale.Admin.OrderEditPage.getForm();
 
 	for(var propId in skuProps)
-		if(skuProps.hasOwnProperty(propId))
-			result[propId] = form.elements[this.getFieldName(basketCode, "SKU")+"["+propId+"]"].value;
+	{
+		if(!skuProps.hasOwnProperty(propId))
+			continue;
+
+		var fieldName = this.getFieldName(basketCode, "SKU")+"["+propId+"]";
+
+		if(typeof form.elements[fieldName] != "undefined")
+			result[propId] = form.elements[fieldName].value;
+	}
 
 	return result;
 };
@@ -2004,41 +1890,14 @@ BX.Sale.Admin.OrderBasketEdit.prototype.getFieldName = function(basketCode, type
 	return "PRODUCT["+basketCode+"]["+type+"]";
 };
 
-BX.Sale.Admin.OrderBasketEdit.prototype.productReplace = function(product, oldProductBasketCode)
-{
-	var oldProductRow = BX(this.createProductRowId(oldProductBasketCode, product));
-
-	if(!oldProductRow)
-		return;
-
-	this.onProductDelete(oldProductBasketCode);
-
-	var	basketCode = this.getProductBasketCode(product),
-		newProductRow = this.createProductRow(basketCode, product);
-
-	if(!newProductRow)
-		return;
-
-	if(!BX.hasClass(oldProductRow, "basket-bundle-child-hidden"))
-		BX.removeClass(newProductRow, "basket-bundle-child-hidden");
-
-	oldProductRow.parentNode.replaceChild(newProductRow, oldProductRow);
-	this.setRowNumbers();
-};
-
-BX.Sale.Admin.OrderBasketEdit.prototype.onProductDelete = function(basketCode)
-{
-	BX.Sale.Admin.OrderEditPage.unRegisterProductFieldsUpdaters(basketCode);
-};
-
 BX.Sale.Admin.OrderBasketEdit.prototype.productDeleteClick = function(basketCode)
 {
-	this.productDelete(basketCode);
+	//this.productDelete(basketCode);
 
 	BX.Sale.Admin.OrderAjaxer.sendRequest(
 		BX.Sale.Admin.OrderEditPage.ajaxRequests.refreshOrderData({
 			operation: "PRODUCT_DELETE",
-			productId: basketCode
+			basketCode: basketCode
 		})
 	);
 };
@@ -2072,25 +1931,25 @@ BX.Sale.Admin.OrderBasketEdit.prototype.productDelete = function(basketCode)
 	if(this.productsCount <= 0)
 		this.showEmptyRow();
 
-	if(this.customPrices[this.products[basketCode].OFFER_ID])
-		delete this.customPrices[this.products[basketCode].OFFER_ID];
+	if(this.customPrices[basketCode])
+		delete this.customPrices[basketCode];
 
 	delete(this.products[basketCode]);
 };
 
-BX.Sale.Admin.OrderBasketEdit.prototype.onSkuSelectorClick = function(basketCode, ul, skuId, activeValue)
+BX.Sale.Admin.OrderBasketEdit.prototype.onSkuSelectorClick = function(basketCode, ul, skuId, activeValue, activeId)
 {
 	for(var i=0,l=ul.children.length; i<l; i++)
 	{
 		var li = ul.children[i];
 
-		if(li.getAttribute('data-value') != activeValue)
+		if(li.getAttribute('data-value') != BX.util.htmlspecialchars(activeValue))
 			BX.removeClass(li,'bx-active');
 		else
 			BX.addClass(li,'bx-active');
 	}
 
-	this.setSkuInput(basketCode, skuId, activeValue);
+	this.setSkuInput(basketCode, skuId, activeId);
 };
 
 BX.Sale.Admin.OrderBasketEdit.prototype.setSkuInput = function(basketCode, skuId, value)
@@ -2281,20 +2140,19 @@ BX.Sale.Admin.OrderBasketEdit.prototype.createMeasureRatioNode = function(basket
 		_this.onProductQuantityChange({productId: basketCode});
 	});
 
-	var result = BX.create('div', {
+	return BX.create('div', {
 		props:{
 			className: "quantity_control"
 		},
 		children:[
 			upArrow,
 			downArrow
-		]
+		],
+		style: {
+			position: 'inherit',
+			marginLeft: '3px'
+		}
 	});
-
-	result.style.position = "inherit";
-	result.style.marginLeft = "3px";
-
-	return result;
 };
 
 BX.Sale.Admin.OrderBasketEdit.prototype.createFieldQuantity = function(basketCode, product, fieldId)
@@ -2309,11 +2167,10 @@ BX.Sale.Admin.OrderBasketEdit.prototype.createFieldQuantity = function(basketCod
 				name: this.getFieldName(basketCode, "QUANTITY"),
 				value: this.roundQuantity(product.QUANTITY),
 				className: "tac"
-			}
+			},
+			style: { width: '60px' }
 		}),
 		ratioNode = this.createMeasureRatioNode(basketCode, input, ratio);
-
-	input.style.width = "60px";
 
 	BX.bind(
 		input,
@@ -2339,8 +2196,10 @@ BX.Sale.Admin.OrderBasketEdit.prototype.createFieldQuantity = function(basketCod
 
 	if(ratioNode)
 	{
-		result = BX.create('span', {children: [input, ratioNode]});
-		result.style.display = "inline-flex";
+		result = BX.create('span', {
+			children: [input, ratioNode],
+			style: { display: 'inline-flex' }
+		});
 	}
 	else
 	{
@@ -2354,10 +2213,10 @@ BX.Sale.Admin.OrderBasketEdit.prototype.createFieldPrice = function(basketCode, 
 {
 	var price;
 
-	if(typeof(this.customPrices[product.OFFER_ID]) == "undefined")
+	if(typeof(this.customPrices[basketCode]) == "undefined")
 		price = product.PRICE;
 	else
-		price = this.customPrices[product.OFFER_ID];
+		price = this.customPrices[basketCode];
 
 	var updater = {},
 		_this = this,
@@ -2414,10 +2273,10 @@ BX.Sale.Admin.OrderBasketEdit.prototype.createFieldPrice = function(basketCode, 
 				className: "base_price",
 				id: this.idPrefix+"sale-order-basket-product-"+basketCode+"-base_price"
 			},
-			style: {display: ((parseFloat(product.PRICE_BASE) > 0 && parseFloat(product.PRICE) != parseFloat(product.PRICE_BASE)) ? "": "none")},
+			style: {display: ((parseFloat(product.BASE_PRICE) > 0 && parseFloat(product.PRICE) != parseFloat(product.BASE_PRICE)) ? "": "none")},
 			children: [
 				BX.create('span',{
-					html: BX.Sale.Admin.OrderEditPage.currencyFormat(product.PRICE_BASE)
+					html: BX.Sale.Admin.OrderEditPage.currencyFormat(product.BASE_PRICE)
 				})
 			]
 		}),
@@ -2577,11 +2436,13 @@ BX.Sale.Admin.OrderBasketEdit.prototype.createSkuPropsHiddenHtml = function(bask
 				var name = props[i]["NAME"] ? BX.util.htmlspecialchars(props[i]["NAME"]) : "",
 					value = props[i]["VALUE"] ? BX.util.htmlspecialchars(props[i]["VALUE"]) : "",
 					code = props[i]["CODE"] ? BX.util.htmlspecialchars(props[i]["CODE"]) : "",
-					sort = props[i]["SORT"] ? BX.util.htmlspecialchars(props[i]["SORT"]) : 100;
+					sort = props[i]["SORT"] ? BX.util.htmlspecialchars(props[i]["SORT"]) : 100,
+					id = props[i]["ID"] ? BX.util.htmlspecialchars(props[i]["ID"]) : 0;
 
 				hiddenFieldsHtml += '<input type="hidden" name="'+propsFieldName+'['+propIdx+'][NAME]" value="'+name+'">'+
 				'<input type="hidden" name="'+propsFieldName+'['+propIdx+'][VALUE]" value="'+value+'">'+
 				'<input type="hidden" name="'+propsFieldName+'['+propIdx+'][CODE]" value="'+code+'">'+
+				'<input type="hidden" name="'+propsFieldName+'['+propIdx+'][ID]" value="'+id+'">'+
 				'<input type="hidden" name="'+propsFieldName+'['+propIdx+'][SORT]" value="'+sort+'">';
 			}
 
@@ -2590,20 +2451,6 @@ BX.Sale.Admin.OrderBasketEdit.prototype.createSkuPropsHiddenHtml = function(bask
 	}
 
 	return hiddenFieldsHtml;
-};
-
-BX.Sale.Admin.OrderBasketEdit.prototype.setProductsOffersSkuParams = function(offerId, skuParam)
-{
-	if(!this.productsOffersSkuParams)
-			this.productsOffersSkuParams = {};
-
-	if(!this.productsOffersSkuParams[offerId])
-		this.productsOffersSkuParams[offerId] = {};
-
-	if(skuParam)
-		for(var i in skuParam)
-			if(skuParam.hasOwnProperty(i))
-				this.productsOffersSkuParams[offerId][i] = skuParam[i];
 };
 
 BX.Sale.Admin.OrderBasketEdit.prototype.onPriceEditEnable = function(containerNode, inputNode)
@@ -2976,7 +2823,7 @@ BX.Sale.Admin.OrderBasketProductEditDialog = function(basketObj)
 		basket = basketObj,
 		usedBasketFields = ["CURRENCY", "PRODUCT_PROVIDER_CLASS", "NAME", "DETAIL_PAGE_URL", "WEIGHT",
 			"CATALOG_XML_ID", "NOTES", "PRODUCT_XML_ID", "OFFER_ID", "PRICE", "QUANTITY", "PROPS", "MEASURE_CODE",
-			"MEASURE_TEXT", "CUSTOM_PRICE"],
+			"MEASURE_TEXT", "CUSTOM_PRICE", "BASKET_CODE"],
 		_this = this;
 
 
@@ -3023,9 +2870,9 @@ BX.Sale.Admin.OrderBasketProductEditDialog = function(basketObj)
 		{
 			i++;
 		}
-		while(typeof (basket.products[(i)]) != "undefined");
+		while(typeof (basket.products[('n'+i)]) != "undefined");
 
-		return i;
+		return 'n'+i;
 	};
 
 	var getProductPropsFromDialog = function()
@@ -3069,7 +2916,7 @@ BX.Sale.Admin.OrderBasketProductEditDialog = function(basketObj)
 	{
 		var	basketCode = getBasketCode(),
 			dialogField,
-			product = basket.products[basketCode] ? basket.products[basketCode] : {MODULE: "", OFFER_ID: getFreeBasketOfferId(), BASKET_CODE: basketCode},
+			product = basket.products[basketCode] ? basket.products[basketCode] : {MODULE: "", OFFER_ID: 1, BASKET_CODE: basketCode},
 			customedPrice = false;
 
 		for(var i in usedBasketFields)
@@ -3088,6 +2935,10 @@ BX.Sale.Admin.OrderBasketProductEditDialog = function(basketObj)
 					{
 						product["CUSTOM_PRICE"] = "Y";
 						customedPrice = true;
+						basket.customPrices[basketCode] = dialogField.value;
+
+						if(!product.MODULE)
+							product["BASE_PRICE"] = product["PRICE_BASE"] = dialogField.value;
 					}
 				}
 				else if(usedBasketFields[i] == "CUSTOM_PRICE")
@@ -3096,20 +2947,30 @@ BX.Sale.Admin.OrderBasketProductEditDialog = function(basketObj)
 						continue;
 				}
 
-				product[usedBasketFields[i]] = dialogField.value;
+				if(dialogField.value || (usedBasketFields[i] != 'OFFER_ID' && usedBasketFields[i] != 'BASKET_CODE'))
+					product[usedBasketFields[i]] = dialogField.value;
 			}
 		}
 
-		if(isNewProduct)
-			product.OFFER_ID = getFreeBasketOfferId();
+		product['MANUALLY_EDITED'] = 'Y';
+
+		if(product.BASKET_CODE != basketCode)
+			BX.debug('setProductParams: product.BASKET_CODE != basketCode "'+product.BASKET_CODE+'" != "'+basketCode+'"');
+
+		if(!product.BASKET_CODE || product.BASKET_CODE != basketCode)
+			product.BASKET_CODE = basketCode;
+
+		if(isNewProduct && !product.OFFER_ID)
+			product.OFFER_ID = 1;
 
 		product = setProps(product);
+
 		basket.productSet(product, !isNewProduct);
 
 		BX.Sale.Admin.OrderAjaxer.sendRequest(
 			BX.Sale.Admin.OrderEditPage.ajaxRequests.refreshOrderData({
 				operation: "PRODUCT_ADD",
-				productId: basketCode
+				productId: product.OFFER_ID
 			})
 		);
 	};
@@ -3297,10 +3158,10 @@ BX.Sale.Admin.OrderBasketProductEditDialog = function(basketObj)
 			price = BX("FORM_PROD_BASKET_PRICE"),
 			quantity = BX("FORM_PROD_BASKET_QUANTITY");
 
-		if(quantity.value.length > 0 && /\D/.test(quantity.value))
+		if(quantity.value.length > 0 && /\D\./.test(quantity.value))
 			quantity.value = parseFloat(quantity.value) || "0";
 
-		if(price.value.length > 0 && /\D/.test(price.value))
+		if(price.value.length > 0 && /\D\./.test(price.value))
 			price.value = parseFloat(price.value) || "0";
 
 		if(name.value.length <= 0)

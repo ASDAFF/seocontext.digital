@@ -190,3 +190,5 @@ class CommandTable extends Main\Entity\DataManager
 		);
 	}
 }
+
+class_alias("Bitrix\\Im\\Model\\CommandTable", "Bitrix\\Im\\CommandTable", false);

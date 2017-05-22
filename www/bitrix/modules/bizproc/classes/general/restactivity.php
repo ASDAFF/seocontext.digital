@@ -123,6 +123,11 @@ class CBPRestActivity
 		));
 		$application = $dbRes->fetch();
 
+		if (!$application)
+		{
+			throw new Exception('Rest application not found.');
+		}
+
 		$appStatus = \Bitrix\Rest\AppTable::getAppStatusInfo($application, '');
 		if($appStatus['PAYMENT_ALLOW'] === 'N')
 		{
@@ -150,6 +155,7 @@ class CBPRestActivity
 					'workflow_id' => $this->getWorkflowInstanceId(),
 					'code' => $activityData['CODE'],
 					'document_id' => $this->GetDocumentId(),
+					'document_type' => $this->GetDocumentType(),
 					'event_token' => self::generateToken($this->getWorkflowInstanceId(), $this->name, $this->eventId),
 					'properties' => $propertiesData,
 					'use_subscription' => $this->UseSubscription,
@@ -289,85 +295,110 @@ class CBPRestActivity
 
 	public static function GetPropertiesDialog($documentType, $activityName, $workflowTemplate, $workflowParameters, $workflowVariables, $currentValues = null, $formName = "")
 	{
-		$runtime = CBPRuntime::GetRuntime();
+		$activityData = self::getRestActivityData();
+
+		$dialog = new \Bitrix\Bizproc\Activity\PropertiesDialog(__FILE__, array(
+			'documentType' => $documentType,
+			'activityName' => $activityName,
+			'workflowTemplate' => $workflowTemplate,
+			'workflowParameters' => $workflowParameters,
+			'workflowVariables' => $workflowVariables,
+			'currentValues' => $currentValues
+		));
 
 		$map = array(
-			'AuthUserId',
-			'SetStatusMessage',
-			'StatusMessage',
-			'UseSubscription',
-			'TimeoutDuration',
-			'TimeoutDurationType'
+			'AuthUserId' => array(
+				'Name' => 'AuthUserId',
+				'FieldName' => 'authuserid',
+				'Type' => 'user',
+				'Default' => 'user_'.$activityData['AUTH_USER_ID']
+			),
+			'SetStatusMessage' => array(
+				'Name' => 'SetStatusMessage',
+				'FieldName' => 'setstatusmessage',
+				'Type' => 'bool',
+			),
+			'StatusMessage' => array(
+				'Name' => 'StatusMessage',
+				'FieldName' => 'statusmessage',
+				'Type' => 'text',
+				'Default' => Loc::getMessage('BPRA_DEFAULT_STATUS_MESSAGE'),
+			),
+			'UseSubscription' => array(
+				'Name' => 'StatusMessage',
+				'FieldName' => 'usesubscription',
+				'Type' => 'bool',
+				'Default' => $activityData['USE_SUBSCRIPTION']
+			),
+			'TimeoutDuration' => array(
+				'Name' => 'StatusMessage',
+				'FieldName' => 'timeoutduration',
+				'Type' => 'int',
+			),
+			'TimeoutDurationType' => array(
+				'Name' => 'StatusMessage',
+				'FieldName' => 'timeoutdurationtype',
+				'Type' => 'string',
+				'Default' => 's'
+			),
 		);
 
-		$activityData = self::getRestActivityData();
 		$properties = isset($activityData['PROPERTIES']) && is_array($activityData['PROPERTIES']) ? $activityData['PROPERTIES'] : array();
 		foreach ($properties as $name => $property)
 		{
-			if (!in_array($name, $map))
-				$map[] = $name;
+			if (!array_key_exists($name, $map))
+				$map[$name] = array(
+					'Name' => RestActivityTable::getLocalization($property['NAME'], LANGUAGE_ID),
+					'Description' => RestActivityTable::getLocalization($property['DESCRIPTION'], LANGUAGE_ID),
+					'FieldName' => static::PROPERTY_NAME_PREFIX.strtolower($name),
+					'Type' => $property['TYPE'],
+					'Required' => $property['REQUIRED'],
+					'Multiple' => $property['MULTIPLE'],
+					'Default' => $property['DEFAULT'],
+					'Options' => isset($property['OPTIONS']) ? $property['OPTIONS'] : null
+				);
 		}
 
-		if (!is_array($currentValues))
-		{
-			$currentValues = Array();
-			$currentActivity = &CBPWorkflowTemplateLoader::FindActivityByName($workflowTemplate, $activityName);
-			if (is_array($currentActivity['Properties']))
-			{
-				foreach ($map as $k)
-				{
-					if (array_key_exists($k, $currentActivity['Properties']))
-					{
-						$currentValues[strtolower($k)] = $currentActivity['Properties'][$k];
-					}
-					else
-					{
-						$currentValues[strtolower($k)] = "";
-					}
-				}
-			}
-			else
-			{
-				foreach ($map as $k)
-					$currentValues[strtolower($k)] = "";
-			}
-		}
+		$dialog	->setMap($map)
+				->setRuntimeData(array('ACTIVITY_DATA' => $activityData))
+				->setRenderer(array(__CLASS__, 'renderPropertiesDialog'));
 
-		if (strlen($currentValues['statusmessage']) <= 0)
-			$currentValues['statusmessage'] = Loc::getMessage('BPRA_DEFAULT_STATUS_MESSAGE');
-		if (strlen($currentValues["timeoutdurationtype"]) <= 0)
-			$currentValues["timeoutdurationtype"] = "s";
-		if (empty($currentValues["authuserid"]))
-			$currentValues["authuserid"] = 'user_'.$activityData['AUTH_USER_ID'];
+		return $dialog;
+	}
 
-		$currentValues["authuserid"] = CBPHelper::UsersArrayToString($currentValues["authuserid"], $workflowTemplate, $documentType);
-
-		if (!empty($activityData['USE_SUBSCRIPTION']))
-			$currentValues['usesubscription'] = $activityData['USE_SUBSCRIPTION'];
+	public static function renderPropertiesDialog(\Bitrix\Bizproc\Activity\PropertiesDialog $dialog)
+	{
+		$runtime = CBPRuntime::GetRuntime();
+		$data = $dialog->getRuntimeData();
+		$activityData = $data['ACTIVITY_DATA'];
 
 		/** @var CBPDocumentService $documentService */
 		$documentService = $runtime->GetService("DocumentService");
-		$activityDocumentType = is_array($activityData['DOCUMENT_TYPE']) ? $activityData['DOCUMENT_TYPE'] : $documentType;
+		$activityDocumentType = is_array($activityData['DOCUMENT_TYPE']) ? $activityData['DOCUMENT_TYPE'] : $dialog->getDocumentType();
+		$properties = isset($activityData['PROPERTIES']) && is_array($activityData['PROPERTIES']) ? $activityData['PROPERTIES'] : array();
 
+		$currentValues = $dialog->getCurrentValues(true, true);
+
+		ob_start();
 		foreach ($properties as $name => $property):
 			$required = CBPHelper::getBool($property['REQUIRED']);
 			$name = strtolower($name);
-			$value = !CBPHelper::isEmptyValue($currentValues[$name]) ? $currentValues[$name] : $property['DEFAULT'];
-		?>
+			$value = !CBPHelper::isEmptyValue($currentValues[static::PROPERTY_NAME_PREFIX.$name]) ? $currentValues[static::PROPERTY_NAME_PREFIX.$name] : $property['DEFAULT'];
+			?>
 			<tr>
 				<td align="right" width="40%" valign="top">
 					<span class="<?=$required?'adm-required-field':''?>">
 						<?= htmlspecialcharsbx(RestActivityTable::getLocalization($property['NAME'], LANGUAGE_ID)) ?>:
 					</span>
 					<?if (isset($property['DESCRIPTION'])):?>
-					<br/><?= htmlspecialcharsbx(RestActivityTable::getLocalization($property['DESCRIPTION'], LANGUAGE_ID)) ?>
+						<br/><?= htmlspecialcharsbx(RestActivityTable::getLocalization($property['DESCRIPTION'], LANGUAGE_ID)) ?>
 					<?endif;?>
 				</td>
 				<td width="60%">
 					<?=$documentService->getFieldInputControl(
 						$activityDocumentType,
 						$property,
-						array('Field' => static::PROPERTY_NAME_PREFIX.$name, 'Form' => $formName),
+						array('Field' => static::PROPERTY_NAME_PREFIX.$name, 'Form' => $dialog->getFormName()),
 						$value,
 						true,
 						false
@@ -375,7 +406,7 @@ class CBPRestActivity
 				</td>
 			</tr>
 
-		<?
+			<?
 		endforeach;
 
 		if (static::checkAdminPermissions()):?>
@@ -386,50 +417,52 @@ class CBPRestActivity
 				</td>
 			</tr>
 		<?endif?>
-			<tr>
-				<td align="right"><?= Loc::getMessage("BPRA_PD_SET_STATUS_MESSAGE") ?>:</td>
-				<td>
-					<select name="setstatusmessage">
-						<option value="Y"<?= $currentValues["setstatusmessage"] == "Y" ? " selected" : "" ?>><?= Loc::getMessage("BPRA_PD_YES") ?></option>
-						<option value="N"<?= $currentValues["setstatusmessage"] == "N" ? " selected" : "" ?>><?= Loc::getMessage("BPRA_PD_NO") ?></option>
-					</select>
-				</td>
-			</tr>
-			<tr>
-				<td align="right"><?= Loc::getMessage("BPRA_PD_STATUS_MESSAGE") ?>:</td>
-				<td valign="top"><?=CBPDocument::ShowParameterField("string", 'statusmessage', $currentValues['statusmessage'], Array('size'=>'45'))?></td>
-			</tr>
-			<tr>
-				<td align="right"><?= Loc::getMessage("BPRA_PD_USE_SUBSCRIPTION") ?>:</td>
-				<td>
-					<select name="usesubscription" <?=!empty($activityData['USE_SUBSCRIPTION'])? 'disabled' : ''?>>
-						<option value="Y"<?= $currentValues["usesubscription"] == 'Y' ? " selected" : "" ?>><?= Loc::getMessage("BPRA_PD_YES") ?></option>
-						<option value="N"<?= $currentValues["usesubscription"] == 'N' ? " selected" : "" ?>><?= Loc::getMessage("BPRA_PD_NO") ?></option>
-					</select>
-				</td>
-			</tr>
-			<? if ($activityData['USE_SUBSCRIPTION'] != 'N'):?>
-			<tr>
-				<td align="right"><?= Loc::getMessage("BPRA_PD_TIMEOUT_DURATION") ?>:<br/><?= Loc::getMessage("BPRA_PD_TIMEOUT_DURATION_HINT") ?></td>
-				<td valign="top">
-					<?=CBPDocument::ShowParameterField('int', 'timeoutduration', $currentValues["timeoutduration"], array('size' => 20))?>
-					<select name="timeoutdurationtype">
-						<option value="s"<?= ($currentValues["timeoutdurationtype"] == "s") ? " selected" : "" ?>><?= Loc::getMessage("BPRA_PD_TIME_S") ?></option>
-						<option value="m"<?= ($currentValues["timeoutdurationtype"] == "m") ? " selected" : "" ?>><?= Loc::getMessage("BPRA_PD_TIME_M") ?></option>
-						<option value="h"<?= ($currentValues["timeoutdurationtype"] == "h") ? " selected" : "" ?>><?= Loc::getMessage("BPRA_PD_TIME_H") ?></option>
-						<option value="d"<?= ($currentValues["timeoutdurationtype"] == "d") ? " selected" : "" ?>><?= Loc::getMessage("BPRA_PD_TIME_D") ?></option>
-					</select>
-					<?
-					$delayMinLimit = CBPSchedulerService::getDelayMinLimit();
-					if ($delayMinLimit):
-						?>
-						<p style="color: red;">* <?= Loc::getMessage("BPRA_PD_TIMEOUT_LIMIT") ?>: <?=CBPHelper::FormatTimePeriod($delayMinLimit)?></p>
-						<?
-					endif;
+		<tr>
+			<td align="right"><?= Loc::getMessage("BPRA_PD_SET_STATUS_MESSAGE") ?>:</td>
+			<td>
+				<select name="setstatusmessage">
+					<option value="Y"<?= $currentValues["setstatusmessage"] == "Y" ? " selected" : "" ?>><?= Loc::getMessage("BPRA_PD_YES") ?></option>
+					<option value="N"<?= $currentValues["setstatusmessage"] == "N" ? " selected" : "" ?>><?= Loc::getMessage("BPRA_PD_NO") ?></option>
+				</select>
+			</td>
+		</tr>
+		<tr>
+			<td align="right"><?= Loc::getMessage("BPRA_PD_STATUS_MESSAGE") ?>:</td>
+			<td valign="top"><?=CBPDocument::ShowParameterField("string", 'statusmessage', $currentValues['statusmessage'], Array('size'=>'45'))?></td>
+		</tr>
+		<tr>
+			<td align="right"><?= Loc::getMessage("BPRA_PD_USE_SUBSCRIPTION") ?>:</td>
+			<td>
+				<select name="usesubscription" <?=!empty($activityData['USE_SUBSCRIPTION'])? 'disabled' : ''?>>
+					<option value="Y"<?= $currentValues["usesubscription"] == 'Y' ? " selected" : "" ?>><?= Loc::getMessage("BPRA_PD_YES") ?></option>
+					<option value="N"<?= $currentValues["usesubscription"] == 'N' ? " selected" : "" ?>><?= Loc::getMessage("BPRA_PD_NO") ?></option>
+				</select>
+			</td>
+		</tr>
+		<? if ($activityData['USE_SUBSCRIPTION'] != 'N'):?>
+		<tr>
+			<td align="right"><?= Loc::getMessage("BPRA_PD_TIMEOUT_DURATION") ?>:<br/><?= Loc::getMessage("BPRA_PD_TIMEOUT_DURATION_HINT") ?></td>
+			<td valign="top">
+				<?=CBPDocument::ShowParameterField('int', 'timeoutduration', $currentValues["timeoutduration"], array('size' => 20))?>
+				<select name="timeoutdurationtype">
+					<option value="s"<?= ($currentValues["timeoutdurationtype"] == "s") ? " selected" : "" ?>><?= Loc::getMessage("BPRA_PD_TIME_S") ?></option>
+					<option value="m"<?= ($currentValues["timeoutdurationtype"] == "m") ? " selected" : "" ?>><?= Loc::getMessage("BPRA_PD_TIME_M") ?></option>
+					<option value="h"<?= ($currentValues["timeoutdurationtype"] == "h") ? " selected" : "" ?>><?= Loc::getMessage("BPRA_PD_TIME_H") ?></option>
+					<option value="d"<?= ($currentValues["timeoutdurationtype"] == "d") ? " selected" : "" ?>><?= Loc::getMessage("BPRA_PD_TIME_D") ?></option>
+				</select>
+				<?
+				$delayMinLimit = CBPSchedulerService::getDelayMinLimit();
+				if ($delayMinLimit):
 					?>
-				</td>
-			</tr>
-			<?endif;
+					<p style="color: red;">* <?= Loc::getMessage("BPRA_PD_TIMEOUT_LIMIT") ?>: <?=CBPHelper::FormatTimePeriod($delayMinLimit)?></p>
+					<?
+				endif;
+				?>
+			</td>
+		</tr>
+		<?endif;
+
+		return ob_get_clean();
 	}
 
 	public static function GetPropertiesDialogValues($documentType, $activityName, &$workflowTemplate, &$workflowParameters, &$workflowVariables, $currentValues, &$errors)

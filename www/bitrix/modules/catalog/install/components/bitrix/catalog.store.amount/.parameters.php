@@ -4,22 +4,36 @@ if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true) die();
 use Bitrix\Main,
 	Bitrix\Main\Loader;
 
-Loader::includeModule("catalog");
+Loader::includeModule('catalog');
 
 global $USER_FIELD_MANAGER;
+
+$iblockTypeList = CIBlockParameters::GetIBlockTypes();
+
+$iblockList = array();
+$iblockFilter = (
+	!empty($arCurrentValues['IBLOCK_TYPE'])
+	? array('TYPE' => $arCurrentValues['IBLOCK_TYPE'], 'ACTIVE' => 'Y')
+	: array('ACTIVE' => 'Y')
+);
+$iterator = CIBlock::GetList(array('SORT' => 'ASC'), $iblockFilter);
+while ($row = $iterator->Fetch())
+	$iblockList[$row['ID']] = '['.$row['ID'].'] '.$row['NAME'];
+unset($row, $iterator, $iblockFilter);
 
 $arStore = array();
 $storeIterator = CCatalogStore::GetList(
 	array(),
-	array('SHIPPING_CENTER' => 'Y'), // Main\Application::getInstance()->getContext()->getSite()),
+	array('ISSUING_CENTER' => 'Y'),
 	false,
 	false,
 	array('ID', 'TITLE')
 );
-while ($store = $storeIterator->GetNext())
+while ($store = $storeIterator->Fetch())
 	$arStore[$store['ID']] = "[".$store['ID']."] ".$store['TITLE'];
+unset($store, $storeIterator);
 
-$userFields = $USER_FIELD_MANAGER->GetUserFields("CAT_STORE", 0, Main\Application::getInstance()->getContext()->getLanguage());
+$userFields = $USER_FIELD_MANAGER->GetUserFields('CAT_STORE', 0, LANGUAGE_ID);
 $propertyUF = array();
 
 foreach($userFields as $fieldName => $userField)
@@ -37,7 +51,23 @@ $arComponentParameters = array(
 			'NAME' => GetMessage('CP_CSA_PARAM_STORES'),
 			'TYPE' => 'LIST',
 			'MULTIPLE' => 'Y',
-			'VALUES' => $arStore
+			'VALUES' => $arStore,
+			'ADDITIONAL_VALUES' => 'Y'
+		),
+		'IBLOCK_TYPE' => array(
+			"PARENT" => "BASE",
+			"NAME" => GetMessage('CP_CSA_PARAM_IBLOCK_TYPE'),
+			"TYPE" => "LIST",
+			"VALUES" => $iblockTypeList,
+			"REFRESH" => "Y",
+		),
+		'IBLOCK_ID' => array(
+			"PARENT" => "BASE",
+			"NAME" => GetMessage('CP_CSA_PARAM_IBLOCK_ID'),
+			"TYPE" => "LIST",
+			"ADDITIONAL_VALUES" => "Y",
+			"VALUES" => $iblockList,
+			"REFRESH" => "Y",
 		),
 		'ELEMENT_ID' => array(
 			'PARENT' => 'BASE',

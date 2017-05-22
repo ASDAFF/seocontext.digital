@@ -937,13 +937,13 @@ class CTar
 		if (!is_numeric(trim($data['checksum'])) || $chk!='' && $chk!=0)
 			return $this->Error('Archive is corrupted, wrong block: '.($this->Block-1));
 
-		$header['filename'] = trim($data['prefix'].'/'.$data['filename'],'/');
+		$header['filename'] = trim(trim($data['prefix'], "\x00").'/'.trim($data['filename'], "\x00"),'/');
 		$header['mode'] = OctDec($data['mode']);
 		$header['uid'] = OctDec($data['uid']);
 		$header['gid'] = OctDec($data['gid']);
 		$header['size'] = OctDec($data['size']);
 		$header['mtime'] = OctDec($data['mtime']);
-		$header['type'] = $data['type'];
+		$header['type'] = trim($data['type'], "\x00");
 //		$header['link'] = $data['link'];
 
 		if (self::strpos($header['filename'],'./') === 0)
@@ -1152,7 +1152,9 @@ class CTar
 		gzwrite($f,'');
 		gzclose($f);
 
-		$data = file_get_contents($file);
+		// $data = file_get_contents($file);
+		$data = "\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\xff\xff\x03\x00\x00\x00\x00\x00\x00\x00\x00\x00"; // buggy zlib 1.2.7
+
 
 		if (!($f = fopen($file, 'w')))
 			return $this->Error('Can\'t open file for writing: '.$file);

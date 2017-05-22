@@ -884,7 +884,7 @@ abstract class CAllMain
 	{
 		global $USER;
 
-		if(!$USER->IsAuthorized() || defined('ADMIN_SECTION') && ADMIN_SECTION == true)
+		if(!is_object($USER) || !$USER->IsAuthorized() || defined('ADMIN_SECTION') && ADMIN_SECTION == true)
 			return false;
 		if(isset($_SESSION["SESS_INCLUDE_AREAS"]) && $_SESSION["SESS_INCLUDE_AREAS"])
 			return true;
@@ -3108,6 +3108,8 @@ abstract class CAllMain
 		static $index = null;
 		static $view = null;
 
+		
+
 		if ($start)
 		{
 			$this->AddBufferContent("trim", "");
@@ -3189,6 +3191,8 @@ abstract class CAllMain
 
 	public function &EndBufferContentMan()
 	{
+		
+
 		if(!$this->buffered)
 			return null;
 		$content = ob_get_contents();
@@ -3524,6 +3528,8 @@ abstract class CAllMain
 				}
 			}
 		}
+
+		
 
 		//user auto time zone via js cookies
 		if(CTimeZone::Enabled() && (!defined("BX_SKIP_TIMEZONE_COOKIE") || BX_SKIP_TIMEZONE_COOKIE === false))
@@ -5288,6 +5294,11 @@ class CApplicationException
 	public function GetID()
 	{
 		return $this->id;
+	}
+
+	public function __toString()
+	{
+		return $this->GetString();
 	}
 }
 

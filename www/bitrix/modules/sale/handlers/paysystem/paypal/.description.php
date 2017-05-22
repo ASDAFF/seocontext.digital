@@ -88,6 +88,13 @@ $data = array(
 			'NAME' => Loc::getMessage('SALE_HPS_PAYPAL_SSL_ENABLE'),
 			'SORT' => 1000,
 			'GROUP' => 'CONNECT_SETTINGS_PAYPAL',
+			"INPUT" => array(
+				'TYPE' => 'Y/N'
+			),
+			'DEFAULT' => array(
+				"PROVIDER_VALUE" => "Y",
+				"PROVIDER_KEY" => "INPUT"
+			)
 		),
 		'PAYPAL_BUTTON_SRC'  => array(
 			'NAME' => Loc::getMessage('SALE_HPS_PAYPAL_BUTTON_SRC'),
@@ -111,7 +118,7 @@ $data = array(
 		'PAYPAL_BUSINESS' => array(
 			'NAME' => Loc::getMessage('SALE_HPS_PAYPAL_BUSINESS'),
 			'SORT' => 1500,
-			'GROUP' => 'PS_OTHER',
+			'GROUP' => 'CONNECT_SETTINGS_PAYPAL',
 			'DEFAULT' => array(
 				'PROVIDER_VALUE' => '',
 				'PROVIDER_KEY' => 'VALUE'

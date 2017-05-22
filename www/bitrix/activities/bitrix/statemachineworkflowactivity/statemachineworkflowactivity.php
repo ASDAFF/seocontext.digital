@@ -65,6 +65,13 @@ class CBPStateMachineWorkflowActivity
 	public function SetWorkflowStatus($status)
 	{
 		$this->workflowStatus = $status;
+
+		if ($status == CBPWorkflowStatus::Running && $this->{CBPDocument::PARAM_USE_FORCED_TRACKING})
+		{
+			/** @var CBPTrackingService $trackingService */
+			$trackingService = $this->workflow->GetService("TrackingService");
+			$trackingService->setForcedMode($this->workflow->GetInstanceId());
+		}
 		if ($status == CBPWorkflowStatus::Completed || $status == CBPWorkflowStatus::Terminated)
 		{
 			$this->ClearVariables();
@@ -79,6 +86,10 @@ class CBPStateMachineWorkflowActivity
 						$event->Cancel();
 				}
 			}
+			//Clean workflow subscriptions
+			\Bitrix\Bizproc\SchedulerEventTable::deleteByWorkflow($this->workflow->GetInstanceId());
+			//Finalize workflow activities
+			$this->workflow->FinalizeActivity($this);
 		}
 		try
 		{

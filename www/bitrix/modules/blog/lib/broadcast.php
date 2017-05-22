@@ -354,11 +354,14 @@ class Broadcast
 			if (!empty($userIdList))
 			{
 				$userIdListPush = $userIdList;
-				foreach ($userIdListPush as $key=> $userId)
+				if (Loader::includeModule('im'))
 				{
-					if (!\CIMSettings::getNotifyAccess($userId, 'blog', 'broadcast_post', \CIMSettings::CLIENT_PUSH))
+					foreach ($userIdListPush as $key=> $userId)
 					{
-						unset($userIdListPush[$key]);
+						if (!\CIMSettings::getNotifyAccess($userId, 'blog', 'broadcast_post', \CIMSettings::CLIENT_PUSH))
+						{
+							unset($userIdListPush[$key]);
+						}
 					}
 				}
 
@@ -377,7 +380,7 @@ class Broadcast
 
 				$CPushManager->addQueue(Array(
 					'USER_ID' => $userIdListPush,
-					'SEND_IMMEDIATELY' => 'N',
+					'SEND_DEFERRED' => 'Y',
 				));
 
 				$offlineUserIdList = array();

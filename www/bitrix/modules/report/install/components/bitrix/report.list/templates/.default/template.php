@@ -49,7 +49,7 @@ if($arResult['NEED_DISPLAY_UPDATE_14_5_2_MESSAGE']):
 		<? if (!empty($arResult['SHARED_REPORT'])): ?>
 			<div class="report-table-title"><?= GetMessage('REPORT_COMPANY_TITLE')?></div>
 			<table cellspacing="0" class="reports-list-table"
-				   id="reports-company-<?=$ownerId?>">
+					id="reports-company-<?=$ownerId?>">
 				<tr>
 					<th class="reports-first-column reports-head-cell-top" colspan="2">
 						<div class="reports-head-cell">
@@ -92,9 +92,9 @@ if($arResult['NEED_DISPLAY_UPDATE_14_5_2_MESSAGE']):
 					<tr class="reports-list-item" data-item="<?=$listItem['CREATED_BY']?>">
 						<td class="reports-first-column">
 							<a title="<?=htmlspecialcharsbx(strip_tags($listItem['DESCRIPTION']))?>"
-							   href="<?=CComponentEngine::MakePathFromTemplate(
-								   $arParams["PATH_TO_REPORT_VIEW"],
-								   array("report_id" => $listItem['ID']));?>" class="reports-title-link">
+								href="<?=CComponentEngine::MakePathFromTemplate(
+									$arParams["PATH_TO_REPORT_VIEW"],
+									array("report_id" => $listItem['ID']));?>" class="reports-title-link">
 								<?=htmlspecialcharsbx($listItem['TITLE'])?>
 							</a>
 						</td>
@@ -126,7 +126,7 @@ if($arResult['NEED_DISPLAY_UPDATE_14_5_2_MESSAGE']):
 				<?=bitrix_sessid_post();?>
 				<input type="hidden" name="CREATE_DEFAULT" value="1" />
 				<input type="hidden" name="HELPER_CLASS"
-					   value="<?=htmlspecialcharsbx($arResult['HELPER_CLASS'])?>" />
+					value="<?=htmlspecialcharsbx($arResult['HELPER_CLASS'])?>" />
 				<input type="submit" value="<?=GetMessage('REPORT_CREATE_DEFAULT')?>" />
 			</form>
 
@@ -161,9 +161,9 @@ if($arResult['NEED_DISPLAY_UPDATE_14_5_2_MESSAGE']):
 						<tr class="reports-list-item">
 							<td class="reports-first-column">
 								<a title="<?=htmlspecialcharsbx(strip_tags($listItem['DESCRIPTION']))?>"
-								   href="<?=CComponentEngine::MakePathFromTemplate(
-									   $arParams["PATH_TO_REPORT_VIEW"],
-									   array("report_id" => $listItem['ID']));?>" class="reports-title-link">
+									href="<?=CComponentEngine::MakePathFromTemplate(
+										$arParams["PATH_TO_REPORT_VIEW"],
+										array("report_id" => $listItem['ID']));?>" class="reports-title-link">
 									<?=htmlspecialcharsbx($listItem['TITLE'])?>
 								</a>
 							</td>
@@ -224,9 +224,9 @@ if($arResult['NEED_DISPLAY_UPDATE_14_5_2_MESSAGE']):
 					<tr class="reports-list-item">
 						<td class="reports-first-column">
 							<a title="<?=htmlspecialcharsbx(strip_tags($listItem['DESCRIPTION']))?>"
-							   href="<?=CComponentEngine::MakePathFromTemplate(
-								   $arParams["PATH_TO_REPORT_VIEW"],
-								   array("report_id" => $listItem['ID']));?>" class="reports-title-link">
+								href="<?=CComponentEngine::MakePathFromTemplate(
+									$arParams["PATH_TO_REPORT_VIEW"],
+									array("report_id" => $listItem['ID']));?>" class="reports-title-link">
 								<?=htmlspecialcharsbx($listItem['TITLE'])?>
 							</a>
 						</td>
@@ -313,20 +313,21 @@ define("REPORT_LIST_CREATE_BUTTON", true);?>
 </div>
 <? $this->SetViewTarget("pagetitle", 100);?>
 <div class="reports-title-buttons">
-	<a class="webform-small-button webform-small-button-blue task-list-toolbar-create"
-		href="<?=CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_REPORT_CONSTRUCT"],
-			array("report_id" => 0, 'action' => 'create'));?>">
-		<span class="webform-small-button-left"></span>
+
+	<a class="webform-small-button webform-small-button-transparent bx24-top-toolbar-button"
+		onclick="BX.Report['<?=$jsClass?>'].import()">
+		<span class="webform-small-button-text"><?=GetMessage('REPORT_IMPORT_BUTTON')?></span>
+	</a>
+
+	<a class="webform-small-button webform-small-button-blue bx24-top-toolbar-add"
+		href="<?=CComponentEngine::MakePathFromTemplate(
+					$arParams["PATH_TO_REPORT_CONSTRUCT"],
+					array("report_id" => 0, 'action' => 'create'));?>
+	">
 		<span class="webform-small-button-icon"></span>
 		<span class="webform-small-button-text"><?=GetMessage('REPORT_ADD')?></span>
-		<span class="webform-small-button-right"></span>
-	</a>
-	<a class="webform-small-button webform-small-button-transparent task-list-toolbar-create"
-	   onclick="BX.Report['<?=$jsClass?>'].import()">
-		<span class="webform-small-button-text"><?=GetMessage('REPORT_IMPORT_BUTTON')?></span>
 	</a>
 </div><?
 
 $this->EndViewTarget();
 endif;
-

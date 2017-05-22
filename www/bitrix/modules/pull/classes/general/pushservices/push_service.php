@@ -1,5 +1,7 @@
 <?php
 
+use Bitrix\Main\Text\Encoding;
+
 abstract class CPushService
 {
 	protected $allowEmptyMessage = true;
@@ -40,14 +42,7 @@ abstract class CPushService
 					$message = static::getMessageInstance($token);
 					$id = rand(1, 10000);
 					$message->setCustomIdentifier($id);
-					if ("UTF-8" != toupper(SITE_CHARSET))
-					{
-						$text = $APPLICATION->ConvertCharset($messageArray["MESSAGE"], SITE_CHARSET, "utf-8");
-					}
-					else
-					{
-						$text = $messageArray["MESSAGE"];
-					}
+					$text = \Bitrix\Main\Text\Encoding::convertEncoding($messageArray["MESSAGE"], SITE_CHARSET, "utf-8");
 					$message->setSound('');
 					$message->setText($text);
 					$message->setTitle($messageArray["TITLE"]);
@@ -88,7 +83,7 @@ abstract class CPushService
 
 					if ($messageArray["ADVANCED_PARAMS"] && is_array($messageArray["ADVANCED_PARAMS"]))
 					{
-//						$messageArray["ADVANCED_PARAMS"] = array_change_key_case($messageArray["ADVANCED_PARAMS"], CASE_LOWER);
+						$messageArray["ADVANCED_PARAMS"] = \Bitrix\Main\Text\Encoding::convertEncoding($messageArray["ADVANCED_PARAMS"], SITE_CHARSET, "UTF-8");
 						foreach ($messageArray["ADVANCED_PARAMS"] as $param => $value)
 						{
 							$message->setCustomProperty($param, $value);

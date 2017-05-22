@@ -128,6 +128,7 @@ use Bitrix\Main\Localization\Loc;
 							<?
 							else:
 								$val = (isset($field["value"])? $field["value"] : $arParams["~DATA"][$field["id"]]);
+								$valEncoded = htmlspecialcharsbx(htmlspecialcharsback($val));
 
 								//default attributes
 								if(!is_array($field["params"]))
@@ -180,7 +181,7 @@ use Bitrix\Main\Localization\Loc;
 											break;
 										case 'textarea':
 											?>
-											<textarea name="<?=$field["id"]?>"<?=$params?>><?=$val?></textarea>
+											<textarea name="<?=$field["id"]?>"<?=$params?>><?=$valEncoded?></textarea>
 											<?
 											break;
 										case 'list':
@@ -226,7 +227,7 @@ use Bitrix\Main\Localization\Loc;
 											break;
 										case 'date':
 											?>
-											<input class="bx-lists-input-calendar" value="<?=$val?>" type="text" name="<?= $field['id'] ?>"
+											<input class="bx-lists-input-calendar" value="<?=$valEncoded?>" type="text" name="<?= $field['id'] ?>"
 												   onclick="BX.calendar({node: this.parentNode, field: this,bTime: true, bHideTime: false});">
 											<span class="bx-lists-calendar-icon" onclick="BX.calendar({node:this, field:'<?= $field['id'] ?>', form: '',
 												bTime: true, bHideTime: false});" onmouseover="BX.addClass(this, 'calendar-icon-hover');"
@@ -235,7 +236,7 @@ use Bitrix\Main\Localization\Loc;
 											break;
 										default:
 											?>
-											<input type="text" name="<?=$field["id"]?>" value="<?=$val?>"<?=$params?>>
+											<input type="text" name="<?=$field["id"]?>" value="<?=$valEncoded?>"<?=$params?>>
 											<?
 											break;
 									endswitch;

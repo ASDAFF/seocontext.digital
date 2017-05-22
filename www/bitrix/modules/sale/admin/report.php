@@ -200,7 +200,7 @@ if (!$errorMessage) {
 	while ($arRes = $dbRepList->NavNext(false))
 	{
 		$lRow = $lReports->AddRow($arRes['ID'], $arRes);
-		$lRow->AddViewField('TITLE', "<a href='" . "sale_report_view.php?lang=" . LANG . '&ID=' . $arRes['ID'] . "' title='" . $arRes['DESCRIPTION'] . "'>" . $arRes['TITLE'] . "</a>");
+		$lRow->AddViewField('TITLE', "<a href='" . "sale_report_view.php?lang=" . LANG . '&ID=' . $arRes['ID'] . "' title='" . htmlspecialcharsbx($arRes['DESCRIPTION']) . "'>" . htmlspecialcharsbx($arRes['TITLE']) . "</a>");
 		$createdDateStr = ($arRes['CREATED_DATE'] instanceof \Bitrix\Main\Type\DateTime || $arRes['CREATED_DATE'] instanceof \Bitrix\Main\Type\Date) ? ConvertTimeStamp($arRes['CREATED_DATE']->getTimestamp(), 'SHORT') : '';
 		$lRow->AddViewField('CREATED_DATE', $createdDateStr);
 

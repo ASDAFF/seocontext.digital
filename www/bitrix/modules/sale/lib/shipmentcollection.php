@@ -403,6 +403,7 @@ class ShipmentCollection
 			$event->send();
 
 			Internals\ShipmentTable::deleteWithItems($k);
+			Internals\ShipmentExtraServiceTable::deleteByShipmentId($k);
 
 			/** @var Main\Event $event */
 			$event = new Main\Event('sale', "On".$itemEventName."Deleted", array(
@@ -424,6 +425,12 @@ class ShipmentCollection
 						'DELIVERY_ID' => $v['DELIVERY_ID'],
 					)
 				);
+
+				EntityMarker::deleteByFilter(array(
+					 '=ORDER_ID' => $order->getId(),
+					 '=ENTITY_TYPE' => EntityMarker::ENTITY_TYPE_SHIPMENT,
+					 '=ENTITY_ID' => $k,
+				 ));
 			}
 
 		}
@@ -497,7 +504,7 @@ class ShipmentCollection
 				if ($shipment->isSystem())
 					continue;
 
-				if (!$shipment->isShipped() && !$shipment->isEmpty())
+				if (!$shipment->isShipped())
 					return false;
 
 				if (!$shipment->isEmpty())
@@ -715,12 +722,18 @@ class ShipmentCollection
 
 	/**
 	 * Trying to reserve the contents of the shipment collection
-	 *
 	 * @return Result
+	 * @throws ObjectNotFoundException
 	 */
 	public function tryReserve()
 	{
 		$result = new Result();
+
+		/** @var Order $order */
+		if (!($order = $this->getOrder()))
+		{
+			throw new ObjectNotFoundException('Entity "Order" not found');
+		}
 		/** @var Shipment $shipment */
 		foreach ($this->collection as $shipment)
 		{
@@ -732,6 +745,15 @@ class ShipmentCollection
 			{
 				$result->addErrors($r->getErrors());
 			}
+			elseif ($r->hasWarnings())
+			{
+				$result->addWarnings($r->getWarnings());
+				EntityMarker::addMarker($order, $shipment, $r);
+				if (!$shipment->isSystem())
+				{
+					$shipment->setField('MARKED', 'Y');
+				}
+			}
 		}
 
 		return $result;
@@ -740,10 +762,17 @@ class ShipmentCollection
 	/**
 	 * Trying to reserve the contents of the shipment collection
 	 * @return Result
+	 * @throws Main\NotSupportedException
+	 * @throws Main\ObjectNotFoundException
 	 */
 	public function tryUnreserve()
 	{
 		$result = new Result();
+
+		if (!$order = $this->getOrder())
+		{
+			throw new Main\ObjectNotFoundException('Entity "Order" not found');
+		}
 		/** @var Shipment $shipment */
 		foreach ($this->collection as $shipment)
 		{
@@ -753,7 +782,16 @@ class ShipmentCollection
 			$r = $shipment->tryUnreserve();
 			if (!$r->isSuccess())
 			{
+				EntityMarker::addMarker($order, $shipment, $r);
+				if (!$shipment->isSystem())
+				{
+					$shipment->setField('MARKED', 'Y');
+				}
 				$result->addErrors($r->getErrors());
+			}
+			elseif ($r->hasWarnings())
+			{
+				$result->addWarnings($r->getWarnings());
 			}
 		}
 
@@ -845,7 +883,7 @@ class ShipmentCollection
 
 				if ($allowQuantityChange && $currentShipment)
 				{
-					$allowQuantityChange = (bool)(!$currentShipment->isAllowDelivery() && !$currentShipment->isCanceled() && !$currentShipment->isShipped() && !$currentShipment->isCustomPrice());
+					$allowQuantityChange = (bool)(!$currentShipment->isAllowDelivery() && !$currentShipment->isCanceled() && !$currentShipment->isShipped());
 
 					if ($allowQuantityChange)
 					{
@@ -961,7 +999,10 @@ class ShipmentCollection
 	 * @param $name
 	 * @param $oldValue
 	 * @param $value
+	 *
 	 * @return Result
+	 * @throws Main\NotSupportedException
+	 * @throws Main\ObjectNotFoundException
 	 */
 	public function onOrderModify($name, $oldValue, $value)
 	{
@@ -994,6 +1035,11 @@ class ShipmentCollection
 				}
 				else
 				{
+					if (!$order = $this->getOrder())
+					{
+						throw new Main\ObjectNotFoundException('Entity "Order" not found');
+					}
+					
 					/** @var Shipment $shipment */
 					foreach ($this->collection as $shipment)
 					{
@@ -1003,17 +1049,10 @@ class ShipmentCollection
 							$r = $shipment->tryReserve();
 							if (!$r->isSuccess())
 							{
-								$shipment->setField('MARKED', 'Y');
-
-								if (is_array($r->getErrorMessages()))
+								EntityMarker::addMarker($order, $shipment, $r);
+								if (!$shipment->isSystem())
 								{
-									$oldErrorText = $shipment->getField('REASON_MARKED');
-									foreach($r->getErrorMessages() as $error)
-									{
-										$oldErrorText .= (strval($oldErrorText) != '' ? "\n" : ""). $error;
-									}
-
-									$shipment->setField('REASON_MARKED', $oldErrorText);
+									$shipment->setField('MARKED', 'Y');
 								}
 
 								$result->addErrors($r->getErrors());
@@ -1238,6 +1277,7 @@ class ShipmentCollection
 
 	/**
 	 * @return Result
+	 * @throws Main\ObjectNotFoundException
 	 */
 	public function verify()
 	{
@@ -1249,13 +1289,21 @@ class ShipmentCollection
 			$r = $shipment->verify();
 			if (!$r->isSuccess())
 			{
-				if ($shipment->isSystem())
-				{
-					$result->addNotices($r->getErrors());
-				}
-				else
+				if (!$shipment->isSystem())
 				{
 					$result->addErrors($r->getErrors());
+
+					/** @var Order $order */
+					if (!$order = $this->getOrder())
+					{
+						throw new Main\ObjectNotFoundException('Entity "Order" not found');
+					}
+					
+					EntityMarker::addMarker($order, $shipment, $r);
+					if (!$shipment->isSystem())
+					{
+						$shipment->setField('MARKED', 'Y');
+					}
 				}
 			}
 		}
@@ -1307,6 +1355,47 @@ class ShipmentCollection
 		}
 
 		return $shipmentCollectionClone;
+	}
+
+
+	/**
+	 * @param $value
+	 *
+	 * @return string
+	 */
+	public function getErrorEntity($value)
+	{
+		$className = null;
+		/** @var Shipment $shipment */
+		foreach ($this->collection as $shipment)
+		{
+			if ($className = $shipment->getErrorEntity($value))
+			{
+				break;
+			}
+		}
+
+		return $className;
+	}
+
+	/**
+	 * @param $value
+	 *
+	 * @return string
+	 */
+	public function canAutoFixError($value)
+	{
+		$autoFix = false;
+
+		/** @var Shipment $shipment */
+		foreach ($this->collection as $shipment)
+		{
+			if ($autoFix = $shipment->canAutoFixError($value))
+			{
+				break;
+			}
+		}
+		return $autoFix;
 	}
 
 }

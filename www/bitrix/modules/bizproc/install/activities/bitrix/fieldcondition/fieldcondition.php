@@ -46,7 +46,13 @@ class CBPFieldCondition
 			if (array_key_exists($cond[0], $document))
 			{
 				$fld = isset($document[$cond[0]."_XML_ID"]) ? $document[$cond[0]."_XML_ID"] : $document[$cond[0]];
-				if (!$this->CheckCondition($cond[0], $fld, $cond[1], $cond[2], $documentFields[$cond[0]]["BaseType"], $rootActivity))
+				$type = $documentFields[$cond[0]]["BaseType"];
+				if ($documentFields[$cond[0]]['Type'] === 'UF:boolean')
+				{
+					$type = 'bool';
+				}
+
+				if (!$this->CheckCondition($cond[0], $fld, $cond[1], $cond[2], $type, $rootActivity))
 				{
 					$r = false;
 				}
@@ -181,6 +187,18 @@ class CBPFieldCondition
 					}
 				}
 				$v1 = $v1Tmp;
+			}
+
+			if ($type === 'bool')
+			{
+				$f1 = CBPHelper::getBool($f1);
+				$v1 = CBPHelper::getBool($v1);
+			}
+
+			//normalize "0" == "" comparing
+			if ($v1 === '' && $f1 === '0' || $f1 === '' && $v1 === '0')
+			{
+				$f1 = $v1 = null;
 			}
 
 			switch ($operation)

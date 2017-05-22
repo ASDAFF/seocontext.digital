@@ -26,7 +26,7 @@ $arNameStatuses[LANGUAGE_ID] = is_array($arNameStatuses[LANGUAGE_ID]) ? $arNameS
 $name = array("guest" => "Guest", "user" => "User", "moderator" => "Moderator", "editor" => "Editor", "administrator" => "Administrator");
 foreach ($name as $k => $v):
 	$name[$k] = trim(!empty($arMess["F_".strToUpper($k)]) ? $arMess["F_".strToUpper($k)] : $name[$k]);
-	$arNameStatuses[LANGUAGE_ID][$k] = htmlspecialcharsEx(empty($arNameStatuses[LANGUAGE_ID][$k]) ? $name[$k] : $arNameStatuses[LANGUAGE_ID][$k]);
+	$arNameStatuses[LANGUAGE_ID][$k] = htmlspecialcharsbx(empty($arNameStatuses[LANGUAGE_ID][$k]) ? $name[$k] : $arNameStatuses[LANGUAGE_ID][$k]);
 endforeach;
 
 $GLOBALS["FORUM_STATUS_NAME"] = $arNameStatuses[LANGUAGE_ID];
@@ -63,11 +63,16 @@ if(!defined("CACHED_b_forum_filter"))
 	define("CACHED_b_forum_filter", 3600);
 if(!defined("CACHED_b_forum_user"))
 	define("CACHED_b_forum_user", 3600);
-
-CModule::AddAutoloadClasses(
+\Bitrix\Main\Loader::registerAutoLoadClasses(
 	"forum",
 	array(
 		"bitrix\\forum\\internals\\basetable" => "lib/internals/basetable.php",
+		"bitrix\\forum\\comments\\comment" => "lib/comments/comment.php",
+		"bitrix\\forum\\comments\\entity" => "lib/comments/entity.php",
+		"bitrix\\forum\\comments\\eventmanager" => "lib/comments/eventmanager.php",
+		"bitrix\\forum\\comments\\feed" => "lib/comments/feed.php",
+		"bitrix\\forum\\comments\\taskentity" => "lib/comments/taskentity.php",
+		"bitrix\\forum\\comments\\user" => "lib/comments/user.php",
 
 		"textParser" => "classes/general/functions.php",
 		"forumTextParser" => "classes/general/functions.php",
@@ -107,16 +112,15 @@ CModule::AddAutoloadClasses(
 		"CForumFormat" => "tools/components_lib.php",
 		"CRatingsComponentsForum" => "classes/".$DBType."/ratings_components.php",
 		"CEventForum" => "classes/general/event_log.php",
-		"ForumEventManager" => "classes/general/event_manager.php",
+
 		"CForumCacheManager" => "classes/general/functions.php",
 		"CForumAutosave" => "classes/general/functions.php",
 		"CForumDBTools" => "tools/dbtools.php",
 		"CForumNotifySchema" => "classes/general/forum_notify_schema.php",
 	));
 
-$forumCache = new CForumCacheManager();
-$forumEventManager = new ForumEventManager();
-
+new CForumCacheManager();
+\Bitrix\Forum\Comments\EventManager::init();
 
 function ForumCurrUserPermissions($FID, $arAddParams = array())
 {
@@ -138,7 +142,7 @@ function ForumCurrUserPermissions($FID, $arAddParams = array())
 			}
 			elseif (CForumUser::IsLocked($GLOBALS["USER"]->GetID()))
 			{
-				$strPerms = CForumNew::GetPermissionUserDefault($GLOBALS["USER"]->GetID());
+				$strPerms = CForumNew::GetPermissionUserDefault($FID);
 				$result = ($strPerms >= "E" ? $strPerms : "E");
 			}
 			else
@@ -250,14 +254,14 @@ function ForumSubscribeNewMessages($FID, $TID, &$strErrorMessage, &$strOKMessage
 				{
 					$sError = GetMessage("FORUM_SUB_ERR_ALREADY_NEW");
 					if ($NEW_TOPIC_ONLY != $res["NEW_TOPIC_ONLY"])
-						$sError = str_replace("#FORUM_NAME#", htmlspecialcharsEx($res["FORUM_NAME"]),
+						$sError = str_replace("#FORUM_NAME#", htmlspecialcharsbx($res["FORUM_NAME"]),
 							GetMessage("FORUM_SUB_ERR_ALREADY_ALL_HELP"));
 				}
 				else
 				{
 					$sError = GetMessage("FORUM_SUB_ERR_ALREADY_ALL");
 					if ($NEW_TOPIC_ONLY != $res["NEW_TOPIC_ONLY"])
-						$sError = str_replace("#FORUM_NAME#", htmlspecialcharsEx($res["FORUM_NAME"]),
+						$sError = str_replace("#FORUM_NAME#", htmlspecialcharsbx($res["FORUM_NAME"]),
 							GetMessage("FORUM_SUB_ERR_ALREADY_NEW_HELP"));
 				}
 			}

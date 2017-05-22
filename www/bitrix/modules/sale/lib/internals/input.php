@@ -2,9 +2,12 @@
 
 namespace Bitrix\Sale\Internals\Input;
 
+use Bitrix\Main\Event;
 use	Bitrix\Main\EventManager,
 	Bitrix\Main\SystemException,
 	Bitrix\Main\Localization\Loc;
+use Bitrix\Main\EventResult;
+use Bitrix\Sale\ResultError;
 
 Loc::loadMessages(__FILE__);
 
@@ -257,8 +260,26 @@ class Manager
 	{
 		static::$initialized = true;
 
-		foreach (EventManager::getInstance()->findEventHandlers('sale', 'registerInputTypes') as $handler)
-			ExecuteModuleEventEx($handler); // TODO modern api
+		/** @var Event $event */
+		$event = new Event('sale', 'registerInputTypes', static::$types);
+		$event->send();
+
+		if ($event->getResults())
+		{
+			foreach($event->getResults() as $eventResult)
+			{
+				if ($eventResult->getType() != EventResult::SUCCESS)
+					continue;
+
+				if ($params = $eventResult->getParameters())
+				{
+					if(!empty($params) && is_array($params))
+					{
+						static::$types = array_merge(static::$types, $params);
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -994,7 +1015,7 @@ class Enum extends Base
 				? str_replace(
 					array('{GROUP}', '{OPTIONS}'),
 					array(
-						htmlspecialcharsbx($key),
+						htmlspecialcharsEx($key),
 						self::getEditOptionsHtml($value, $selected, $selector, $group, $option),
 					),
 					$group
@@ -1002,9 +1023,9 @@ class Enum extends Base
 				: str_replace(
 					array('{VALUE}', '{SELECTED}', '{TEXT}'),
 					array(
-						htmlspecialcharsbx($key),
+						htmlspecialcharsEx($key),
 						isset($selected[$key]) ? $selector : '',
-						htmlspecialcharsbx($value) ?: htmlspecialcharsbx($key),
+						htmlspecialcharsEx($value) ?: htmlspecialcharsEx($key),
 					),
 					$option
 				);

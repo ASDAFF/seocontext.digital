@@ -20,7 +20,7 @@ $APPLICATION->IncludeComponent(
 		"CACHE_TYPE" => $arParams["CACHE_TYPE"],
 		"CACHE_TIME" => $arParams["CACHE_TIME"],
 		"ITEMS_COUNT" => $arParams["ITEM_DETAIL_COUNT"],
-		"PAGE" => "groups_list",
+		"PAGE" => "user_groups",
 		"PATH_TO_LOG" => $arResult["PATH_TO_LOG"],
 		"FONT_MAX" => $arParams["SEARCH_TAGS_FONT_MAX"],
 		"FONT_MIN" => $arParams["SEARCH_TAGS_FONT_MIN"],

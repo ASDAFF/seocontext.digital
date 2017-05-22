@@ -1,5 +1,6 @@
 <?
-$GLOBALS["SOCNET_LOG_DESTINATION"] = Array();
+use Bitrix\Main\ModuleManager;
+
 class CSocNetLogDestination
 {
 	/**
@@ -10,9 +11,11 @@ class CSocNetLogDestination
 	{
 		global $USER;
 
+		static $resultCache = array();
+
 		$userId = intval($USER->GetID());
 
-		if(!isset($GLOBALS["SOCNET_LOG_DESTINATION"]["GetLastUser"][$userId]))
+		if(!isset($resultCache[$userId]))
 		{
 			$arLastSelected = CUserOptions::GetOption("socialnetwork", "log_destination", array());
 			$arLastSelected = (
@@ -50,10 +53,10 @@ class CSocNetLogDestination
 
 				$arUsers[$userId] = $userId;
 			}
-			$GLOBALS["SOCNET_LOG_DESTINATION"]["GetLastUser"][$userId] = array_reverse($arUsers);
+			$resultCache[$userId] = array_reverse($arUsers);
 		}
 
-		return $GLOBALS["SOCNET_LOG_DESTINATION"]["GetLastUser"][$userId];
+		return $resultCache[$userId];
 	}
 
 	/**
@@ -186,11 +189,11 @@ class CSocNetLogDestination
 						if (intval($department_id) > 0)
 						{
 							$rsSectionDepartment = CIBlockSection::GetList(
-								array(), 
+								array(),
 								array(
 									"ID" => intval($department_id)
 								),
-								false, 
+								false,
 								array("ID", "LEFT_MARGIN", "RIGHT_MARGIN")
 							);
 
@@ -232,7 +235,7 @@ class CSocNetLogDestination
 		}
 
 		if (
-			!empty( $result["department"]) 
+			!empty( $result["department"])
 			&& !isset($arParams["LAZY_LOAD"])
 		)
 		{
@@ -248,107 +251,146 @@ class CSocNetLogDestination
 
 	public static function GetExtranetUser(array $arParams = array())
 	{
-		global $USER;
+		global $USER, $CACHE_MANAGER;
 
-		$userId = intval($USER->GetID());
+		static $resultCache = array();
 
-		if(!isset($GLOBALS["SOCNET_LOG_DESTINATION"]["GetExtranetUser"][$userId]))
+		$userId = intval($USER->getID());
+
+		if(!isset($resultCache[$userId]))
 		{
-			$arExtParams = Array(
-				"FIELDS" => Array("ID", "LAST_NAME", "NAME", "SECOND_NAME", "LOGIN", "PERSONAL_PHOTO", "WORK_POSITION", "PERSONAL_PROFESSION", "IS_ONLINE")
-			);
+			$arUsers = Array();
+
 			$arFilter = Array();
 			if (CModule::IncludeModule('extranet') && !CExtranet::IsIntranetUser())
 			{
-				$arSelect = Array($userId);
-				$arSocnetGroups = array();
+				$cacheTtl = 3153600;
+				$cacheId = 'socnet_destination_getusers_'.md5(serialize($arParams)).'_'.$userId;
+				$cacheDir = '/socnet/dest_extranet/'.intval($userId / 100).'/';
 
-				$rsGroups = CSocNetUserToGroup::GetList(
-					array("GROUP_NAME" => "ASC"),
-					array(
-						"USER_ID" => $userId,
-						"<=ROLE" => SONET_ROLES_USER,
-						"GROUP_SITE_ID" => SITE_ID,
-						"GROUP_ACTIVE" => "Y",
-						"!GROUP_CLOSED" => "Y"
-					),
-					false,
-					array("nTopCount" => 500),
-					array("ID", "GROUP_ID")
-				);
-				while($arGroup = $rsGroups->Fetch())
+				$obCache = new CPHPCache;
+				if($obCache->initCache($cacheTtl, $cacheId, $cacheDir))
 				{
-					$arGroupTmp = array(
-						"id" => $arGroup["GROUP_ID"],
-						"entityId" => $arGroup["GROUP_ID"]
-					);
-					$arSocnetGroups[$arGroup["GROUP_ID"]] = $arGroupTmp;
+					$arUsers = $obCache->getVars();
 				}
-
-				if (count($arSocnetGroups) > 0)
+				else
 				{
-					$arUserSocNetGroups = Array();
-					foreach ($arSocnetGroups as $groupId => $ar)
+					$obCache->startDataCache();
+					if(defined("BX_COMP_MANAGED_CACHE"))
 					{
-						$arUserSocNetGroups[] = $groupId;
+						$CACHE_MANAGER->StartTagCache($cacheDir);
 					}
 
-					$dbUsersInGroup = CSocNetUserToGroup::GetList(
-						array(),
+					$arSelect = Array($userId);
+					$arSocnetGroups = array();
+
+					if(defined("BX_COMP_MANAGED_CACHE"))
+					{
+						$CACHE_MANAGER->registerTag("sonet_user2group_U".$userId);
+					}
+
+					$rsRelation = CSocNetUserToGroup::GetList(
+						array("GROUP_NAME" => "ASC"),
 						array(
-							"GROUP_ID" => $arUserSocNetGroups,
+							"USER_ID" => $userId,
 							"<=ROLE" => SONET_ROLES_USER,
-							"USER_ACTIVE" => "Y"
+							"GROUP_SITE_ID" => SITE_ID,
+							"GROUP_ACTIVE" => "Y",
+							"!GROUP_CLOSED" => "Y"
 						),
 						false,
-						false,
-						array("ID", "USER_ID", "GROUP_ID")
+						array("nTopCount" => 500),
+						array("ID", "GROUP_ID")
 					);
-					while ($ar = $dbUsersInGroup->GetNext(true, false))
+					while($arRelation = $rsRelation->Fetch())
 					{
-						$arSelect[] = intval($ar["USER_ID"]);
-					}
-				}
-				$arFilter['ID'] = implode('|', $arSelect);
-			}
+						$arGroupTmp = array(
+							"id" => $arRelation["GROUP_ID"],
+							"entityId" => $arRelation["GROUP_ID"]
+						);
+						$arSocnetGroups[$arRelation["GROUP_ID"]] = $arGroupTmp;
 
-			$arUsers = Array();
-
-			if (!empty($arFilter['ID']))
-			{
-				$dbUsers = CUser::GetList(($sort_by = Array('last_name'=>'asc', 'IS_ONLINE'=>'desc')), ($dummy=''), $arFilter, $arExtParams);
-				while ($arUser = $dbUsers->GetNext())
-				{
-					$sName = trim(CUser::FormatName(CSite::GetNameFormat(), $arUser, true, false));
-
-					if (empty($sName))
-					{
-						$sName = $arUser["~LOGIN"];
+						if(defined("BX_COMP_MANAGED_CACHE"))
+						{
+							$CACHE_MANAGER->registerTag("sonet_user2group_G".$arRelation["GROUP_ID"]);
+						}
 					}
 
-					$arFileTmp = CFile::ResizeImageGet(
-						$arUser["PERSONAL_PHOTO"],
-						array(
-							"width" => (intval($arParams["THUMBNAIL_SIZE_WIDTH"]) > 0 ? $arParams["THUMBNAIL_SIZE_WIDTH"] : 32),
-							"height" => (intval($arParams["THUMBNAIL_SIZE_HEIGHT"]) > 0 ? $arParams["THUMBNAIL_SIZE_HEIGHT"] : 32)
-						),
-						BX_RESIZE_IMAGE_EXACT,
-						false
-					);
+					if (count($arSocnetGroups) > 0)
+					{
+						$arUserSocNetGroups = Array();
+						foreach ($arSocnetGroups as $groupId => $ar)
+						{
+							$arUserSocNetGroups[] = $groupId;
+						}
 
-					$arUsers['U'.$arUser["ID"]] = Array(
-						'id' => 'U'.$arUser["ID"],
-						'entityId' => $arUser["ID"],
-						'name' => $sName,
-						'avatar' => empty($arFileTmp['src'])? '': $arFileTmp['src'],
-						'desc' => $arUser['WORK_POSITION'] ? $arUser['WORK_POSITION'] : ($arUser['PERSONAL_PROFESSION']?$arUser['PERSONAL_PROFESSION']:'&nbsp;'),
-					);
+						$dbRelation = CSocNetUserToGroup::GetList(
+							array(),
+							array(
+								"GROUP_ID" => $arUserSocNetGroups,
+								"<=ROLE" => SONET_ROLES_USER,
+								"USER_ACTIVE" => "Y"
+							),
+							false,
+							false,
+							array("ID", "USER_ID", "GROUP_ID")
+						);
+						while ($arRelation = $dbRelation->fetch())
+						{
+							$arSelect[] = intval($arRelation["USER_ID"]);
+						}
+					}
+					$arFilter['ID'] = implode('|', $arSelect);
+
+					if (!empty($arFilter['ID']))
+					{
+						$arExtParams = Array(
+							"FIELDS" => Array("ID", "LAST_NAME", "NAME", "SECOND_NAME", "LOGIN", "PERSONAL_PHOTO", "WORK_POSITION", "PERSONAL_PROFESSION", "IS_ONLINE")
+						);
+
+						$dbUsers = CUser::GetList(($sort_by = Array('last_name'=>'asc', 'IS_ONLINE'=>'desc')), ($dummy=''), $arFilter, $arExtParams);
+						while ($arUser = $dbUsers->GetNext())
+						{
+							$sName = trim(CUser::FormatName(CSite::GetNameFormat(), $arUser, true, false));
+
+							if (empty($sName))
+							{
+								$sName = $arUser["~LOGIN"];
+							}
+
+							$arFileTmp = CFile::ResizeImageGet(
+								$arUser["PERSONAL_PHOTO"],
+								array(
+									"width" => (intval($arParams["THUMBNAIL_SIZE_WIDTH"]) > 0 ? $arParams["THUMBNAIL_SIZE_WIDTH"] : 100),
+									"height" => (intval($arParams["THUMBNAIL_SIZE_HEIGHT"]) > 0 ? $arParams["THUMBNAIL_SIZE_HEIGHT"] : 100)
+								),
+								BX_RESIZE_IMAGE_EXACT,
+								false
+							);
+
+							$arUsers['U'.$arUser["ID"]] = Array(
+								'id' => 'U'.$arUser["ID"],
+								'entityId' => $arUser["ID"],
+								'name' => $sName,
+								'avatar' => empty($arFileTmp['src'])? '': $arFileTmp['src'],
+								'desc' => $arUser['WORK_POSITION'] ? $arUser['WORK_POSITION'] : ($arUser['PERSONAL_PROFESSION']?$arUser['PERSONAL_PROFESSION']:'&nbsp;'),
+							);
+
+							if (defined("BX_COMP_MANAGED_CACHE"))
+							{
+								$CACHE_MANAGER->registerTag("USER_NAME_".intval($arUser["ID"]));
+							}
+						}
+					}
+
+					$obCache->endDataCache($arUsers);
 				}
 			}
 
-			$GLOBALS["SOCNET_LOG_DESTINATION"]["GetExtranetUser"][$userId] = $arUsers;
+			$resultCache[$userId] = $arUsers;
 		}
-		return $GLOBALS["SOCNET_LOG_DESTINATION"]["GetExtranetUser"][$userId];
+
+		return $resultCache[$userId];
 	}
 
 	public static function GetUsers($arParams = Array(), $bSelf = true)
@@ -365,7 +407,7 @@ class CSocNetLogDestination
 		{
 			if (IsModuleInstalled("intranet"))
 			{
-				return self::GetUsersAll($arParams);
+				return self::getUsersAll($arParams);
 			}
 			else
 			{
@@ -377,7 +419,21 @@ class CSocNetLogDestination
 		}
 
 		$bExtranet = false;
-		$arFilter = Array('ACTIVE' => 'Y');
+		$arFilter = array();
+		if (
+			!isset($arParams['IGNORE_ACTIVITY'])
+			|| $arParams['IGNORE_ACTIVITY'] != 'Y'
+		)
+		{
+			$arFilter['ACTIVE'] = 'Y';
+		}
+
+		$arExternalAuthId = self::getExternalAuthIdBlackList();
+
+		if (!empty($arExternalAuthId))
+		{
+			$arFilter['!EXTERNAL_AUTH_ID'] = $arExternalAuthId;
+		}
 
 		if (
 			IsModuleInstalled("intranet")
@@ -395,6 +451,7 @@ class CSocNetLogDestination
 		if (
 			isset($arParams["CRM_ENTITY"])
 			&& $arParams["CRM_ENTITY"] == "Y"
+			&& ModuleManager::isModuleInstalled('crm')
 		)
 		{
 			$arExtParams['SELECT'][] = 'UF_USER_CRM_ENTITY';
@@ -445,14 +502,14 @@ class CSocNetLogDestination
 		}
 
 		$avatarSize = array(
-			"width" => (intval($arParams["THUMBNAIL_SIZE_WIDTH"]) > 0 ? $arParams["THUMBNAIL_SIZE_WIDTH"] : 32),
-			"height" => (intval($arParams["THUMBNAIL_SIZE_HEIGHT"]) > 0 ? $arParams["THUMBNAIL_SIZE_HEIGHT"] : 32)
+			"width" => (intval($arParams["THUMBNAIL_SIZE_WIDTH"]) > 0 ? $arParams["THUMBNAIL_SIZE_WIDTH"] : 100),
+			"height" => (intval($arParams["THUMBNAIL_SIZE_HEIGHT"]) > 0 ? $arParams["THUMBNAIL_SIZE_HEIGHT"] : 100)
 		);
 
 		$cacheTtl = 3153600;
-		$cacheId = 'socnet_destination_getusers_'.md5(serialize($arFilter)).$bSelf.($bExtranet ? '_ex_'.$userId : '').md5(serialize($avatarSize));
+		$cacheId = 'socnet_destination_getusers_'.md5(serialize($arFilter)).$bSelf.CSocNetUser::IsCurrentUserModuleAdmin().($bExtranet ? '_ex_'.$userId : '').md5(serialize($avatarSize));
 		$cacheDir = '/socnet/dest/'.(
-			isset($arParams['id']) 
+			isset($arParams['id'])
 				? 'user'
 				: 'dept'
 		).'/';
@@ -475,10 +532,35 @@ class CSocNetLogDestination
 				&& CModule::IncludeModule("extranet")
 			)
 			{
+				$extranetSiteId = CExtranet::GetExtranetSiteID();
+
+				// get all extranet groups and set tags
+				$rsSonetGroup = CSocNetUserToGroup::GetList(
+					array(),
+					array(
+						"USER_ID" => $USER->GetId(),
+						"GROUP_SITE_ID" => $extranetSiteId
+					),
+					false,
+					false,
+					array("GROUP_ID")
+				);
+				while($arSonetGroup = $rsSonetGroup->Fetch())
+				{
+					$CACHE_MANAGER->RegisterTag("sonet_user2group_G".$arSonetGroup["GROUP_ID"]);
+				}
+
+				$CACHE_MANAGER->RegisterTag("sonet_user2group_U".$USER->GetId());
+
 				$arUsers = Array();
-				$arExtranetUsers = CExtranet::GetMyGroupsUsersFull(CExtranet::GetExtranetSiteID(), $bSelf);
+				$arExtranetUsers = CExtranet::GetMyGroupsUsersFull($extranetSiteId, $bSelf);
 				foreach($arExtranetUsers as $arUserTmp)
 				{
+					if (!empty($arUserTmp['UF_DEPARTMENT']))
+					{
+						continue;
+					}
+
 					$sName = trim(CUser::FormatName(empty($arParams["NAME_TEMPLATE"]) ? CSite::GetNameFormat(false) : $arParams["NAME_TEMPLATE"], $arUserTmp, true, false));
 					if (empty($sName))
 					{
@@ -608,6 +690,10 @@ class CSocNetLogDestination
 			if (defined("BX_COMP_MANAGED_CACHE"))
 			{
 				$CACHE_MANAGER->RegisterTag("USER_NAME");
+				if (!empty($arFilter['UF_DEPARTMENT']))
+				{
+					$CACHE_MANAGER->RegisterTag('intranet_department_'.$arFilter['UF_DEPARTMENT']);
+				}
 				$CACHE_MANAGER->EndTagCache();
 			}
 
@@ -621,9 +707,11 @@ class CSocNetLogDestination
 	{
 		global $USER;
 
+		static $resultCache = array();
+
 		$userId = intval($USER->GetID());
 
-		if(!isset($GLOBALS["SOCNET_LOG_DESTINATION"]["GetGratMedalUsers"][$userId]))
+		if(!isset($resultCache[$userId]))
 		{
 			$arSubordinateDepts = array();
 
@@ -674,7 +762,7 @@ class CSocNetLogDestination
 
 				$arFileTmp = CFile::ResizeImageGet(
 					$arUser["PERSONAL_PHOTO"],
-					array("width" => 32, "height" => 32),
+					array("width" => 100, "height" => 100),
 					BX_RESIZE_IMAGE_EXACT,
 					false
 				);
@@ -695,10 +783,10 @@ class CSocNetLogDestination
 					$arMedalUsers['U'.$arUser["ID"]] = $arGratUsers['U'.$arUser["ID"]];
 				}
 			}
-			$GLOBALS["SOCNET_LOG_DESTINATION"]["GetGratMedalUsers"][$userId] = array("GRAT" => $arGratUsers, "MEDAL" => $arMedalUsers);
+			$resultCache[$userId] = array("GRAT" => $arGratUsers, "MEDAL" => $arMedalUsers);
 		}
 
-		return $GLOBALS["SOCNET_LOG_DESTINATION"]["GetGratMedalUsers"][$userId];
+		return $resultCache[$userId];
 	}
 
 	public function __percent_walk(&$val)
@@ -722,13 +810,17 @@ class CSocNetLogDestination
 			$bExtranetOnly = (isset($arParams["EXTRANET_ONLY"]) ? $arParams["EXTRANET_ONLY"] : false);
 			$departmentId = (isset($arParams["DEPARTAMENT_ID"]) ? $arParams["DEPARTAMENT_ID"] : false);
 			$bEmailUsers = (isset($arParams["EMAIL_USERS"]) ? $arParams["EMAIL_USERS"] : false);
-			$bCrmEmailUsers = (isset($arParams["CRMEMAIL_USERS"]) ? $arParams["CRMEMAIL_USERS"] : false);
+			$bCrmEmailUsers = (isset($arParams["CRMEMAIL_USERS"]) && ModuleManager::isModuleInstalled('crm') ? $arParams["CRMEMAIL_USERS"] : false);
+			$bActiveOnly = (isset($arParams["CHECK_ACTIVITY"]) && $arParams["CHECK_ACTIVITY"] === false ? false : true);
+			$bNetworkSearch = (isset($arParams["NETWORK_SEARCH"]) ? $arParams["NETWORK_SEARCH"] : false);
 		}
 		else
 		{
 			$nameTemplate = $nt;
 			$bEmailUsers = false;
 			$bCrmEmailUsers = false;
+			$bActiveOnly = true;
+			$bNetworkSearch = false;
 		}
 
 		$arUsers = array();
@@ -756,7 +848,7 @@ class CSocNetLogDestination
 		$bBitrix24Enabled = IsModuleInstalled('bitrix24');
 
 		$bEmailUsersAll = ($bMailEnabled && \Bitrix\Main\Config\Option::get('socialnetwork', 'email_users_all', 'N') == 'Y');
- 		$bExtranetUser = ($bExtranetEnabled && !CExtranet::IsIntranetUser());
+		$bExtranetUser = ($bExtranetEnabled && !CExtranet::IsIntranetUser());
 
 		$current_user_id = intval($USER->GetID());
 
@@ -772,38 +864,43 @@ class CSocNetLogDestination
 
 		if ($bIntranetEnabled)
 		{
-			$arLogicFilter = array(
-				'LOGIC' => 'OR',
-				'NAME' => $arSearchValue,
-				'LAST_NAME' => $arSearchValue,
-			);
-
-			if (
-				count($arSearchValue) == 1
-				&& strlen($arSearchValue[0]) > 2
-			)
+			if (count($arSearchValue) == 2)
 			{
-				$arLogicFilter['LOGIN'] = $arSearchValue[0];
+				$arLogicFilter = array(
+					'LOGIC' => 'OR',
+					array('LOGIC' => 'AND', 'NAME' => $arSearchValue[0], 'LAST_NAME' => $arSearchValue[1]),
+					array('LOGIC' => 'AND', 'NAME' => $arSearchValue[1], 'LAST_NAME' => $arSearchValue[0]),
+				);
+			}
+			else
+			{
+				$arLogicFilter = array(
+					'LOGIC' => 'OR',
+					'NAME' => $arSearchValue,
+					'LAST_NAME' => $arSearchValue,
+				);
+
+				if (
+					count($arSearchValue) == 1
+					&& strlen($arSearchValue[0]) > 2
+				)
+				{
+					$arLogicFilter['LOGIN'] = $arSearchValue[0];
+				}
 			}
 
 			$arFilter = array(
-				$arLogicFilter,
-				'=ACTIVE' => 'Y'
+				$arLogicFilter
 			);
 
-			$arExternalAuthId = array();
-			if (IsModuleInstalled('replica'))
+			if ($bActiveOnly)
 			{
-				$arExternalAuthId[] = 'replica';
+				$arFilter['=ACTIVE'] = 'Y';
 			}
-			if (IsModuleInstalled('im'))
-			{
-				$arExternalAuthId[] = 'bot';
-			}
-			if (IsModuleInstalled('imconnector'))
-			{
-				$arExternalAuthId[] = 'imconnector';
-			}
+
+			$arExternalAuthId = self::getExternalAuthIdBlackList(array(
+				"NETWORK_SEARCH" => $bNetworkSearch
+			));
 
 			if (!empty($arExternalAuthId))
 			{
@@ -846,14 +943,31 @@ class CSocNetLogDestination
 		}
 		else
 		{
-			$arFilter = array(
-				array(
-					'LOGIC' => 'OR',
-					'NAME' => $arSearchValue,
-					'LAST_NAME' => $arSearchValue,
-				),
-				'=ACTIVE' => 'Y'
-			);
+			if (count($arSearchValue) == 2)
+			{
+				$arFilter = array(
+					array(
+						'LOGIC' => 'OR',
+						array('LOGIC' => 'AND', 'NAME' => $arSearchValue[0], 'LAST_NAME' => $arSearchValue[1]),
+						array('LOGIC' => 'AND', 'NAME' => $arSearchValue[1], 'LAST_NAME' => $arSearchValue[0]),
+					)
+				);
+			}
+			else
+			{
+				$arFilter = array(
+					array(
+						'LOGIC' => 'OR',
+						'NAME' => $arSearchValue,
+						'LAST_NAME' => $arSearchValue,
+					)
+				);
+			}
+
+			if ($bActiveOnly)
+			{
+				$arFilter['=ACTIVE'] = 'Y';
+			}
 		}
 
 		if (
@@ -861,7 +975,10 @@ class CSocNetLogDestination
 			|| COption::GetOptionString("main", "new_user_registration_email_confirmation", "N") == "Y"
 		)
 		{
-			$arFilter["CONFIRM_CODE"] = false;
+			if (!$bNetworkSearch)
+			{
+				$arFilter["CONFIRM_CODE"] = false;
+			}
 		}
 
 		$bFilteredByMyUserId = false;
@@ -889,6 +1006,12 @@ class CSocNetLogDestination
 			{
 				return $arUsers;
 			}
+
+			if ($bNetworkSearch)
+			{
+				end($arFilter);
+				$arFilter[key($arFilter)]["=EXTERNAL_AUTH_ID"] = "replica";
+			}
 		}
 
 		if (
@@ -896,22 +1019,16 @@ class CSocNetLogDestination
 			&& !$bFilteredByMyUserId
 		)
 		{
-			if ($bCrmEmailUsers)
-			{
-				$arFilter["ID"] = $arMyUserId;
-			}
-			else
-			{
-				$arFilter[] = array(
-					'LOGIC' => 'OR',
-					'!=EXTERNAL_AUTH_ID' => 'email',
-					'ID' => $arMyUserId,
-				);
-			}
+			$arFilter[] = array(
+				'LOGIC' => 'OR',
+				'!=EXTERNAL_AUTH_ID' => 'email',
+				'ID' => $arMyUserId,
+			);
 		}
 
 		$arSelect = array(
 			"ID",
+			"ACTIVE",
 			"NAME",
 			"LAST_NAME",
 			"SECOND_NAME",
@@ -930,43 +1047,35 @@ class CSocNetLogDestination
 			$arSelect[] = "UF_USER_CRM_ENTITY";
 		}
 
-//		$arFilter["\Bitrix\Main\FinderDest:CODE_USER_CURRENT.USER_ID"] = array(false, intval($GLOBALS["USER"]->GetID()));
-		$helper = \Bitrix\Main\Application::getConnection()->getSqlHelper();
-		$connection = \Bitrix\Main\Application::getConnection();
-		$castType = (
-			$connection instanceof \Bitrix\Main\DB\MysqlCommonConnection
-				? 'UNSIGNED'
-				: 'INT'
-		);
+		if (!$bActiveOnly)
+		{
+			$arSelect[] = "ACTIVE";
+		}
 
-		$arFilter["@ID"] = new \Bitrix\Main\DB\SqlExpression('
-		(SELECT
-			CAST('.$helper->quote("MAIN_USER_TMP20258").'.'.$helper->quote("ID").' AS '.$castType.') AS '.$helper->quote("ID").'
-			FROM b_user '.$helper->quote("MAIN_USER_TMP20258").'
-			LEFT JOIN
-				b_finder_dest '.$helper->quote("TALIAS_1_TMP20258").'
-				ON
-					'.$helper->quote("TALIAS_1_TMP20258").'.'.$helper->quote("CODE_USER_ID").' = '.$helper->quote("MAIN_USER_TMP20258").'.'.$helper->quote("ID").'
-					AND '.$helper->quote("TALIAS_1_TMP20258").'.'.$helper->quote("USER_ID").' = '.intval($USER->GetID()).'
-			WHERE (
-				'.$helper->quote("TALIAS_1_TMP20258").'.'.$helper->quote("USER_ID").' IS NULL
-				or '.$helper->quote("TALIAS_1_TMP20258").'.'.$helper->quote("USER_ID").' in (0, '.intval($USER->GetID()).')
-			)
-		)');
+		$db_events = GetModuleEvents("socialnetwork", "OnSocNetLogDestinationSearchUsers");
+		while ($arEvent = $db_events->Fetch())
+		{
+			ExecuteModuleEventEx($arEvent, array($arSearchValue, &$arFilter, &$arSelect));
+		}
 
 		$rsUser = \Bitrix\Main\UserTable::getList(array(
 			'order' => array(
-				"\Bitrix\Main\FinderDest:CODE_USER_CURRENT.LAST_USE_DATE" => 'DESC',
+				"MAX_LAST_USE_DATE" => 'DESC',
 				'LAST_NAME' => 'ASC'
 			),
 			'filter' => $arFilter,
 			'select' => $arSelect,
-			'limit' => 50,
+			'limit' => 100,
 			'data_doubling' => false
 		));
 
 		$queryResultCnt = 0;
 		$bUseLogin = (strlen($search) > 3 && strpos($search, '@') > 0);
+		$params = array(
+			"NAME_TEMPLATE" => $nameTemplate,
+			"USE_EMAIL" => $bSearchByEmail,
+			"USE_LOGIN" => $bUseLogin
+		);
 		while ($arUser = $rsUser->fetch())
 		{
 			$queryResultCnt++;
@@ -988,15 +1097,16 @@ class CSocNetLogDestination
 				}
 			}
 
-			$arUsers['U'.$arUser["ID"]] = self::formatUser($arUser, array(
-				"NAME_TEMPLATE" => $nameTemplate,
-				"USE_EMAIL" => $bSearchByEmail,
-				"USE_LOGIN" => $bUseLogin
-			));
+			if ($arUser["EXTERNAL_AUTH_ID"] == "replica")
+				$arUser = self::formatNetworkUser($arUser, $params);
+			else
+				$arUser = self::formatUser($arUser, $params);
+
+			$arUsers[$arUser["id"]] = $arUser;
 		}
 
 		if (
-			$bEmailUsers
+			($bEmailUsers || $bCrmEmailUsers)
 			&& !$queryResultCnt
 			&& check_email($search, true)
 		)
@@ -1005,6 +1115,11 @@ class CSocNetLogDestination
 				'ACTIVE' => 'Y',
 				'=EMAIL_OK' => 1
 			);
+
+			if (!empty($arExternalAuthId))
+			{
+				$arEmailFilter['!=EXTERNAL_AUTH_ID'] = $arExternalAuthId;
+			}
 
 			$rsUser = \Bitrix\Main\UserTable::getList(array(
 				'order' => array(),
@@ -1038,6 +1153,109 @@ class CSocNetLogDestination
 		return $arUsers;
 	}
 
+	public static function searchSonetGroups($params = array())
+	{
+		global $USER;
+
+		$result = array();
+
+		CUtil::JSPostUnescape();
+
+		$search = is_array($params) && isset($params['SEARCH']) ? trim($params['SEARCH']) : '';
+		if (empty($search))
+		{
+			return $result;
+		}
+		
+		if (
+			strlen($search) <= 0
+			|| !getFilterQuery("TEST", $search)
+		)
+		{
+			return $result;
+		}
+
+		$siteId = (
+			isset($params['SITE_ID'])
+			&& strlen($params['SITE_ID']) > 0
+				? $params['SITE_ID']
+				: SITE_ID
+		);
+
+		$arSocnetGroupsTmp = array();
+		$tmpList = array();
+
+		$filter = array(
+			'%NAME' => $search,
+			"CHECK_PERMISSIONS" => $USER->getId(),
+			"SITE_ID" => $siteId,
+			"ACTIVE" => "Y",
+		);
+
+		$res = \CSocnetGroup::getList(
+			array("NAME" => "ASC"),
+			$filter,
+			false,
+			array("nTopCount" => 50),
+			array("ID", "NAME", "DESCRIPTION", "IMAGE_ID")
+		);
+
+		while ($group = $res->fetch())
+		{
+			$tmp = array(
+				"id" => $group["ID"],
+				"entityId" => $group["ID"],
+				"name" => htmlspecialcharsbx($group["NAME"]),
+				"desc" => htmlspecialcharsbx($group["DESCRIPTION"]),
+			);
+
+			if($group["IMAGE_ID"])
+			{
+				$imageFile = CFile::getFileArray($group["IMAGE_ID"]);
+				if ($imageFile !== false)
+				{
+					$arFileTmp = CFile::resizeImageGet(
+						$imageFile,
+						array(
+							"width" => (intval($params["THUMBNAIL_SIZE_WIDTH"]) > 0 ? $params["THUMBNAIL_SIZE_WIDTH"] : 100),
+							"height" => (intval($params["THUMBNAIL_SIZE_HEIGHT"]) > 0 ? $params["THUMBNAIL_SIZE_HEIGHT"] : 100)
+						),
+						BX_RESIZE_IMAGE_PROPORTIONAL,
+						false
+					);
+					$tmp["avatar"] = $arFileTmp["src"];
+				}
+			}
+			unset($group["IMAGE_ID"]);
+			$tmpList[$tmp['id']] = $tmp;
+		}
+
+		if (
+			isset($params['FEATURES'])
+			&& is_array($params['FEATURES'])
+			&& !empty($params['FEATURES'])
+		)
+		{
+			self::getSocnetGroupFilteredByFeaturePerms($tmpList, $params['FEATURES']);
+		}
+
+		if (
+			isset($params['INITIATE'])
+			&& $params['INITIATE'] == 'Y'
+		)
+		{
+			self::getSocnetGroupFilteredByInitiatePerms($tmpList);
+		}
+
+		foreach ($tmpList as $value)
+		{
+			$value['id'] = 'SG'.$value['id'];
+			$result[$value['id']] = $value;
+		}
+
+		return $result;
+	}
+
 	public static function SearchCrmEntities($arParams)
 	{
 		$result = array();
@@ -1052,86 +1270,107 @@ class CSocNetLogDestination
 			{
 				$result = array();
 
-				$dbRes = CCrmContact::GetListEx(
-					array(),
-					array(
-						'CHECK_PERMISSIONS' => 'Y',
-						'FM' => array(
-							'EMAIL' => array(
-								'VALUE' => $search
-							)
-						)
-					),
-					false,
-					false,
-					array('ID', 'NAME', 'SECOND_NAME', 'LAST_NAME', 'PHOTO')
-				);
-				while($ar = $dbRes->Fetch())
+				if (
+					empty($arParams['ENTITIES'])
+					|| in_array('CONTACT', $arParams['ENTITIES'])
+				)
 				{
-					$formatted = self::formatCrmEmailEntity($ar, array(
-						'TYPE' => 'CONTACT',
-						'NAME_TEMPLATE' => $arParams["NAME_TEMPLATE"],
-						'EMAIL' => $search
-					));
-					if (!empty($formatted))
+					$dbRes = CCrmContact::GetListEx(
+						array(),
+						array(
+							'CHECK_PERMISSIONS' => 'Y',
+							'FM' => array(
+								'EMAIL' => array(
+									'VALUE' => $search
+								)
+							)
+						),
+						false,
+						false,
+						array('ID', 'NAME', 'SECOND_NAME', 'LAST_NAME', 'PHOTO')
+					);
+					while($ar = $dbRes->Fetch())
 					{
-						$result[$formatted['id']] = $formatted;
+						$formatted = self::formatCrmEmailEntity($ar, array(
+							'TYPE' => 'CONTACT',
+							'NAME_TEMPLATE' => $arParams["NAME_TEMPLATE"],
+							'EMAIL' => $search
+						));
+						if (!empty($formatted))
+						{
+							$result[$formatted['id']] = $formatted;
+						}
 					}
 				}
 
-				$dbRes = CCrmCompany::GetListEx(
-					array(),
-					array(
-						'CHECK_PERMISSIONS' => 'Y',
-						'FM' => array(
-							'EMAIL' => array(
-								'VALUE' => $search
-							)
-						)
-					),
-					false,
-					false,
-					array('ID', 'TITLE', 'LOGO')
-				);
-				while($ar = $dbRes->Fetch())
+				if (
+					empty($arParams['ENTITIES'])
+					|| in_array('COMPANY', $arParams['ENTITIES'])
+				)
 				{
-					$formatted = self::formatCrmEmailEntity($ar, array(
-						'TYPE' => 'COMPANY',
-						'EMAIL' => $search
-					));
-					if (!empty($formatted))
+					$dbRes = CCrmCompany::GetListEx(
+						array(),
+						array(
+							'CHECK_PERMISSIONS' => 'Y',
+							'FM' => array(
+								'EMAIL' => array(
+									'VALUE' => $search
+								)
+							)
+						),
+						false,
+						false,
+						array('ID', 'TITLE', 'LOGO')
+					);
+					while($ar = $dbRes->Fetch())
 					{
-						$result[$formatted['id']] = $formatted;
+						$formatted = self::formatCrmEmailEntity($ar, array(
+							'TYPE' => 'COMPANY',
+							'EMAIL' => $search
+						));
+						if (!empty($formatted))
+						{
+							$result[$formatted['id']] = $formatted;
+						}
 					}
 				}
 
-				$dbRes = CCrmLead::GetListEx(
-					array(),
-					array(
-						'CHECK_PERMISSIONS' => 'Y',
-						'FM' => array(
-							'EMAIL' => array(
-								'VALUE' => $search
-							)
-						)
-					),
-					false,
-					false,
-					array('ID', 'TITLE', 'NAME', 'SECOND_NAME', 'LAST_NAME')
-				);
-				while($ar = $dbRes->Fetch())
+				if (
+					empty($arParams['ENTITIES'])
+					|| in_array('LEAD', $arParams['ENTITIES'])
+				)
 				{
-					$formatted = self::formatCrmEmailEntity($ar, array(
-						'TYPE' => 'LEAD',
-						'EMAIL' => $search
-					));
-					if (!empty($formatted))
+					$dbRes = CCrmLead::GetListEx(
+						array(),
+						array(
+							'CHECK_PERMISSIONS' => 'Y',
+							'FM' => array(
+								'EMAIL' => array(
+									'VALUE' => $search
+								)
+							)
+						),
+						false,
+						false,
+						array('ID', 'TITLE', 'NAME', 'SECOND_NAME', 'LAST_NAME')
+					);
+					while($ar = $dbRes->Fetch())
 					{
-						$result[$formatted['id']] = $formatted;
+						$formatted = self::formatCrmEmailEntity($ar, array(
+							'TYPE' => 'LEAD',
+							'EMAIL' => $search
+						));
+						if (!empty($formatted))
+						{
+							$result[$formatted['id']] = $formatted;
+						}
 					}
 				}
 			}
-			else
+			elseif (
+				!isset($arParams['SEARCH_BY_EMAIL_ONLY'])
+				|| $arParams['SEARCH_BY_EMAIL_ONLY'] != 'Y'
+			)
 			{
 				$contacts = CCrmActivity::FindContactCommunications($search, 'EMAIL', 50);
 				if (!empty($contacts))
@@ -1238,9 +1477,10 @@ class CSocNetLogDestination
 		return $result;
 	}
 
-	public static function GetSocnetGroup($arParams = Array())
+	public static function getSocnetGroup($arParams = array(), &$limitReached = false)
 	{
 		global $USER;
+		static $staticCache = array();
 
 		$userId = intval($USER->GetID());
 
@@ -1268,63 +1508,129 @@ class CSocNetLogDestination
 				: SITE_ID
 		);
 
-		$arFilter = array(
-			"USER_ID" => $userId,
-			"ID" => $arSelect,
-			"<=ROLE" => SONET_ROLES_USER,
-			"GROUP_SITE_ID" => $siteId,
-			"GROUP_ACTIVE" => "Y"
-		);
+		$limit = (isset($arParams["limit"]) && intval($arParams["limit"]) > 0 ? intval($arParams["limit"]) : 500);
 
-		if(isset($arParams['GROUP_CLOSED']))
+		$hash = md5(serialize($arParams).$userId.$siteId);
+		if (isset($staticCache[$hash]))
 		{
-			$arFilter['GROUP_CLOSED'] = $arParams['GROUP_CLOSED'];
+			$arSocnetGroups = $staticCache[$hash];
 		}
-
-		$arSocnetGroupsTmp = array();
-		$rsGroups = CSocNetUserToGroup::GetList(
-			array("GROUP_NAME" => "ASC"),
-			$arFilter,
-			false,
-			array("nTopCount" => 500),
-			array("ID", "GROUP_ID", "GROUP_NAME", "GROUP_DESCRIPTION", "GROUP_IMAGE_ID")
-		);
-		while($arGroup = $rsGroups->Fetch())
+		else
 		{
-			$arGroupTmp = array(
-				"id" => $arGroup["GROUP_ID"],
-				"entityId" => $arGroup["GROUP_ID"],
-				"name" => htmlspecialcharsbx($arGroup["GROUP_NAME"]),
-				"desc" => htmlspecialcharsbx($arGroup["GROUP_DESCRIPTION"])
-			);
-			if($arGroup["GROUP_IMAGE_ID"])
+			$arSocnetGroupsTmp = array();
+			$tmpList = array();
+
+			if (
+				!isset($arParams["ALL"])
+				|| $arParams["ALL"] != "Y"
+			)
 			{
-				$imageFile = CFile::GetFileArray($arGroup["GROUP_IMAGE_ID"]);
-				if ($imageFile !== false)
+				$filter = array(
+					"USER_ID" => $userId,
+					"GROUP_ID" => $arSelect,
+					"<=ROLE" => \Bitrix\Socialnetwork\UserToGroupTable::ROLE_USER,
+					"GROUP_SITE_ID" => $siteId,
+					"GROUP_ACTIVE" => "Y"
+				);
+
+				if(isset($arParams['GROUP_CLOSED']))
 				{
-					$arFileTmp = CFile::ResizeImageGet(
-						$imageFile,
-						array(
-							"width" => (intval($arParams["THUMBNAIL_SIZE_WIDTH"]) > 0 ? $arParams["THUMBNAIL_SIZE_WIDTH"] : 30),
-							"height" => (intval($arParams["THUMBNAIL_SIZE_HEIGHT"]) > 0 ? $arParams["THUMBNAIL_SIZE_HEIGHT"] : 30)
-						),
-						BX_RESIZE_IMAGE_PROPORTIONAL,
-						false
+					$filter['GROUP_CLOSED'] = $arParams['GROUP_CLOSED'];
+				}
+
+				$res = CSocNetUserToGroup::getList(
+					array("GROUP_NAME" => "ASC"),
+					$filter,
+					false,
+					array("nTopCount" => $limit),
+					array("ID", "GROUP_ID", "GROUP_NAME", "GROUP_DESCRIPTION", "GROUP_IMAGE_ID")
+				);
+				while($relation = $res->fetch())
+				{
+					$tmpList[] = array(
+						"id" => $relation["GROUP_ID"],
+						"entityId" => $relation["GROUP_ID"],
+						"name" => htmlspecialcharsbx($relation["GROUP_NAME"]),
+						"desc" => htmlspecialcharsbx($relation["GROUP_DESCRIPTION"]),
+						"imageId" => $relation["GROUP_IMAGE_ID"]
 					);
-					$arGroupTmp["avatar"] = $arFileTmp["src"];
 				}
 			}
-			$arSocnetGroupsTmp[$arGroupTmp['id']] = $arGroupTmp;
-		}
-		if (isset($arParams['features']) && !empty($arParams['features']))
-		{
-			self::GetSocnetGroupFilteredByFeaturePerms($arSocnetGroupsTmp, $arParams['features']);
-		}
+			else
+			{
+				$filter = array(
+					"CHECK_PERMISSIONS" => $USER->GetID(),
+					"SITE_ID" => $siteId,
+					"ACTIVE" => "Y",
+					"ID" => $arSelect,
+				);
+				if(isset($arParams['GROUP_CLOSED']))
+				{
+					$filter['CLOSED'] = $arParams['GROUP_CLOSED'];
+				}
 
-		foreach ($arSocnetGroupsTmp as $value)
-		{
-			$value['id'] = 'SG'.$value['id'];
-			$arSocnetGroups[$value['id']] = $value;
+				$res = CSocnetGroup::GetList(
+					array("NAME" => "ASC"),
+					$filter,
+					false,
+					array("nTopCount" => $limit),
+					array("ID", "NAME", "DESCRIPTION", "IMAGE_ID")
+				);
+
+				while ($group = $res->Fetch())
+				{
+					$tmpList[] = array(
+						"id" => $group["ID"],
+						"entityId" => $group["ID"],
+						"name" => htmlspecialcharsbx($group["NAME"]),
+						"desc" => htmlspecialcharsbx($group["DESCRIPTION"]),
+						"imageId" => $group["IMAGE_ID"]
+					);
+				}
+			}
+
+			$limitReached = (count($tmpList) == $limit);
+
+			foreach ($tmpList as $key => $group)
+			{
+				if($group["imageId"])
+				{
+					$imageFile = CFile::GetFileArray($group["imageId"]);
+					if ($imageFile !== false)
+					{
+						$arFileTmp = CFile::ResizeImageGet(
+							$imageFile,
+							array(
+								"width" => (intval($arParams["THUMBNAIL_SIZE_WIDTH"]) > 0 ? $arParams["THUMBNAIL_SIZE_WIDTH"] : 100),
+								"height" => (intval($arParams["THUMBNAIL_SIZE_HEIGHT"]) > 0 ? $arParams["THUMBNAIL_SIZE_HEIGHT"] : 100)
+							),
+							BX_RESIZE_IMAGE_PROPORTIONAL,
+							false
+						);
+						$group["avatar"] = $arFileTmp["src"];
+					}
+				}
+				unset($group["imageId"]);
+				$arSocnetGroupsTmp[$group['id']] = $group;
+			}
+
+			if (isset($arParams['features']) && !empty($arParams['features']))
+			{
+				self::GetSocnetGroupFilteredByFeaturePerms($arSocnetGroupsTmp, $arParams['features']);
+			}
+
+			if (isset($arParams['initiate']) && $arParams['initiate'] == 'Y')
+			{
+				self::GetSocnetGroupFilteredByInitiatePerms($arSocnetGroupsTmp);
+			}
+
+			foreach ($arSocnetGroupsTmp as $value)
+			{
+				$value['id'] = 'SG'.$value['id'];
+				$arSocnetGroups[$value['id']] = $value;
+			}
+
+			$staticCache[$hash] = $arSocnetGroups;
 		}
 
 		return $arSocnetGroups;
@@ -1376,140 +1682,258 @@ class CSocNetLogDestination
 			$arGroupsIDs[] = $value["id"];
 		}
 
-		if (sizeof($arGroupsIDs) > 0)
+		if (sizeof($arGroupsIDs) <= 0)
 		{
-			$feature = $arFeaturePerms[0];
-			$operations = $arFeaturePerms[1];
-			if (!is_array($operations))
+			return;
+		}
+
+		$feature = $arFeaturePerms[0];
+		$operations = $arFeaturePerms[1];
+		if (!is_array($operations))
+		{
+			$operations = explode(",", $operations);
+		}
+		$arGroupsPerms = array();
+		foreach($operations as $operation)
+		{
+			$tmpOps = CSocNetFeaturesPerms::CurrentUserCanPerformOperation(SONET_ENTITY_GROUP, $arGroupsIDs, $feature, $operation);
+			if (is_array($tmpOps))
 			{
-				$operations = explode(",", $operations);
-			}
-			$arGroupsPerms = array();
-			foreach($operations as $operation)
-			{
-				$tmpOps = CSocNetFeaturesPerms::CurrentUserCanPerformOperation(SONET_ENTITY_GROUP, $arGroupsIDs, $feature, $operation);
-				if (is_array($tmpOps))
+				foreach ($tmpOps as $key=>$val)
 				{
-					foreach ($tmpOps as $key=>$val)
+					if (!$arGroupsPerms[$key])
 					{
-						if (!$arGroupsPerms[$key])
-						{
-							$arGroupsPerms[$key] = $val;
-						}
+						$arGroupsPerms[$key] = $val;
 					}
 				}
 			}
-			$arGroupsActive = CSocNetFeatures::IsActiveFeature(SONET_ENTITY_GROUP, $arGroupsIDs, $arFeaturePerms[0]);
-			foreach ($arGroups as $key=>$group)
+		}
+		$arGroupsActive = CSocNetFeatures::IsActiveFeature(SONET_ENTITY_GROUP, $arGroupsIDs, $arFeaturePerms[0]);
+		foreach ($arGroups as $key=>$group)
+		{
+			if (
+				!$arGroupsActive[$group["id"]]
+				|| !$arGroupsPerms[$group["id"]]
+			)
 			{
-				if (
-					!$arGroupsActive[$group["id"]]
-					|| !$arGroupsPerms[$group["id"]]
-				)
-				{
-					unset($arGroups[$key]);
-				}
+				unset($arGroups[$key]);
 			}
 		}
 	}
 
-	public static function GetDestinationUsers($arCodes, $bFetchUsers = false)
+	private static function GetSocnetGroupFilteredByInitiatePerms(&$arGroups)
 	{
-		global $DB;
-		$arUsers = array();
+		global $USER;
 
-		$arCodes2 = array();
-		if (!$bFetchUsers)
+		$arGroupsIDs = array();
+		foreach($arGroups as $value)
 		{
-			foreach($arCodes as $code)
-			{
-				if (substr($code, 0, 1) === 'U' && $code !== 'UA')
-				{
-					$id = intVal(substr($code, 1));
-					if($id > 0)
-					{
-						$arUsers[] = $id;
-						continue;
-					}
-				}
-
-				if (substr($code, 0, 2) === 'SG')
-				{
-					$arCodes2[] = $code.'_K';
-				}
-				$arCodes2[] = $code;
-			}
-			$bUnique = count($arCodes2) > 0 && count($arUsers) > 0;
-		}
-		else
-		{
-			foreach($arCodes as $code)
-			{
-				if (substr($code, 0, 2) === 'SG')
-				{
-					$arCodes2[] = $code.'_K';
-				}
-				$arCodes2[] = $code;
-			}
-			$bUnique = false;
+			$arGroupsIDs[] = $value["id"];
 		}
 
-		$obUserFieldsSql = new CUserTypeSQL();
-		$obUserFieldsSql->SetEntity("USER", "USER_ID");
-		$obUserFieldsSql->SetFilter(array(
-			"!UF_DEPARTMENT" => false
+		if (sizeof($arGroupsIDs) <= 0)
+		{
+			return;
+		}
+
+		if (
+			$USER->IsAdmin()
+			|| CSocNetUser::IsCurrentUserModuleAdmin(CSite::GetDefSite())
+		)
+		{
+			return;
+		}
+
+		$groupsList = array();
+		$userRolesList = array();
+
+		$res = \Bitrix\Socialnetwork\WorkgroupTable::getList(array(
+			'filter' => array(
+				'@ID' => $arGroupsIDs
+			),
+			'select' => array('ID', 'OWNER_ID', 'INITIATE_PERMS')
 		));
 
-		$where = $obUserFieldsSql->GetFilter();
-		$join = $obUserFieldsSql->GetJoin("UA.USER_ID");
-
-		$strCodes = in_array('UA', $arCodes2) ? "'G2'" : "'".join("','", $arCodes2)."'";
-
-		if ($bFetchUsers)
+		while ($group = $res->fetch())
 		{
-			$strSql = "SELECT DISTINCT UA.USER_ID, U.LOGIN, U.NAME, U.LAST_NAME, U.SECOND_NAME, U.EMAIL, U.PERSONAL_PHOTO, U.WORK_POSITION ".
-				"FROM b_user_access UA
-				INNER JOIN b_user U ON (U.ID=UA.USER_ID)".
-				$join.
-				" WHERE ACCESS_CODE in (".$strCodes.") AND ".$where;
-		}
-		else
-		{
-			$strSql = "SELECT DISTINCT USER_ID ".
-				"FROM b_user_access UA ".
-				$join.
-				" WHERE ACCESS_CODE in (".$strCodes.") AND ".$where;
+			$groupsList[$group['ID']] = array(
+				'OWNER_ID' => $group['OWNER_ID'],
+				'INITIATE_PERMS' => $group['INITIATE_PERMS']
+			);
 		}
 
-		$res = $DB->Query($strSql, false, "FILE: ".__FILE__."<br> LINE: ".__LINE__);
+		$res = \Bitrix\Socialnetwork\UserToGroupTable::getList(array(
+			'filter' => array(
+				'USER_ID' => $USER->getId(),
+				'@GROUP_ID' => $arGroupsIDs
+			),
+			'select' => array('GROUP_ID', 'ROLE')
+		));
 
-		if ($bFetchUsers)
+		while ($relation = $res->fetch())
 		{
-			while($ar = $res->Fetch())
+			$userRolesList[$relation['GROUP_ID']] = $relation['ROLE'];
+		}
+
+		$userId = $USER->getId();
+
+		foreach ($arGroups as $key => $group)
+		{
+			$groupId = $group["id"];
+
+			$canInitiate = (
+				(
+					isset($groupsList[$groupId])
+					&& $groupsList[$groupId]["INITIATE_PERMS"] == \Bitrix\Socialnetwork\UserToGroupTable::ROLE_OWNER
+					&& $userId == $groupsList[$groupId]["OWNER_ID"]
+				)
+				|| (
+					isset($groupsList[$groupId])
+					&& $groupsList[$groupId]["INITIATE_PERMS"] == \Bitrix\Socialnetwork\UserToGroupTable::ROLE_MODERATOR
+					&& isset($userRolesList[$groupId])
+					&& in_array($userRolesList[$groupId], array(
+						\Bitrix\Socialnetwork\UserToGroupTable::ROLE_OWNER,
+						\Bitrix\Socialnetwork\UserToGroupTable::ROLE_MODERATOR
+					))
+				)
+				|| (
+					isset($groupsList[$groupId])
+					&& $groupsList[$groupId]["INITIATE_PERMS"] == \Bitrix\Socialnetwork\UserToGroupTable::ROLE_USER
+					&& isset($userRolesList[$groupId])
+					&& in_array($userRolesList[$groupId], array(
+						\Bitrix\Socialnetwork\UserToGroupTable::ROLE_OWNER,
+						\Bitrix\Socialnetwork\UserToGroupTable::ROLE_MODERATOR,
+						\Bitrix\Socialnetwork\UserToGroupTable::ROLE_USER
+					))
+				)
+			);
+
+			if (!$canInitiate)
 			{
-				if ($ar > 0)
+				unset($arGroups[$key]);
+			}
+		}
+	}
+
+	public static function GetDestinationUsers($arCodes, $fetchUsers = false)
+	{
+		$userIds = array();
+		$users = array();
+		$fields = $fetchUsers ? array('ID', 'LOGIN', 'NAME', 'LAST_NAME', 'SECOND_NAME', 'EMAIL', 'PERSONAL_PHOTO', 'WORK_POSITION') : array('ID');
+
+		$usersToFetch = array();
+		foreach($arCodes as $code)
+		{
+			// All users
+			if ($code === 'UA')
+			{
+				$dbRes = CUser::GetList($by = 'ID', $order = 'ASC', array('INTRANET_USERS' => true), array('FIELDS' => $fields));
+				while ($user = $dbRes->Fetch())
 				{
-					$arUsers[] = $ar;
+					if (!in_array($user['ID'], $userIds))
+					{
+						$userIds[] = $user['ID'];
+						if ($fetchUsers)
+						{
+							$user['USER_ID'] = $user['ID'];
+							$users[] = $user;
+						}
+					}
+				}
+				$usersToFetch = array();
+				break;
+			}
+			elseif (substr($code, 0, 1) === 'U')
+			{
+				$userId = intval(substr($code, 1));
+				if (!in_array($userId, $userIds))
+				{
+					$usersToFetch[] = $userId;
+					if (!$fetchUsers)
+					{
+						$userIds[] = $userId;
+					}
+				}
+			}
+			elseif (substr($code, 0, 2) === 'SG')
+			{
+				$groupId = intval(substr($code, 2));
+				$dbMembers = CSocNetUserToGroup::GetList(
+					array("RAND" => "ASC"),
+					array("GROUP_ID" => $groupId, "<=ROLE" => SONET_ROLES_USER, "USER_ACTIVE" => "Y"),
+					false,
+					false,
+					array("ID", "USER_ID", "ROLE", "USER_NAME", "USER_LAST_NAME", "USER_SECOND_NAME", "USER_LOGIN", "USER_EMAIL", "USER_PERSONAL_PHOTO", "USER_WORK_POSITION")
+				);
+
+				if ($dbMembers)
+				{
+					while ($user = $dbMembers->GetNext())
+					{
+						if (!in_array($user["USER_ID"], $userIds))
+						{
+							$userIds[] = $user["USER_ID"];
+							$users[] = array(
+								'ID' => $user["USER_ID"],
+								'USER_ID' => $user["USER_ID"],
+								'LOGIN' => $user["USER_LOGIN"],
+								'NAME' => $user["USER_NAME"],
+								'LAST_NAME' => $user["USER_LAST_NAME"],
+								'SECOND_NAME' => $user["USER_SECOND_NAME"],
+								'EMAIL' => $user["USER_EMAIL"],
+								'PERSONAL_PHOTO' => $user["USER_PERSONAL_PHOTO"],
+								'WORK_POSITION' => $user["USER_WORK_POSITION"]
+							);
+						}
+					}
+				}
+			}
+			elseif (substr($code, 0, 2) === 'DR')
+			{
+				$depId = intval(substr($code, 2));
+
+				$res = \Bitrix\Intranet\Util::getDepartmentEmployees(array(
+					'DEPARTMENTS' => $depId,
+					'RECURSIVE' => 'Y',
+					'ACTIVE' => 'Y',
+					'SELECT' => $fields
+				));
+
+				while ($user = $res->Fetch())
+				{
+					if (!in_array($user['ID'], $userIds))
+					{
+						$userIds[] = $user['ID'];
+						if ($fetchUsers)
+						{
+							$user['USER_ID'] = $user['ID'];
+							$users[] = $user;
+						}
+					}
 				}
 			}
 		}
-		else
+
+		if (count($usersToFetch) > 0 && $fetchUsers)
 		{
-			while($ar = $res->Fetch())
+			$dbRes = CUser::GetList($by = 'ID', $order = 'ASC',
+				array(
+					'INTRANET_USERS' => true,
+					'ID' => implode('|', $usersToFetch)
+				), array('FIELDS' => $fields));
+
+			while ($user = $dbRes->Fetch())
 			{
-				if($ar['USER_ID'] > 0)
+				if (!in_array($user['ID'], $userIds))
 				{
-					$arUsers[] = $ar['USER_ID'];
+					$userIds[] = $user['ID'];
+					$user['USER_ID'] = $user['ID'];
+					$users[] = $user;
 				}
 			}
 		}
 
-		if ($bUnique)
-		{
-			$arUsers = array_unique($arUsers);
-		}
-
-		return $arUsers;
+		return $fetchUsers ? $users : $userIds;
 	}
 
 	public static function GetDestinationSort($arParams = array())
@@ -1576,6 +2000,7 @@ class CSocNetLogDestination
 
 			if (
 				IsModuleInstalled('mail')
+				&& IsModuleInstalled('intranet')
 				&& (
 					!isset($arParams["ALLOW_EMAIL_INVITATION"])
 					|| !$arParams["ALLOW_EMAIL_INVITATION"]
@@ -1681,7 +2106,7 @@ class CSocNetLogDestination
 		return $arResult;
 	}
 
-	private function CompareDestinations($a, $b)
+	public static function CompareDestinations($a, $b)
 	{
 		if(!is_array($a) && !is_array($b))
 		{
@@ -1735,11 +2160,7 @@ class CSocNetLogDestination
 					return 0;
 				}
 			}
-
-			return 0;
 		}
-
-		return 0;
 	}
 
 	public static function SortDestinations(&$arAllDest, $arSort)
@@ -1759,7 +2180,7 @@ class CSocNetLogDestination
 					}
 				}
 
-				uasort($arAllDest[$type], array(self, 'CompareDestinations'));
+				uasort($arAllDest[$type], array(__CLASS__, 'CompareDestinations'));
 			}
 		}
 
@@ -1780,6 +2201,8 @@ class CSocNetLogDestination
 
 	public static function fillLastDestination($arDestinationSort, &$arLastDestination, $arParams = array())
 	{
+		global $USER;
+
 		$iUCounter = $iSGCounter = $iDCounter = 0;
 		$iCRMContactCounter = $iCRMCompanyCounter = $iCRMDealCounter = $iCRMLeadCounter = 0;
 		$bCrm = (
@@ -1787,41 +2210,65 @@ class CSocNetLogDestination
 			&& isset($arParams["CRM"])
 			&& $arParams["CRM"] == "Y"
 		);
-		$bCrmEmails = (
+		$bAllowEmail = (
+			is_array($arParams)
+			&& isset($arParams["EMAILS"])
+			&& $arParams["EMAILS"] == "Y"
+		);
+		$bAllowCrmEmail = (
 			is_array($arParams)
 			&& isset($arParams["CRMEMAILS"])
 			&& $arParams["CRMEMAILS"] == "Y"
+			&& ModuleManager::isModuleInstalled('crm')
 		);
 		if (is_array($arDestinationSort))
 		{
+			$userIdList = array();
+			$userLimit = 11;
+			$sonetGroupLimit = 6;
+			$departmentLimit = 6;
+			$crmContactLimit = $crmCompanyLimit = $crmDealLimit = $crmLeadLimit = 6;
+
 			foreach ($arDestinationSort as $code => $sortInfo)
 			{
 				if (
-					(
-						!$bCrm
-						|| $bCrmEmails
-					)
-					&& preg_match('/^U(\d+)$/i', $code, $matches))
+					!$bAllowEmail
+					&& !$bAllowCrmEmail
+					&& ($iUCounter >= $userLimit)
+					&& $iSGCounter >= $sonetGroupLimit
+					&& $iDCounter >= $departmentLimit
+					&& $iCRMContactCounter >= $crmContactLimit
+					&& $iCRMCompanyCounter >= $crmCompanyLimit
+					&& $iCRMDealCounter >= $crmDealLimit
+					&& $iCRMLeadCounter >= $crmLeadLimit
+				)
 				{
-					if ($iUCounter >= 11)
+					break;
+				}
+
+				if (preg_match('/^U(\d+)$/i', $code, $matches))
+				{
+					if (
+						!$bAllowEmail
+						&& !$bAllowCrmEmail
+						&& $iUCounter >= $userLimit
+					)
 					{
-						break;
+						continue;
 					}
 					if (!isset($arLastDestination['USERS']))
 					{
 						$arLastDestination['USERS'] = array();
 					}
 					$arLastDestination['USERS'][$code] = $code;
+					$userIdList[] = intval($matches[1]);
 					$iUCounter++;
 				}
-				elseif (
-					!$bCrm
-					&& preg_match('/^SG(\d+)$/i', $code, $matches)
-				)
+				elseif (preg_match('/^SG(\d+)$/i', $code, $matches))
 				{
-					if ($iSGCounter >= 6)
+					if ($iSGCounter >= $sonetGroupLimit)
 					{
-						break;
+						continue;
 					}
 					if (!isset($arLastDestination['SONETGROUPS']))
 					{
@@ -1831,16 +2278,13 @@ class CSocNetLogDestination
 					$iSGCounter++;
 				}
 				elseif (
-					!$bCrm
-					&& (
-						preg_match('/^D(\d+)$/i', $code, $matches)
-						|| preg_match('/^DR(\d+)$/i', $code, $matches)
-					)
+					preg_match('/^D(\d+)$/i', $code, $matches)
+					|| preg_match('/^DR(\d+)$/i', $code, $matches)
 				)
 				{
-					if ($iDCounter >= 6)
+					if ($iDCounter >= $departmentLimit)
 					{
-						break;
+						continue;
 					}
 					if (!isset($arLastDestination['DEPARTMENT']))
 					{
@@ -1854,9 +2298,9 @@ class CSocNetLogDestination
 					&& preg_match('/^CRMCONTACT(\d+)$/i', $code, $matches)
 				)
 				{
-					if ($iCRMContactCounter >= 6)
+					if ($iCRMContactCounter >= $crmContactLimit)
 					{
-						break;
+						continue;
 					}
 					if (!isset($arLastDestination['CONTACTS']))
 					{
@@ -1870,9 +2314,9 @@ class CSocNetLogDestination
 					&& preg_match('/^CRMCOMPANY(\d+)$/i', $code, $matches)
 				)
 				{
-					if ($iCRMCompanyCounter >= 6)
+					if ($iCRMCompanyCounter >= $crmCompanyLimit)
 					{
-						break;
+						continue;
 					}
 					if (!isset($arLastDestination['COMPANIES']))
 					{
@@ -1886,9 +2330,9 @@ class CSocNetLogDestination
 					&& preg_match('/^CRMDEAL(\d+)$/i', $code, $matches)
 				)
 				{
-					if ($iCRMDealCounter >= 6)
+					if ($iCRMDealCounter >= $crmDealLimit)
 					{
-						break;
+						continue;
 					}
 					if (!isset($arLastDestination['DEALS']))
 					{
@@ -1902,9 +2346,9 @@ class CSocNetLogDestination
 					&& preg_match('/^CRMLEAD(\d+)$/i', $code, $matches)
 				)
 				{
-					if ($iCRMLeadCounter >= 6)
+					if ($iCRMLeadCounter >= $crmLeadLimit)
 					{
-						break;
+						continue;
 					}
 					if (!isset($arLastDestination['LEADS']))
 					{
@@ -1913,6 +2357,103 @@ class CSocNetLogDestination
 					$arLastDestination['LEADS'][$code] = $code;
 					$iCRMLeadCounter++;
 				}
+			}
+
+			if (
+				(
+					$bAllowEmail
+					|| $bAllowCrmEmail
+				)
+				&& !empty($userIdList)
+			)
+			{
+				$iUCounter = $iUECounter = $iUCRMCounter = 0;
+				$emailLimit = $crmLimit = 10;
+				$userId = $USER->getId();
+				$destUList = $destUEList = $destUCRMList =array();
+
+				$cacheTtl = defined("BX_COMP_MANAGED_CACHE") ? 3153600 : 3600*4;
+				$cacheId = 'dest_sort_users'.$userId.serialize($arParams).intval($bAllowCrmEmail);
+				$cacheDir = '/sonet/log_dest_sort/'.intval($userId / 100);
+				$obCache = new CPHPCache;
+
+				if($obCache->InitCache($cacheTtl, $cacheId, $cacheDir))
+				{
+					$cacheVars = $obCache->GetVars();
+					$destUList = $cacheVars['U'];
+					$destUEList = $cacheVars['UE'];
+					$destUCRMList = $cacheVars['UCRM'];
+				}
+				else
+				{
+					$obCache->StartDataCache();
+
+					$selectList = array('ID', 'EXTERNAL_AUTH_ID');
+					if ($bAllowCrmEmail)
+					{
+						$selectList[] = 'UF_USER_CRM_ENTITY';
+					}
+
+					$res = \Bitrix\Main\UserTable::getList(array(
+						'filter' => array(
+							'@ID' => $userIdList
+						),
+						'select' => $selectList
+					));
+
+					while($destUser = $res->fetch())
+					{
+						if (
+							$iUCounter >= $userLimit
+							&& $iUECounter >= $emailLimit
+							&& $iUCRMCounter >= $crmLimit
+						)
+						{
+							break;
+						}
+
+						$code = 'U'.$destUser['ID'];
+
+						if ($bAllowEmail && $destUser['EXTERNAL_AUTH_ID'] == 'email')
+						{
+							if ($iUECounter >= $emailLimit)
+							{
+								continue;
+							}
+							$destUEList[$code] = $code;
+							$iUECounter++;
+						}
+						elseif (
+							$bAllowCrmEmail
+							&& !empty($destUser['UF_USER_CRM_ENTITY'])
+						)
+						{
+							if ($iUCRMCounter >= $crmLimit)
+							{
+								continue;
+							}
+							$destUCRMList[$code] = $code;
+							$iUCRMCounter++;
+						}
+						else
+						{
+							if ($iUCounter >= $userLimit)
+							{
+								continue;
+							}
+							$destUList[$code] = $code;
+							$iUCounter++;
+						}
+					}
+
+					$obCache->EndDataCache(array(
+						'U' => $destUList,
+						'UE' => $destUEList,
+						'UCRM' => $destUCRMList
+					));
+				}
+
+				$arLastDestination['USERS'] = array_merge($destUList, $destUEList, $destUCRMList);
 			}
 		}
 	}
@@ -1973,7 +2514,7 @@ class CSocNetLogDestination
 		}
 	}
 
-	public static function GetUsersAll($arParams)
+	public static function getUsersAll($arParams)
 	{
 		global $DB, $USER;
 
@@ -1998,7 +2539,7 @@ class CSocNetLogDestination
 			return array();
 		}
 
-		$bExtranetEnabled = CModule::IncludeModule("extranet");
+		$bExtranetEnabled = CModule::includeModule("extranet");
 
 		$bExtranetUser = (
 			$bExtranetEnabled
@@ -2040,7 +2581,7 @@ class CSocNetLogDestination
 		}
 
 		$arOrder = array("ID" => "ASC");
-		$arFilter = Array('ACTIVE' => 'Y');
+		$arFilter = array('ACTIVE' => 'Y');
 
 		if (
 			IsModuleInstalled("intranet")
@@ -2050,12 +2591,19 @@ class CSocNetLogDestination
 			$arFilter["CONFIRM_CODE"] = false;
 		}
 
+		$arExternalAuthId = self::getExternalAuthIdBlackList();
+
+		if (!empty($arExternalAuthId))
+		{
+			$arFilter['!EXTERNAL_AUTH_ID'] = $arExternalAuthId;
+		}
+
 		$arGroupBy = false;
-		$arSelectFields = array("ID", "NAME", "LAST_NAME", "SECOND_NAME", "LOGIN", "PERSONAL_PHOTO", "WORK_POSITION", "PERSONAL_PROFESSION");
+		$arSelectFields = array("ID", "NAME", "LAST_NAME", "SECOND_NAME", "LOGIN", "PERSONAL_PHOTO", "WORK_POSITION", "PERSONAL_PROFESSION", "EXTERNAL_AUTH_ID", "EMAIL");
 
 		$arSqls = CSocNetGroup::PrepareSql($arFields, $arOrder, $arFilter, $arGroupBy, $arSelectFields);
 		$arSqls["SELECT"] = str_replace("%%_DISTINCT_%%", "DISTINCT", $arSqls["SELECT"]);
-		$strJoin = false;
+		$strJoin = $strJoin2 = $arSqls2 = false;
 
 		if ($bExtranetEnabled)
 		{
@@ -2064,22 +2612,23 @@ class CSocNetLogDestination
 				if (!$bExtranetUser)
 				{
 					$strJoin = "
-						LEFT JOIN b_utm_user UM ON UM.VALUE_ID = U.ID and FIELD_ID = ".intval($UFId)."
+						INNER JOIN b_utm_user UM ON UM.VALUE_ID = U.ID and FIELD_ID = ".intval($UFId)."
 					";
+
+					$tmp = $arSqls;
+
+					$arSqls["WHERE"] .= (strlen($arSqls["WHERE"]) > 0 ? " AND " : "")."
+						(UM.VALUE_ID > 0)";
 
 					if (!$bShowAllContactsAllowed)
 					{
-						$strJoin .= "
-							LEFT JOIN b_sonet_user2group UG ON UG.USER_ID = U.ID
-							LEFT JOIN b_sonet_user2group UG_MY ON UG_MY.GROUP_ID = UG.GROUP_ID AND UG_MY.USER_ID = ".intval($currentUserId)."
+						// select all the users (intranet and extranet from my groups)
+						$strJoin2 = "
+							INNER JOIN b_sonet_user2group UG ON UG.USER_ID = U.ID
+							INNER JOIN b_sonet_user2group UG_MY ON UG_MY.GROUP_ID = UG.GROUP_ID AND UG_MY.USER_ID = ".intval($currentUserId)."
 						";
+						$arSqls2 = $tmp;
 					}
-
-					$arSqls["WHERE"] .= (strlen($arSqls["WHERE"]) > 0 ? " AND " : "")."
-					(
-						UM.VALUE_ID > 0
-						".(!$bShowAllContactsAllowed ? " OR UG_MY.ID IS NOT NULL " : "")."
-					)";
 				}
 				else
 				{
@@ -2091,7 +2640,7 @@ class CSocNetLogDestination
 			}
 			elseif (!$bShowAllContactsAllowed) // limited extranet, only for intranet users, don't show extranet
 			{
-				$strJoin = "LEFT JOIN b_utm_user UM ON UM.VALUE_ID = U.ID and FIELD_ID = ".intval($UFId);
+				$strJoin = "INNER JOIN b_utm_user UM ON UM.VALUE_ID = U.ID and FIELD_ID = ".intval($UFId);
 				$arSqls["WHERE"] .= (strlen($arSqls["WHERE"]) > 0 ? " AND " : "")."UM.VALUE_ID > 0";
 			}
 		}
@@ -2111,9 +2660,30 @@ class CSocNetLogDestination
 		{
 			$strSql .= "WHERE ".$arSqls["WHERE"]." ";
 		}
-		if (strlen($arSqls["ORDERBY"]) > 0)
+
+		if ($strJoin2)
 		{
-			$strSql .= "ORDER BY ".$arSqls["ORDERBY"]." ";
+			$strSql .=
+				"UNION SELECT
+					".$arSqls2["SELECT"]."
+				FROM b_user U
+					".$arSqls2["FROM"]." ";
+
+				$strSql .= $strJoin2." ";
+
+			if (strlen($arSqls2["WHERE"]) > 0)
+			{
+				$strSql .= "WHERE ".$arSqls2["WHERE"]." ";
+			}
+
+			$strSql .= "ORDER BY ID ASC"; // cannot use alias
+		}
+		else // only without union
+		{
+			if (strlen($arSqls["ORDERBY"]) > 0)
+			{
+				$strSql .= "ORDER BY ".$arSqls["ORDERBY"]." ";
+			}
 		}
 
 		//echo "!1!=".htmlspecialcharsbx($strSql)."<br>";
@@ -2147,7 +2717,7 @@ class CSocNetLogDestination
 
 			$arFileTmp = CFile::ResizeImageGet(
 				$arUser["PERSONAL_PHOTO"],
-				array('width' => 32, 'height' => 32),
+				array('width' => 100, 'height' => 100),
 				BX_RESIZE_IMAGE_EXACT,
 				false
 			);
@@ -2158,10 +2728,18 @@ class CSocNetLogDestination
 				'name' => $sName,
 				'avatar' => empty($arFileTmp['src'])? '': $arFileTmp['src'],
 				'desc' => $arUser['WORK_POSITION'] ? $arUser['WORK_POSITION'] : ($arUser['PERSONAL_PROFESSION'] ? $arUser['PERSONAL_PROFESSION'] : '&nbsp;'),
-				'isExtranet' => (in_array($arUser["ID"], $extranetUserIdList) ? "Y" : "N")
+				'isExtranet' => (in_array($arUser["ID"], $extranetUserIdList) ? "Y" : "N"),
+				'isEmail' => ($arUser['EXTERNAL_AUTH_ID'] == 'email' ? 'Y' : 'N'),
+				'active' => 'Y'
 			);
 
+			if ($arUser['EXTERNAL_AUTH_ID'] == 'email')
+			{
+				$arUsers['U'.$arUser["ID"]]['email'] = $arUser['EMAIL'];
+			}
+
 			$arUsers['U'.$arUser["ID"]]['checksum'] = md5(serialize($arUsers['U'.$arUser["ID"]]));
+			$arUsers['U'.$arUser["ID"]]['login'] = '';
 
 			$resultCount++;
 		}
@@ -2202,7 +2780,7 @@ class CSocNetLogDestination
 
 		$arFileTmp = CFile::ResizeImageGet(
 			$arUser["PERSONAL_PHOTO"],
-			array('width' => 32, 'height' => 32),
+			array('width' => 100, 'height' => 100),
 			BX_RESIZE_IMAGE_EXACT,
 			false
 		);
@@ -2252,6 +2830,11 @@ class CSocNetLogDestination
 			$arRes['crmEntity'] = $arUser["UF_USER_CRM_ENTITY"];
 		}
 
+		if (!empty($arUser["ACTIVE"]))
+		{
+			$arRes['active'] = $arUser["ACTIVE"];
+		}
+
 		if (
 			(
 				isset($arParams['USE_EMAIL'])
@@ -2270,8 +2853,15 @@ class CSocNetLogDestination
 			}
 		}
 
+		$db_events = GetModuleEvents("socialnetwork", "OnSocNetLogDestinationFormatUser");
+		while ($arEvent = $db_events->Fetch())
+		{
+			ExecuteModuleEventEx($arEvent, array($arUser, &$arRes));
+		}
+
 		$checksum = md5(serialize($arRes));
 		$arRes['checksum'] = $checksum;
+
 		$arRes['login'] = (
 			$isIntranetInstalled == 'Y'
 			&& isset($arParams['USE_LOGIN'])
@@ -2359,7 +2949,7 @@ class CSocNetLogDestination
 			{
 				$arFileTmp = CFile::ResizeImageGet(
 					$fields[$imageField],
-					array('width' => 32, 'height' => 32),
+					array('width' => 100, 'height' => 100),
 					BX_RESIZE_IMAGE_EXACT,
 					false
 				);
@@ -2383,11 +2973,94 @@ class CSocNetLogDestination
 				'email' => (!empty($params['EMAIL']) ? $params['EMAIL'] : ''),
 				'isExtranet' => 'N',
 				'isEmail' => 'Y',
+				'isCrmEmail' => 'Y',
 				'params' => $userParams
 			);
 		}
 
 		return $result;
 	}
+
+	public static function formatNetworkUser($fields, $params = array())
+	{
+		static $siteNameFormat = false;
+
+		$result = array();
+		$userParams = array();
+
+		if ($siteNameFormat === false)
+		{
+			$siteNameFormat = (
+				!empty($params["NAME_TEMPLATE"])
+					? $params["NAME_TEMPLATE"]
+					: CSite::GetNameFormat(false)
+			);
+		}
+
+		$name = CUser::FormatName(
+			$siteNameFormat,
+			$fields,
+			true,
+			true
+		);
+
+		if (isset($fields["EXTERNAL_AUTH_ID"]) && $fields["EXTERNAL_AUTH_ID"] == "replica")
+			list(,$domain) = explode("@", $fields["LOGIN"], 2);
+		else
+			$domain = $fields["CLIENT_DOMAIN"];
+
+		if ($fields["PERSONAL_PHOTO"])
+		{
+			$arFileTmp = CFile::ResizeImageGet(
+				$fields["PERSONAL_PHOTO"],
+				array('width' => 32, 'height' => 32),
+				BX_RESIZE_IMAGE_EXACT,
+				false
+			);
+		}
+
+		$userParams = array(
+			'name' => $fields['NAME'],
+			'lastName' => $fields['LAST_NAME'],
+			'domain' => $domain,
+		);
+
+		$result = array(
+			'id' => isset($fields['ID'])? $fields['ID']: $fields['XML_ID'],
+			'entityId' => isset($fields['ID'])? $fields['ID']: $fields['XML_ID'],
+			'name' => $name,
+			'avatar' => $fields["PERSONAL_PHOTO"] && !empty($arFileTmp['src'])? $arFileTmp['src']: '',
+			'desc' => $domain,
+			'showDesc' => true,
+			'email' => (!empty($fields['EMAIL']) ? $fields['EMAIL'] : ''),
+			'networkId' => $fields['NETWORK_ID'],
+			'isExtranet' => 'N',
+			'isEmail' => 'N',
+			'isNetwork' => 'Y',
+			'params' => $userParams
+		);
+
+		return $result;
+	}
+
+	private static function getExternalAuthIdBlackList($params = array())
+	{
+		$result = array(
+			"bot",
+			"imconnector"
+		);
+
+		if (
+			!is_array($params)
+			|| !isset($params["NETWORK_SEARCH"])
+			|| !$params["NETWORK_SEARCH"]
+		)
+		{
+			$result[] = 'replica';
+		}
+
+		return $result;
+	}
+
 }
 ?>

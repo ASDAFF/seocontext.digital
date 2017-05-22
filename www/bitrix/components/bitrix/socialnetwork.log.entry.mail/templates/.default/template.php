@@ -123,7 +123,7 @@
 										?><img width="30" height="29" alt="" src="<?=$src?>" style="outline: none;text-decoration: none;vertical-align: top;"><?
 									?></td>
 									<td valign="middle" style="border-collapse: collapse;border-spacing: 0;padding: 9px 0 14px 16px;vertical-align: top;">
-										<a href="<?=$arResult["LOG_ENTRY_URL"]?>" style="color: #0067a3;border-bottom: 1px solid #0067a3;font-size: 14px;line-height: 18px;text-decoration: none;">
+										<a href="<?=$arResult["LOG_ENTRY_URL_COMMENT"]?>" style="color: #0067a3;border-bottom: 1px solid #0067a3;font-size: 14px;line-height: 18px;text-decoration: none;">
 											<!--[if gte mso 9]>
 											<span style="text-decoration: underline;">
 											<![endif]-->

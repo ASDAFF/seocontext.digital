@@ -2,7 +2,7 @@
 $MESS["BPAR_PD_REVIEWERS"] = "Ознакомить пользователей";
 $MESS["BPAR_PD_DESCR"] = "Описание задания";
 $MESS["BPAR_PD_NAME"] = "Название задания";
-$MESS["BPAR_PD_APPROVE_TYPE"] = "Должны ознакомится";
+$MESS["BPAR_PD_APPROVE_TYPE"] = "Должны ознакомиться";
 $MESS["BPAR_PD_APPROVE_TYPE_ALL"] = "Все сотрудники";
 $MESS["BPAR_PD_APPROVE_TYPE_ANY"] = "Любой сотрудник";
 $MESS["BPAR_PD_SET_STATUS_MESSAGE"] = "Устанавливать текст статуса";

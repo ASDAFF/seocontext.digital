@@ -14,6 +14,12 @@ foreach ($requiredModules as $requiredModule)
 	}
 }
 
+if (!isset($arParams['REPORT_HELPER_CLASS']) || strlen($arParams['REPORT_HELPER_CLASS']) < 1)
+{
+	ShowError(GetMessage("REPORT_HELPER_NOT_DEFINED"));
+	return 0;
+}
+
 // Suppress the timezone, while report works in server time
 CTimeZone::Disable();
 
@@ -498,6 +504,8 @@ try
 			}
 		}
 
+		$arUF = call_user_func(array($arParams['REPORT_HELPER_CLASS'], 'detectUserField'), $field);
+
 		// default sort
 		if ($is_grc
 			|| ((in_array($fType, array('file', 'disk_file', 'employee', 'crm', 'crm_status', 'iblock_element',
@@ -520,7 +528,6 @@ try
 			$defaultSort = 'DESC';
 		}
 
-		$arUF = call_user_func(array($arParams['REPORT_HELPER_CLASS'], 'detectUserField'), $field);
 		$viewColumns[$num] = array(
 			'field' => $field,
 			'fieldName' => $elem['name'],

@@ -78,12 +78,30 @@ class CSocNetForumComments
 
 		$sText = (COption::GetOptionString("forum", "FILTER", "Y") == "Y" ? $arMessage["POST_MESSAGE_FILTER"] : $arMessage["POST_MESSAGE"]);
 
+		$logFilter = array(
+			"EVENT_ID" => $log_event_id,
+			"SOURCE_ID" => $entityId
+		);
+
+		foreach (GetModuleEvents("socialnetwork", "onAfterCommentAddBefore", true) as $arModuleEvent)
+		{
+			$res = ExecuteModuleEventEx($arModuleEvent, array(
+				$entityType,
+				$entityId,
+				$arData
+			));
+
+			if (isset($res) && is_array($res) && isset($res['LOG_ENTRY_ID']) && $res['LOG_ENTRY_ID'] > 1)
+			{
+				$logFilter = array(
+					'ID' => $res['LOG_ENTRY_ID']
+				);
+			}
+		}
+
 		$dbRes = CSocNetLog::GetList(
 			array("ID" => "DESC"),
-			array(
-				"EVENT_ID" => $log_event_id,
-				"SOURCE_ID" => $entityId
-			),
+			$logFilter,
 			false,
 			false,
 			array("ID", "ENTITY_TYPE", "ENTITY_ID", "SOURCE_ID", "USER_ID")
@@ -130,7 +148,6 @@ class CSocNetForumComments
 				|| $arLogCommentEvent["RATING_TYPE_ID"] == "FORUM_POST"
 			)
 			{
-
 				$arFieldsForSocnet["RATING_TYPE_ID"] = "FORUM_POST";
 				$arFieldsForSocnet["RATING_ENTITY_ID"] = $messageId;
 			}
@@ -161,9 +178,9 @@ class CSocNetForumComments
 
 			$comment_id = CSocNetLogComments::Add($arFieldsForSocnet, false, false);
 			CSocNetLog::CounterIncrement(
-				$comment_id, 
-				false, 
-				false, 
+				$comment_id,
+				false,
+				false,
 				"LC",
 				CSocNetLogRights::CheckForUserAll($log_id)
 			);
@@ -325,9 +342,9 @@ class CSocNetForumComments
 
 							$comment_id = CSocNetLogComments::Add($arFieldsForSocnet, false, false);
 							CSocNetLog::CounterIncrement(
-								$comment_id, 
-								false, 
-								false, 
+								$comment_id,
+								false,
+								false,
 								"LC",
 								CSocNetLogRights::CheckForUserAll($log_id)
 							);

@@ -90,17 +90,7 @@ class CSaleGiftBasketComponent extends CCatalogViewedProductsComponent
 		/** @var \Bitrix\Sale\BasketItem $item */
 		foreach($this->getBasket() as $item)
 		{
-			//todo we should get iblock data from item by provider
-			if(
-				$item->getField('MODULE') === 'catalog' &&
-				(
-					$item->getProvider() &&
-					(
-						$item->getProvider() === "CCatalogProductProvider" ||
-						array_key_exists("CCatalogProductProvider", class_parents($item->getProvider()))
-					)
-				)
-			)
+			if($this->isExtendedCatalogProvider($item))
 			{
 				$element = \Bitrix\Iblock\ElementTable::getRow(array(
 					'select' => array('IBLOCK_ID'),
@@ -156,14 +146,7 @@ class CSaleGiftBasketComponent extends CCatalogViewedProductsComponent
 		/** @var \Bitrix\Sale\BasketItem $item */
 		foreach($this->getBasket() as $item)
 		{
-			//todo we should get iblock data from item by provider
-			if(
-				$item->getField('MODULE') === 'catalog' &&
-				(
-					$item->getProvider() &&
-					array_key_exists("CCatalogProductProvider", class_implements($item->getProvider()))
-				)
-			)
+			if($this->isExtendedCatalogProvider($item))
 			{
 				return $item->getField('PRODUCT_PRICE_ID');
 			}
@@ -433,7 +416,7 @@ class CSaleGiftBasketComponent extends CCatalogViewedProductsComponent
 			if(!$parentElementId)
 			{
 				$parentElementId = $pureOffer['LINK_ELEMENT_ID'];
-				$this->items[$pureOffer['ID']]['OFFERS'] = $pureOffers;
+				$this->items[$parentElementId]['OFFERS'] = $pureOffers;
 			}
 			else
 			{
@@ -487,6 +470,21 @@ class CSaleGiftBasketComponent extends CCatalogViewedProductsComponent
 		}
 	}
 
+	protected function setItemsPrices()
+	{
+		parent::setItemsPrices();
+
+		foreach ($this->items as &$item)
+		{
+			if (!empty($item['OFFERS']))
+			{
+				continue;
+			}
+
+			$this->setGiftDiscountToMinPrice($item);
+		}
+	}
+
 	protected function formatResult()
 	{
 		$this->items = array_slice($this->items, 0, $this->arParams['PAGE_ELEMENT_COUNT']);
@@ -529,5 +527,23 @@ class CSaleGiftBasketComponent extends CCatalogViewedProductsComponent
 		$offer['MIN_PRICE']['DISCOUNT_VALUE_NOVAT'] = 0;
 		$offer['MIN_PRICE']['DISCOUNT_VALUE_VAT'] = 0;
 		$offer['MIN_PRICE']['DISCOUNT_VALUE'] = 0;
+	}
+
+	/**
+	 * @param $item
+	 *
+	 * @return bool
+	 */
+	private function isExtendedCatalogProvider(\Bitrix\Sale\BasketItem $item)
+	{
+		return
+			$item->getField('MODULE') === 'catalog' &&
+			(
+				$item->getProvider() &&
+				(
+					$item->getProvider() === "CCatalogProductProvider" ||
+					array_key_exists("CCatalogProductProvider", class_parents($item->getProvider()))
+				)
+			);
 	}
 }

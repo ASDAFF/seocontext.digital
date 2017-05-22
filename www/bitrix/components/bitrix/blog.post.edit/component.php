@@ -598,7 +598,10 @@ if(!empty($arBlog) && $arBlog["ACTIVE"] == "Y")
 												$arCopyPostUpdate["CATEGORY_ID"] = implode(",", $arCopyCat);
 
 											if($_POST["move2blogcopy"] == "Y")
+											{
 												$arCopyPostUpdate["NUM_COMMENTS"] = 0;
+												$arCopyPostUpdate["NUM_COMMENTS_ALL"] = 0;
+											}
 
 											if(!empty($arCopyPostUpdate))
 											{
@@ -1112,7 +1115,7 @@ if(!empty($arBlog) && $arBlog["ACTIVE"] == "Y")
 						$arResult["POST_PROPERTIES"]["SHOW"] = "Y";
 				}
 
-				$arResult["CUR_PAGE"] = urlencode($APPLICATION->GetCurPageParam());
+				$arResult["CUR_PAGE"] = htmlspecialcharsbx(urlencode($APPLICATION->GetCurPageParam()));
 
 				$serverName = "";
 				$serverName = ((defined("SITE_SERVER_NAME") && strlen(SITE_SERVER_NAME) > 0) ? SITE_SERVER_NAME : COption::GetOptionString("main", "server_name", ""));

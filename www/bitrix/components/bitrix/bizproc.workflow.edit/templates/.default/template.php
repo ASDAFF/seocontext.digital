@@ -17,48 +17,51 @@ require_once($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/interface/admin_li
 $ID = $arResult["ID"];
 
 $aMenu = Array();
-$aMenu[] = array(
-	"TEXT"=>GetMessage("BIZPROC_WFEDIT_MENU_PARAMS"),
-	"TITLE"=>GetMessage("BIZPROC_WFEDIT_MENU_PARAMS_TITLE"),
-	"LINK"=>"javascript:BCPShowParams();",
-	"ICON"=>"btn_settings",
-);
 
-$aMenu[] = array("SEPARATOR"=>"Y");
-
-$aMenu[] = array(
-	"TEXT"=>((strlen($arParams["BIZPROC_EDIT_MENU_LIST_MESSAGE"]) > 0) ? htmlspecialcharsbx($arParams["BIZPROC_EDIT_MENU_LIST_MESSAGE"]) : GetMessage("BIZPROC_WFEDIT_MENU_LIST")),
-	"TITLE"=>((strlen($arParams["BIZPROC_EDIT_MENU_LIST_TITLE_MESSAGE"]) > 0) ? htmlspecialcharsbx($arParams["BIZPROC_EDIT_MENU_LIST_TITLE_MESSAGE"]) : GetMessage("BIZPROC_WFEDIT_MENU_LIST_TITLE")),
-	"LINK"=>$arResult['LIST_PAGE_URL'],
-	"ICON"=>"btn_list",
-);
-
-if (!array_key_exists("SKIP_BP_TYPE_SELECT", $arParams) || $arParams["SKIP_BP_TYPE_SELECT"] != "Y")
+if ($arResult['TEMPLATE_AUTOSTART'] != CBPDocumentEventType::Automation)
 {
-	$arSubMenu = Array();
-
-	$arSubMenu[] = array(
-		"TEXT"	=> GetMessage("BIZPROC_WFEDIT_MENU_ADD_STATE"),
-		"TITLE"	=> GetMessage("BIZPROC_WFEDIT_MENU_ADD_STATE_TITLE"),
-		"ONCLICK"=> "if(confirm('".GetMessage("BIZPROC_WFEDIT_MENU_ADD_WARN")."'))window.location='".str_replace("#ID#", "0", $arResult["EDIT_PAGE_TEMPLATE"]).(strpos($arResult["EDIT_PAGE_TEMPLATE"], "?")?"&":"?")."init=statemachine';"
+	$aMenu[] = array(
+		"TEXT"  => GetMessage("BIZPROC_WFEDIT_MENU_PARAMS"),
+		"TITLE" => GetMessage("BIZPROC_WFEDIT_MENU_PARAMS_TITLE"),
+		"LINK"  => "javascript:BCPShowParams();",
+		"ICON"  => "btn_settings",
 	);
 
-	$arSubMenu[] = array(
-		"TEXT"	=> GetMessage("BIZPROC_WFEDIT_MENU_ADD_SEQ"),
-		"TITLE"	=> GetMessage("BIZPROC_WFEDIT_MENU_ADD_SEQ_TITLE"),
-		"ONCLICK" => "if(confirm('".GetMessage("BIZPROC_WFEDIT_MENU_ADD_WARN")."'))window.location='".str_replace("#ID#", "0", $arResult["EDIT_PAGE_TEMPLATE"]).(strpos($arResult["EDIT_PAGE_TEMPLATE"], "?")?"&":"?")."';"
-	);
+	$aMenu[] = array("SEPARATOR" => "Y");
 
 	$aMenu[] = array(
-		"TEXT"=>GetMessage("BIZPROC_WFEDIT_MENU_ADD"),
-		"TITLE"=>GetMessage("BIZPROC_WFEDIT_MENU_ADD_TITLE"),
-		"ICON"=>"btn_new",
-		"MENU"=>$arSubMenu
+		"TEXT"  => ((strlen($arParams["BIZPROC_EDIT_MENU_LIST_MESSAGE"]) > 0) ? htmlspecialcharsbx($arParams["BIZPROC_EDIT_MENU_LIST_MESSAGE"]) : GetMessage("BIZPROC_WFEDIT_MENU_LIST")),
+		"TITLE" => ((strlen($arParams["BIZPROC_EDIT_MENU_LIST_TITLE_MESSAGE"]) > 0) ? htmlspecialcharsbx($arParams["BIZPROC_EDIT_MENU_LIST_TITLE_MESSAGE"]) : GetMessage("BIZPROC_WFEDIT_MENU_LIST_TITLE")),
+		"LINK"  => $arResult['LIST_PAGE_URL'],
+		"ICON"  => "btn_list",
 	);
+
+	if (!array_key_exists("SKIP_BP_TYPE_SELECT", $arParams) || $arParams["SKIP_BP_TYPE_SELECT"] != "Y")
+	{
+		$arSubMenu = Array();
+
+		$arSubMenu[] = array(
+			"TEXT"    => GetMessage("BIZPROC_WFEDIT_MENU_ADD_STATE"),
+			"TITLE"   => GetMessage("BIZPROC_WFEDIT_MENU_ADD_STATE_TITLE"),
+			"ONCLICK" => "if(confirm('".GetMessage("BIZPROC_WFEDIT_MENU_ADD_WARN")."'))window.location='".str_replace("#ID#", "0", $arResult["EDIT_PAGE_TEMPLATE"]).(strpos($arResult["EDIT_PAGE_TEMPLATE"], "?") ? "&" : "?")."init=statemachine';"
+		);
+
+		$arSubMenu[] = array(
+			"TEXT"    => GetMessage("BIZPROC_WFEDIT_MENU_ADD_SEQ"),
+			"TITLE"   => GetMessage("BIZPROC_WFEDIT_MENU_ADD_SEQ_TITLE"),
+			"ONCLICK" => "if(confirm('".GetMessage("BIZPROC_WFEDIT_MENU_ADD_WARN")."'))window.location='".str_replace("#ID#", "0", $arResult["EDIT_PAGE_TEMPLATE"]).(strpos($arResult["EDIT_PAGE_TEMPLATE"], "?") ? "&" : "?")."';"
+		);
+
+		$aMenu[] = array(
+			"TEXT"  => GetMessage("BIZPROC_WFEDIT_MENU_ADD"),
+			"TITLE" => GetMessage("BIZPROC_WFEDIT_MENU_ADD_TITLE"),
+			"ICON"  => "btn_new",
+			"MENU"  => $arSubMenu
+		);
+	}
+
+	$aMenu[] = array("SEPARATOR" => true);
 }
-
-$aMenu[] = array("SEPARATOR"=>true);
-
 $aMenu[] = array(
 	"TEXT"=>GetMessage("BIZPROC_WFEDIT_MENU_EXPORT"),
 	"TITLE"=>GetMessage("BIZPROC_WFEDIT_MENU_EXPORT_TITLE"),
@@ -385,7 +388,7 @@ endif;
 <br>
 <input type="button" onclick="BCPSaveTemplate(true);" value="<?echo GetMessage("BIZPROC_WFEDIT_SAVE_BUTTON")?>">
 <input type="button" onclick="BCPSaveTemplate();" value="<?echo GetMessage("BIZPROC_WFEDIT_APPLY_BUTTON")?>">
-<input type="button" onclick="window.location='<?=htmlspecialcharsbx(CUtil::JSEscape($arResult['LIST_PAGE_URL']))?>';" value="<?echo GetMessage("BIZPROC_WFEDIT_CANCEL_BUTTON")?>">
+<input type="button" onclick="window.location='<?=htmlspecialcharsbx(CUtil::JSEscape(isset($arResult['BACK_URL']) ? $arResult['BACK_URL'] : $arResult['LIST_PAGE_URL']))?>';" value="<?echo GetMessage("BIZPROC_WFEDIT_CANCEL_BUTTON")?>">
 </div>
 
 </form>

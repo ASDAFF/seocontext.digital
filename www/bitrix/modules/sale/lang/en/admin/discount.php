@@ -34,4 +34,7 @@ $MESS["BT_SALE_DISCOUNT_LIST_MESS_ACTIVATE_DISCOUNT_SHORT"] = "Activate";
 $MESS["SDSN_USE_COUPONS"] = "Coupons";
 $MESS["SDSN_PRESET_ID"] = "Preset";
 $MESS["BX_SALE_ADM_DSC_HEADER_TITLE_PRESET_ID"] = "Preset aided rule configuration";
+$MESS["BT_SALE_DISCOUNT_LIST_MESS_TITLE_CATALOG_ID"] = "from catalog";
+$MESS["SDSN_LAST_LEVEL_DISCOUNT_NEW"] = "Disable priority level";
+$MESS["SDSN_SHOW_IN_CATALOG"] = "Show in commercial catalog";
 ?>

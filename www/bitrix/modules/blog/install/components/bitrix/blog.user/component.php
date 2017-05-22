@@ -1,4 +1,5 @@
 <?
+use Bitrix\Main\Text\HtmlFilter;
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
 
 if (!CModule::IncludeModule("blog"))
@@ -229,7 +230,7 @@ else
 		if(strlen($Hobby)>0)
 			$arResult["User"]["Hobby"][] = Array(
 					"link" => $arParams["PATH_TO_SEARCH"].'where=USER&q='.urlencode($Hobby),
-					"name" => htmlspecialcharsEx($Hobby),
+					"name" => HtmlFilter::encode($Hobby),
 				);
 	}
 	

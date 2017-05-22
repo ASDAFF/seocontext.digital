@@ -18,6 +18,7 @@ $cb_id = isset($_REQUEST["cb_id"])? $_REQUEST["cb_id"]: "";
 $event_id = (isset($_REQUEST["evid"]) && is_string($_REQUEST["evid"])) ? trim($_REQUEST["evid"]): "";
 $transport = (isset($_REQUEST["transport"]) && is_string($_REQUEST["transport"])) ? trim($_REQUEST["transport"]): "";
 $entity_xml_id = (isset($_REQUEST["exmlid"]) && is_string($_REQUEST["exmlid"])) ? trim($_REQUEST["exmlid"]): "";
+$entity_xml_id = (!empty($entity_xml_id)) ? $entity_xml_id : ((isset($_REQUEST["ENTITY_XML_ID"]) && is_string($_REQUEST["ENTITY_XML_ID"])) ? trim($_REQUEST["ENTITY_XML_ID"]): "");
 
 $lng = (isset($_REQUEST["lang"]) && is_string($_REQUEST["lang"])) ? trim($_REQUEST["lang"]): "";
 $lng = substr(preg_replace("/[^a-z0-9_]/i", "", $lng), 0, 2);
@@ -70,7 +71,21 @@ if(CModule::IncludeModule("socialnetwork"))
 		CSocNetTools::InitGlobalExtranetArrays();
 	}
 
-	if (!$GLOBALS["USER"]->IsAuthorized())
+	$currentUserId = 0;
+	$currentUserExternalAuthId = '';
+	$bCurrentUserUserAuthorized = $GLOBALS["USER"]->IsAuthorized();
+
+	if ($bCurrentUserUserAuthorized)
+	{
+		$currentUserId = $GLOBALS["USER"]->GetId();
+		$rsCurrentUser = CUser::GetByID($currentUserId);
+		if ($arCurrentUser = $rsCurrentUser->Fetch())
+		{
+			$currentUserExternalAuthId = $arCurrentUser['EXTERNAL_AUTH_ID'];
+		}
+	}
+
+	if (!$bCurrentUserUserAuthorized)
 	{
 		$arResult[0] = "*";
 	}
@@ -94,6 +109,7 @@ if(CModule::IncludeModule("socialnetwork"))
 					!in_array($arLog["EVENT_ID"], array("crm_lead_message", "crm_deal_message", "crm_company_message", "crm_contact_message", "crm_activity_add"))
 					|| (isset($_REQUEST["crm"]) && $_REQUEST["crm"] == "Y")
 				)
+				&& $currentUserExternalAuthId != 'email'
 				&& IsModuleInstalled("crm")
 			)
 			{
@@ -333,7 +349,7 @@ if(CModule::IncludeModule("socialnetwork"))
 								"TEXT_MESSAGE" => $comment_text,
 								"MODULE_ID" => false,
 								"LOG_ID" => $arLog["ID"],
-								"USER_ID" => $GLOBALS["USER"]->GetID(),
+								"USER_ID" => $currentUserId,
 								"PATH_TO_USER_BLOG_POST" => $arParams["PATH_TO_USER_BLOG_POST"],
 								"PATH_TO_GROUP_BLOG_POST" => $arParams["PATH_TO_GROUP_BLOG_POST"],
 								"PATH_TO_USER_MICROBLOG_POST" => $arParams["PATH_TO_USER_MICROBLOG_POST"],
@@ -509,13 +525,15 @@ if(CModule::IncludeModule("socialnetwork"))
 												: CSite::GetTimeFormat()
 										),
 										"PATH_TO_USER" => $_REQUEST["p_user"],
+										"PATH_TO_LOG_ENTRY" => (isset($_REQUEST["p_le"]) ? $_REQUEST["p_le"] : ''),
 										"NAME_TEMPLATE" => $_REQUEST["nt"],
 										"SHOW_LOGIN" => $_REQUEST["sl"],
 										"AVATAR_SIZE" => $_REQUEST["as"],
 										"PATH_TO_SMILE" => $_REQUEST["p_smile"],
 										"LANGUAGE_ID" => $lng,
 										"SITE_ID" => SITE_ID,
-										"PULL" => $_REQUEST["pull"]
+										"PULL" => $_REQUEST["pull"],
+										"ENTITY_XML_ID" => $entity_xml_id
 									)
 								);
 
@@ -551,6 +569,7 @@ if(CModule::IncludeModule("socialnetwork"))
 		{
 			if (
 				strpos($arComment["ENTITY_TYPE"], "CRM") === 0
+				&& $currentUserExternalAuthId != 'email'
 				&& IsModuleInstalled("crm")
 			)
 			{
@@ -651,6 +670,7 @@ if(CModule::IncludeModule("socialnetwork"))
 	}
 	elseif ($action == "get_comments")
 	{
+
 		$arResult["arComments"] = array();
 
 		$log_tmp_id = $_REQUEST["logid"];
@@ -658,7 +678,13 @@ if(CModule::IncludeModule("socialnetwork"))
 		$follow = (isset($_REQUEST["follow"]) && $_REQUEST["follow"] == "Y" ? "Y" : "N");
 		$counterType = (isset($_REQUEST["ct"]) ? $_REQUEST["ct"] : false);
 
-		$arListParams = (strpos($log_entity_type, "CRM") === 0 && IsModuleInstalled("crm") ? array("IS_CRM" => "Y", "CHECK_CRM_RIGHTS" => "Y") : array("CHECK_RIGHTS" => "Y", "USE_SUBSCRIBE" => "N"));
+		$arListParams = (
+			strpos($log_entity_type, "CRM") === 0
+			&& $currentUserExternalAuthId != 'email'
+			&& IsModuleInstalled("crm")
+				? array("IS_CRM" => "Y", "CHECK_CRM_RIGHTS" => "Y")
+				: array("CHECK_RIGHTS" => "Y", "USE_SUBSCRIBE" => "N")
+		);
 
 		if (
 			intval($log_tmp_id) > 0
@@ -715,7 +741,7 @@ if(CModule::IncludeModule("socialnetwork"))
 					{
 						foreach($arCacheVars["Assets"]["CSS"] as $cssFile)
 						{
-							\Bitrix\Main\Page\Asset::getInstance()->addCss($cssFile, true);
+							\Bitrix\Main\Page\Asset::getInstance()->addCss($cssFile);
 						}
 					}
 
@@ -723,7 +749,7 @@ if(CModule::IncludeModule("socialnetwork"))
 					{
 						foreach($arCacheVars["Assets"]["JS"] as $jsFile)
 						{
-							\Bitrix\Main\Page\Asset::getInstance()->addJs($jsFile, true);
+							\Bitrix\Main\Page\Asset::getInstance()->addJs($jsFile);
 						}
 					}
 				}
@@ -861,9 +887,8 @@ if(CModule::IncludeModule("socialnetwork"))
 					"NEW" => (
 						$lastLogTs > 0
 						&& $arComment["LOG_DATE_TS"] > ($lastLogTs + $offset)
-						&& $USER->IsAuthorized()
 						&& $follow == "Y"
-						&& $arComment["EVENT"]["USER_ID"] != $USER->GetID()
+						&& $arComment["EVENT"]["USER_ID"] != $currentUserId
 						&& (
 							$counterType == "**"
 							|| $counterType == "CRM_**"
@@ -902,7 +927,8 @@ if(CModule::IncludeModule("socialnetwork"))
 			$eventHandlerID = AddEventHandler("main", "system.field.view.file", Array("CSocNetLogTools", "logUFfileShow"));
 			$rights = CSocNetLogComponent::getCommentRights(array(
 				"EVENT_ID" => $arLog["EVENT_ID"],
-				"SOURCE_ID" => $arLog["SOURCE_ID"]
+				"SOURCE_ID" => $arLog["SOURCE_ID"],
+				"USER_ID" => $USER->getId()
 			));
 			$navComponentObject = false;
 			$res = $APPLICATION->IncludeComponent(
@@ -976,21 +1002,18 @@ if(CModule::IncludeModule("socialnetwork"))
 			RemoveEventHandler('main', 'system.field.view.file', $eventHandlerID);
 		}
 	}
-	elseif (
-		$action == "change_favorites" 
-		&& $GLOBALS["USER"]->IsAuthorized()
-	)
+	elseif ($action == "change_favorites")
 	{
 		$log_id = intval($_REQUEST["log_id"]);
 		if ($arLog = CSocNetLog::GetByID($log_id))
 		{
-			$strRes = CSocNetLogFavorites::Change($GLOBALS["USER"]->GetID(), $log_id);
+			$strRes = CSocNetLogFavorites::Change($currentUserId, $log_id);
 
 			if ($strRes)
 			{
 				if ($strRes == "Y")
 					CSocNetLogFollow::Set(
-						$GLOBALS["USER"]->GetID(), 
+						$currentUserId,
 						"L".$log_id, 
 						"Y",
 						$arLog["LOG_UPDATE"]

@@ -11,6 +11,7 @@ $MESS['MAIL_IMAP_ERR_COMMAND_REJECTED'] = 'Команда отклонена';
 $MESS['MAIL_IMAP_ERR_CAPABILITY'] = 'Ошибка получения списка возможностей';
 $MESS['MAIL_IMAP_ERR_AUTH'] = 'Ошибка авторизации';
 $MESS['MAIL_IMAP_ERR_AUTH_MECH'] = 'Сервер не поддерживает необходимый механизм авторизации';
+$MESS['MAIL_IMAP_ERR_AUTH_OAUTH'] = 'Не удалось получить разрешение';
 $MESS['MAIL_IMAP_ERR_LIST'] = 'Ошибка получения списка папок';
 $MESS['MAIL_IMAP_ERR_SELECT'] = 'Ошибка выбора папки';
 $MESS['MAIL_IMAP_ERR_SEARCH'] = 'Ошибка поиска писем';

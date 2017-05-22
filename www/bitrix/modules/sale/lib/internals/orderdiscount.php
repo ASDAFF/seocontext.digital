@@ -711,6 +711,7 @@ class OrderDiscountDataTable extends Main\Entity\DataManager
 	const ENTITY_TYPE_SHIPMENT = 0x0004;
 	const ENTITY_TYPE_DISCOUNT = 0x0008;
 	const ENTITY_TYPE_ORDER = 0x0010;
+	const ENTITY_TYPE_ROUND = 0x0020;
 
 	/**
 	 * Returns DB table name for entity.
@@ -746,7 +747,8 @@ class OrderDiscountDataTable extends Main\Entity\DataManager
 					self::ENTITY_TYPE_DELIVERY,
 					self::ENTITY_TYPE_SHIPMENT,
 					self::ENTITY_TYPE_DISCOUNT,
-					self::ENTITY_TYPE_ORDER
+					self::ENTITY_TYPE_ORDER,
+					self::ENTITY_TYPE_ROUND
 				),
 				'title' => Loc::getMessage('ORDER_DISCOUNT_DATA_ENTITY_ENTITY_TYPE_FIELD')
 			)),

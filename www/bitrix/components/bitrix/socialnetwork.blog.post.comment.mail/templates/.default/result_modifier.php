@@ -1,5 +1,5 @@
-<?if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();?>
-<?
+<?if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
+
 foreach($arResult["AUTHORS"] as $authorId => $arAuthor)
 {
 	$arAuthor["AVATAR_URL"] = (
@@ -82,5 +82,29 @@ foreach($arResult["COMMENTS"] as $key => $arComment)
 		),
 		"UF" => $arComment["PROPS"]
 	);
+}
+
+$arResult["POST_URL_COMMENT"] = $arResult["POST_URL"];
+if (
+	isset($arParams["COMMENT_ID"])
+	&& intval($arParams["COMMENT_ID"]) > 0
+)
+{
+	$uri = new \Bitrix\Main\Web\Uri($arResult["POST_URL"]);
+
+	$uriScheme = $uri->getScheme();
+	$uriHost = $uri->getHost();
+	$uriPort = $uri->getPort();
+	$uriPath = $uri->getPath();
+	$uriQuery = $uri->getQuery();
+	$uriFragment = $uri->getFragment();
+
+	$arResult["POST_URL_COMMENT"] = $uriScheme."://".
+		$uriHost.
+		(!empty($uriPort) && $uriPort != 80 ? ':'.$uriPort : '').
+		$uriPath.
+		(!empty($uriQuery) ? '?'.$uriQuery.'&' : '?').
+		'commentId='.intval($arParams["COMMENT_ID"]).
+		(!empty($uriFragment) ? '#'.$uriFragment : '');
 }
 ?>

@@ -10,9 +10,14 @@ class ListsSelectElementComponent extends CBitrixComponent
 	public function onPrepareComponentParams($arParams)
 	{
 		$arParams['ERROR'] = array();
-		if (!Loader::includeModule('lists') || !Loader::includeModule('bizproc'))
+		if (!Loader::includeModule('lists'))
 		{
 			$arParams['ERROR'][] = Loc::getMessage('CC_BLL_MODULE_NOT_INSTALLED');
+			return $arParams;
+		}
+		if(!Loader::includeModule('bizproc') || !CBPRuntime::isFeatureEnabled())
+		{
+			$arParams['ERROR'][] = Loc::getMessage('CC_BLL_BIZPROC_MODULE_NOT_INSTALLED');
 			return $arParams;
 		}
 		global $USER;
@@ -51,6 +56,9 @@ class ListsSelectElementComponent extends CBitrixComponent
 
 	public function executeComponent()
 	{
+		if($this->arParams['SET_TITLE'] == 'Y')
+			$this->getApplication()->setTitle(Loc::getMessage('CC_BLL_TITLE'));
+
 		if(!empty($this->arParams['ERROR']))
 		{
 			ShowError(array_shift($this->arParams['ERROR']));
@@ -59,52 +67,115 @@ class ListsSelectElementComponent extends CBitrixComponent
 
 		$this->arResult['USER_ID'] = $this->arParams['USER_ID'];
 		$this->arResult['GRID_ID'] = 'lists_processes';
+		$this->arResult['FILTER_ID'] = 'lists_processes';
+
 		$selectFields = array('ID', 'IBLOCK_TYPE_ID', 'IBLOCK_ID', 'NAME');
 
 		$gridOptions = new CGridOptions($this->arResult['GRID_ID']);
-		$gridColumns = $gridOptions->getVisibleColumns();
 		$gridSort = $gridOptions->getSorting(array('sort' => array('ID' => 'desc')));
 
 		$this->arResult['HEADERS'] = array(
-			array("id" => "ID", "name" => "ID", "default" => false, "sort" => "ID"),
-			array('id' => 'DOCUMENT_NAME', 'name' => Loc::getMessage('CC_BLL_DOCUMENT_NAME'), 'default' => true, 'sort' => 'DOCUMENT_NAME'),
-			array('id' => 'COMMENTS', 'name' => Loc::getMessage('CC_BLL_COMMENTS'), 'default' => true, 'sort' => '', 'hideName' => true, 'iconCls' => 'bp-comments-icon'),
-			array('id' => 'WORKFLOW_PROGRESS', 'name' => Loc::getMessage('CC_BLL_WORKFLOW_PROGRESS'), 'default' => true, 'sort' => ''),
-			array('id' => 'WORKFLOW_STATE', 'name' => Loc::getMessage('CC_BLL_WORKFLOW_STATE'), 'default' => false, 'sort' => ''),
+			array(
+				"id" => "ID",
+				"name" => "ID",
+				"default" => false,
+				"sort" => "ID"
+			),
+			array(
+				'id' => 'DOCUMENT_NAME',
+				'name' => Loc::getMessage('CC_BLL_DOCUMENT_NAME'),
+				'default' => true, 'sort' => 'DOCUMENT_NAME'
+			),
+			array(
+				'id' => 'COMMENTS',
+				'name' => Loc::getMessage('CC_BLL_COMMENTS'),
+				'default' => true,
+				'sort' => '',
+				'hideName' => true,
+				'iconCls' => 'bp-comments-icon'
+			),
+			array(
+				'id' => 'WORKFLOW_PROGRESS',
+				'name' => Loc::getMessage('CC_BLL_WORKFLOW_PROGRESS'),
+				'default' => true,
+				'sort' => ''
+			),
+			array(
+				'id' => 'WORKFLOW_STATE',
+				'name' => Loc::getMessage('CC_BLL_WORKFLOW_STATE'),
+				'default' => true,
+				'sort' => ''
+			),
 		);
 
 		$this->arResult['FILTER'] = array(
-			array("id" => "NAME", "name" => GetMessage("BPATL_NAME"), "type" => "string"),
-			array('id' => 'TIMESTAMP_X', 'name' => Loc::getMessage('CC_BLL_MODIFIED'), 'type' => 'date'),
-			array('id' => 'DATE_CREATE', 'name' => Loc::getMessage('CC_BLL_CREATED'), 'type' => 'date', 'default' => true),
+			array(
+				"id" => "NAME",
+				"name" => Loc::getMessage("BPATL_NAME"),
+				"type" => "string",
+				'default' => true
+			),
+			array(
+				'id' => 'TIMESTAMP_X',
+				'name' => Loc::getMessage('CC_BLL_MODIFIED'),
+				'type' => 'date',
+				'default' => true
+			),
+			array(
+				'id' => 'DATE_CREATE',
+				'name' => Loc::getMessage('CC_BLL_CREATED'),
+				'type' => 'date',
+				'default' => true
+			),
 		);
-		$gridFilter = $gridOptions->getFilter($this->arResult['FILTER']);
-
-		foreach($gridFilter as $key => $value)
+		$filterOption = new Bitrix\Main\UI\Filter\Options($this->arResult['FILTER_ID']);
+		$filterData = $filterOption->getFilter($this->arResult['FILTER']);
+		foreach($filterData as $key => $value)
 		{
-			if (substr($key, -5) == "_from")
+			if(empty($value))
+				continue;
+
+			if(substr($key, -5) == "_from")
 			{
 				$op = ">=";
-				$newKey = substr($key, 0, -5);
+				$new_key = substr($key, 0, -5);
 			}
-			elseif (substr($key, -3) == "_to")
+			elseif(substr($key, -3) == "_to")
 			{
 				$op = "<=";
+				$new_key = substr($key, 0, -3);
 				$newKey = substr($key, 0, -3);
 
-				if (in_array($newKey, array("TIMESTAMP_X", 'DATE_CREATE')))
+				if(in_array($newKey, array("TIMESTAMP_X", 'DATE_CREATE')))
 				{
-					if (!preg_match("/\\d\\d:\\d\\d:\\d\\d\$/", $value))
-						$value .= " 23:59:59";
+					global $DB;
+					$dateFormat = $DB->dateFormatToPHP(Csite::getDateFormat());
+					$dateParse = date_parse_from_format($dateFormat, $value);
+					if(!strlen($dateParse["hour"]) && !strlen($dateParse["minute"]) && !strlen($dateParse["second"]))
+					{
+						$timeFormat = $DB->dateFormatToPHP(CSite::getTimeFormat());
+						$value .= " ".date($timeFormat, mktime(23, 59, 59, 0, 0, 0));
+					}
 				}
+			}
+			elseif($key == "NAME")
+			{
+				$op = "?";
+				$new_key = $key;
 			}
 			else
 			{
 				$op = "";
-				$newKey = $key;
+				$new_key = $key;
 			}
 
-			$filter[$op.$newKey] = $value;
+			$filter[$op.$new_key] = $value;
+
+			if($key == "FIND")
+			{
+				$op = "?";
+				$filter[$op."SEARCHABLE_CONTENT"] = $value;
+			}
 		}
 
 		$this->arResult['SORT'] = $gridSort['sort'];
@@ -175,7 +246,8 @@ class ListsSelectElementComponent extends CBitrixComponent
 
 			$actions = array();
 			if (strlen($data["DOCUMENT_URL"]) > 0)
-				$actions[] = array('ICONCLASS'=>'', 'DEFAULT' => false, 'TEXT'=>Loc::getMessage('CC_BLL_C_DOCUMENT'), 'ONCLICK'=>'window.open("'.$data["DOCUMENT_URL"].'");');
+				$actions[] = array('ICONCLASS'=>'', 'DEFAULT' => true, 'TEXT'=>Loc::getMessage('CC_BLL_C_DOCUMENT'),
+					'ONCLICK'=>'window.open("'.$data["DOCUMENT_URL"].'");');
 			$this->arResult['RECORDS'][] = array('data' => $data, 'actions' => $actions);
 		}
 
@@ -194,11 +266,20 @@ class ListsSelectElementComponent extends CBitrixComponent
 
 		$this->arResult['COUNTERS'] = array('all' => 0);
 
-		$this->arResult["ROWS_COUNT"] = $elementObject->selectedRowsCount();
-		$this->arResult["NAV_RESULT"] = $elementObject;
-
-		if($this->arParams['SET_TITLE'] == 'Y')
-			$this->getApplication()->setTitle(Loc::getMessage('CC_BLL_TITLE'));
+		$this->arResult["NAV_OBJECT"] = $elementObject;
+		$componentObject = null;
+		$this->arResult["GRID_ENABLE_NEXT_PAGE"] = ($elementObject->PAGEN < $elementObject->NavPageCount);
+		$this->arResult["NAV_STRING"] = $elementObject->getPageNavStringEx(
+			$componentObject, "", "grid", true, null, $gridOptions->getNavParams());
+		$this->arResult["GRID_PAGE_SIZES"] = array(
+			array("NAME" => "5", "VALUE" => "5"),
+			array("NAME" => "10", "VALUE" => "10"),
+			array("NAME" => "20", "VALUE" => "20"),
+			array("NAME" => "50", "VALUE" => "50"),
+			array("NAME" => "100", "VALUE" => "100"),
+			array("NAME" => "200", "VALUE" => "200"),
+			array("NAME" => "500", "VALUE" => "500")
+		);
 
 		$this->includeComponentTemplate();
 	}

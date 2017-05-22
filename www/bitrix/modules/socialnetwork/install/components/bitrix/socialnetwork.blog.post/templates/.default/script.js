@@ -6,9 +6,53 @@ function showHiddenDestination(cont, el)
 
 function showMenuLinkInput(ind, url)
 {
-	id = 'post-menu-' + ind + '-link',
-	it = BX.proxy_context,
-	height = parseInt(!!it.getAttribute("bx-height") ? it.getAttribute("bx-height") : it.offsetHeight);
+	var
+		id = 'post-menu-' + ind + '-link',
+		menuItemText = BX(id + '-text'),
+		menuItemIconDone = BX(id + '-icon-done');
+
+	if (BX.clipboard.isCopySupported())
+	{
+		if (menuItemText && menuItemText.getAttribute('data-block-click') == 'Y')
+		{
+			return;
+		}
+
+		BX.clipboard.copy(url);
+
+		if (
+			menuItemText
+			&& menuItemIconDone
+		)
+		{
+			menuItemIconDone.style.display = 'inline-block';
+			BX.removeClass(BX(id + '-icon-animate'), 'post-menu-link-icon-animate-stroke');
+
+			BX.adjust(menuItemText, {
+				attrs: {
+					'data-block-click': 'Y'
+				}
+			});
+
+			setTimeout(function() {
+				BX.addClass(BX(id + '-icon-animate'), 'post-menu-link-icon-animate-stroke');
+			}, 1);
+
+			setTimeout(function() {
+				BX.adjust(menuItemText, {
+					attrs: {
+						'data-block-click': 'N'
+					}
+				});
+			}, 500);
+		}
+
+		return;
+	}
+
+	var
+		it = BX.proxy_context,
+		height = parseInt(!!it.getAttribute("bx-height") ? it.getAttribute("bx-height") : it.offsetHeight);
 
 	if (it.getAttribute("bx-status") != "shown")
 	{
@@ -20,7 +64,7 @@ function showMenuLinkInput(ind, url)
 				pos = BX.pos(node),
 				pos2 = BX.pos(node.parentNode);
 				pos3 = BX.pos(BX.findParent(node, {'className': 'menu-popup-item'}, true));
-				
+
 			pos["height"] = pos2["height"] - 1;
 
 			BX.adjust(it, {
@@ -48,7 +92,10 @@ function showMenuLinkInput(ind, url)
 												height : pos["height"] + 'px',
 												width : (pos3["width"] - 21) + 'px'
 											},
-											events : { click : function(e){ this.select(); BX.PreventDefault(e);} }
+											events : { click : function(e){
+												this.select();
+												BX.PreventDefault(e);
+											} }
 										}
 									)
 								]
@@ -84,7 +131,7 @@ function showMenuLinkInput(ind, url)
 		BX.fx.hide(BX(id), 0.2);
 	}
 }
-					
+
 function showBlogPost(id, source)
 {
 	var el = BX.findChild(BX('blg-post-' + id), {className: 'feed-post-text-block-inner'}, true, false);
@@ -93,20 +140,28 @@ function showBlogPost(id, source)
 
 	if(el)
 	{
-		var fxStart = 300;
-		var fxFinish = el2.offsetHeight;
-		(new BX.fx({
-			time: 1.0 * (fxFinish - fxStart) / (1200-fxStart),
-			step: 0.05,
-			type: 'linear',
-			start: fxStart,
-			finish: fxFinish,
-			callback: BX.delegate(__blogExpandSetHeight, el),
-			callback_complete: BX.delegate(function() {
-				this.style.maxHeight = 'none'; 
+		var fxStart = 300,
+			fxFinish = parseInt(el2.offsetHeight),
+			start1 = {height:fxStart},
+			finish1 = {height:fxFinish};
+
+		var time = (fxFinish - fxStart) / (2000 - fxStart);
+		time = (time < 0.3 ? 0.3 : (time > 0.8 ? 0.8 : time));
+
+		(new BX["easing"]({
+			duration : time*1000,
+			start : start1,
+			finish : finish1,
+			transition : BX.easing.makeEaseOut(BX.easing.transitions.quart),
+			step : function(state){
+				el.style.maxHeight = state.height + "px";
+				el.style.opacity = state.opacity / 100;
+			},
+			complete : function(){
+				el.style.maxHeight = 'none';
 				BX.LazyLoad.showImages(true);
-			}, el)
-		})).start();
+			}
+		})).animate();
 	}
 }
 
@@ -117,19 +172,21 @@ function __blogExpandSetHeight(height)
 
 function deleteBlogPost(id)
 {
-	url = BX.message('sonetBPDeletePath');
-	url1 = url.replace('#del_post_id#', id);
+	var
+		el = BX('blg-post-'+id);
 
-	if(BX.findChild(BX('blg-post-'+id), {'attr': {id: 'form_c_del'}}, true, false))
+	if(BX.findChild(el, {'attr': {id: 'form_c_del'}}, true, false))
 	{
 		BX.hide(BX('form_c_del'));
-		BX(BX('blg-post-'+id).parentNode.parentNode).appendChild(BX('form_c_del')); // Move form
+		BX(el.parentNode.parentNode).appendChild(BX('form_c_del')); // Move form
 	}
 
-	BX.ajax.get(url1, function(data){
-		if(window.deletePostEr && window.deletePostEr == "Y")
+	BX.ajax.get(BX.message('sonetBPDeletePath').replace('#del_post_id#', id), function(data){
+		if(
+			window.deletePostEr
+			&& window.deletePostEr == "Y"
+		)
 		{
-			var el = BX('blg-post-'+id);
 			BX.findChild(el, {className: 'feed-post-cont-wrap'}, true, false).insertBefore(
 				BX.create('SPAN', {
 					html: data
@@ -142,7 +199,7 @@ function deleteBlogPost(id)
 			BX('blg-post-'+id).parentNode.innerHTML = data;
 		}
 	});
-	
+
 	return false;
 }
 
@@ -218,6 +275,344 @@ function __blogPostSetFollow(log_id)
 	});
 	return false;
 }
+
+(function() {
+	if (!!BX.SBPostMenu)
+		return false;
+
+	BX.SBPostMenu = function(node) {
+	};
+
+	BX.SBPostMenu.showMenu = function(params) {
+		if (
+			typeof params == 'undefined'
+			|| typeof params.postId == 'undefined'
+			|| parseInt(params.postId) <= 0
+			|| typeof params.bindNode == 'undefined'
+			|| !BX(params.bindNode)
+		)
+		{
+			return false;
+		}
+
+		BX.PopupMenu.destroy('blog-post-' + params.postId);
+
+		var
+			isPublicPage = (typeof params.publicPage != 'undefined' && !!params.publicPage),
+			isTasksAvailable = (typeof params.tasksAvailable != 'undefined' && !!params.tasksAvailable),
+			pathToPost = (typeof params.pathToPost != 'undefined' ? params.pathToPost : ''),
+			urlToEdit = (typeof params.urlToEdit != 'undefined' ? params.urlToEdit : ''),
+			urlToHide = (typeof params.urlToHide != 'undefined' ? params.urlToHide : ''),
+			urlToDelete = (typeof params.urlToDelete != 'undefined' ? params.urlToDelete : ''),
+			voteId = (typeof params.voteId != 'undefined' ? parseInt(params.voteId) : false),
+			postType = (typeof params.postType != 'undefined' ? params.postType : false);
+
+		if (isPublicPage)
+		{
+			return false;
+		}
+
+		var menuWaiterPopup = new BX.PopupWindow('blog-post-' + params.postId + '-waiter', params.bindNode, {
+			offsetLeft: -14,
+			offsetTop: 4,
+			lightShadow: false,
+			angle: {position: 'top', offset: 50},
+			content: BX.create("SPAN", { props: {className: "bx-ilike-wait"}})
+		});
+
+		setTimeout(function() {
+			if (menuWaiterPopup)
+			{
+				menuWaiterPopup.show();
+			}
+		}, 300);
+
+
+		BX.ajax({
+			url: '/bitrix/components/bitrix/socialnetwork.blog.post/ajax.php',
+			method: 'POST',
+			dataType: 'json',
+			data: {
+				sessid : BX.bitrix_sessid(),
+				siteId : BX.message('SITE_ID'),
+				action : 'get_data',
+				postId : parseInt(params.postId),
+				public : (isPublicPage ? 'Y' : 'N'),
+				mobile : 'N',
+				group_readonly : (typeof params.group_readonly != 'undefined' && !!params.group_readonly ? 'Y' : 'N'),
+				pathToPost : pathToPost,
+				voteId: voteId
+			},
+			onsuccess: function(postData) {
+				if (
+					typeof postData == 'undefined'
+					|| typeof postData.perms == 'undefined'
+					|| (
+						postData.perms <= 'D' // \Bitrix\Blog\Item\Permissions::DENY
+						&& (
+							typeof params.items == 'undefined'
+							|| params.items.length <= 0
+						)
+					)
+				)
+				{
+					menuWaiterPopup.destroy();
+					return false;
+				}
+
+				var menuItems = [];
+
+				if(!BX.util.in_array(postType, ["DRAFT", "MODERATION"]))
+				{
+					if (
+						postData.isGroupReadOnly != 'Y'
+						&& parseInt(BX.message('USER_ID')) > 0
+						&& (parseInt(postData.logId) > 0)
+					)
+					{
+						var isFavorites = (parseInt(postData.logFavoritesUserId) > 0);
+						menuItems.push({
+							text: BX.message(isFavorites ? "sonetLMenuFavoritesTitleY" : "sonetLMenuFavoritesTitleN"),
+							onclick: function(e) {
+								__logChangeFavorites(
+									parseInt(postData.logId),
+									'log_entry_favorites_' + parseInt(postData.logId),
+									(isFavorites ? 'N' : 'Y'),
+									true
+								);
+								return false;
+							}
+						});
+					}
+
+					var serverName = params.serverName;
+
+					menuItems.push({
+						text: BX.message('BLOG_HREF'),
+						href: postData.urlToPost,
+						class: 'feed-entry-popup-menu-link'
+					});
+
+					menuItems.push({
+						text: '<span id="post-menu-' + postData.logId + '-link-text">' + BX.message('BLOG_LINK') + '</span>' +
+							'<span class="post-menu-link-icon-wrap">' +
+								'<span class="post-menu-link-icon" id="post-menu-' + postData.logId + '-link-icon-done" style="display: none;">' +
+									'<svg class="post-menu-link-icon-check" viewBox="0 -3 15 15">' +
+										'<polyline id="post-menu-' + postData.logId + '-link-icon-animate" points="2,5 5,8 11,2" class="post-menu-link-icon-polyline-path"/>' +
+									'</svg>' +
+								'</span>' +
+							'</span>',
+						onclick: function(e) {
+							showMenuLinkInput(
+								parseInt(postData.logId),
+								serverName + postData.urlToPost
+							);
+							return false;
+						},
+						class: 'feed-entry-popup-menu-link'
+					});
+
+					if (
+						parseInt(BX.message('USER_ID')) > 0
+						&& postData.isGroupReadOnly != 'Y'
+					)
+					{
+						menuItems.push({
+							text: BX.message('BLOG_SHARE'),
+							onclick: function() {
+								showSharing(
+									parseInt(params.postId),
+									parseInt(postData.authorId)
+								);
+								this.popupWindow.close();
+							}
+						});
+					}
+
+					if (
+						postData.perms >= 'W' // \Bitrix\Blog\Item\Permissions::FULL
+						|| (
+							postData.perms >= 'P' // \Bitrix\Blog\Item\Permissions::WRITE
+							&& postData.authorId == BX.message('USER_ID')
+						)
+					)
+					{
+						menuItems.push({
+							text: BX.message('BLOG_BLOG_BLOG_EDIT'),
+							href: urlToEdit
+						});
+					}
+
+					if(postData.perms >= 'T') // \Bitrix\Blog\Item\Permissions::MODERATE
+					{
+						menuItems.push({
+							text: BX.message('BLOG_MES_HIDE'),
+							onclick: function() {
+								if(confirm(BX.message('BLOG_MES_HIDE_POST_CONFIRM')))
+								{
+									window.location = urlToHide;
+									this.popupWindow.close();
+								}
+							}
+						});
+					}
+
+					if (postData.perms >= 'W') //  // \Bitrix\Blog\Item\Permissions::FULL
+					{
+						menuItems.push({
+							text: BX.message('BLOG_BLOG_BLOG_DELETE'),
+							onclick: function() {
+								if (confirm(BX.message('BLOG_MES_DELETE_POST_CONFIRM')))
+								{
+									if (urlToDelete.length > 0)
+									{
+										window.location = urlToDelete.replace('#del_post_id#', parseInt(params.postId));
+									}
+									else
+									{
+										window.deleteBlogPost(parseInt(params.postId));
+									}
+									this.popupWindow.close();
+								}
+							}
+						});
+					}
+
+					if (
+						isTasksAvailable
+						&& postData.perms > 'D'
+					)
+					{
+						menuItems.push({
+							text: BX.message('BLOG_POST_CREATE_TASK'),
+							onclick: function(e) {
+								var target = e.target || e.srcElement;
+
+								oLF.createTask({
+									entityType: 'BLOG_POST',
+									entityId: parseInt(params.postId)
+								});
+								this.popupWindow.close();
+
+								return BX.PreventDefault(e);
+							}
+						});
+					}
+
+					if (postData.urlToVoteExport.length > 0)
+					{
+						menuItems.push({
+							text: BX.message('BLOG_POST_VOTE_EXPORT'),
+							href: postData.urlToVoteExport
+						});
+					}
+				}
+
+				var
+					onclickHandler = null,
+					menuItem = null,
+					item = null;
+
+				if (typeof params.items != 'undefined')
+				{
+					for (var key in params.items)
+					{
+						if (params.items.hasOwnProperty(key))
+						{
+							item = params.items[key];
+
+							menuItem = {};
+							if (typeof item.text_php != 'undefined')
+							{
+								menuItem.text = item.text_php;
+							}
+
+							if (typeof item.onclick != 'undefined')
+							{
+								eval("onclickHandler = " + item.onclick);
+								menuItem.onclick = onclickHandler;
+							}
+							else if (typeof item.href != 'undefined')
+							{
+								menuItem.href = item.href;
+							}
+
+							menuItems.push(menuItem);
+						}
+					}
+				}
+
+				var popupEvents = (
+					typeof params.logId != 'undefined' && parseInt(params.logId) > 0
+						? {
+							onPopupShow : function(ob)
+							{
+								if (BX('log_entry_favorites_' + parseInt(params.logId)))
+								{
+									var menuItems = BX.findChildren(ob.contentContainer, {'className' : 'menu-popup-item-text'}, true);
+									if (menuItems != null)
+									{
+										for (var i = 0; i < menuItems.length; i++)
+										{
+											if (
+												menuItems[i].innerHTML == BX.message('sonetLMenuFavoritesTitleY')
+												|| menuItems[i].innerHTML == BX.message('sonetLMenuFavoritesTitleN')
+											)
+											{
+												var favoritesMenuItem = menuItems[i];
+												break;
+											}
+										}
+									}
+
+									if (typeof favoritesMenuItem != 'undefined')
+									{
+										BX(favoritesMenuItem).innerHTML = (
+											BX.hasClass(BX('log_entry_favorites_' + parseInt(params.logId)), 'feed-post-important-switch-active')
+												? BX.message('sonetLMenuFavoritesTitleY')
+												: BX.message('sonetLMenuFavoritesTitleN')
+										);
+									}
+								}
+
+								if (BX('post-menu-' + parseInt(params.logId) + '-link'))
+								{
+									var linkMenuItem = BX.findChild(ob.popupContainer, {className: 'feed-entry-popup-menu-link'}, true, false);
+									if (linkMenuItem)
+									{
+										var height = parseInt(!!linkMenuItem.getAttribute('bx-height') ? linkMenuItem.getAttribute('bx-height') : 0);
+										if (height > 0)
+										{
+											BX('post-menu-' + parseInt(params.logId) + '-link').style.display = 'none';
+											linkMenuItem.setAttribute('bx-status', 'hidden');
+											linkMenuItem.style.height = height + 'px';
+										}
+									}
+								}
+							}
+						}
+						: {}
+				);
+
+				menuWaiterPopup.destroy();
+				BX.PopupMenu.show('blog-post-' + params.postId, params.bindNode, menuItems,
+					{
+						offsetLeft: -14,
+						offsetTop: 4,
+						lightShadow: false,
+						angle: {position: 'top', offset: 50},
+						events: popupEvents
+					});
+				return false;
+			},
+			onfailure: function(data) {
+				menuWaiterPopup.destroy();
+				return false;
+			}
+		});
+	};
+
+}());
 
 (function() {
 	if (!!window.SBPImpPost)
@@ -475,7 +870,9 @@ function __blogPostSetFollow(log_id)
 					'iNumPage' : this.node.getAttribute("inumpage"),
 					'PATH_TO_USER' : this.pathToUser,
 					'NAME_TEMPLATE' : this.nameTemplate,
-					'sessid': BX.bitrix_sessid()
+					'sessid': BX.bitrix_sessid(),
+					'lang': BX.message('LANGUAGE_ID'),
+					'site': BX.message('SITE_ID')
 				},
 				onsuccess: BX.proxy(function(data){
 					if (!!data && !!data.items)
@@ -592,7 +989,7 @@ function __blogPostSetFollow(log_id)
 									id : ("u" + data[i]['ID'])
 								},
 								props: {
-									href:data[i]['URL'],
+									href: (data[i]['URL'].length > 0 ? data[i]['URL'] : '#'),
 									target: "_blank",
 									className: "bx-ilike-popup-img" + (!!data[i]['TYPE'] ? " bx-ilike-popup-img-" + data[i]['TYPE'] : "")
 								},
@@ -613,7 +1010,14 @@ function __blogPostSetFollow(log_id)
 											html : data[i]['FULL_NAME']
 										}
 									)
-								]
+								],
+								events: {
+									click: (
+										data[i]['URL'].length > 0
+											? function(e) { return true; }
+											: function(e) { BX.PreventDefault(e); }
+									)
+								}
 							})
 						);
 					}
@@ -835,6 +1239,45 @@ window.sharingPost = function()
 			)
 			{
 				hideRenderedSharingNodes(newNodes);
+				if (
+					typeof data.status != 'undefined'
+					&& data.status == 'error'
+					&& typeof data.errorMessage != 'undefined'
+				)
+				{
+					var errorPopup = new BX.PopupWindow('error_popup', BX('blg-post-inform-' + postId), {
+						lightShadow : true,
+						offsetTop: -10,
+						offsetLeft: 100,
+						autoHide: true,
+						closeByEsc: true,
+						closeIcon: {
+							right : "5px",
+							top : "5px"
+						},
+						draggable: {
+							restrict:true
+						},
+						contentColor : 'white',
+						contentNoPaddings: true,
+						bindOptions: {position: "bottom"},
+						content : BX.create('DIV', {
+							props: {
+								className: 'feed-create-task-popup-content'
+							},
+							children: [
+								BX.create('DIV', {
+									props: {
+										className: 'feed-create-task-popup-description'
+									},
+									text: data.errorMessage
+								})
+							]
+						})
+					});
+
+					errorPopup.show();
+				}
 			}
 			else
 			{

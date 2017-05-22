@@ -145,7 +145,7 @@ if ($bAllowAccess)
 
 		"IBLOCK_SECTION" => array(
 			"PROPERTY_TYPE" => "L",
-			"ROW_COUNT" => "8",
+			"ROW_COUNT" => "12",
 			"MULTIPLE" => $arParams["MAX_LEVELS"] == 1 ? "N" : "Y",
 			"ENUM" => $arResult["SECTION_LIST"],
 		),
@@ -153,7 +153,7 @@ if ($bAllowAccess)
 		"PREVIEW_TEXT" => array(
 			"PROPERTY_TYPE" => ($arParams["PREVIEW_TEXT_USE_HTML_EDITOR"]? "HTML": "T"),
 			"MULTIPLE" => "N",
-			"ROW_COUNT" => "5",
+			"ROW_COUNT" => "12",
 			"COL_COUNT" => $COL_COUNT,
 		),
 		"PREVIEW_PICTURE" => array(

@@ -875,7 +875,6 @@ class CAllForumTopic
 		$arAddParams["sPrefix"] = $DB->ForSql(empty($arAddParams["sPrefix"]) ? "FT." : $arAddParams["sPrefix"]);
 		$arAddParams["sTablePrefix"] = $DB->ForSql(empty($arAddParams["sTablePrefix"]) ? "FT." : $arAddParams["sTablePrefix"]);
 		$arAddParams["sReturnResult"] = ($arAddParams["sReturnResult"] == "string" ? "string" : "array");
-
 		$fields = (is_array($fields) ? $fields : array());
 		$fields = array_merge(array(
 			"ID" => "ID",
@@ -902,6 +901,7 @@ class CAllForumTopic
 			"SOCNET_GROUP_ID" => "SOCNET_GROUP_ID",
 			"OWNER_ID" => "OWNER_ID",
 			"XML_ID" => "XML_ID"), $fields);
+		$res = array();
 		foreach($fields as $key => $val)
 		{
 			if ($key == $val)

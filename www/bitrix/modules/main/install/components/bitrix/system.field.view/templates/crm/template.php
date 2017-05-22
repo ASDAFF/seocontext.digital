@@ -1,8 +1,10 @@
 <?if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
-$APPLICATION->SetAdditionalCSS('/bitrix/js/crm/css/crm.css');
+
+\Bitrix\Main\Page\Asset::getInstance()->addCss('/bitrix/js/crm/css/crm.css');
+if(\CCrmSipHelper::isEnabled())
+	\Bitrix\Main\Page\Asset::getInstance()->addJs('/bitrix/js/crm/common.js');
 
 $publicMode = isset($arParams["PUBLIC_MODE"]) && $arParams["PUBLIC_MODE"] === true;
-
 ?><table cellpadding="0" cellspacing="0" class="field_crm"><?
 	$_suf = rand(1, 100);
 	foreach ($arResult["VALUE"] as $entityType => $arEntity):
@@ -36,6 +38,45 @@ $publicMode = isset($arParams["PUBLIC_MODE"]) && $arParams["PUBLIC_MODE"] === tr
 		</tr><?
 	endforeach;
 	?></table>
+
+<?if(\CCrmSipHelper::isEnabled()):?>
+<script type="text/javascript">
+	BX.ready(
+		function()
+		{
+			if(typeof(window["BXIM"]) === "undefined" || typeof(BX.CrmSipManager) === "undefined")
+			{
+				return;
+			}
+
+			if(typeof(BX.CrmSipManager.messages) === "undefined")
+			{
+				BX.CrmSipManager.messages =
+				{
+					"unknownRecipient": "<?= GetMessageJS('CRM_SIP_MGR_UNKNOWN_RECIPIENT')?>",
+					"makeCall": "<?= GetMessageJS('CRM_SIP_MGR_MAKE_CALL')?>"
+				};
+			}
+
+			var sipMgr = BX.CrmSipManager.getCurrent();
+			sipMgr.setServiceUrl(
+				"CRM_<?=CUtil::JSEscape(CCrmOwnerType::LeadName)?>",
+				"/bitrix/components/bitrix/crm.lead.show/ajax.php?<?=bitrix_sessid_get()?>"
+			);
+
+			sipMgr.setServiceUrl(
+				"CRM_<?=CUtil::JSEscape(CCrmOwnerType::ContactName)?>",
+				"/bitrix/components/bitrix/crm.contact.show/ajax.php?<?=bitrix_sessid_get()?>"
+			);
+
+			sipMgr.setServiceUrl(
+				"CRM_<?=CUtil::JSEscape(CCrmOwnerType::CompanyName)?>",
+				"/bitrix/components/bitrix/crm.company.show/ajax.php?<?=bitrix_sessid_get()?>"
+			);
+		}
+	);
+</script>
+<? endif ?>
 
 <? if (!$publicMode):?>
 	<?CJSCore::Init('tooltip');?>

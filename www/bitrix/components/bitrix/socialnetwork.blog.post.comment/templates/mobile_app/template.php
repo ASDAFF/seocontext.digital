@@ -34,7 +34,8 @@ $arResult["OUTPUT_LIST"] = $APPLICATION->IncludeComponent(
 		"RIGHTS" => array(
 			"MODERATE" => ($arResult["Perm"] >= BLOG_PERMS_MODERATE ? "Y" : "N"),
 			"EDIT" => $rights,
-			"DELETE" => $rights
+			"DELETE" => $rights,
+			"CREATETASK" => ($arResult["bTasksAvailable"] ? "Y" : "N")
 		),
 		"VISIBLE_RECORDS_COUNT" => (
 			$arResult["newCount"] > $arParams["PAGE_SIZE"]

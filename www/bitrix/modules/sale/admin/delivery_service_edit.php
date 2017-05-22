@@ -8,6 +8,8 @@ use Bitrix\Sale\Delivery\Services;
 use Bitrix\Sale\Delivery\ExtraServices;
 use Bitrix\Currency;
 
+use \Bitrix\Sale\Helpers\Admin\BusinessValueControl;
+
 Loc::loadMessages(__FILE__);
 \Bitrix\Main\Loader::includeModule('sale');
 
@@ -18,6 +20,7 @@ if ($saleModulePermissions < "W")
 	$APPLICATION->AuthForm(Loc::getMessage("SALE_DSE_ACCESS_DENIED"));
 
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/sale/prolog.php");
+require_once($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/sale/lib/helpers/admin/businessvalue.php');
 
 $ID = isset($_REQUEST["ID"]) ? intval($_REQUEST["ID"]) : 0;
 $srvStrError = "";
@@ -179,6 +182,20 @@ if (($isItReloadingProcess || $isItSavingProcess) && $saleModulePermissions == "
 					else
 					{
 						$srvStrError .= Loc::getMessage("SALE_DSE_ERROR_ADD_DELIVERY")."<br>".implode("<br>",$res->getErrorMessages());
+					}
+				}
+
+				if($res->isSuccess())
+				{
+					if($service && $consumers = $service->onGetBusinessValueConsumers())
+					{
+						$businessValueControl = new BusinessValueControl('DELIVERY_'.$service->getId());
+
+						if ($businessValueControl->setMapFromPost())
+						{
+							if (!$businessValueControl->saveMap())
+								$srvStrError .= 'Can\'t save business values';
+						}
 					}
 				}
 
@@ -453,13 +470,28 @@ if($showExtraServices && $ID > 0)
 	);
 }
 
-if($service && $ID > 0 && strlen($service->getTrackingClass()) > 0 )
+if($service && $ID > 0 && strlen($service->getTrackingClass()))
 {
 	$aTabs[] = array(
 		"DIV" => "edit_tracking",
 		"TAB" => Loc::getMessage("SALE_DSE_TAB_TRACKING"),
 		"ICON" => "sale",
 		"TITLE" => Loc::getMessage("SALE_DSE_TAB_TRACKING_DESCR"),
+	);
+}
+
+if($service && $ID > 0)
+	$businessValueConsumers = $service->onGetBusinessValueConsumers();
+else
+	$businessValueConsumers = array();
+
+if($service && $ID > 0 && !empty($businessValueConsumers))
+{
+	$aTabs[] = array(
+		"DIV" => "edit_business_value",
+		"TAB" => Loc::getMessage("SALE_DSE_BUSINESS_VALUES"),
+		"ICON" => "sale",
+		"TITLE" => Loc::getMessage("SALE_DSE_BUSINESS_VALUES")
 	);
 }
 
@@ -676,7 +708,6 @@ require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_aft
 
 </script>
 <?
-
 if(!empty($backUrlReq))
 	$link = $backUrlReq;
 elseif($isGroup)
@@ -684,9 +715,16 @@ elseif($isGroup)
 else
 	$link = "/bitrix/admin/sale_delivery_service_list.php?lang=".LANGUAGE_ID."&filter_group=".$fields["PARENT_ID"];
 
+if($isGroup)
+	$linkText = Loc::getMessage("SALE_DSE_2GLIST");
+elseif($service && $service->isProfile())
+	$linkText = Loc::getMessage("SALE_DSE_2DS_EDIT");
+else
+	$linkText = Loc::getMessage("SALE_DSE_2DLIST");
+
 $aMenu = array(
 	array(
-		"TEXT" => $isGroup ? Loc::getMessage("SALE_DSE_2GLIST") : Loc::getMessage("SALE_DSE_2DLIST"),
+		"TEXT" => $linkText,
 		"LINK" => $link,
 		"ICON" => "btn_list"
 	)
@@ -719,7 +757,26 @@ if ($ID > 0 && $saleModulePermissions >= "W")
 $context = new CAdminContextMenu($aMenu);
 $context->Show();
 
-if(strlen($srvStrError)>0)
+//warn about unfilled required fields
+if($ID > 0)
+{
+	if(is_array($serviceConfig) && !empty($serviceConfig))
+	{
+		foreach($serviceConfig as $sectionKey => $configSection)
+		{
+			if(is_array($configSection["ITEMS"]) && !empty($configSection["ITEMS"]))
+			{
+				foreach($configSection["ITEMS"] as $name => $params)
+				{
+					if(!empty($params['REQUIRED']) && $params['REQUIRED'] == true && strlen($params['VALUE']) <= 0)
+						$srvStrError .= Loc::getMessage('SALE_DSE_REQUIRED_FIELD').' "'.$params['NAME'].'".<br>';
+				}
+			}
+		}
+	}
+}
+
+if(strlen($srvStrError) > 0)
 {
 	$m = Array("DETAILS"=>$srvStrError, "TYPE"=>"ERROR", "HTML"=>true);
 
@@ -743,7 +800,7 @@ if(!empty($serviceMessage))
 <form method="POST" action="<?=$APPLICATION->GetCurPageParam("",array("RESET_HANDLER_SETTINGS"))?>" name="form1" enctype="multipart/form-data">
 <input type="hidden" name="lang" value="<?=LANGUAGE_ID; ?>">
 <input type="hidden" name="ID" value="<?=$ID ?>">
-<input type="hidden" name="CODE" value="<?=(isset($fields["CODE"]) ? $fields["CODE"] : "" )?>">
+<input type="hidden" name="CODE" value="<?=(isset($fields["CODE"]) ? htmlspecialcharsbx($fields["CODE"]) : "" )?>">
 <input type="hidden" name="PARENT_ID" value="<?=(isset($fields["PARENT_ID"]) ? $fields["PARENT_ID"] : "0" )?>">
 <?=bitrix_sessid_post()?>
 
@@ -906,7 +963,6 @@ $tabControl->BeginNextTab();
 			</td>
 		</tr>
 	<?endif;?>
-
 	<?$hiddensConfigHtml = "";?>
 	<?if(is_array($serviceConfig) && !empty($serviceConfig)):?>
 		<?foreach($serviceConfig as $sectionKey => $configSection):?>
@@ -920,7 +976,7 @@ $tabControl->BeginNextTab();
 					<?elseif(isset($params['HIDDEN']) && $params['HIDDEN'] == true):?>
 						<?$hiddensConfigHtml .= \Bitrix\Sale\Internals\Input\Manager::getEditHtml("CONFIG[".$sectionKey."][".$name."]", $params)?>
 					<?else:?>
-						<tr>
+						<tr<?=(!empty($params['REQUIRED']) && $params['REQUIRED'] == true ? ' class= "adm-detail-required-field"' : '')?>>
 							<td width="40%" class="adm-detail-valign-top"><?=$params["NAME"]?>:</td>
 							<td width="60%" class="adm-detail-valign-top">
 								<?=\Bitrix\Sale\Internals\Input\Manager::getEditHtml("CONFIG[".$sectionKey."][".$name."]", $params)?>
@@ -964,7 +1020,7 @@ $tabControl->BeginNextTab();
 			</td></tr>
 			<?if(!empty($trackingParamsStructure)):?>
 				<tr class="heading"><td colspan="2"><?=Loc::getMessage("SALE_DSE_TAB_TRACKING_PARAMS")?></td></tr>
-				<?foreach($tracking->getParamsStructure() as $id => $params):?>
+				<?foreach($trackingParamsStructure as $id => $params):?>
 					<tr>
 						<td width="40%"><?=$params["LABEL"]?>:</td>
 						<td width="60%">
@@ -973,6 +1029,24 @@ $tabControl->BeginNextTab();
 					</tr>
 				<?endforeach;?>
 			<?endif;?>
+	<?endif;?>
+
+	<?if($service && $ID > 0 && !empty($businessValueConsumers)):?>
+		<?$tabControl->BeginNextTab();?>
+			<tr>
+				<td colspan="2">
+					<?
+						require_once($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/sale/lib/helpers/admin/businessvalue.php');
+						$businessValueControl = new BusinessValueControl('DELIVERY_'.$service->getId());
+						$businessValueControl->renderMap(
+							array(
+								'CONSUMER_KEY' => 'DELIVERY_'.$service->getId(),
+								'HIDE_FILLED_CODES' => false
+							)
+						);
+					?>
+				</td>
+			</tr>
 	<?endif;?>
 
 	<?if(is_array($additionalTabs) && !empty($additionalTabs) && $ID > 0):?>

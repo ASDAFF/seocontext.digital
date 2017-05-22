@@ -70,6 +70,9 @@ class UserTable extends Entity\DataManager
 			'LAST_ACTIVITY_DATE' => array(
 				'data_type' => 'datetime'
 			),
+			'TIMESTAMP_X' => array(
+                'data_type' => 'datetime'
+            ),
 			'NAME' => array(
 				'data_type' => 'string'
 			),
@@ -95,6 +98,9 @@ class UserTable extends Entity\DataManager
 				'data_type' => 'string'
 			),
 			'LID' => array(
+				'data_type' => 'string'
+			),
+			'LANGUAGE_ID' => array(
 				'data_type' => 'string'
 			),
 			'TIME_ZONE_OFFSET' => array(

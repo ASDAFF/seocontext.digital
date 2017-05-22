@@ -3,7 +3,7 @@ IncludeModuleLangFile(__FILE__);
 
 class CAllCatalogStore
 {
-	protected function CheckFields($action, &$arFields)
+	protected static function CheckFields($action, &$arFields)
 	{
 		if(is_set($arFields["ADDRESS"]) && strlen($arFields["ADDRESS"]) <= 0)
 		{
@@ -40,10 +40,13 @@ class CAllCatalogStore
 		{
 			$arFields["SITE_ID"] = '';
 		}
+		if (isset($arFields['CODE']) && $arFields['CODE'] === '')
+			$arFields['CODE'] = false;
+
 		return true;
 	}
 
-	static function Update($id, $arFields)
+	public static function Update($id, $arFields)
 	{
 		global $DB;
 		$id = intval($id);
@@ -97,7 +100,7 @@ class CAllCatalogStore
 		return $id;
 	}
 
-	static function Delete($id)
+	public static function Delete($id)
 	{
 		global $DB;
 		$id = intval($id);
@@ -129,7 +132,7 @@ class CAllCatalogStore
 		return false;
 	}
 
-	function recalculateStoreBalances($id)
+	public static function recalculateStoreBalances($id)
 	{
 		global $DB;
 		$arFields = array();

@@ -242,9 +242,9 @@ class CCheckList
 		}
 		$arDesc = array(
 			"NAME" => GetMessage("CL_".$ID),
-			"DESC" => GetMessage("CL_".$ID."_DESC"),
+			"DESC" => GetMessage("CL_".$ID."_DESC", array('#LANG#' => LANG)),
 			"AUTOTEST_DESC" => GetMessage("CL_".$ID."_AUTOTEST_DESC"),
-			"HOWTO" => (strlen($arHowTo)>0)?$arHowTo:"",
+			"HOWTO" => (strlen($arHowTo)>0)?(str_ireplace('#LANG#', LANG, $arHowTo)):"",
 			"LINKS" => GetMessage("CL_".$ID."_LINKS")
 		);
 
@@ -450,7 +450,7 @@ class CCheckListResult
 		{
 			$arInsert = $DB->PrepareInsert("b_checklist", $arFields);
 			$strSql ="INSERT INTO b_checklist(".$arInsert[0].", DATE_CREATE) ".
-					"VALUES(".$arInsert[1].", '".ConvertTimeStamp(mktime(), "FULL")."')";
+					"VALUES(".$arInsert[1].", '".ConvertTimeStamp(time(), "FULL")."')";
 		}
 
 		$arBinds = array(
@@ -469,19 +469,24 @@ class CCheckListResult
 		$arSqlWhereStr = '';
 		if (is_array($arFilter) && count($arFilter)>0)
 		{
-			$arSqlWhere = "";
-			$arSqlFields=array("ID", "REPORT", "HIDDEN", "SENDED_TO_BITRIX");
-			foreach($arFilter as $key => $value):
+			$arSqlWhere = array();
+			$arSqlFields = array("ID", "REPORT", "HIDDEN", "SENDED_TO_BITRIX");
+			foreach($arFilter as $key => $value)
+			{
 				if (in_array($key, $arSqlFields))
+				{
 					$arSqlWhere[] = $key."='".$DB->ForSql($value)."'";
-			endforeach;
+				}
+			}
 			$arSqlWhereStr = GetFilterSqlSearch($arSqlWhere);
 		}
 
 		$strSql = "SELECT * FROM b_checklist";
 		if ($arSqlWhereStr <> '')
+		{
 			$strSql.= " WHERE ".$arSqlWhereStr;
-			$strSql.= " ORDER BY ID desc";
+		}
+		$strSql.= " ORDER BY ID desc";
 		$arResult = $DB->Query($strSql, false, "FILE: ".__FILE__."<br> LINE: ".__LINE__);
 
 		return $arResult;
@@ -771,23 +776,14 @@ class CAutoCheck
 		$module_id = $NS["MLIST"][$NS["MNUM"]];
 		$module_folder = $_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/".$module_id."/";
 		$dbtype = strtolower($DB->type);
-		if ($module_id == "main")
-		{
-			$ver = SM_VERSION;
-		}
-		else
-		{
-			$arModuleVersion = array();
-			@include($module_folder."install/version.php");
-			$ver = $arModuleVersion["VERSION"];
-		}
-
 		$arFilesCount = 0;
 		$arModifiedFilesCount = 0;
 		$state = array();
 		$Skip = false;
 
-		if (!$ver)
+		$ver = \Bitrix\Main\ModuleManager::getVersion($module_id);
+
+		if ($ver === false)
 		{
 			$state = array(
 				"STATUS" => false,
@@ -1237,6 +1233,82 @@ class CAutoCheck
 		}
 		else
 			$arResult["MESSAGE"] = array("PREVIEW" => GetMessage("CL_LICENSE_KEY_NONE_ACTIVATE", array("#LANG#" => LANG)));
+
+		return $arResult;
+	}
+
+	public static function CheckVMBitrix(){
+		$arResult = array();
+		$arResult["STATUS"] = false;
+
+		$http = new \Bitrix\Main\Web\HttpClient();
+		$ver = $http->get("http://www.1c-bitrix.ru/download/vm_bitrix.ver");
+
+		if (version_compare(getenv('BITRIX_VA_VER'), $ver) >= 0)
+		{
+			$arResult["STATUS"] = true;
+			$arResult["MESSAGE"] = array(
+				'PREVIEW' => GetMessage("CL_VMBITRIX_ACTUAL"),
+			);
+		}
+		else
+		{
+			$arResult["MESSAGE"] = array(
+				'PREVIEW' => GetMessage("CL_VMBITRIX_NOT_ACTUAL"),
+			);
+		}
+
+		return $arResult;
+	}
+
+	public static function CheckSiteCheckerStatus(){
+		$arResult = array();
+		$arResult["STATUS"] = false;
+
+		$checkerStatus = COption::GetOptionString('main', 'site_checker_success', 'N');
+		if ($checkerStatus == 'Y')
+		{
+			$arResult["STATUS"] = true;
+			$arResult["MESSAGE"] = array(
+				'PREVIEW' => GetMessage("CL_SITECHECKER_OK", array("#LANG#" => LANG)),
+			);
+		}
+		else
+		{
+			$arResult["MESSAGE"] = array(
+				'PREVIEW' => GetMessage("CL_SITECHECKER_NOT_OK", array("#LANG#" => LANG)),
+			);
+		}
+
+		return $arResult;
+	}
+
+	public static function CheckSecurityScannerStatus(){
+		$arResult = array();
+		$arResult["STATUS"] = false;
+
+		$lastTestingInfo = CSecuritySiteChecker::getLastTestingInfo();
+		$criticalResultsCount = CSecuritySiteChecker::calculateCriticalResults($lastTestingInfo["results"]);
+
+		if ( (time()-MakeTimeStamp($lastTestingInfo['test_date'], FORMAT_DATE)) > 60*60*24*30 )
+		{
+			$arResult["MESSAGE"] = array(
+				'PREVIEW' => GetMessage("CL_SECURITYSCANNER_OLD", array("#LANG#" => LANG)),
+			);
+		}
+		elseif ($criticalResultsCount === 0)
+		{
+			$arResult["STATUS"] = true;
+			$arResult["MESSAGE"] = array(
+				'PREVIEW' => GetMessage("CL_SECURITYSCANNER_OK"),
+			);
+		}
+		else
+		{
+			$arResult["MESSAGE"] = array(
+				'PREVIEW' => GetMessage("CL_SECURITYSCANNER_NOT_OK", array("#LANG#" => LANG)),
+			);
+		}
 
 		return $arResult;
 	}

@@ -236,8 +236,7 @@ class Sku
 									Catalog\SubscribeTable::runAgentToSendNotice($existParent['ID']);
 								}
 								elseif($existParent['AVAILABLE'] == Catalog\ProductTable::STATUS_YES
-									&& $parentFields['AVAILABLE'] == Catalog\ProductTable::STATUS_NO
-									&& (string)Main\Config\Option::get('catalog', 'subscribe_repeated_notify') == 'Y')
+									&& $parentFields['AVAILABLE'] == Catalog\ProductTable::STATUS_NO)
 								{
 									Catalog\SubscribeTable::runAgentToSendRepeatedNotice($existParent['ID']);
 								}

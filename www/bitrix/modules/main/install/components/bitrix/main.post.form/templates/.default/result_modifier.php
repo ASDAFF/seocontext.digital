@@ -204,13 +204,13 @@ if (array_key_exists("SMILES", $arParams))
 	if (
 		is_array($arParams["SMILES"])
 		&& array_key_exists("VALUE", $arParams["SMILES"])
+		&& !empty($arParams["SMILES"]["VALUE"])
 	) // compatibility
 	{
 		$arResult["SMILES"] = $arParams["SMILES"];
 	}
 	else if (
-		!is_array($arParams["SMILES"])
-		&& ($res = CSmileGallery::getSmilesWithSets($arParams["SMILES"]))
+		$res = CSmileGallery::getSmilesWithSets($arParams["SMILES"])
 	)
 	{
 		$arResult["SMILES"] = array(

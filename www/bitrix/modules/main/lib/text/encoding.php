@@ -107,19 +107,28 @@ class Encoding
 
 		$currentCharset = null;
 
-		$context = Application::getInstance()->getContext();
-		if ($context != null)
+		if (!$isUtf8Config && $isUtf8String)
 		{
-			$culture = $context->getCulture();
-			if ($culture != null && method_exists($culture, "getCharset"))
-				$currentCharset = $culture->getCharset();
+			$context = Application::getInstance()->getContext();
+			if ($context != null)
+			{
+				$culture = $context->getCulture();
+				if ($culture != null)
+				{
+					$currentCharset = $culture->getCharset();
+				}
+			}
 		}
 
 		if ($currentCharset == null)
+		{
 			$currentCharset = Configuration::getValue("default_charset");
+		}
 
 		if ($currentCharset == null)
+		{
 			$currentCharset = "Windows-1251";
+		}
 
 		$fromCp = "";
 		$toCp = "";
@@ -135,7 +144,9 @@ class Encoding
 		}
 
 		if ($fromCp !== $toCp)
+		{
 			$string = self::convertEncoding($string, $fromCp, $toCp);
+		}
 
 		return $string;
 	}
@@ -183,7 +194,9 @@ class Encoding
 	protected function convertByMbstring($data, $charsetFrom, $charsetTo)
 	{
 		$res = '';
-		if (extension_loaded("mbstring") && mb_encoding_aliases($charsetFrom) !== false && mb_encoding_aliases($charsetTo) !== false)
+
+		// mb_encoding_aliases emits an E_WARNING level error if encoding is unknown
+		if (extension_loaded("mbstring") && @mb_encoding_aliases($charsetFrom) !== false && @mb_encoding_aliases($charsetTo) !== false)
 		{
 			//For UTF-16 we have to detect the order of bytes
 			//Default for mbstring extension is Big endian

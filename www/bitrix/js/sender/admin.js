@@ -4,7 +4,7 @@
 		var groupSelected = BX($controlName);
 		var groupSelectedHidden = BX($controlName+'_HIDDEN');
 		var groupSelectedOptions = BX.findChildren(groupSelected, {"tag" : "option"}, true);
-		
+
 		if(isAdd)
 		{
 			var groupExistsOptions = BX.findChildren(groupExists, {"tag" : "option"}, true);
@@ -76,7 +76,7 @@
 		}
 		groupSelectedHidden.value = selectedGroupId;
 	}
-	
+
 
 	function ConnectorGetHtmlForm(data)
 	{
@@ -137,8 +137,6 @@
 
 	function ConnectorSettingGetCount(element, form)
 	{
-		var arAjaxQueryFields = {};
-		var currentParent;
 		var elementParent;
 		if(form)
 		{
@@ -149,16 +147,108 @@
 			elementParent = BX.findParent(element, {"tag" : "div", "className": "connector_form"}, true);
 		}
 
-        var arConForms = document.getElementsByName('post_form');
-        var controls = arConForms[arConForms.length - 1].elements;
+		var arConForms = document.getElementsByName('post_form');
+		var controls = arConForms[arConForms.length - 1].elements;
 		var ctrl;
-		for(var i in controls){
+		var filteredControls = [];
+		var currentParent;
+		for(var i in controls)
+		{
 			ctrl = controls[i];
-			if(ctrl && ctrl.name && BX.type.isString(ctrl.name) && ctrl.name.substring(0,11)=='CONNECTOR_S'){
-				currentParent = BX.findParent(ctrl, {"tag" : "div", "className": "connector_form"}, true);
-				if(currentParent == elementParent){
-					arAjaxQueryFields[ctrl.name] = ctrl.value;
+
+			if(!ctrl || !ctrl.name || !BX.type.isString(ctrl.name))
+			{
+				continue;
+			}
+
+			if(ctrl.name.substring(0,11) != 'CONNECTOR_S')
+			{
+				continue;
+			}
+
+			currentParent = BX.findParent(ctrl, {"tag" : "div", "className": "connector_form"}, true);
+			if(currentParent != elementParent)
+			{
+				continue;
+			}
+
+			if (ctrl.disabled)
+			{
+				continue;
+			}
+
+			var found = filteredControls.filter(function (filteredCtrl) {
+				return filteredCtrl == ctrl;
+			});
+			if (found.length == 0)
+			{
+				filteredControls.push(ctrl);
+			}
+		}
+
+		var arAjaxQueryFieldsData = [];
+		for(var i = 0; i < filteredControls.length; i++)
+		{
+			ctrl = filteredControls[i];
+			switch(ctrl.type.toLowerCase())
+			{
+				case 'text':
+				case 'textarea':
+				case 'password':
+				case 'number':
+				case 'hidden':
+				case 'select-one':
+					arAjaxQueryFieldsData.push({name: ctrl.name, value: ctrl.value});
+					break;
+				case 'file':
+					break;
+				case 'radio':
+				case 'checkbox':
+					if(ctrl.checked)
+					{
+						arAjaxQueryFieldsData.push({name: ctrl.name, value: ctrl.value});
+					}
+					break;
+				case 'select-multiple':
+					var multipleValues = [];
+					for (var j = 0; j < ctrl.options.length; j++)
+					{
+						if (ctrl.options[j].selected)
+						{
+							multipleValues.push(ctrl.options[j].value);
+						}
+					}
+					if (multipleValues.length > 0)
+					{
+						arAjaxQueryFieldsData.push({name : ctrl.name, value : multipleValues});
+					}
+
+					break;
+				default:
+					break;
+			}
+		}
+
+		var arAjaxQueryFields = {};
+		for(var k = 0; k < arAjaxQueryFieldsData.length; k++)
+		{
+
+			var _data = arAjaxQueryFieldsData[k];
+			if(BX.type.isString(arAjaxQueryFields[_data.name]))
+			{
+				arAjaxQueryFields[_data.name] = [arAjaxQueryFields[_data.name]];
+			}
+
+			if(BX.type.isArray(arAjaxQueryFields[_data.name]))
+			{
+				if(!BX.util.in_array(_data.value, arAjaxQueryFields[_data.name]))
+				{
+					arAjaxQueryFields[_data.name].push(_data.value);
 				}
+			}
+			else
+			{
+				arAjaxQueryFields[_data.name] = _data.value;
 			}
 		}
 
@@ -273,8 +363,8 @@
 
 		BX('sender_group_address_counter').innerHTML = cntSummary;
 	}
-	
-	
+
+
 	function SetAddressToControl(controlName, address, bAdd)
 	{
 		var control = BX(controlName);
@@ -491,7 +581,7 @@
 				this.setContent(this.textareaId, param.version, param.type, param.num, param.lang);
 
 				var containerTemplateCaption = BX.findChild(this.container, {'className': 'sender-template-message-caption-container'}, true);
-				if (containerTemplateCaption) containerTemplateCaption.innerHTML = param.name;
+				if (containerTemplateCaption) containerTemplateCaption.innerText = param.name;
 
 				return true;
 			}
@@ -513,7 +603,7 @@
 				tmplTypeContList[i].style.display = 'none';
 
 			var typeContainer = BX.findChild(container, {'className': 'sender-template-list-type-container-'+type}, true);
-			typeContainer.style.display = 'table-row';
+			typeContainer.style.display = 'block';
 
 			var buttonList = BX.findChildren(container, {'className': 'sender-template-type-selector-button'}, true);
 			for(var j in buttonList)

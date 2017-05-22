@@ -15,7 +15,16 @@ if(CModule::IncludeModule("socialservices") && CSocServAuthManager::CheckUniqueK
 		\Bitrix\Seo\Service::clearLocalAuth();
 ?>
 <script type="text/javascript">
-	opener.location.reload();
+	var eventData = {'reload': true};
+	window.opener.BX.onCustomEvent(
+		window,
+		'seo-client-auth-result',
+		[eventData]
+	);
+	if (eventData.reload)
+	{
+		opener.location.reload();
+	}
 	window.close();
 </script>
 <?

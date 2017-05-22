@@ -1,5 +1,17 @@
 <?
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
+/** @var CBitrixComponent $this */
+/** @var array $arParams */
+/** @var array $arResult */
+/** @var string $componentPath */
+/** @var string $componentName */
+/** @var string $componentTemplate */
+/** @global CDatabase $DB */
+/** @global CUser $USER */
+/** @global CMain $APPLICATION */
+/** @global CCacheManager $CACHE_MANAGER */
+/** @global CUserTypeManager $USER_FIELD_MANAGER */
+global $CACHE_MANAGER, $USER_FIELD_MANAGER;
 
 if (!CModule::IncludeModule("blog"))
 {
@@ -45,9 +57,8 @@ else
 {
 	$arParams["CACHE_TIME"] = 0;
 	$arParams["CACHE_TIME_LONG"] = 0;
-
 }
-$arParams["POST_PROPERTY"] = array("UF_BLOG_POST_FILE", "UF_BLOG_POST_DOC");
+
 $arParams["DATE_TIME_FORMAT"] = trim(empty($arParams["DATE_TIME_FORMAT"]) ? $DB->DateFormatToPHP(CSite::GetDateFormat("FULL")) : $arParams["DATE_TIME_FORMAT"]);
 
 // activation rating
@@ -164,7 +175,12 @@ if(IntVal($arParams["SOCNET_GROUP_ID"]) > 0 || (IntVal($arParams["USER_ID"]) > 0
 						$arPost = CBlogPost::GetByID($pub_id);
 						if(!empty($arPost) && ($arPost["AUTHOR_ID"] == $arParams["USER_ID"] || $bGroupMode) && $arPost["PUBLISH_STATUS"] != BLOG_PUBLISH_STATUS_PUBLISH)
 						{
-							if(CBlogPost::Update($pub_id, Array("PUBLISH_STATUS" => BLOG_PUBLISH_STATUS_PUBLISH, "=DATE_PUBLISH" => $DB->GetNowFunction())))
+							if(CBlogPost::Update($pub_id, array(
+									"PUBLISH_STATUS" => BLOG_PUBLISH_STATUS_PUBLISH,
+									"=DATE_PUBLISH" => $DB->GetNowFunction(),
+									"SEARCH_GROUP_ID" => \Bitrix\Main\Config\Option::get("socialnetwork", "userbloggroup_id", false, SITE_ID)
+								)
+							))
 							{
 								$arParamsNotify = Array(
 									"bSoNet" => true,
@@ -194,11 +210,22 @@ if(IntVal($arParams["SOCNET_GROUP_ID"]) > 0 || (IntVal($arParams["USER_ID"]) > 0
 								else
 								{
 									CBlogPost::Notify($arPost, false, $arParamsNotify);
+
+									$postUrl = CComponentEngine::MakePathFromTemplate(htmlspecialcharsBack($arParams["PATH_TO_POST"]), array("post_id" => $arPost["ID"], "user_id" => $arPost["AUTHOR_ID"]));
+
+									CBlogPost::NotifyImPublish(array(
+										"TYPE" => "POST",
+										"TITLE" => $arPost["TITLE"],
+										"TO_USER_ID" => $arPost["AUTHOR_ID"],
+										"POST_URL" => $postUrl,
+										"POST_ID" => $arPost["ID"],
+									));
+
 									$socnetRights = CBlogPost::GetSocNetPermsCode($arPost["ID"]);
 									$arFieldsIM = Array(
 										"TYPE" => "POST",
 										"TITLE" => $arPost["TITLE"],
-										"URL" => CComponentEngine::MakePathFromTemplate(htmlspecialcharsBack($arParams["PATH_TO_POST"]), array("post_id" => $arPost["ID"], "user_id" => $arPost["AUTHOR_ID"])),
+										"URL" => $postUrl,
 										"ID" => $arPost["ID"],
 										"FROM_USER_ID" => $arPost["AUTHOR_ID"],
 										"TO_USER_ID" => array(),
@@ -206,7 +233,7 @@ if(IntVal($arParams["SOCNET_GROUP_ID"]) > 0 || (IntVal($arParams["USER_ID"]) > 0
 										"TO_SOCNET_RIGHTS_OLD" => array(
 											"U" => array(),
 											"SG" => array()
-										),
+										)
 									);
 
 									CBlogPost::NotifyIm($arFieldsIM);
@@ -215,7 +242,15 @@ if(IntVal($arParams["SOCNET_GROUP_ID"]) > 0 || (IntVal($arParams["USER_ID"]) > 0
 								LocalRedirect($APPLICATION->GetCurPageParam("pub_id=".$pub_id."&success=Y", Array("del_id", "pub_id", "sessid", "success")));
 							}
 							else
-								$arResult["ERROR_MESSAGE"][] = GetMessage("BLOG_BLOG_BLOG_MES_PUB_ERROR");
+							{
+								$errorMessage = GetMessage("BLOG_BLOG_BLOG_MES_PUB_ERROR");
+								if ($ex = $APPLICATION->GetException())
+								{
+									$errorMessage .= ': '.$ex->GetString();
+								}
+								$arResult["ERROR_MESSAGE"][] = $errorMessage;
+							}
+
 						}
 						else
 							$arResult["ERROR_MESSAGE"][] = GetMessage("BLOG_BLOG_BLOG_MES_PUB_NO_RIGHTS");

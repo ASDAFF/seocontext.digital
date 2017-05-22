@@ -79,7 +79,14 @@ try
 			$itemId = $item['uniqueId'];
 			$fileId = md5($item['checksum'].$item['length']);
 
-			$item['fileName'] = trim(trim(trim($item['fileName']), '.')) ?: $fileId;
+			$item['fileName'] = trim(trim(trim($item['fileName']), '.'));
+			if (empty($item['fileName']))
+			{
+				$item['fileName'] = $fileId;
+
+				if (strpos($item['contentType'], 'message/') === 0)
+					$item['fileName'] .= '.eml';
+			}
 
 			if ($item['contentType'])
 			{

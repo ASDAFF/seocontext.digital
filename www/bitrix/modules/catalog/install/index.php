@@ -68,7 +68,9 @@ class catalog extends CModule
 			CopyDirFiles($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/catalog/install/tools", $_SERVER['DOCUMENT_ROOT']."/bitrix/tools", true, true);
 
 			CopyDirFiles($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/catalog/install/public/catalog_import", $_SERVER['DOCUMENT_ROOT']."/bitrix/php_interface/include/catalog_import");
+			CopyDirFiles($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/catalog/load_import/cron_frame.php", $_SERVER['DOCUMENT_ROOT']."/bitrix/php_interface/include/catalog_import/cron_frame.php");
 			CopyDirFiles($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/catalog/install/public/catalog_export", $_SERVER['DOCUMENT_ROOT']."/bitrix/php_interface/include/catalog_export");
+			CopyDirFiles($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/catalog/load/cron_frame.php", $_SERVER['DOCUMENT_ROOT']."/bitrix/php_interface/include/catalog_export/cron_frame.php");
 			CopyDirFiles($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/catalog/install/public/catalog_export/froogle_util.php", $_SERVER['DOCUMENT_ROOT']."/bitrix/tools/catalog_export/froogle_util.php");
 			CopyDirFiles($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/catalog/install/public/catalog_export/yandex_util.php", $_SERVER['DOCUMENT_ROOT']."/bitrix/tools/catalog_export/yandex_util.php");
 			CopyDirFiles($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/catalog/install/public/catalog_export/yandex_detail.php", $_SERVER['DOCUMENT_ROOT']."/bitrix/tools/catalog_export/yandex_detail.php");
@@ -461,7 +463,9 @@ class catalog extends CModule
 					'ID' => array(
 						'b_catalog_price' => 'PRODUCT_ID',
 						'b_catalog_store_product' => 'PRODUCT_ID',
-						'b_catalog_product' => 'TRIAL_PRICE_ID'
+						'b_catalog_product' => 'TRIAL_PRICE_ID',
+						'b_catalog_store_barcode' => 'PRODUCT_ID',
+						'b_catalog_product2group' => 'PRODUCT_ID'
 					)
 				),
 				'b_catalog_vat' => array(
@@ -489,7 +493,8 @@ class catalog extends CModule
 				),
 				'b_catalog_store' => array(
 					'ID' => array(
-						'b_catalog_store_product' => 'STORE_ID'
+						'b_catalog_store_product' => 'STORE_ID',
+						'b_catalog_store_barcode' => 'STORE_ID'
 					)
 				)
 			)

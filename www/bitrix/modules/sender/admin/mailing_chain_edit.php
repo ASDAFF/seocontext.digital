@@ -2,6 +2,8 @@
 define("ADMIN_MODULE_NAME", "sender");
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
 
+use \Bitrix\Main\Localization\Loc;
+
 if(!\Bitrix\Main\Loader::includeModule("sender"))
 	ShowError(\Bitrix\Main\Localization\Loc::getMessage("MAIN_MODULE_NOT_INSTALLED"));
 
@@ -48,6 +50,7 @@ if($_SERVER['REQUEST_METHOD'] == "POST" && ($save!="" || $apply!="") && $POST_RI
 
 	$arFields = Array(
 		"MAILING_ID" => $MAILING_ID,
+		"TITLE" => $TITLE,
 		"SUBJECT" => $SUBJECT,
 		"EMAIL_FROM"	=> $EMAIL_FROM,
 		"MESSAGE" => $MESSAGE,
@@ -217,11 +220,25 @@ if($_SERVER['REQUEST_METHOD'] == "POST" && ($save!="" || $apply!="") && $POST_RI
 
 					$isCheckedSuccess = false;
 					$io = CBXVirtualIo::GetInstance();
-					$normPath = $io->CombinePath("/", $filePath);
-					$absPath = $io->CombinePath($_SERVER["DOCUMENT_ROOT"], $normPath);
+					$docRoot = \Bitrix\Main\Application::getDocumentRoot();
+					if(strpos($filePath, CTempFile::GetAbsoluteRoot()) === 0)
+					{
+						$absPath = $filePath;
+					}
+					elseif(strpos($io->CombinePath($docRoot, $filePath), CTempFile::GetAbsoluteRoot()) === 0)
+					{
+						$absPath = $io->CombinePath($docRoot, $filePath);
+					}
+					else
+					{
+						$absPath = $io->CombinePath(CTempFile::GetAbsoluteRoot(), $filePath);
+					}
+
 					if ($io->ValidatePathString($absPath) && $io->FileExists($absPath))
 					{
-						$perm = $APPLICATION->GetFileAccessPermission($normPath);
+						$docRoot = $io->CombinePath($docRoot, '/');
+						$relPath = str_replace($docRoot, '', $absPath);
+						$perm = $APPLICATION->GetFileAccessPermission($relPath);
 						if ($perm >= "W")
 						{
 							$isCheckedSuccess = true;
@@ -331,6 +348,7 @@ $str_SORT = 100;
 $str_ACTIVE = "Y";
 $str_VISIBLE = "Y";
 $arMailngChainAttachment = array();
+$recommendedSendTime = null;
 
 if($ID>0)
 {
@@ -385,6 +403,31 @@ if($MAILING_ID>0)
 if($bVarsFromForm)
 	$DB->InitTableVarsForEdit("b_sender_mailing_chain", "", "str_");
 
+if(!isset($SEND_TYPE))
+{
+	if ($str_REITERATE == 'Y')
+		$SEND_TYPE = 'REITERATE';
+	elseif (!empty($str_AUTO_SEND_TIME))
+		$SEND_TYPE = 'TIME';
+	else
+		$SEND_TYPE = 'MANUAL';
+}
+
+$templateListHtml = \Bitrix\Sender\Preset\Template::getTemplateListHtml('tabControl_layout');
+$templateName = '';
+$template = \Bitrix\Sender\Preset\Template::getById($str_TEMPLATE_TYPE, $str_TEMPLATE_ID);
+if($template)
+{
+	$templateName = $template['NAME'];
+}
+
+if ($MAILING_ID > 0 && ($ID <= 0 || $SEND_TYPE == 'MANUAL'))
+{
+	$statistics = \Bitrix\Sender\Stat\Statistics::create()->filter('mailingId', $MAILING_ID);
+	$recommendedSendTime = $statistics->getRecommendedSendTime();
+}
+
+
 \CJSCore::Init(array("sender_admin"));
 $APPLICATION->SetTitle(($ID>0? GetMessage("sender_chain_edit_title_edit").$ID : GetMessage("sender_chain_edit_title_add")));
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_after.php");
@@ -407,6 +450,12 @@ if($ID>0 && $POST_RIGHT>="W")
 		"ICON"=>"btn_new",
 	);
 	$aMenu[] = array(
+		"TEXT"=>GetMessage("sender_chain_edit_action_copy"),
+		"TITLE"=>GetMessage("sender_chain_edit_action_copy_title"),
+		"LINK"=>"/bitrix/admin/sender_mailing_chain_admin.php?MAILING_ID=".$MAILING_ID."&ID=".$ID."&action=copy&lang=".LANG."&".bitrix_sessid_get(),
+		"ICON"=>"btn_copy",
+	);
+	$aMenu[] = array(
 		"TEXT"=>GetMessage("sender_chain_edit_action_del"),
 		"TITLE"=>GetMessage("sender_chain_edit_action_del_title"),
 		"LINK"=>"javascript:if(confirm('".GetMessage("sender_chain_edit_action_del_confirm")."'))window.location='/bitrix/admin/sender_mailing_chain_admin.php?MAILING_ID=".$MAILING_ID."&ID=".$ID."&action=delete&lang=".LANGUAGE_ID."&".bitrix_sessid_get()."';",
@@ -419,33 +468,15 @@ $context->Show();
 
 \Bitrix\Sender\PostingRecipientTable::setPersonalizeList(\Bitrix\Sender\MailingTable::getPersonalizeList($MAILING_ID));
 $arMailing = \Bitrix\Sender\MailingTable::getRowById($MAILING_ID);
-?>
 
-<?
 if($_REQUEST["mess"] == "ok" && $ID>0)
 	CAdminMessage::ShowMessage(array("MESSAGE"=>GetMessage("sender_chain_edit_saved"), "TYPE"=>"OK"));
 
+if($_REQUEST["mess"] == "copied" && $ID>0)
+	CAdminMessage::ShowMessage(array("MESSAGE"=>GetMessage("sender_chain_edit_copied"), "TYPE"=>"OK"));
+
 if($message)
 	echo $message->Show();
-
-
-if(!isset($SEND_TYPE))
-{
-	if ($str_REITERATE == 'Y')
-		$SEND_TYPE = 'REITERATE';
-	elseif (!empty($str_AUTO_SEND_TIME))
-		$SEND_TYPE = 'TIME';
-	elseif ($ID > 0)
-		$SEND_TYPE = 'MANUAL';
-}
-
-$templateListHtml = \Bitrix\Sender\Preset\Template::getTemplateListHtml('tabControl_layout');
-$templateName = '';
-$template = \Bitrix\Sender\Preset\Template::getById($str_TEMPLATE_TYPE, $str_TEMPLATE_ID);
-if($template)
-{
-	$templateName = $template['NAME'];
-}
 ?>
 
 
@@ -482,6 +513,21 @@ $tabControl->BeginNextTab();
 	<tr>
 		<td colspan="2">
 			<div class="adm-info-message"><?=GetMessage("sender_chain_edit_maintext");?></div>
+		</td>
+	</tr>
+	<tr>
+		<td>
+			<?echo GetMessage("sender_chain_edit_field_title")?>:
+		</td>
+		<td>
+			<input type="text" id="TITLE" name="TITLE" value="<?=$str_TITLE?>" style="width: 450px;">
+		</td>
+	</tr>
+	<tr>
+		<td>
+		</td>
+		<td>
+			<span class="sender-test-send-header-grey"><?echo GetMessage("sender_chain_edit_field_title_desc")?></span>
 		</td>
 	</tr>
 	<tr class="heading">
@@ -893,6 +939,22 @@ $tabControl->BeginNextTab();
 										<?echo CalendarDate("AUTO_SEND_TIME", $str_AUTO_SEND_TIME, "post_form", "20")?>
 									<?endif;?>
 								</td>
+							</tr>
+							<?if ($recommendedSendTime):?>
+							<tr>
+								<td>&nbsp;</td>
+								<td>
+									<?=Loc::getMessage(
+										'sender_chain_edit_recommended_sent_time',
+										array(
+											'%send_time%' => '<b>' . htmlspecialcharsbx($recommendedSendTime['DAY_HOUR_DISPLAY']) . '</b>',
+											'%delivery_time%' => htmlspecialcharsbx($recommendedSendTime['DELIVERY_TIME']),
+										)
+									)?>
+									<br>
+									<?=Loc::getMessage('sender_chain_edit_recommended_sent_time_hint')?>
+							</tr>
+							<?endif;?>
 							</table>
 						</div>
 					</div>

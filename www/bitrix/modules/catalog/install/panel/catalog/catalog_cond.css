@@ -306,17 +306,17 @@ div.condition-logic
 	position: absolute;
 	left: -60px;
 	bottom: -20px;
-	width: 45px;
+	width: 55px;
 	height: 30px;
-	border-radius: 10px;
-	color: #ffffff;
-	font-weight: bold;
+	border-radius: 4px;
+	color: #fff !important;
+	font-weight: bold !important;
 	border: 0 none transparent;
-	line-height: 30px;
-	white-space: nowrap;
-	padding: 0 20px 0 10px;
+	line-height: 30px !important;
+	white-space: nowrap !important;
+	padding: 0 10px 0 5px;
 	cursor: pointer;
-	text-align: right;
+	text-align: center !important;
 }
 
 div.condition-logic-and

@@ -1370,9 +1370,9 @@ class CSocNetPhotoCommentEvent
 			{
 				$arForum = CForumNew::GetByID($this->ForumID);
 				
-				$parser = new textParser(LANGUAGE_ID, $this->arPath["PATH_TO_SMILE"]);
-				$parser->image_params["width"] = false;
-				$parser->image_params["height"] = false;
+				$parser = new forumTextParser(LANGUAGE_ID, $this->arPath["PATH_TO_SMILE"]);
+				$parser->imageWidth = false;
+				$parser->imageHeight = false;
 				
 				$arAllow = array(
 					"HTML" => "N",

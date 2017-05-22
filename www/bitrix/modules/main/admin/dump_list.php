@@ -40,8 +40,9 @@ if ($_REQUEST['action'])
 
 	if ($_REQUEST['action'] == 'download')
 	{
+		$arLink = array();
+
 		$name = $path.'/'.$_REQUEST['f_id'];
-		echo '<script>';
 
 		if ($BUCKET_ID = intval($_REQUEST['BUCKET_ID']))
 		{
@@ -52,7 +53,7 @@ if ($_REQUEST['action'])
 				{
 					while($obBucket->FileExists($name))
 					{
-						echo 'window.open("'.htmlspecialcharsbx($obBucket->GetFileSRC(array("URN" => $name))).'");'."\n";
+						$arLink[] = htmlspecialcharsbx($obBucket->GetFileSRC(array("URN" => $name)));
 						$name = CTar::getNextName($name);
 					}
 				}
@@ -62,11 +63,12 @@ if ($_REQUEST['action'])
 		{
 			while(file_exists(DOCUMENT_ROOT.$name))
 			{
-				echo 'window.open("'.htmlspecialcharsbx($name).'");'."\n";
+				$arLink[] = htmlspecialcharsbx($name);
 				$name = CTar::getNextName($name);
 			}
 		}
-		echo '</script>';
+
+		echo "links=".\Bitrix\Main\Web\Json::encode($arLink).";";
 		die();
 	}
 	elseif ($_REQUEST['action'] == 'link')
@@ -419,7 +421,7 @@ while($f = $rsDirContent->NavNext(true, "f_"))
 	$row->AddField("SIZE", CFile::FormatSize($size));
 	$row->AddField("PLACE", $f['PLACE']);
 	if ($f['DATE'])
-		$row->AddField("DATE", ($t = time() - $f['DATE']) < 86400 && $t > 0 ? HumanTime($t).' '.GetMessage('DUMP_BACK') : ConvertTimeStamp($f['DATE'], 'FULL'));
+		$row->AddField("DATE", FormatDate('x', $f['DATE']));
 
 	$arActions = Array();
 
@@ -449,7 +451,7 @@ while($f = $rsDirContent->NavNext(true, "f_"))
 				"ICON" => "download",
 				"DEFAULT" => true,
 				"TEXT" => GetMessage("MAIN_DUMP_ACTION_DOWNLOAD"),
-				"ACTION" => "AjaxSend('/bitrix/admin/dump_list.php?action=download&f_id=".$f['NAME']."&BUCKET_ID=".$BUCKET_ID."&".bitrix_sessid_get()."')"
+				"ACTION" => "PartList('/bitrix/admin/dump_list.php?action=download&f_id=".$f['NAME']."&BUCKET_ID=".$BUCKET_ID."&".bitrix_sessid_get()."')"
 			);
 			$arActions[] = array(
 				"ICON" => "link",
@@ -536,6 +538,31 @@ require($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/include/prolog_admin_af
 			CHttpRequest.Post(url, data);
 		else
 			CHttpRequest.Send(url);
+	}
+
+	var links;
+	function PartList(url)
+	{
+		CHttpRequest.Action = function(result)
+		{
+			eval(result);
+			PartDownload();
+		}
+		CHttpRequest.Send(url);
+	}
+
+	function PartDownload()
+	{
+		if (!links || links.length == 0)
+			return;
+
+		var link = links.pop();
+		var iframe = document.createElement('iframe');
+		iframe.style.display = "none";
+		iframe.src = link;
+		document.body.appendChild(iframe);
+
+		window.setTimeout(PartDownload, 10000);
 	}
 
 	function EndDump()

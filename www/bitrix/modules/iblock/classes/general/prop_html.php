@@ -15,6 +15,8 @@ class CIBlockPropertyHTML
 		{
 			if (isset($strHTMLControlName['MODE']) && $strHTMLControlName['MODE'] == 'CSV_EXPORT')
 				return '['.$ar["TYPE"].']'.$ar["TEXT"];
+			elseif (isset($strHTMLControlName['MODE']) && $strHTMLControlName['MODE'] == 'SIMPLE_TEXT')
+				return ($ar["TYPE"] == 'HTML' ? strip_tags($ar["TEXT"]) : $ar["TEXT"]);
 			else
 				return FormatText($ar["TEXT"], $ar["TYPE"]);
 		}
@@ -67,7 +69,9 @@ class CIBlockPropertyHTML
 			'showNodeNavi' => false,
 			'askBeforeUnloadPage' => true,
 			'bbCode' => false,
+			'actionUrl' => '/bitrix/tools/html_editor_action.php',
 			'siteId' => SITE_ID,
+			'setFocusAfterShow' => false,
 			'controlsMap' => array(
 				array('id' => 'Bold', 'compact' => true, 'sort' => 80),
 				array('id' => 'Italic', 'compact' => true, 'sort' => 90),

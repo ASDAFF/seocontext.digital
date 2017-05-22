@@ -1,5 +1,6 @@
 <?
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\Type\Date;
 
 Loc::loadMessages(__FILE__);
 
@@ -9,16 +10,26 @@ class CIBlockPropertyDateTime
 	{
 		$filtered = false;
 
+		//TODO: remove this condition after main 17.0.0 will be stable
+		$existFilterOptions = class_exists('\Bitrix\Main\UI\Filter\Options') && method_exists('\Bitrix\Main\UI\Filter\Options', 'getFilter');
+
+		$from = "";
 		$from_name = $strHTMLControlName["VALUE"].'_from';
-		if (isset($_REQUEST[$from_name]))
+		if(isset($_REQUEST[$from_name]))
+		{
 			$from = $_REQUEST[$from_name];
-		elseif (
-			isset($strHTMLControlName["GRID_ID"])
-			&& isset($_SESSION["main.interface.grid"][$strHTMLControlName["GRID_ID"]]["filter"][$from_name])
-		)
+		}
+		elseif(isset($strHTMLControlName["GRID_ID"]) &&
+			isset($_SESSION["main.interface.grid"][$strHTMLControlName["GRID_ID"]]["filter"][$from_name]))
+		{
 			$from = $_SESSION["main.interface.grid"][$strHTMLControlName["GRID_ID"]]["filter"][$from_name];
-		else
-			$from = "";
+		}
+		elseif($existFilterOptions && isset($strHTMLControlName["FILTER_ID"]))
+		{
+			$filterOption = new \Bitrix\Main\UI\Filter\Options($strHTMLControlName["FILTER_ID"]);
+			$filterData = $filterOption->getFilter();
+			$from = !empty($filterData[$from_name]) ? $filterData[$from_name] : "";
+		}
 
 		if($from)
 		{
@@ -35,16 +46,33 @@ class CIBlockPropertyDateTime
 			}
 		}
 
+		$to = "";
 		$to_name = $strHTMLControlName["VALUE"].'_to';
-		if (isset($_REQUEST[$to_name]))
+		if(isset($_REQUEST[$to_name]))
+		{
 			$to = $_REQUEST[$to_name];
-		elseif (
-			isset($strHTMLControlName["GRID_ID"])
-			&& isset($_SESSION["main.interface.grid"][$strHTMLControlName["GRID_ID"]]["filter"][$to_name])
-		)
+		}
+		elseif(isset($strHTMLControlName["GRID_ID"]) &&
+			isset($_SESSION["main.interface.grid"][$strHTMLControlName["GRID_ID"]]["filter"][$to_name]))
+		{
 			$to = $_SESSION["main.interface.grid"][$strHTMLControlName["GRID_ID"]]["filter"][$to_name];
-		else
-			$to = "";
+		}
+		elseif($existFilterOptions && isset($strHTMLControlName["FILTER_ID"]))
+		{
+			$filterOption = new \Bitrix\Main\UI\Filter\Options($strHTMLControlName["FILTER_ID"]);
+			$filterData = $filterOption->getFilter();
+			$to = !empty($filterData[$to_name]) ? $filterData[$to_name] : "";
+			if($to)
+			{
+				$dateFormat = Date::convertFormatToPhp(CSite::getDateFormat());
+				$dateParse = date_parse_from_format($dateFormat, $to);
+				if(!strlen($dateParse["hour"]) && !strlen($dateParse["minute"]) && !strlen($dateParse["second"]))
+				{
+					$timeFormat = Date::convertFormatToPhp(CSite::getTimeFormat());
+					$to .= " ".date($timeFormat, mktime(23, 59, 59, 0, 0, 0));
+				}
+			}
+		}
 
 		if($to)
 		{
@@ -146,7 +174,7 @@ class CIBlockPropertyDateTime
 				elseif ($strHTMLControlName["MODE"] == "ELEMENT_TEMPLATE")
 					return $value["VALUE"];
 			}
-			return str_replace(" ", "&nbsp;", htmlspecialcharsex($value["VALUE"]));
+			return str_replace(" ", "&nbsp;", htmlspecialcharsEx($value["VALUE"]));
 		}
 
 		return '';

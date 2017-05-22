@@ -162,22 +162,33 @@ class CBPSetFieldActivity
 				$defaultFieldValue = $key;
 		}
 
-		$javascriptFunctions = $documentService->GetJSFunctionsForFields($documentType, "objFields", $arDocumentFields, $arFieldTypes);
+		$dialog = new \Bitrix\Bizproc\Activity\PropertiesDialog(__FILE__, array(
+			'documentType' => $documentType,
+			'activityName' => $activityName,
+			'workflowTemplate' => $arWorkflowTemplate,
+			'workflowParameters' => $arWorkflowParameters,
+			'workflowVariables' => $arWorkflowVariables,
+			'currentValues' => $arCurrentValues,
+			'formName' => $formName
+		));
 
-		return $runtime->ExecuteResourceFile(
-			__FILE__,
-			"properties_dialog.php",
-			array(
-				"arCurrentValues" => $arCurrentValues,
-				"arDocumentFields" => $arDocumentFields,
-				"formName" => $formName,
-				"defaultFieldValue" => $defaultFieldValue,
-				"arFieldTypes" => $arFieldTypes,
-				"javascriptFunctions" => $javascriptFunctions,
-				"documentType" => $documentType,
-				"popupWindow" => &$popupWindow,
-			)
-		);
+		$dialog->setRuntimeData(array(
+			"arCurrentValues" => $arCurrentValues,
+			"arDocumentFields" => $arDocumentFields,
+			"formName" => $formName,
+			"defaultFieldValue" => $defaultFieldValue,
+			"arFieldTypes" => $arFieldTypes,
+			"javascriptFunctions" => $documentService->GetJSFunctionsForFields(
+				$documentType,
+				"objFields",
+				$arDocumentFields,
+				$arFieldTypes
+			),
+			"documentType" => $documentType,
+			"popupWindow" => &$popupWindow,
+		));
+
+		return $dialog;
 	}
 
 	public static function GetPropertiesDialogValues($documentType, $activityName, &$arWorkflowTemplate, &$arWorkflowParameters, &$arWorkflowVariables, $arCurrentValues, &$arErrors)

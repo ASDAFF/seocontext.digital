@@ -49,17 +49,34 @@ $data = array();
 
 if ($statDB->type == "MYSQL")
 {
-	$vars = array();
-	$rs = $statDB->Query("SHOW GLOBAL VARIABLES", false, "", $queryOptions);
-	while ($ar = $rs->Fetch())
-		$vars[$ar["Variable_name"]] = $ar["Value"];
-
 	$stat = array();
 	$rs = $statDB->Query("SHOW GLOBAL STATUS", true, "", $queryOptions);
 	if (!$rs)
 		$rs = $statDB->Query("SHOW STATUS", true, "", $queryOptions);
 	while ($ar = $rs->Fetch())
 		$stat[$ar["Variable_name"]] = $ar["Value"];
+
+	$vars = array();
+	$rs = $statDB->Query("SHOW GLOBAL VARIABLES", false, "", $queryOptions);
+	while ($ar = $rs->Fetch())
+		$vars[$ar["Variable_name"]] = $ar["Value"];
+
+	if (isset($vars["have_innodb"]))
+	{
+		$have_innodb = ($vars["have_innodb"] == "YES");
+	}
+	else
+	{
+		$rs = $statDB->Query("SHOW ENGINES", true, "", $queryOptions);
+		if ($rs)
+		{
+			while ($ar = $rs->Fetch())
+			{
+				if ($ar['Engine'] === 'InnoDB')
+					$have_innodb = true;
+			}
+		}
+	}
 
 	$data = array(
 		array(
@@ -272,25 +289,31 @@ if ($statDB->type == "MYSQL")
 		{
 			if ($stat['Com_select'] == 0)
 			{
-				$value = "&nbsp;";
-				$rec = GetMessage("PERFMON_KPI_REC_QCACHE_NO");
+				$data[0]["ITEMS"][] = array(
+					"KPI_NAME" => GetMessage("PERFMON_KPI_NAME_QCACHE"),
+					"IS_OK" => false,
+					"KPI_VALUE" => "&nbsp;",
+					"KPI_RECOMMENDATION" => GetMessage("PERFMON_KPI_REC_QCACHE_NO"),
+				);
 			}
-			else
+			elseif ($stat['Com_select'] > $stat['Qcache_not_cached'])
 			{
 				$calc['query_cache_efficiency'] = round($stat['Qcache_hits'] / (($stat['Com_select'] - $stat['Qcache_not_cached']) + $stat['Qcache_hits']) * 100, 2);
+
 				$value = $calc['query_cache_efficiency']."%";
 				$rec = GetMessage("PERFMON_KPI_REC_QCACHE", array(
 					"#PARAM_NAME#" => "<span class=\"perfmon_code\">query_cache_limit</span>",
 					"#PARAM_VALUE#" => CFile::FormatSize($vars['query_cache_limit']),
 					"#GOOD_VALUE#" => "20%",
 				));
+
+				$data[0]["ITEMS"][] = array(
+					"KPI_NAME" => GetMessage("PERFMON_KPI_NAME_QCACHE"),
+					"IS_OK" => $stat['Com_select'] > 0 && $calc['query_cache_efficiency'] >= 20,
+					"KPI_VALUE" => $value,
+					"KPI_RECOMMENDATION" => $rec,
+				);
 			}
-			$data[0]["ITEMS"][] = array(
-				"KPI_NAME" => GetMessage("PERFMON_KPI_NAME_QCACHE"),
-				"IS_OK" => $stat['Com_select'] > 0 && $calc['query_cache_efficiency'] >= 20,
-				"KPI_VALUE" => $value,
-				"KPI_RECOMMENDATION" => $rec,
-			);
 
 			if ($stat['Com_select'] > 0)
 			{
@@ -528,7 +551,7 @@ if ($statDB->type == "MYSQL")
 		}
 
 		// InnoDB
-		if ($vars['have_innodb'] == "YES")
+		if ($have_innodb)
 		{
 			if ($stat['Innodb_buffer_pool_reads'] > 0 && $stat['Innodb_buffer_pool_read_requests'] > 0)
 			{

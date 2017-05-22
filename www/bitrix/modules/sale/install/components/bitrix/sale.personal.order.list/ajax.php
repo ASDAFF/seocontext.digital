@@ -27,6 +27,16 @@ $orderData = $request->get("orderData");
 
 $params['ACCOUNT_NUMBER'] = $orderData['order'];
 $params['PAYMENT_NUMBER'] = $orderData['payment'];
+if (CBXFeatures::IsFeatureEnabled('SaleAccounts'))
+{
+	$params['ALLOW_INNER'] = $orderData['allow_inner'];
+	$params['ONLY_INNER_FULL'] = $orderData['only_inner_full'];
+}
+else
+{
+	$params['ALLOW_INNER'] = "N";
+	$params['ONLY_INNER_FULL'] = "Y";
+}
 
 CBitrixComponent::includeComponentClass("bitrix:sale.order.payment.change");
 

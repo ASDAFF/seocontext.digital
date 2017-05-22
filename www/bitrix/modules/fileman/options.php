@@ -545,7 +545,7 @@ if($USER->isAdmin())
 			<?= GetMessage('FILEMAN_OPTION_SCRIPT_FILES')?>:
 		</td>
 		<td>
-			<input type="text" name="script_files" id="script_files" size="40" value="<?echo COption::GetOptionString($module_id, "~script_files", $script_files_default);?>">
+			<input type="text" name="script_files" id="script_files" size="40" value="<?= htmlspecialcharsbx(COption::GetOptionString($module_id, "~script_files", $script_files_default));?>">
 		</td>
 	</tr>
 	<tr>
@@ -553,7 +553,7 @@ if($USER->isAdmin())
 			<?= GetMessage('FILEMAN_OPTION_ALLOWED_COMPONENTS')?>:
 		</td>
 		<td>
-			<textarea cols="30" rows="4" name="allowed_components"><?echo COption::GetOptionString($module_id, "~allowed_components", '');?></textarea>
+			<textarea cols="30" rows="4" name="allowed_components"><?= htmlspecialcharsbx(COption::GetOptionString($module_id, "~allowed_components", ''));?></textarea>
 		</td>
 	</tr>
 	<?endif;?>
@@ -822,14 +822,14 @@ if($USER->isAdmin())
 	</tr>
 	<tr>
 		<td><label for="search_mask"><?= GetMessage("FILEMAN_SEARCH_MASK_DEF")?>:</label></td>
-		<td><input type="text" name="search_mask" id="search_mask" value="<?= COption::GetOptionString($module_id, "search_mask", "*.php"); ?>"></td>
+		<td><input type="text" name="search_mask" id="search_mask" value="<?= htmlspecialcharsbx(COption::GetOptionString($module_id, "search_mask", "*.php"))?>"></td>
 	</tr>
 	<tr class="heading">
 		<td colspan="2"><?= GetMessage("FILEMAN_ARCHIVE_TITLE")?></td>
 	</tr>
 	<tr>
 		<td><label for="archive_step_time"><?= GetMessage("FILEMAN_ARCHIVE_STEP_TIME")?>:</label></td>
-		<td><input type="text" name="archive_step_time" id="archive_step_time" value="<?= COption::GetOptionString($module_id, "archive_step_time", "30")?>"></td>
+		<td><input type="text" name="archive_step_time" id="archive_step_time" value="<?= htmlspecialcharsbx(COption::GetOptionString($module_id, "archive_step_time", "30"))?>"></td>
 	</tr>
 	</tr>
 	<!--end of archive-->
@@ -1438,13 +1438,13 @@ new BXButtonConfig();
 	<tr>
 		<td><? echo GetMessage("FILEMAN_OPTION_USER_DIC_DIR");?></td>
 		<td>
-			<input type="text" name="user_dics_path" style="width: 100%" value="<? echo COption::GetOptionString($module_id, "user_dics_path", "/bitrix/modules/fileman/u_dics")?>">
+			<input type="text" name="user_dics_path" style="width: 100%" value="<?= htmlspecialcharsbx(COption::GetOptionString($module_id, "user_dics_path", "/bitrix/modules/fileman/u_dics"))?>">
 		</td>
 	</tr>
 	<tr>
-		<td><label for="use_separeted_dics"><?echo GetMessage("FILEMAN_OPTION_USE_SEP_DICS");?></label></td>
+		<td><label for="use_separeted_dics"><?= GetMessage("FILEMAN_OPTION_USE_SEP_DICS");?></label></td>
 		<td>
-			<input type="checkbox" name="use_separeted_dics" id="use_separeted_dics" value="Y" <?echo (COption::GetOptionString($module_id, "use_separeted_dics", "Y")=="Y") ? "checked" : "";?>>
+			<input type="checkbox" name="use_separeted_dics" id="use_separeted_dics" value="Y" <?= (COption::GetOptionString($module_id, "use_separeted_dics", "Y")=="Y") ? "checked" : "";?>>
 		</td>
 	</tr>
 	<?else:
@@ -1468,7 +1468,7 @@ $tabControl->BeginNextTab();
 
 function _MLGetTypeHTML($type = array())
 {
-	$name = "ML_TYPE[".$type["id"]."]";
+	$name = htmlspecialcharsbx("ML_TYPE[".$type["id"]."]");
 	ob_start();
 ?>
 <div class="bx-ml-type"  id="type_cont_<?= $type["id"]?>">
@@ -1477,14 +1477,12 @@ function _MLGetTypeHTML($type = array())
 		<input type="hidden" name="<?= $name."[NEW]"?>" value="Y" />
 	<?endif;?>
 
-	<? /* <input id="type_real_name_inp_<?= $type["id"]?>" type="hidden" name="<?= $name."[NAME]"?>" value="<?= $type["name"]?>" />  */?>
 	<input type="hidden" name="<?= $name."[SYS]"?>" value="<?= $type["system"] ? "Y" : "N"?>" />
 
 	<? if($type["system"]):?>
 		<div><?= htmlspecialcharsex($type["name"])?></div>
 	<? else:?>
 		<div id="type_name_<?= $type["id"]?>" class="bx-ml-editable"><?= htmlspecialcharsex($type["name"])?></div>
-		<? /*<input id="type_name_inp_<?= $type["id"]?>" type="text" size="30" value="<?= $type["name"]?>" style="display: none;" /> */ ?>
 	<?endif;?>
 
 	<? if($type["code"] != "image" || !$type["system"]):?>
@@ -1508,38 +1506,38 @@ function _MLGetTypeHTML($type = array())
 		</td><td class="adm-detail-content-cell-r" width="60%">
 			<? if($type["system"]):?>
 				<span class="bx-sys-value"><?= htmlspecialcharsex($type["name"])?></span>
-				<input type="hidden" id="type_name_inp_<?= $type["id"]?>" value="<?= $type["name"]?>" />
+				<input type="hidden" id="type_name_inp_<?= $type["id"]?>" value="<?= htmlspecialcharsbx($type["name"])?>" />
 
 			<? else:?>
-				<input type="text"  name="<?= $name."[NAME]"?>" id="type_name_inp_<?= $type["id"]?>" value="<?= $type["name"]?>" size="40" />
+				<input type="text"  name="<?= $name."[NAME]"?>" id="type_name_inp_<?= htmlspecialcharsbx($type["id"])?>" value="<?= htmlspecialcharsbx($type["name"])?>" size="40" />
 			<?endif;?>
 		</td></tr>
 
 		<tr<?if(!$type["system"]):?> class="adm-detail-content-cell-l adm-detail-required-field"<?endif;?>><td class="bx-ml-td-left" width="40%">
 			<input type="hidden" name="<?= $name."[CODE]"?>" value="<?= $type["code"]?>" />
-			<label for="type_code_inp_<?= $type["id"]?>"><?= GetMessage('FILEMAN_ML_ADD_TYPE_CODE')?><? if(!$type["system"]):?><span class="required"><sup>1</sup></span><?endif;?>:</label>
+			<label for="type_code_inp_<?= htmlspecialcharsbx($type["id"])?>"><?= GetMessage('FILEMAN_ML_ADD_TYPE_CODE')?><? if(!$type["system"]):?><span class="required"><sup>1</sup></span><?endif;?>:</label>
 		</td><td class="adm-detail-content-cell-r" width="60%">
 			<? if($type["system"]):?>
 				<span class="bx-sys-value"><?= htmlspecialcharsex($type["code"])?></span>
-				<input type="hidden" name="<?= $name."[CODE]"?>" value="<?= $type["code"]?>" />
+				<input type="hidden" name="<?= $name."[CODE]"?>" value="<?= htmlspecialcharsbx($type["code"])?>" />
 			<? else:?>
-				<input type="text" name="<?= $name."[CODE]"?>" id="type_code_inp_<?= $type["id"]?>" value="<?= $type["code"]?>" size="40" />
+				<input type="text" name="<?= $name."[CODE]"?>" id="type_code_inp_<?= htmlspecialcharsbx($type["id"])?>" value="<?= htmlspecialcharsbx($type["code"])?>" size="40" />
 			<?endif;?>
 		</td></tr>
 
 		<tr class="adm-detail-required-field"><td class="adm-detail-content-cell-l bx-ml-td-left" width="40%">
-			<label for="type_ext_inp_<?= $type["id"]?>"><?= GetMessage('FILEMAN_ML_ADD_TYPE_EXT')?><span class="required"><sup>1</sup></span>:</label>
+			<label for="type_ext_inp_<?= htmlspecialcharsbx($type["id"])?>"><?= GetMessage('FILEMAN_ML_ADD_TYPE_EXT')?><span class="required"><sup>1</sup></span>:</label>
 		</td><td class="adm-detail-content-cell-r" width="60%">
-			<input type="text" name="<?= $name."[EXT]"?>" id="type_ext_inp_<?= $type["id"]?>" value="<?= $type["ext"]?>" size="40" />
+			<input type="text" name="<?= $name."[EXT]"?>" id="type_ext_inp_<?= htmlspecialcharsbx($type["id"])?>" value="<?= $type["ext"]?>" size="40" />
 		</td></tr>
 		<tr><td class="adm-detail-content-cell-l bx-ml-td-left" width="40%">
-			<label for="type_desc_inp_<?= $type["id"]?>"><?= GetMessage('FILEMAN_ML_ADD_TYPE_DESC')?>:</label>
+			<label for="type_desc_inp_<?= htmlspecialcharsbx($type["id"])?>"><?= GetMessage('FILEMAN_ML_ADD_TYPE_DESC')?>:</label>
 		</td><td class="adm-detail-content-cell-r" style="height: 50px;" width="60%">
 			<? if($type["system"]):?>
 				<input name="<?= $name."[DESC]"?>" type="hidden" value="<?= htmlspecialcharsbx($type["desc"])?>" />
-				<span><?= $type["desc"]?></span>
+				<span><?= htmlspecialcharsbx($type["desc"])?></span>
 			<? else:?>
-				<textarea name="<?= $name."[DESC]"?>" id="type_desc_inp_<?= $type["id"]?>" style="width: 260px;" rows="2" cols="30"><?= htmlspecialcharsbx($type["desc"])?></textarea>
+				<textarea name="<?= $name."[DESC]"?>" id="type_desc_inp_<?= htmlspecialcharsbx($type["id"])?>" style="width: 260px;" rows="2" cols="30"><?= htmlspecialcharsbx($type["desc"])?></textarea>
 			<?endif;?>
 		</td></tr>
 	</table>
@@ -1569,11 +1567,11 @@ function _MLGetTypeHTML($type = array())
 	</tr>
 	<tr <?= $displ?> class="bx-ml-hidden-row">
 		<td><label for="medialib_ext"><?= GetMessage("FILEMAN_MEDIA_EXT")?>:</label></td>
-		<td><input type="text" value="<?= COption::GetOptionString($module_id, "ml_media_extentions", CMedialib::GetDefaultMediaExtentions())?>" size="40" id="medialib_ext" name="medialib_ext"/></td>
+		<td><input type="text" value="<?= htmlspecialcharsbx(COption::GetOptionString($module_id, "ml_media_extentions", CMedialib::GetDefaultMediaExtentions()))?>" size="40" id="medialib_ext" name="medialib_ext"/></td>
 	</tr>
 	<tr <?= $displ?> class="bx-ml-hidden-row">
 		<td><label for="medialib_max_width"><?= GetMessage("FILEMAN_MEDIALIB_MAX_SIZE")?>:</label></td>
-		<td><input type="text" name="medialib_max_width" id="medialib_max_width" value="<?= COption::GetOptionInt($module_id, "ml_max_width", 1024)?>" size="6"/> x <input type="text" name="medialib_max_height" value="<?= COption::GetOptionInt($module_id, "ml_max_height", 1024)?>" size="6"/></td>
+		<td><input type="text" name="medialib_max_width" id="medialib_max_width" value="<?= COption::GetOptionInt($module_id, "ml_max_width", 1024)?>" size="6"/> x <input type="text" name="medialib_max_height" value="<?= intval(COption::GetOptionInt($module_id, "ml_max_height", 1024))?>" size="6"/></td>
 	</tr>
 	<tr <?= $displ?> class="bx-ml-hidden-row">
 		<td><label for="medialib_use_default"><?= GetMessage("FILEMAN_MEDIA_USE_DEF")?>:</label></td>

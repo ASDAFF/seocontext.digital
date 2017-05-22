@@ -72,7 +72,7 @@ class CAllPullWatch
 		{
 			$userId = $GLOBALS['USER']->GetId();
 		}
-		else if (IsModuleInstalled('statistic') && intval($_SESSION["SESS_SEARCHER_ID"]) <= 0 && intval($_SESSION["SESS_GUEST_ID"]) > 0 && COption::GetOptionString("pull", "guest") == 'Y')
+		else if (intval($_SESSION["SESS_SEARCHER_ID"]) <= 0 && intval($_SESSION["SESS_GUEST_ID"]) > 0 && \CPullOptions::GetGuestStatus())
 		{
 			$userId = intval($_SESSION["SESS_GUEST_ID"])*-1;
 		}
@@ -183,6 +183,9 @@ class CAllPullWatch
 		$dbRes = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
 		while ($arRes = $dbRes->Fetch())
 		{
+			if (isset($arMessage['skip_users']) && in_array($arRes['USER_ID'], $arMessage['skip_users']))
+				continue;
+			
 			$channels[$arRes['USER_ID']] = $arRes['CHANNEL_ID'];
 		}
 

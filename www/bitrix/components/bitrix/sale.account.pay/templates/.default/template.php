@@ -21,7 +21,7 @@ else
 {
 	if ($arParams['REFRESHED_COMPONENT_MODE'] === 'Y')
 	{
-		$wrapperId = str_shuffle(substr($arResult['$signedParams'],0,10));
+		$wrapperId = str_shuffle(substr($arResult['SIGNED_PARAMS'],0,10));
 		?>
 		<div class="bx-sap" id="bx-sap<?=$wrapperId?>">
 			<div class="container-fluid">
@@ -146,7 +146,7 @@ else
 				</div>
 				<div class="row">
 					<div class="col-xs-12">
-						<a href="" class="btn btn-default btn-lg"><?=Loc::getMessage("SAP_BUTTON")?></a>
+						<a href="" class="btn btn-default btn-lg sale-account-pay-button"><?=Loc::getMessage("SAP_BUTTON")?></a>
 					</div>
 				</div>
 			</div>
@@ -156,7 +156,7 @@ else
 			"alertMessages" => array("wrongInput" => Loc::getMessage('SAP_ERROR_INPUT')),
 			"url" => CUtil::JSEscape($this->__component->GetPath().'/ajax.php'),
 			"templateFolder" => CUtil::JSEscape($templateFolder),
-			"signedParams" => $arResult['$signedParams'],
+			"signedParams" => $arResult['SIGNED_PARAMS'],
 			"wrapperId" => $wrapperId
 		);
 		$javascriptParams = CUtil::PhpToJSObject($javascriptParams);

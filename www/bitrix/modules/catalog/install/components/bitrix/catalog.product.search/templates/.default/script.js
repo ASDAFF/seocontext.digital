@@ -264,14 +264,14 @@ BX.Catalog.ProductSearchDialog = (function () {
 
 	ProductSearchDialog.prototype.setBreadcrumbs = function (data) {
 		var title = this.iblockName,
-			arHtml = ['<a class="adm-navchain-item adm-navchain-item-desktop" href="#" onclick="return '+this.tableId+'_helper.onSectionClick(0)">'+title+'</a>'],
+			arHtml = ['<a class="adm-navchain-item adm-navchain-item-desktop" href="#" onclick="return '+this.tableId+'_helper.onSectionClick(0)">'+BX.util.htmlspecialchars(title)+'</a>'],
 			arPath = [];
 		for(var i in data)
 		{
 			if (data.hasOwnProperty(i))
 			{
 				arPath.push(data[i].ID);
-				arHtml.push('<a class="adm-navchain-item adm-navchain-item-desktop" href="#" onclick="return '+this.tableId+'_helper.onSectionClick('+data[i].ID+')">'+data[i].NAME+'</a>');
+				arHtml.push('<a class="adm-navchain-item adm-navchain-item-desktop" href="#" onclick="return '+this.tableId+'_helper.onSectionClick('+data[i].ID+')">'+BX.util.htmlspecialchars(data[i].NAME)+'</a>');
 				title = data[i].NAME;
 			}
 		}

@@ -6,3 +6,5 @@ $MESS['SALE_PS_SERVICE_PAYMENT_ERROR'] = 'Частиная оплата №#PAYM
 $MESS['SALE_PS_SERVICE_ORDER_CANCELED'] = 'Заказ №#ORDER_ID# отменен';
 $MESS['SALE_PS_SERVICE_PAYMENT_NOT_PAID'] = 'Невозможно выполнить возврат для неоплаченной оплаты';
 $MESS['SALE_PS_SERVICE_STATUS_ERROR'] = 'Ошибка при запросе статуса готовности выписки по счету';
+$MESS['SALE_PS_SERVICE_REQUEST_ERROR'] = 'Ошибка при получении выписки';
+$MESS["SALE_PS_SERVICE_ERROR_CONNECT_PS"] = "Ошибка подключения к платежной системе";

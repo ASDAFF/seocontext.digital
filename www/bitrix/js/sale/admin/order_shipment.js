@@ -346,6 +346,18 @@ BX.Sale.Admin.OrderShipment.prototype.updateShipmentStatus = function(field, sta
 
 				if(result.RESULT)
 					BX.Sale.Admin.OrderEditPage.callFieldsUpdaters(result.RESULT);
+
+				if (result.WARNING && result.WARNING.length > 0)
+				{
+					BX.Sale.Admin.OrderEditPage.showDialog(result.WARNING);
+				}
+
+				if(typeof result.MARKERS != 'undefined')
+				{
+					var node = BX('sale-adm-order-problem-block');
+					if(node)
+						node.innerHTML = result.MARKERS;
+				}
 			}
 		}, this)
 	};
@@ -605,12 +617,11 @@ BX.Sale.Admin.OrderShipment.prototype.setDeliveryStatus = function (data)
 
 BX.Sale.Admin.OrderShipment.prototype.setDeliveryBasePrice = function(basePrice)
 {
-	if(!BX('BASE_PRICE_DELIVERY_'+this.index))
-		return;
-	if (BX.Sale.Admin.OrderEditPage.formId != 'order_shipment_edit_info_form')
-		BX('BASE_PRICE_DELIVERY_'+this.index).innerHTML = basePrice;
-	else
-		this.setCalculatedPriceDelivery(basePrice);
+	if (BX('BASE_PRICE_DELIVERY_'+this.index))
+		BX('BASE_PRICE_DELIVERY_'+this.index).value = basePrice;
+
+	if (BX('BASE_PRICE_DELIVERY_T_'+this.index))
+		BX('BASE_PRICE_DELIVERY_T_'+this.index).innerHTML = basePrice;
 };
 
 BX.Sale.Admin.OrderShipment.prototype.setDeliveryPrice = function(price)
@@ -663,6 +674,7 @@ BX.Sale.Admin.OrderShipment.prototype.setCalculatedPriceDelivery = function(deli
 								if (confirm(BX.message('SALE_ORDER_SHIPMENT_CONFIRM_SET_NEW_PRICE')))
 								{
 									BX('PRICE_DELIVERY_'+this.index).value = deliveryPrice;
+									BX('BASE_PRICE_DELIVERY_'+this.index).value = deliveryPrice;
 
 									var child = BX.findChildByClassName(parent, 'row_set_new_delivery_price');
 									BX.remove(child);
@@ -705,6 +717,11 @@ BX.Sale.Admin.OrderShipment.prototype.updateDeliveryInfo = function()
 			{
 				BX.Sale.Admin.OrderEditPage.callFieldsUpdaters(result.SHIPMENT_DATA);
 				this.updateDeliveryLogotip();
+
+				if (result.WARNING && result.WARNING.length > 0)
+				{
+					BX.Sale.Admin.OrderEditPage.showDialog(result.WARNING);
+				}
 			}
 		}, this)
 	};
@@ -722,9 +739,17 @@ BX.Sale.Admin.OrderShipment.prototype.getDeliveryPrice = function()
 	'formData': formData,
 	'callback' : BX.proxy(function (result) {
 		if (result.ERROR && result.ERROR.length > 0)
+		{
 			BX.Sale.Admin.OrderEditPage.showDialog(result.ERROR);
+		}
 		else
+		{
 			BX.Sale.Admin.OrderEditPage.callFieldsUpdaters(result.RESULT);
+			if (result.WARNING && result.WARNING.length > 0)
+			{
+				BX.Sale.Admin.OrderEditPage.showDialog(result.WARNING);
+			}
+		}
 		}, this)
 	};
 
@@ -857,6 +882,7 @@ BX.Sale.Admin.OrderShipment.prototype.initFieldUpdateSum = function()
 			}
 
 			BX('CUSTOM_PRICE_DELIVERY_' + this.index).value = 'Y';
+			BX('BASE_PRICE_DELIVERY_' + this.index).value = obSum.value;
 		}
 	}, this));
 };
@@ -899,6 +925,10 @@ BX.Sale.Admin.OrderShipment.prototype.initDeleteShipment = function()
 							{
 								BX.Sale.Admin.OrderEditPage.callFieldsUpdaters(result.RESULT);
 								BX.cleanNode(BX('shipment_container_' + this.index));
+								if (result.WARNING && result.WARNING.length > 0)
+								{
+									BX.Sale.Admin.OrderEditPage.showDialog(result.WARNING);
+								}
 							}
 						}, this)
 					};
@@ -991,6 +1021,11 @@ BX.Sale.Admin.GeneralShipment =
 
 						if(lastUpdate)
 							lastUpdate.innerHTML = result.TRACKING_LAST_CHANGE;
+					}
+
+					if (result.WARNING && result.WARNING.length > 0)
+					{
+						BX.Sale.Admin.OrderEditPage.showDialog(result.WARNING);
 					}
 				}
 

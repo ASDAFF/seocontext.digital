@@ -339,6 +339,27 @@ class CDeliveryEMS
 						require_once(dirname(__FILE__).'/ems/region.php');
 				}
 
+				if($arLocation['REGION_NAME_ORIG'] == 'Саха /Якутия/ Респ' || $arLocation['REGION_NAME_ORIG'] == 'Республика Саха (Якутия)')
+					$arLocation['REGION_NAME_ORIG']  = 'САХА (ЯКУТИЯ) РЕСПУБЛИКА';
+				elseif($arLocation['REGION_NAME_ORIG'] == 'Еврейская Аобл')
+					$arLocation['REGION_NAME_ORIG']  = 'ЕВРЕЙСКАЯ АВТОНОМНАЯ ОБЛАСТЬ';
+				elseif($arLocation['REGION_NAME_ORIG'] == 'Ненецкий АО')
+					$arLocation['REGION_NAME_ORIG']  = 'НЕНЕЦКИЙ АВТОНОМНЫЙ ОКРУГ';
+				elseif($arLocation['REGION_NAME_ORIG'] == 'Северная Осетия - Алания Респ')
+					$arLocation['REGION_NAME_ORIG']  = 'СЕВЕРНАЯ ОСЕТИЯ-АЛАНИЯ РЕСПУБЛИКА';
+				elseif($arLocation['REGION_NAME_ORIG'] == 'Ханты-Мансийский Автономный округ - Югра АО' || $arLocation['REGION_NAME_ORIG'] == 'Ханты-Мансийский автономный округ')
+					$arLocation['REGION_NAME_ORIG']  = 'ХАНТЫ-МАНСИЙСКИЙ-ЮГРА АВТОНОМНЫЙ ОКРУГ';
+				elseif($arLocation['REGION_NAME_ORIG'] == 'Чукотский АО')
+					$arLocation['REGION_NAME_ORIG']  = 'ЧУКОТСКИЙ АВТОНОМНЫЙ ОКРУГ';
+				elseif($arLocation['REGION_NAME_ORIG'] == 'Ямало-Ненецкий АО')
+					$arLocation['REGION_NAME_ORIG']  = 'ЯМАЛО-НЕНЕЦКИЙ АВТОНОМНЫЙ ОКРУГ';
+				elseif($arLocation['REGION_NAME_ORIG'] == 'Крым')
+					$arLocation['REGION_NAME_ORIG']  = 'КРЫМ РЕСПУБЛИКА';
+
+				$arLocation['REGION_NAME_ORIG'] = preg_replace('/\sОБЛ$/i'.BX_UTF_PCRE_MODIFIER, ' ОБЛАСТЬ', ToUpper($arLocation['REGION_NAME_ORIG']));
+				$arLocation['REGION_NAME_ORIG'] = preg_replace('/\sРЕСП$/'.BX_UTF_PCRE_MODIFIER, ' РЕСПУБЛИКА', ToUpper($arLocation['REGION_NAME_ORIG']));
+				$arLocation['REGION_NAME_ORIG'] = preg_replace('/^(РЕСПУБЛИКА)\s*(.*)$/'.BX_UTF_PCRE_MODIFIER, '$2 $1', ToUpper($arLocation['REGION_NAME_ORIG']));
+
 				$arLocation['REGION_NAME_ORIG'] = ToUpper($arLocation['REGION_NAME_ORIG']);
 				$arLocation['REGION_SHORT_NAME'] = ToUpper($arLocation['REGION_SHORT_NAME']);
 				$arLocation['REGION_NAME_LANG'] = ToUpper($arLocation['REGION_NAME_LANG']);

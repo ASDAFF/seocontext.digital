@@ -63,7 +63,7 @@ class PageNavigation
 		{
 			//probably parametrs are in the SEF URI
 			$matches = array();
-			if(preg_match("'/".preg_quote($this->id, "'")."/page-([\\d]|all)+(/size-([\\d]+))?'", $request->getRequestUri(), $matches))
+			if(preg_match("'/".preg_quote($this->id, "'")."/page-([\\d]+|all)+(/size-([\\d]+))?'", $request->getRequestUri(), $matches))
 			{
 				$navParams["page"] = $matches[1];
 				if(isset($matches[3]))
@@ -308,7 +308,7 @@ class PageNavigation
 		if($sef == true)
 		{
 			$path = $uri->getPath();
-			$path = preg_replace("'/".preg_quote($this->id, "'")."/page-([\\d]|all)+(/size-([\\d]+))?'", "", $path);
+			$path = preg_replace("'/".preg_quote($this->id, "'")."/page-([\\d]+|all)+(/size-([\\d]+))?'", "", $path);
 			$uri->setPath($path);
 		}
 		else

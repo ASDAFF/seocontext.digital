@@ -328,12 +328,26 @@ class Command
 		unset($messageFields['NOTIFY_MODULE']);
 		unset($messageFields['URL_PREVIEW']);
 
+		$count = 0;
+		$executed = Array();
 		foreach ($commandList as $params)
 		{
 			if (!$params['MODULE_ID'] || !\Bitrix\Main\Loader::includeModule($params['MODULE_ID']))
 			{
 				continue;
 			}
+			$hash = md5($params['EXEC_PARAMS'].$params['COMMAND_ID']);
+			if ($executed[$hash])
+			{
+				continue;
+			}
+			$executed[$hash] = true;
+			
+			if ($count >= 10)
+			{
+				break;
+			}
+			$count++;
 
 			if ($params['BOT_ID'] > 0)
 			{
@@ -359,6 +373,7 @@ class Command
 
 				call_user_func_array(array($params["CLASS"], $params["METHOD_COMMAND_ADD"]), Array($messageId, $messageFields));
 			}
+			
 		}
 		unset($messageFields['COMMAND']);
 		unset($messageFields['COMMAND_ID']);
@@ -614,8 +629,13 @@ class Command
 		$isExtranet = \Bitrix\Im\User::getInstance($messageFields['FROM_USER_ID'])->isExtranet();
 
 		$commands = self::getListCache();
+		$bots = Bot::getListCache();
 		foreach ($commands as $value)
 		{
+			if ($messageFields['CHAT_ENTITY_TYPE'] == 'LIVECHAT' || $messageFields['CHAT_ENTITY_TYPE'] == 'LINES' && $bots[$value['BOT_ID']]['OPENLINE'] != 'Y')
+			{
+				continue;
+			}
 			if ($value['COMMAND'] == $command)
 			{
 				if ($value['EXTRANET_SUPPORT'] == 'N' && $isExtranet)
@@ -657,6 +677,8 @@ class Command
 			Array('COMMAND' => '>>', 'TITLE' => Loc::getMessage("COMMAND_DEF_QUOTE_TITLE"), 'PARAMS' => Loc::getMessage("COMMAND_DEF_QUOTE_PARAMS"), 'HIDDEN' => 'N', 'EXTRANET_SUPPORT' => 'Y'),
 			Array('COMMAND' => 'rename', 'TITLE' => Loc::getMessage("COMMAND_DEF_RENAME_TITLE"), 'PARAMS' => Loc::getMessage("COMMAND_DEF_RENAME_PARAMS"), 'HIDDEN' => 'N', 'EXTRANET_SUPPORT' => 'Y', 'CATEGORY' => Loc::getMessage("COMMAND_DEF_CATEGORY_CHAT"), 'CONTEXT' => 'chat'),
 			Array('COMMAND' => 'webrtcDebug', 'TITLE' => Loc::getMessage("COMMAND_DEF_WD_TITLE"), 'HIDDEN' => 'N', 'EXTRANET_SUPPORT' => 'Y', 'CATEGORY' => Loc::getMessage("COMMAND_DEF_CATEGORY_DEBUG"), 'CONTEXT' => 'call'),
+			Array('COMMAND' => 'startTrackStatus', 'TITLE' => Loc::getMessage("COMMAND_DEF_STTS_TITLE"), 'HIDDEN' => 'N', 'EXTRANET_SUPPORT' => 'Y', 'CATEGORY' => Loc::getMessage("COMMAND_DEF_CATEGORY_DIALOG"), 'CONTEXT' => 'user'),
+			Array('COMMAND' => 'stopTrackStatus', 'TITLE' => Loc::getMessage("COMMAND_DEF_SPTS_TITLE"), 'HIDDEN' => 'N', 'EXTRANET_SUPPORT' => 'Y', 'CATEGORY' => Loc::getMessage("COMMAND_DEF_CATEGORY_DIALOG"), 'CONTEXT' => 'user'),
 		);
 
 		$imCommands = Array();
@@ -702,7 +724,7 @@ class Command
 	public static function getListCache($lang = LANGUAGE_ID)
 	{
 		$cache = \Bitrix\Main\Data\Cache::createInstance();
-		if($cache->initCache(self::CACHE_TTL, 'list_v3_'.$lang, self::CACHE_PATH))
+		if($cache->initCache(self::CACHE_TTL, 'list_v4_'.$lang, self::CACHE_PATH))
 		{
 			$result = $cache->getVars();
 		}

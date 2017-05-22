@@ -14,32 +14,44 @@ class CListsLiveFeed
 			array('ID' => $elementId),
 			false,
 			false,
-			array('ID', 'CREATED_BY', 'IBLOCK_NAME', 'NAME', 'IBLOCK_ID', 'LANG_DIR')
+			array('ID', 'CREATED_BY', 'IBLOCK_NAME', 'NAME', 'IBLOCK_ID', 'LANG_DIR', 'IBLOCK_CODE')
 		);
 		$element = $elementObject->fetch();
 
 		if(!CLists::getLiveFeed($element["IBLOCK_ID"]))
 			return false;
 
+		$listSystemIblockCode = array(
+			'bitrix_holiday',
+			'bitrix_invoice',
+			'bitrix_trip',
+			'bitrix_cash',
+			'bitrix_incoming_doc',
+			'bitrix_outgoing_doc'
+		);
+
 		$params = serialize(array("ELEMENT_NAME" => $element['NAME']));
 
-		$element['NAME'] = preg_replace_callback(
-			'#^[^\[\]]+?\[(\d+)\]#i',
-			function ($matches)
-			{
-				$userId = $matches[1];
-				$db = CUser::GetByID($userId);
-				if ($ar = $db->GetNext())
+		if(in_array($element['IBLOCK_CODE'], $listSystemIblockCode))
+		{
+			$element['NAME'] = preg_replace_callback(
+				'#^[^\[\]]+?\[(\d+)\]#i',
+				function ($matches)
 				{
-					$ix = randString(5);
-					return '<a class="feed-post-user-name" id="bp_'.$userId.'_'.$ix.'" href="/company/personal/user/'.$userId.'/"
+					$userId = $matches[1];
+					$db = CUser::GetByID($userId);
+					if ($ar = $db->GetNext())
+					{
+						$ix = randString(5);
+						return '<a class="feed-post-user-name" id="bp_'.$userId.'_'.$ix.'" href="/company/personal/user/'.$userId.'/"
 						bx-post-author-id="'.$userId.'">'.CUser::FormatName(CSite::GetNameFormat(false), $ar, true, false).'</a>
 						<script type="text/javascript">if (BX.tooltip) BX.tooltip(\''.$userId.'\', "bp_'.$userId.'_'.$ix.'", "");</script>';
-				}
-				return $matches[0];
-			},
-			$element['NAME']
-		);
+					}
+					return $matches[0];
+				},
+				htmlspecialcharsbx($element['NAME'])
+			);
+		}
 
 		$path = rtrim($element['LANG_DIR'], '/');
 		$urlElement = $path.COption::GetOptionString('lists', 'livefeed_url').'?livefeed=y&list_id='.$element["IBLOCK_ID"].'&element_id='.$elementId;
@@ -104,7 +116,7 @@ class CListsLiveFeed
 					<span class="bp-title-desc-icon">
 						<img src="'.$imageFile['src'].'" width="36" height="30" border="0" />
 					</span>
-					'.$element['NAME'].'
+					'.in_array($element['IBLOCK_CODE'], $listSystemIblockCode) ? $element['NAME'] : htmlspecialcharsbx($element['NAME']).'
 				</span>
 			';
 

@@ -510,7 +510,34 @@ class CBitrixSeoOAuthInterface extends CBitrixServiceOAuthInterface
 
 		return false;
 	}
+	
+	/**
+	 * Get yandex direct clients settings and info
+	 * @param $engine
+	 * @return bool|mixed
+	 */
+	public function getClientsSettings($engine)
+	{
+		if($this->getAppID() && $this->getAppSecret() && $engine)
+		{
+			$res = $this->getTransport()->call(CBitrixSeoTransport::METHOD_CLIENTS_GET, array(
+				'engine' => $engine
+			));
+			
+			if(!isset($res['error']))
+			{
+				return $res['result'];
+			}
+			else
+			{
+				return $res;
+			}
+		}
+		
+		return false;
+	}
 
+	
 	public function createWordstatReport($engine, $queryData)
 	{
 		if($this->getAppID() && $this->getAppSecret() && $engine)
@@ -733,6 +760,7 @@ class CBitrixSeoTransport extends CBitrixServiceTransport
 	const METHOD_BANNER_DELETE = 'seo.banner.delete';
 
 	const METHOD_REGION_GET = 'seo.region.get';
+	const METHOD_CLIENTS_GET = 'seo.clients.get';
 
 	const METHOD_REPORT_WORDSTAT_CREATE = 'seo.report.wordstat.create';
 	const METHOD_REPORT_WORDSTAT_DELETE = 'seo.report.wordstat.delete';

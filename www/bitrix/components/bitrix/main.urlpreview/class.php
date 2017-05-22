@@ -38,13 +38,12 @@ class UrlPreviewComponent extends \CBitrixComponent
 	 */
 	protected function prepareData()
 	{
-		$signer = new Main\Security\Sign\Signer();
 		$this->arResult['METADATA'] = $this->arParams['METADATA'];
 		$this->setDynamicPreview();
 
 		$this->arResult['FIELD_NAME'] = $this->arParams['PARAMS']['arUserField']['FIELD_NAME'];
 		if($this->arResult['METADATA']['ID'] > 0)
-			$this->arResult['FIELD_VALUE'] = $signer->sign($this->arResult['METADATA']['ID'], Main\UrlPreview\UrlPreview::SIGN_SALT);
+			$this->arResult['FIELD_VALUE'] = Main\UrlPreview\UrlPreview::sign($this->arResult['METADATA']['ID']);
 		else
 			$this->arResult['FIELD_VALUE'] = null;
 

@@ -86,9 +86,6 @@ Class mail extends CModule
 						'mail.ru' => array(
 							'SERVER' => 'imap.mail.ru', 'PORT' => 993, 'ENCRYPTION' => 'Y', 'LINK' => 'http://e.mail.ru/',
 						),
-						'ukr.net' => array(
-							'SERVER' => 'imap.ukr.net', 'PORT' => 993, 'ENCRYPTION' => 'Y', 'LINK' => 'http://freemail.ukr.net/',
-						),
 						'exchange' => array(),
 						'other' => array(),
 					);
@@ -104,8 +101,7 @@ Class mail extends CModule
 							700  => 'aol',
 							800  => 'yandex',
 							900  => 'mail.ru',
-							1000 => 'ukr.net',
-							1100 => 'other'
+							1000 => 'other',
 						),
 						'ua' => array(
 							100  => 'gmail',
@@ -117,8 +113,7 @@ Class mail extends CModule
 							700  => 'aol',
 							800  => 'yandex',
 							900  => 'mail.ru',
-							1000 => 'ukr.net',
-							1100 => 'other'
+							1000 => 'other',
 						),
 						'en' => array(
 							100 => 'gmail',
@@ -272,6 +267,7 @@ Class mail extends CModule
 			RegisterModuleDependences('main', 'OnAfterUserDelete', 'mail', 'CMail', 'onUserDelete');
 
 			CAgent::AddAgent("CMailbox::CleanUp();", "mail", "N", 60*60*24);
+			CAgent::addAgent('Bitrix\Mail\Helper::resyncDomainUsersAgent();', 'mail', 'N', 60*60*24);
 
 			return true;
 		}

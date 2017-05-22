@@ -55,11 +55,11 @@ if(isset($_REQUEST['action']))
 				break;
 
 				case 'sites_feed':
-					$res = $engine->getFeeds();
+					$res = $engine->getFeedsV3();
 				break;
 
 				case 'site_add':
-					$res = $engine->addSite($arDomain['DOMAIN'], $arDomain['SITE_DIR']);
+					$res = $engine->addSiteV3($arDomain['DOMAIN'], $arDomain['SITE_DIR']);
 					$res['_domain'] = $arDomain['DOMAIN'];
 				break;
 
@@ -69,15 +69,17 @@ if(isset($_REQUEST['action']))
 
 				case 'site_verify':
 					$res = array('error' => array('message' => 'Unknown domain'));
-
+					
 					if(is_array($arDomain))
 					{
-						$arFeeds = $engine->getFeeds();
+						$arFeeds = $engine->getFeedsV3();
 						if(isset($arFeeds[$arDomain['DOMAIN']]) && is_array($arFeeds[$arDomain['DOMAIN']]))
 						{
-							if($arFeeds[$arDomain['DOMAIN']]['verification'] != 'VERIFIED')
+//							todo: remove 'VERIFIED' after complete migration to v3
+							if(/*$arFeeds[$arDomain['DOMAIN']]['verification'] != 'VERIFIED' || */$arFeeds[$arDomain['DOMAIN']]['verified'] === false)
 							{
-								$uin = $engine->verifySite($arDomain['DOMAIN'], false);
+//								get unnicue string for verification
+								$uin = $engine->getVerifySiteUinV3($arDomain['DOMAIN']);
 								if($uin)
 								{
 									$filename = "yandex_".$uin.".html";
@@ -90,7 +92,7 @@ if(isset($_REQUEST['action']))
 									$obFile = new \Bitrix\Main\IO\File($path);
 									$obFile->putContents('<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"></head><body>Verification: '.$uin.'</body></html>');
 
-									$res = $engine->verifySite($arDomain['DOMAIN'], true);
+									$res = $engine->verifySiteV3($arDomain['DOMAIN']);
 
 									//$obFile->delete();
 								}

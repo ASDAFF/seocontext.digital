@@ -25,6 +25,11 @@ class CCalendarEventHandlers
 			$userId = $params['USER_ID'];
 		}
 
+		if ($userId <= 0)
+		{
+			return false;
+		}
+
 		$CACHE_MANAGER->RegisterTag('calendar_user_'.$userId);
 
 		$date_from = CCalendar::Date(time() - date('Z', time()) + CCalendar::GetCurrentOffsetUTC($userId), false);
@@ -40,7 +45,8 @@ class CCalendarEventHandlers
 			'arFilter' => array(
 				"OWNER_ID" => $userId,
 				"FROM_LIMIT" => $date_from,
-				"TO_LIMIT" => $date_to
+				"TO_LIMIT" => $date_to,
+				"ACTIVE_SECTION" => 'Y'
 			),
 			'arOrder' => Array('DATE_FROM_TS_UTC' => 'asc'),
 			'parseRecursion' => true,
@@ -207,7 +213,7 @@ class CCalendarEventHandlers
 						'id' => $guest['USER_ID'],
 						'name' => CUser::FormatName(CSite::GetNameFormat(null, $arParams['SITE_ID']), $guest, true),
 						'status' => $guest['STATUS'],
-						'accessibility' => $guest['ACCESSIBILITY'],
+						'accessibility' => $arEvent['ACCESSIBILITY'],
 						'bHost' => $guest['USER_ID'] == $arEvent['MEETING_HOST'],
 
 					);

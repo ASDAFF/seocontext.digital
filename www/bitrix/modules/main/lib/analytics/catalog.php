@@ -46,8 +46,6 @@ class Catalog
 			return;
 		}
 
-		global $APPLICATION;
-
 		// alter b_sale_basket - add recommendation, update it here
 		if (!static::isOn())
 		{
@@ -91,7 +89,7 @@ class Catalog
 		$recommendationId = '';
 
 		// first, try to find in cookies
-		$recommendationCookie = $APPLICATION->get_cookie(static::getCookieLogName());
+		$recommendationCookie = Context::getCurrent()->getRequest()->getCookie(static::getCookieLogName());
 
 		if (!empty($recommendationCookie))
 		{

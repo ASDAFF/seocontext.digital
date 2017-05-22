@@ -1,6 +1,4 @@
 ;(function(window){
-
-	//
 	window.EditEventManager = function(config)
 	{
 		this.config = config;
@@ -87,7 +85,6 @@
 			this.pPlannerTitle = BX('event-planner-block-title' + this.id);
 			this.pPlannerLinkWrap = BX('event-planner-expand-link-wrap' + this.id);
 			BX.bind(this.pPlannerBlock, 'click', BX.proxy(this.ExpandPlanner, this));
-
 			this.pPlannerProposeLink = BX('event-planner-propose-link' + this.id);
 			BX.bind(this.pPlannerProposeLink, 'click', BX.proxy(this.ProposeTime, this));
 
@@ -141,8 +138,12 @@
 			// repeat
 			this.pRepeat = BX('event-repeat' + this.id);
 			this.pRepeatDetails = BX('event-repeat-details' + this.id);
+
+			this.RepeatEndsOnNever = BX(this.id + 'event-endson-never');
+			this.RepeatEndsOnCount = BX(this.id + 'event-endson-count');
+			this.RepeatEndsOnUntil = BX(this.id + 'event-endson-until');
 			this.RepeatDiapTo = BX('event-repeat-to' + this.id);
-			this.RepeatDiapToValue = BX('event-repeat-to-value' + this.id);
+			this.RepeatCountInp = BX(this.id + 'event-endson-count-input');
 
 			this.pRepeat.onchange = function()
 			{
@@ -151,31 +152,24 @@
 			};
 			this.pRepeat.onchange();
 
-			this.RepeatDiapTo.onclick = function(){
-				BX.calendar({node: this, field: this, bTime: false});
-				BX.focus(this);
-			};
-			this.RepeatDiapTo.onfocus = function()
+			BX.bind(this.RepeatEndsOnNever, 'change', BX.proxy(this.EndsOnChange, this));
+			BX.bind(this.RepeatEndsOnCount, 'change', BX.proxy(this.EndsOnChange, this));
+			BX.bind(this.RepeatEndsOnUntil, 'change', BX.proxy(this.EndsOnChange, this));
+
+			BX.bind(this.RepeatDiapTo, 'click', BX.proxy(function()
 			{
-				if (!this.value || this.value == _this.config.message.NoLimits)
-					this.title = this.value = '';
-				this.style.color = '#000000';
-			};
-			this.RepeatDiapTo.onblur = this.RepeatDiapTo.onchange = function()
+				this.RepeatEndsOnUntil.checked = 'checked';
+				BX.calendar({node: this.RepeatDiapTo, field: this.RepeatDiapTo, bTime: false});
+				BX.focus(this.RepeatDiapTo);
+				this.EndsOnChange();
+			}, this));
+
+			BX.bind(this.RepeatCountInp, 'click', BX.proxy(function()
 			{
-				if (this.value && this.value != _this.config.message.NoLimits)
-				{
-					var until = BX.parseDate(this.value);
-					if (until && until.getTime)
-						_this.RepeatDiapToValue.value = BX.date.getServerTimestamp(until.getTime());
-					this.style.color = '#000000';
-					this.title = '';
-					return;
-				}
-				this.title = this.value = _this.config.message.NoLimits;
-				this.style.color = '#C0C0C0';
-			};
-			this.RepeatDiapTo.onchange();
+				this.RepeatEndsOnCount.checked = 'checked';
+				BX.focus(this.RepeatCountInp);
+				this.EndsOnChange();
+			}, this));
 
 			this.eventNode = BX('div' + this.config.editorId);
 			if (this.eventNode)
@@ -211,6 +205,29 @@
 			});
 
 			setTimeout(function(){BX.bind(window, "resize", BX.proxy(_this.OnResize, _this))},200);
+		},
+
+		EndsOnChange: function()
+		{
+			if (this.RepeatEndsOnNever.checked)
+			{
+				this.RepeatCountInp.value = '';
+				this.RepeatDiapTo.value = '';
+			}
+			else if (this.RepeatEndsOnCount.checked)
+			{
+				this.RepeatDiapTo.value = '';
+				if (!this.RepeatCountInp.value)
+					this.RepeatCountInp.value = this.RepeatCountInp.placeholder;
+				BX.focus(this.RepeatCountInp);
+				this.RepeatCountInp.select();
+			}
+			else
+			{
+				this.RepeatCountInp.value = '';
+				BX.focus(this.RepeatDiapTo);
+				this.RepeatDiapTo.select();
+			}
 		},
 
 		OnResize: function()
@@ -324,6 +341,13 @@
 
 		OnSubmit: function(e)
 		{
+			if (!this.CheckUserAccessibility())
+			{
+				alert(this.config.message.EC_BUSY_ALERT);
+				setBlogPostFormSubmitted(false);
+				return BX.PreventDefault(e);
+			}
+
 			// Check Meeting and Video Meeting rooms accessibility
 			if (this.Loc && this.Loc.NEW && this.Loc.NEW.substr(0, 5) == 'ECMR_' && !this.bLocationChecked && window.setBlogPostFormSubmitted)
 			{
@@ -367,6 +391,32 @@
 				);
 				return BX.PreventDefault(e);
 			}
+			else if (this.Loc && this.Loc.NEW != undefined && !this.bLocationChecked)
+			{
+				BX('event-location' + this.id).value = this.Loc.NEW;
+			}
+		},
+
+		CheckUserAccessibility: function()
+		{
+			var i, res = true;
+			if (this.plannerData)
+			{
+				for (i in this.plannerData.entries)
+				{
+					if (this.plannerData.entries.hasOwnProperty(i) &&
+						this.plannerData.entries[i].id &&
+						this.plannerData.entries[i].status != 'h' &&
+						this.plannerData.entries[i].strictStatus &&
+						!this.plannerData.entries[i].currentStatus
+					)
+					{
+						res = false;
+						break;
+					}
+				}
+			}
+			return res;
 		},
 
 		HandleEvent: function(oEvent)
@@ -897,6 +947,8 @@
 			if (!params || typeof params !== 'object')
 				params = {};
 
+			this.plannerData = params.data;
+
 			var
 				fromDate, toDate,
 				fullDay = this.pFullDay.checked,
@@ -995,7 +1047,7 @@
 					else
 					{
 						// Event duration in hours
-						duration = Math.round((toDate.getTime() - fromDate.getTime()) / 3600000);
+						//duration = Math.round((toDate.getTime() - fromDate.getTime()) / 3600000);
 
 						if (compactMode)
 						{

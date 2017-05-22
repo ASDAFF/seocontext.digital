@@ -187,3 +187,27 @@ ul.sale-acountpay-pp-list li {
 	width: 64px;
 	height: 64px;
 }
+
+.sale-acountpay-input {
+	text-align: right;
+}
+
+.btn.sale-account-pay-button {
+	padding: 0 28px;
+	height: 38px;
+	border: 0;
+	-webkit-border-radius: 2px;
+	-moz-border-radius: 2px;
+	border-radius: 2px;
+	background: #70bb18;
+	font: bold 13px/38px "Helvetica Neue", Helvetica, Arial, sans-serif;
+	color: #fff;
+}
+
+.btn.sale-account-pay-button:hover {
+	background: #7bd314;
+	color: #fff;
+	-webkit-transition: background ease-out 0.5s;
+	-moz-transition: background ease-out 0.5s;
+	transition: background ease-out 0.5s;
+}

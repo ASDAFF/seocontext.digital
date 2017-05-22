@@ -44,7 +44,9 @@ class PersonalProfileList extends CBitrixComponent
 	public function executeComponent()
 	{
 		global $APPLICATION, $USER;
-		
+
+		Loc::loadMessages(__FILE__);
+
 		$this->setFrameMode(false);
 
 		$this->checkRequiredModules();

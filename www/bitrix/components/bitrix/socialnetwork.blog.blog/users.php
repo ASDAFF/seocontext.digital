@@ -4,8 +4,20 @@ define("NO_KEEP_STATISTIC", "Y");
 define("NO_AGENT_STATISTIC","Y");
 define("NO_AGENT_CHECK", true);
 define("DisableEventsCheck", true);
+
+$lng = (isset($_REQUEST["lang"]) && is_string($_REQUEST["lang"])) ? trim($_REQUEST["lang"]): "";
+$lng = substr(preg_replace("/[^a-z0-9_]/i", "", $lng), 0, 2);
+
 /************** CACHE **********************************************/
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+
+/** @global CDatabase $DB */
+/** @global CUser $USER */
+/** @global CMain $APPLICATION */
+
+use Bitrix\Main\Localization\Loc;
+Loc::loadLanguageFile(__FILE__, $lng);
+
 $APPLICATION->RestartBuffer();
 $arList = array(
 	"post_id" => $_REQUEST["post_id"],
@@ -180,6 +192,15 @@ if ($_REQUEST["post_id"] > 0 && !empty($_REQUEST["name"]) && !empty($_REQUEST["v
 		$arIntranetUsers = CExtranet::GetIntranetUsers();
 		$bIntranetUser = CExtranet::IsIntranetUser();
 
+		$arHidden = array(
+			"ID" =>  0,
+			"PHOTO" => "",
+			"PHOTO_SRC" => "",
+			"FULL_NAME" => GetMessage("BLOG_BLOG_USER_HIDDEN"),
+			"URL" => "",
+			"TYPE" => ""
+		);
+
 		foreach ($arList["items"] as $key => $arUser)
 		{
 			if (
@@ -189,17 +210,17 @@ if ($_REQUEST["post_id"] > 0 && !empty($_REQUEST["name"]) && !empty($_REQUEST["v
 					(
 						$bIntranetUser
 						&& !in_array($arUser["ID"], $arIntranetUsers)
-						&& !in_array($arUser["ID"], $arMyGroupsUserID)	
+						&& !in_array($arUser["ID"], $arMyGroupsUserID)
 					)
 					|| 
 					(
 						!$bIntranetUser
-						&& !in_array($arUser["ID"], $arMyGroupsUserID)	
+						&& !in_array($arUser["ID"], $arMyGroupsUserID)
 					)
 				)
 			)
 			{
-				unset($arList["items"][$key]);
+				$arList["items"][$key] = $arHidden;
 			}
 		}
 	}

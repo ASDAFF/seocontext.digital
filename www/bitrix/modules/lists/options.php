@@ -203,7 +203,7 @@ if(IsModuleInstalled('socialnetwork'))
 		<tr>
 			<td width="30%"><?echo GetMessage("LISTS_OPTIONS_LIVE_FEED_SEF_FOLDER")?>:</td>
 			<td width="70%">
-				<input type="text" name="livefeed_url" id="livefeed_url" value="<? echo $livefeed_url; ?>">
+				<input type="text" name="livefeed_url" id="livefeed_url" value="<?=htmlspecialcharsbx($livefeed_url); ?>">
 			</td>
 		</tr>
 	<?

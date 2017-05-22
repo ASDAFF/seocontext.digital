@@ -4,6 +4,7 @@ namespace Sale\Handlers\Delivery\Additional;
 use Bitrix\Main\Error;
 use Bitrix\Main\Loader;
 use Bitrix\Main\Text\Encoding;
+use Bitrix\Main\Web\HttpClient;
 use Bitrix\Sale\Result;
 use Bitrix\Main\IO\File;
 use Bitrix\Main\Localization\Loc;
@@ -320,11 +321,11 @@ class Location extends ExternalLocationMap
 		if($srvId <= 0)
 			return false;
 
-		if(!\Bitrix\Main\IO\File::isFileExists($path))
+		if(!File::isFileExists($path))
 			return 0;
 
 		set_time_limit(0);
-		$content = \Bitrix\Main\IO\File::getFileContents($path);
+		$content = File::getFileContents($path);
 
 		if(strtolower(SITE_CHARSET) != 'utf-8')
 			$content = Encoding::convertEncoding($content, 'UTF-8', SITE_CHARSET);
@@ -401,18 +402,18 @@ class Location extends ExternalLocationMap
 
 	protected static function downloadLocations()
 	{
+		$result = '';
 		$client = new \Sale\Handlers\Delivery\Additional\RestClient();
 		$host = $client->getServiceHost();
-		$path = $host.self::ETHALON_LOCATIONS_PATH;
-		$content = file_get_contents($path);
-
-		if(!$content)
-			return '';
-
+		$downloadUrl = $host.self::ETHALON_LOCATIONS_PATH;
 		$tmpDir = \CTempFile::GetDirectoryName(24);
 		CheckDirPath($tmpDir);
-		$fileName = $tmpDir.'locations.zip';
-		$res = File::putFileContents($fileName, $content);
-		return $res ? $fileName : '';
+		$storePath = $tmpDir.'locations.zip';
+		$httpClient = new HttpClient();
+
+		if($httpClient->download($downloadUrl, $storePath))
+			$result = $storePath;
+
+		return $result;
 	}
 }

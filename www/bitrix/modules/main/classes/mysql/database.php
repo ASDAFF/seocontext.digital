@@ -330,9 +330,7 @@ abstract class CDatabaseMysql extends CAllDatabase
 		//time zone
 		if($strType == "FULL" && CTimeZone::Enabled())
 		{
-			static $diff = false;
-			if($diff === false)
-				$diff = CTimeZone::GetOffset();
+			$diff = CTimeZone::GetOffset();
 
 			if($diff <> 0)
 				$sFieldExpr = "DATE_ADD(".$strFieldName.", INTERVAL ".$diff." SECOND)";
@@ -348,9 +346,7 @@ abstract class CDatabaseMysql extends CAllDatabase
 		//time zone
 		if($strType == "FULL" && CTimeZone::Enabled())
 		{
-			static $diff = false;
-			if($diff === false)
-				$diff = CTimeZone::GetOffset();
+			$diff = CTimeZone::GetOffset();
 
 			if($diff <> 0)
 				$sFieldExpr = "DATE_ADD(".$sFieldExpr.", INTERVAL -(".$diff.") SECOND)";
@@ -464,7 +460,12 @@ abstract class CDatabaseMysql extends CAllDatabase
 							$strInsert2 .= ", '".intval($value)."'";
 							break;
 						case "real":
-							$strInsert2 .= ", '".doubleval($value)."'";
+							$value = doubleval($value);
+							if(!is_finite($value))
+							{
+								$value = 0;
+							}
+							$strInsert2 .= ", '".$value."'";
 							break;
 						default:
 							$strInsert2 .= ", '".$this->ForSql($value)."'";
@@ -518,6 +519,10 @@ abstract class CDatabaseMysql extends CAllDatabase
 							break;
 						case "real":
 							$value = doubleval($value);
+							if(!is_finite($value))
+							{
+								$value = 0;
+							}
 							break;
 						case "datetime":
 						case "timestamp":
@@ -636,7 +641,7 @@ abstract class CDatabaseMysql extends CAllDatabase
 	{
 		global $DB;
 
-		if(!is_object($this) || !isset($this->type))
+		if(!isset($this) || !is_object($this) || !isset($this->type))
 		{
 			return $DB->Add($tablename, $arFields, $arCLOBFields, $strFileDir, $ignore_errors, $error_position, $arOptions);
 		}

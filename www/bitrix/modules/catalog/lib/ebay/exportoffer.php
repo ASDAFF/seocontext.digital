@@ -1,7 +1,8 @@
 <?php
 namespace Bitrix\Catalog\Ebay;
 
-use Bitrix\Main\SystemException,
+use Bitrix\Main,
+	Bitrix\Main\SystemException,
 	Bitrix\Currency;
 
 class ExportOffer implements \Iterator
@@ -14,6 +15,7 @@ class ExportOffer implements \Iterator
 	protected $bAllSections;
 	protected $arSections = array();
 	protected $arIblock;
+	protected $startPosition = null;
 	protected $intMaxSectionID = 0;
 	protected $arSectionIDs = array();
 
@@ -24,8 +26,9 @@ class ExportOffer implements \Iterator
 	/*other vars*/
 	protected $cnt = 0;
 	/** @var null|\CIBlockResult $dbItems */
-	protected $dbItems = null;
+	protected $dbItems = NULL;
 	protected $catalogType;
+	protected $onlyAvailableElements = false;	// export with flag "available"
 
 	public function __construct($catalogType, $params)
 	{
@@ -39,6 +42,8 @@ class ExportOffer implements \Iterator
 
 		$this->arIblock = $this->getIblockProps($params["SETUP_SERVER_NAME"]);
 		$this->arSections = $this->getSections($params["PRODUCT_GROUPS"]);
+		if(isset($params["START_POSITION"]) && $params["START_POSITION"])
+			$this->startPosition = $params["START_POSITION"];
 
 		$this->bAllSections = in_array(0, $this->arSections) ? true : false;
 		$availGroups = $this->getAvailGroups();
@@ -47,16 +52,32 @@ class ExportOffer implements \Iterator
 	}
 
 	/*Iterator methods*/
+
+	/**
+	 * Return the current element.
+	 *
+	 * @return array
+	 */
 	public function current()
 	{
 		return $this->currentRecord;
 	}
 
+	/**
+	 * Return the key of the current element.
+	 *
+	 * @return int
+	 */
 	public function key()
 	{
 		return $this->currentKey;
 	}
 
+	/**
+	 * Move forward to next element.
+	 *
+	 * @return void
+	 */
 	public function next()
 	{
 		$this->currentKey++;
@@ -64,6 +85,11 @@ class ExportOffer implements \Iterator
 		$this->checkDiscountCache();
 	}
 
+	/**
+	 * Rewind the Iterator to the first element.
+	 *
+	 * @return void
+	 */
 	public function rewind()
 	{
 		$this->currentKey = 0;
@@ -73,6 +99,11 @@ class ExportOffer implements \Iterator
 		$this->checkDiscountCache();
 	}
 
+	/**
+	 * Checks if current position is valid.
+	 *
+	 * @return bool
+	 */
 	public function valid ()
 	{
 		return is_array($this->currentRecord);
@@ -80,21 +111,30 @@ class ExportOffer implements \Iterator
 
 	protected function createDbResObject()
 	{
+//		order need for limiting by ID
+		$order = array("ID" => "ASC");
 		$arSelect = array("ID", "LID", "IBLOCK_ID", "IBLOCK_SECTION_ID", "NAME", "PREVIEW_PICTURE", "PREVIEW_TEXT",
 			"PREVIEW_TEXT_TYPE", "DETAIL_PICTURE", "LANG_DIR", "DETAIL_PAGE_URL", "DETAIL_TEXT");
-
+		
 		$filter = array("IBLOCK_ID" => $this->iBlockId);
+		
+//		if set start position - limit result by ID
+		if($this->startPosition)
+			$filter[">=ID"] = $this->startPosition;
 
-		if (!$this->bAllSections && !empty($this->arSectionIDs))
+		if (!$this->bAllSections && !empty($this->arSections))
 		{
 			$filter["INCLUDE_SUBSECTIONS"] = "Y";
-			$filter["SECTION_ID"] = $this->arSectionIDs;
+			$filter["SECTION_ID"] = $this->arSections;
 		}
-
+		
+		if($this->onlyAvailableElements)
+			$filter["CATALOG_AVAILABLE"] = "Y";
 		$filter["ACTIVE"] = "Y";
+		$filter["SECTION_GLOBAL_ACTIVE"] = "Y";
 		$filter["ACTIVE_DATE"] = "Y";
 
-		return \CIBlockElement::GetList(array(), $filter, false, false, $arSelect);
+		return \CIBlockElement::GetList($order, $filter, false, false, $arSelect);
 	}
 
 	protected function getMaxSectionId(array $arAvailGroups)
@@ -257,7 +297,21 @@ class ExportOffer implements \Iterator
 	public static function getRub()
 	{
 		$currencyList = Currency\CurrencyManager::getCurrencyList();
+
 		return (isset($currencyList['RUR']) ? 'RUR' : 'RUB');
+	}
+	
+	/**
+	 * Change setting "export only available elements".
+	 *
+	 * @param bool $flag
+	 */
+	public function setOnlyAvailableFlag($flag)
+	{
+		if($flag)
+			$this->onlyAvailableElements = true;
+		else
+			$this->onlyAvailableElements = false;
 	}
 
 	protected function getPrices($productId, $siteId)
@@ -335,7 +389,7 @@ class ExportOffer implements \Iterator
 		else
 			$detailPageUrl = str_replace(' ', '%20', $detailPageUrl);
 
-		$result = "http://".$this->arIblock['SERVER_NAME'].htmlspecialcharsbx($detailPageUrl);
+		$result = "http://".$this->arIblock['SERVER_NAME'].Main\Text\HtmlFilter::encode($detailPageUrl);
 
 		return $result;
 	}
@@ -447,7 +501,7 @@ class ExportOffer implements \Iterator
 						$dbRes = \CIBlockElement::GetList(array(), array('IBLOCK_ID' => $arProperties[$PROPERTY]['LINK_IBLOCK_ID'], 'ID' => $arCheckValue), false, false, array('NAME'));
 						while ($arRes = $dbRes->Fetch())
 						{
-							$value[]= $arRes['NAME'];
+							$value[] = $arRes['NAME'];
 						}
 					}
 					break;
@@ -507,13 +561,13 @@ class ExportOffer implements \Iterator
 			}
 
 			if(is_array($value) && count($value) == 1)
-				$value = implode("",$value);
+				$value = implode("", $value);
 
 			if ($bParam)
 			{
 				$result[$param] = array(
 					"NAME" => $arProperties[$PROPERTY]['NAME'],
-					"VALUES" => $value
+					"VALUES" => $value,
 				);
 			}
 			else
@@ -569,7 +623,7 @@ class ExportOffer implements \Iterator
 			\CCatalogDiscount::ClearDiscountCache(array(
 				'PRODUCT' => true,
 				'SECTIONS' => true,
-				'PROPERTIES' => true
+				'PROPERTIES' => true,
 			));
 		}
 	}
@@ -580,6 +634,7 @@ class ExportOffer implements \Iterator
 			return false;
 
 		$arItem = $obElement->GetFields();
+		$arItem['PROPERTIES'] = $obElement->GetProperties();
 		$arItem["QUANTITY"] = $this->getQuantity($arItem["ID"]);
 		$arItem["PRICES"] = $this->getPrices($arItem["ID"], $this->arIblock['LID']);
 		$arItem["CATEGORIES"] = $this->getCategories($arItem["ID"]);

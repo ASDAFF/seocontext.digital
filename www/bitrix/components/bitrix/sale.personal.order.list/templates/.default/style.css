@@ -184,6 +184,7 @@
 	font: 14px "Helvetica Neue", Helvetica, Arial, sans-serif;
 	color: #4a90e2;
 	padding: 0 34px 0 0;
+	margin-bottom: 22px;
 }
 
 .sale-order-title {
@@ -325,6 +326,7 @@ div.sale-order-list-repeat-container {
 	font: bold 14px "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
+.sale-order-list-status-restricted,
 .sale-order-list-status-alert,
 .sale-order-list-status-success {
 	display: inline-block;
@@ -345,9 +347,36 @@ div.sale-order-list-repeat-container {
 	color: #597707;
 }
 
+.sale-order-list-status-restricted {
+	background: #f3f4f5;
+	border: 1px solid rgba(128,134,142,0.20);
+	color: #535c69;
+}
+
+.sale-order-list-status-restricted-message-block{
+	padding-top:10px;
+}
+
+.sale-order-list-status-restricted-message{
+	font: 11px "Helvetica Neue", Arial, Helvetica, sans-serif;
+	color: #9e9fa2;
+}
+
+.sale-order-list-payment-check ,
 .sale-order-list-payment-price {
 	padding: 4px 0 0 0;
 	font: 13px "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.sale-order-list-payment-check{
+	width:100%;
+	float: left;
+}
+
+.sale-order-list-payment-check-left{
+	display: inline;
+	float: left;
+	padding-right: 5px;
 }
 
 .sale-order-list-change-payment {
@@ -378,7 +407,6 @@ div.sale-order-list-repeat-container {
 	color: #fff;
 	font: bold 13px/38px "Helvetica Neue", Helvetica, Arial, sans-serif;
 	text-align: center;
-	text-transform: uppercase;
 }
 
 .sale-order-list-button:hover {
@@ -389,6 +417,16 @@ div.sale-order-list-repeat-container {
 	-o-transition: background ease-out 0.5s;
 	transition: background ease-out 0.5s;
 }
+
+.sale-order-list-button.inactive-button {
+	background: #dff0d8;
+	cursor: pointer;
+}
+
+.sale-order-list-button.inactive-button:hover{
+	color: #FFFFFF;
+}
+
 
 .sale-order-list-shipment {
 	font: 13px "Helvetica Neue", Helvetica, Arial, sans-serif;

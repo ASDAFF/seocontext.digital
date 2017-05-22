@@ -18,7 +18,18 @@ CJSCore::Init(array('lists'));
 ?>
 
 <div id="bx-lists-lcp-total-div">
-	<div class="bx-lists-lcp-button-block">
+	<?
+		$isBitrix24Template = (SITE_TEMPLATE_ID == "bitrix24");
+		if($isBitrix24Template)
+		{
+			$this->SetViewTarget("pagetitle", 100);
+		}
+		else
+		{
+			$APPLICATION->SetAdditionalCSS("/bitrix/js/lists/css/intranet-common.css");
+		}
+	?>
+	<div class="pagetitle-container pagetitle-flexible-space">
 		<? if(!$arResult['ALL_PROCESSES_INSTALL']): ?>
 			<p
 				id="bx-lists-lcp-install-processes"
@@ -39,6 +50,12 @@ CJSCore::Init(array('lists'));
 			<?= GetMessage("LISTS_LCP_TEMPLATE_TRANSITION_PROCESSES") ?>
 		</a>
 	</div>
+	<?
+		if($isBitrix24Template)
+		{
+			$this->EndViewTarget();
+		}
+	?>
 
 	<div class="bx-lists-lcp-description-page">
 		<? if($arResult['ALL_PROCESSES_INSTALL']): ?>

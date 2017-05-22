@@ -532,7 +532,7 @@ class CBPCalc
 		if (in_array($dayOfWeek, $weekHolidays))
 				return true;
 		$dayOfYear = date('j.n', $date);
-		if (in_array($dayOfYear, $yearHolidays))
+		if (in_array($dayOfYear, $yearHolidays, true))
 			return true;
 
 		return false;

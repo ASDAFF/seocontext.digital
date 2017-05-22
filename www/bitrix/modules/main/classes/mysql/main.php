@@ -58,9 +58,6 @@ class CMain extends CAllMain
 				$MAIN_LANGS_ADMIN_CACHE[$res["LID"]]=$res;
 				return $res;
 			}
-
-			//core default
-			return array("en", "MM/DD/YYYY", "MM/DD/YYYY HH24:MI:SS");
 		}
 		else
 		{
@@ -235,14 +232,23 @@ class CMain extends CAllMain
 				"ORDER BY L.DEF DESC, L.SORT";
 
 			$R = $DB->Query($strSql);
-			while($res = $R->Fetch())
+			if($res = $R->Fetch())
 			{
 				$MAIN_LANGS_CACHE[$res["LID"]]=$res;
 				return $res;
 			}
 		}
 
-		return array("en", "MM/DD/YYYY", "MM/DD/YYYY HH24:MI:SS");
+		//core default
+		return array(
+			"LID" => "en",
+			"DIR" => "/",
+			"SERVER_NAME" => "",
+			"CHARSET" => "UTF-8",
+			"FORMAT_DATE" => "MM/DD/YYYY",
+			"FORMAT_DATETIME" => "MM/DD/YYYY HH:MI:SS",
+			"LANGUAGE_ID" => "en",
+		);
 	}
 }
 

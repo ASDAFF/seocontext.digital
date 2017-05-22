@@ -108,11 +108,11 @@ BX.Lists.LiveFeedClass = (function ()
 		{
 			if(lists[i].value == iblockId)
 			{
-				BX.Lists.show(BX('bx-lists-div-list-'+lists[i].value));
+				BX.show(BX('bx-lists-div-list-'+lists[i].value));
 			}
 			else
 			{
-				BX.Lists.hide(BX('bx-lists-div-list-'+lists[i].value));
+				BX.hide(BX('bx-lists-div-list-'+lists[i].value));
 			}
 		}
 
@@ -127,6 +127,7 @@ BX.Lists.LiveFeedClass = (function ()
 			url: BX.Lists.addToLinkParam(this.ajaxUrl, 'action', 'getList'),
 			method: 'POST',
 			dataType: 'html',
+			processData: false,
 			data: {
 				iblockId: iblockId,
 				iblockDescription: iblockDescription,
@@ -156,12 +157,12 @@ BX.Lists.LiveFeedClass = (function ()
 						},
 						attrs: {
 							style: 'display: block;'
-						}
+						},
+						html: data
 					})
 				);
-				BX.adjust(BX('bx-lists-div-list-'+iblockId), {
-					html: data
-				});
+				var ob = BX.processHTML(data);
+				BX.ajax.processScripts(ob.SCRIPT);
 			}, this)
 		});
 		BX.unbindAll(BX('blog-submit-button-save'));
@@ -396,7 +397,7 @@ BX.Lists.LiveFeedClass = (function ()
 			{
 				if(result.status == 'success')
 				{
-					BX.Lists.show(BX('feed-add-lists-right'));
+					BX.show(BX('feed-add-lists-right'));
 					BX.Lists.modalWindow({
 						modalId: 'bx-lists-popup',
 						title: BX.message("LISTS_SELECT_STAFF_SET_RIGHT"),
@@ -410,7 +411,7 @@ BX.Lists.LiveFeedClass = (function ()
 						content: [BX('feed-add-lists-right')],
 						events : {
 							onPopupClose : function() {
-								hide(BX('feed-add-lists-right'));
+								BX.hide(BX('feed-add-lists-right'));
 								BX('bx-lists-total-div-id').appendChild(BX('feed-add-lists-right'));
 							},
 							onAfterPopupShow : function(popup) {
@@ -929,7 +930,7 @@ BX.Lists.LiveFeedClass = (function ()
 
 	LiveFeedClass.prototype.submitForm = function()
 	{
-		if(BX.Lists.getRealDisplay(BX('feed-add-post-content-lists')) == 'none')
+		if(BX('feed-add-post-content-lists').style.display == 'none')
 			BX.bind(BX('blog-submit-button-save'), 'click', submitBlogPostForm());
 
 		BX('blog-submit-button-save').setAttribute('onclick','');
@@ -962,7 +963,7 @@ BX.Lists.LiveFeedClass = (function ()
 					{
 						BX.removeClass(BX('blog-submit-button-save'), 'feed-add-button-load');
 						BX('bx-lists-block-errors').innerHTML = result.errors.pop().message;
-						BX.Lists.show(BX('bx-lists-block-errors'));
+						BX.show(BX('bx-lists-block-errors'));
 						BX('blog-submit-button-save').setAttribute('onclick','BX.Lists["LiveFeedClass_'+
 							this.randomString+'"].submitForm();');
 					}
@@ -971,7 +972,7 @@ BX.Lists.LiveFeedClass = (function ()
 				{
 					BX.removeClass(BX('blog-submit-button-save'), 'feed-add-button-load');
 					BX('bx-lists-block-errors').innerHTML = startResult;
-					BX.Lists.show(BX('bx-lists-block-errors'));
+					BX.show(BX('bx-lists-block-errors'));
 					BX('blog-submit-button-save').setAttribute('onclick', 'BX.Lists["LiveFeedClass_' +
 						this.randomString + '"].submitForm();');
 				}

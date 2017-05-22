@@ -59,4 +59,5 @@ $MESS["MAIN_LOGIN_EMAIL_CONFIRM"] = "You have not yet confirmed your registratio
 $MESS["MAIN_SEND_PASS_CONFIRM"] = "You have not yet confirmed your registration. Another confirmation message has been sent to your e-mail address.";
 $MESS["USER_LOGIN_OTP_ERROR"] = "One-time password are disabled.";
 $MESS["USER_LOGIN_OTP_INCORRECT"] = "One-time password is incorrect.";
+$MESS["main_user_captcha_error"] = "CAPTCHA code is incorrect.";
 ?>

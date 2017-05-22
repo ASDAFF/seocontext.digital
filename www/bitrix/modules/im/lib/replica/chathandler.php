@@ -24,18 +24,39 @@ class ChatHandler extends \Bitrix\Replica\Client\BaseHandler
 	protected $fields = array(
 		"TITLE" => "text",
 		"DESCRIPTION" => "text",
+		"DATE_CREATE" => "datetime",
 	);
 
 	/**
 	 * Method will be invoked before new database record inserted.
+	 * When an array returned the insert will be cancelled and map for
+	 * returned record will be added.
 	 *
 	 * @param array &$newRecord All fields of inserted record.
 	 *
-	 * @return void
+	 * @return null|array
 	 */
 	public function beforeInsertTrigger(array &$newRecord)
 	{
 		unset($newRecord["DISK_FOLDER_ID"]);
+		if (
+			isset($newRecord["TYPE"])
+			&& $newRecord["TYPE"] === "S"
+		)
+		{
+			$chatList = \Bitrix\Im\Model\ChatTable::getList(array(
+				"filter" => array(
+					"=AUTHOR_ID" => $newRecord["AUTHOR_ID"],
+					"=TYPE" => "S",
+				),
+			));
+			$oldRecord = $chatList->fetch();
+			if ($oldRecord)
+			{
+				return $oldRecord;
+			}
+		}
+		return null;
 	}
 
 	/**

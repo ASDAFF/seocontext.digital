@@ -515,11 +515,46 @@ class BasketItem
 			}
 		}
 
-		$this->fields->clearChanged();
+		if (!$basket->getOrder())
+		{
+			$this->fields->clearChanged();
+		}
 
 		return $result;
 	}
+	
+	/**
+	 * @internal
+	 *
+	 * Delete basket items without demands.
+	 * 
+	 * @param $idOrder
+	 * @return Result
+	 * @throws ObjectNotFoundException
+	 */
+	public static function deleteNoDemand($idOrder)
+	{
+		$result = new Result();
 
+		$itemsDataList = Internals\BasketTable::getList(
+			array(
+				"filter" => array("=ORDER_ID" => $idOrder),
+				"select" => array("ID")
+			)
+		);
+		
+		while ($item = $itemsDataList->fetch())
+		{
+			$r = Internals\BasketTable::deleteWithItems($item['ID']);
+			if (!$r->isSuccess())
+			{
+				$result->addErrors($r->getErrors());
+			}
+		}
+		
+		return $result;
+	}
+	
 	/**
 	 *
 	 */
@@ -687,6 +722,7 @@ class BasketItem
 			'ID',
 			'ITEM_ID',
 			'SORT',
+			'MEASURE_ID',
 			'MEASURE',
 			'PROPS',
 			'DISCOUNT_PERCENT',
@@ -732,21 +768,23 @@ class BasketItem
 	{
 		if ($this->parentId === null)
 		{
-			$parentBasketId = $this->getField('SET_PARENT_ID');
-			/** @var BasketItem $parentBasketItem */
-			$parentBasketItem = $this->getParentBasketItem();
+			$parentBasketItem = null;
+			$parentBasketId = intval($this->getField('SET_PARENT_ID'));
 
-			if($parentBasketId > 0 && $parentBasketId != $this->getId() && $parentBasketItem)
-			{
-				$this->parentId = $parentBasketItem->getBasketCode();
-			}
-			elseif($this->getField('TYPE') > 0)
+			if($this->getField('TYPE') > 0)
 			{
 				$this->parentId = $this->getBasketCode();
 			}
-			else
+			elseif($parentBasketId > 0 && $parentBasketId != $this->getId())
 			{
 				/** @var BasketItem $parentBasketItem */
+				if ($parentBasketItem = $this->getParentBasketItem())
+				{
+					$this->parentId = $parentBasketItem->getBasketCode();
+				}
+			}
+			else
+			{
 				if ($parentBasketItem = $this->getParentBasketItem())
 				{
 					$this->parentId = $parentBasketItem->getBasketCode();
@@ -763,23 +801,22 @@ class BasketItem
 	{
 		if ($this->parentBasketItem === null)
 		{
-
 			$parentId = $this->getField('SET_PARENT_ID');
 
 			/** @var Basket $collection */
 			$collection = $this->getCollection();
 
-			if ($parentId > 0 && $parentId != $this->getId())
+			if($this->parentId > 0)
+			{
+				$this->parentBasketItem = $collection->getItemByBasketCode($this->parentId);
+			}
+			elseif ($parentId > 0 && $parentId != $this->getId())
 			{
 				/** @var BasketItem parentBasketItem */
 				$this->parentBasketItem = $collection->getItemById($parentId);
 			}
-			elseif($this->parentId > 0)
-			{
-				$this->parentBasketItem = $collection->getItemByBasketCode($this->parentId);
-			}
 
-			if ($collection instanceof BasketBundleCollection &&  !$this->parentBasketItem)
+			if ($collection instanceof BasketBundleCollection && !$this->parentBasketItem)
 			{
 				$this->parentBasketItem = $collection->getParentBasketItem();
 			}
@@ -874,9 +911,18 @@ class BasketItem
 					$originalBundleQuantity = $originalBundleValues['QUANTITY'];
 				}
 
+				if ($originalQuantity > 0)
+				{
+					$bundleQuantity = $originalBundleQuantity / $originalQuantity;
+				}
+				else
+				{
+					$bundleQuantity = 0;
+				}
+
 				$bundleChildList[]["ITEMS"][] = array(
 						"PRODUCT_ID" => $bundleBasketItem->getProductId(),
-						"QUANTITY" => $originalBundleQuantity / $originalQuantity
+						"QUANTITY" => $bundleQuantity
 				);
 
 			}
@@ -1015,17 +1061,21 @@ class BasketItem
 			}
 		}
 
+		$settableFields = array_fill_keys(self::getSettableFields(), true);
 		if ($productList = Provider::getProductData($bundleCollection, array('QUANTITY', 'PRICE')))
 		{
 			foreach ($productList as $productBasketCode => $productDat)
 			{
 				if ($bundleBasketItem = $bundleCollection->getItemByBasketCode($productBasketCode))
 				{
-					unset($productDat['DISCOUNT_LIST']);
-					$bundleBasketItem->setFieldsNoDemand($productDat);
+					$fields = array_intersect_key($productDat, $settableFields);
+					unset($fields['DISCOUNT_LIST']);
+					$bundleBasketItem->setFieldsNoDemand($fields);
+					unset($fields);
 				}
 			}
 		}
+		unset($settableFields);
 
 		$this->bundleCollection = $bundleCollection;
 		return $bundleCollection;
@@ -1191,17 +1241,20 @@ class BasketItem
 			}
 		}
 
-		/** @var BasketBundleCollection $bundleCollection */
-		if ($bundleCollection = $this->getBundleCollection())
+		if ($this->isBundleParent())
 		{
-			if (!$cloneEntity->contains($bundleCollection))
+			/** @var BasketBundleCollection $bundleCollection */
+			if ($bundleCollection = $this->getBundleCollection())
 			{
-				$cloneEntity[$bundleCollection] = $bundleCollection->createClone($cloneEntity);
-			}
+				if (!$cloneEntity->contains($bundleCollection))
+				{
+					$cloneEntity[$bundleCollection] = $bundleCollection->createClone($cloneEntity);
+				}
 
-			if ($cloneEntity->contains($bundleCollection))
-			{
-				$basketItemClone->bundleCollection = $cloneEntity[$bundleCollection];
+				if ($cloneEntity->contains($bundleCollection))
+				{
+					$basketItemClone->bundleCollection = $cloneEntity[$bundleCollection];
+				}
 			}
 		}
 		
@@ -1232,14 +1285,7 @@ class BasketItem
 			$r = $basketPropertyCollection->verify();
 			if (!$r->isSuccess())
 			{
-				if ($r instanceof ResultWarning)
-				{
-					$result->addWarnings($r->getErrors());
-				}
-				else
-				{
-					$result->addErrors($r->getErrors());
-				}
+				$result->addErrors($r->getErrors());
 			}
 		}
 		

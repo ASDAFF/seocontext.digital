@@ -127,7 +127,6 @@ class Date extends Base
 		}
 		elseif ($renderMode & FieldType::RENDER_MODE_ADMIN)
 		{
-			require_once(Loader::getLocal('/modules/main/interface/init_admin.php'));
 			$renderResult = \CAdminCalendar::calendarDate($name, $value, 19, static::getType() == FieldType::DATETIME);
 		}
 		else
@@ -177,6 +176,9 @@ class Date extends Base
 
 		if ($value !== null && is_string($value) && strlen($value) > 0)
 		{
+			if (\CBPActivity::isExpression($value))
+				return $value;
+
 			$format = static::getType() == FieldType::DATETIME ? \FORMAT_DATETIME : \FORMAT_DATE;
 			if(!\CheckDateTime($value, $format))
 			{

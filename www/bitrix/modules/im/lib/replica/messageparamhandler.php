@@ -156,11 +156,7 @@ class MessageParamHandler extends \Bitrix\Replica\Client\BaseHandler
 			
 			if ($message['AUTHOR_ID'] > 0 && $message['AUTHOR_ID'] != $newRecord["PARAM_VALUE"])
 			{
-				$CCTP = new \CTextParser();
-				$CCTP->MaxStringLen = 200;
-				$CCTP->allow = array("HTML" => "N", "USER" => "N", "ANCHOR" => "N", "BIU" => "N", "IMG" => "N", "QUOTE" => "N", "CODE" => "N", "FONT" => "N", "LIST" => "N", "SMILES" => "N", "NL2BR" => "Y", "VIDEO" => "N", "TABLE" => "N", "CUT_ANCHOR" => "N", "ALIGN" => "N");
-
-				$message['MESSAGE'] = str_replace('<br />', ' ', $CCTP->convertText($message['MESSAGE']));
+				$message['MESSAGE'] = str_replace('<br />', ' ', \Bitrix\Im\Text::parse($message['MESSAGE']));
 				$message['MESSAGE'] = preg_replace("/\[s\].*?\[\/s\]/i", "", $message['MESSAGE']);
 				$message['MESSAGE'] = preg_replace("/\[[bui]\](.*?)\[\/[bui]\]/i", "$1", $message['MESSAGE']);
 				$message['MESSAGE'] = preg_replace("/\[USER=([0-9]{1,})\](.*?)\[\/USER\]/i", "$2", $message['MESSAGE']);
@@ -222,11 +218,11 @@ class MessageParamHandler extends \Bitrix\Replica\Client\BaseHandler
 		}
 		else if ($newRecord['PARAM_NAME'] == 'ATTACH')
 		{
-			\CIMMessageParam::SendPull($id);
+			\CIMMessageParam::SendPull($id, Array('ATTACH'));
 		}
 		else if ($newRecord['PARAM_NAME'] == 'URL_ID')
 		{
-			\CIMMessageParam::SendPull($id);
+			\CIMMessageParam::SendPull($id, Array('URL_ID'));
 		}
 	}
 }

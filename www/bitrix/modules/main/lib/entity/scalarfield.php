@@ -86,13 +86,15 @@ abstract class ScalarField extends Field
 	}
 
 	/**
+	 * @param array $row ORM data row in case of dependency value on other values
+	 *
 	 * @return callable|mixed|null
 	 */
-	public function getDefaultValue()
+	public function getDefaultValue($row = null)
 	{
 		if (is_callable($this->default_value))
 		{
-			return call_user_func($this->default_value);
+			return call_user_func($this->default_value, $row);
 		}
 		else
 		{

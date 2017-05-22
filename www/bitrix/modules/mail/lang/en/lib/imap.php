@@ -16,4 +16,5 @@ $MESS["MAIL_IMAP_ERR_SEARCH"] = "Mail search failed";
 $MESS["MAIL_IMAP_ERR_FETCH"] = "Error getting messages";
 $MESS["MAIL_IMAP_ERR_APPEND"] = "Error saving the message";
 $MESS["MAIL_IMAP_ERR_STORE"] = "Error updating the message";
+$MESS["MAIL_IMAP_ERR_AUTH_OAUTH"] = "Cannot get permission";
 ?>

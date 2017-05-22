@@ -84,4 +84,10 @@ if(!CMain::IsHTTPS() && COption::GetOptionString('main', 'use_encrypted_auth', '
 	}
 }
 
+$arResult["USE_CAPTCHA"] = (COption::GetOptionString("main", "captcha_restoring_password", "N") == "Y");
+if($arResult["USE_CAPTCHA"])
+{
+	$arResult["CAPTCHA_CODE"] = htmlspecialcharsbx($APPLICATION->CaptchaGetCode());
+}
+
 $this->IncludeComponentTemplate();

@@ -93,13 +93,13 @@ class CBitrixSocialnetworkLogEntryMailComponent extends CBitrixComponent
 			isset($arParams["AVATAR_SIZE"])
 			&& intval($arParams["AVATAR_SIZE"]) > 0
 				? intval($arParams["AVATAR_SIZE"])
-				: 58
+				: 100
 		);
 		$arParams["AVATAR_SIZE_COMMENT"] = (
 			isset($arParams["AVATAR_SIZE_COMMENT"])
 			&& intval($arParams["AVATAR_SIZE_COMMENT"]) > 0
 				? intval($arParams["AVATAR_SIZE_COMMENT"])
-				: 42
+				: 100
 		);
 		$arParams["COMMENTS_COUNT"] = (
 			isset($arParams["COMMENTS_COUNT"])
@@ -271,6 +271,11 @@ class CBitrixSocialnetworkLogEntryMailComponent extends CBitrixComponent
 							$comment["UF"][$field_name]["VALUE"] = $comment[$field_name];
 							$comment["UF"][$field_name]["ENTITY_VALUE_ID"] = $comment["ID"];
 						}
+					}
+
+					if (isset($comment["UF"]["UF_SONET_COM_URL_PRV"]))
+					{
+						unset($comment["UF"]["UF_SONET_COM_URL_PRV"]);
 					}
 
 					$commentFormatted = __SLEGetLogCommentRecord($comment, array(

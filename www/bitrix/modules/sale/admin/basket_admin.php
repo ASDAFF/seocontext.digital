@@ -6,6 +6,8 @@
 # mailto:admin@bitrixsoft.com                #
 ##############################################
 
+use Bitrix\Main;
+
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
 
 $saleModulePermissions = $APPLICATION->GetGroupRight("sale");
@@ -29,9 +31,10 @@ require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/sale/general/admin_tool.
 
 IncludeModuleLangFile(__FILE__);
 
+$request = Main\Context::getCurrent()->getRequest();
+$usedProtocol = ($request->isHttps() ? 'https://' : 'http://');
 
 $sTableID = "tbl_sale_basket";
-
 
 $oSort = new CAdminSorting($sTableID, "DATE_UPDATE_MAX", "DESC");
 
@@ -61,7 +64,9 @@ $arFilterFields = array(
 
 $siteName = Array();
 $serverName = Array();
-$dbSite = CSite::GetList(($b = "sort"), ($o = "asc"), array());
+$b = "sort";
+$o = "asc";
+$dbSite = CSite::GetList($b, $o, array());
 while ($arSite = $dbSite->Fetch())
 {
 	$serverName[$arSite["LID"]] = $arSite["SERVER_NAME"];
@@ -274,7 +279,6 @@ $lAdmin->AddHeaders(array(
 
 $arVisibleColumns = $lAdmin->GetVisibleHeaderColumns();
 
-
 while ($arBasket = $dbResultList->Fetch())
 {
 	$row =& $lAdmin->AddRow($arBasket["ID"], $arBasket);
@@ -282,7 +286,7 @@ while ($arBasket = $dbResultList->Fetch())
 	$row->AddField("ID", $arBasket["ID"]);
 
 	$fieldValue = GetMessage("SB_NOT_AUTH");
-	if(IntVal($arBasket["USER_ID"]) > 0)
+	if((int)$arBasket["USER_ID"] > 0)
 	{
 		$fieldValue = "[<a href=\"/bitrix/admin/user_edit.php?ID=".$arBasket["USER_ID"]."&lang=".LANG."\" title=\"".GetMessage("SB_USER_INFO")."\">".$arBasket["USER_ID"]."</a>] ";
 		$fieldValue .= " (".htmlspecialcharsEx($arBasket["USER_LOGIN"]).") ";
@@ -343,14 +347,14 @@ while ($arBasket = $dbResultList->Fetch())
 		if(strlen($arB["DETAIL_PAGE_URL"]) > 0)
 		{
 			if(strpos($arB["DETAIL_PAGE_URL"], "http") === false)
-				$url = "http://".$serverName[$arB["LID"]].$arB["DETAIL_PAGE_URL"];
+				$url = $usedProtocol.$serverName[$arB["LID"]].$arB["DETAIL_PAGE_URL"];
 			else
 				$url = $arB["DETAIL_PAGE_URL"];
 			$basketName .= "<nobr><a href=\"".$url."\">";
 			$basket .= "<nobr><a href=\"".$url."\">";
 		}
-		$basket .= htmlspecialcharsBx($arB["NAME"]);
-		$basketName .= htmlspecialcharsBx($arB["NAME"]);
+		$basket .= htmlspecialcharsbx($arB["NAME"]);
+		$basketName .= htmlspecialcharsbx($arB["NAME"]);
 		if(strlen($arB["DETAIL_PAGE_URL"]) > 0)
 		{
 			$basketName .= "</a></nobr>";
@@ -388,7 +392,7 @@ while ($arBasket = $dbResultList->Fetch())
 	$arActions = Array();
 	$arActions[] = array("ICON"=>"", "TEXT"=>GetMessage("SB_CREATE_ORDER"), "ACTION"=>$lAdmin->ActionRedirect("sale_basket.php?FUSER_ID=".$arBasket["FUSER_ID"]."&SITE_ID=".$arBasket["LID"]."&USER_ID=".$arBasket["USER_ID"]."&action=order_basket&lang=".LANG), "DEFAULT" => true);
 
-	if(IntVal($arBasket["USER_ID"]) > 0)
+	if((int)$arBasket["USER_ID"] > 0)
 	{
 		$arActions[] = array("ICON"=>"", "TEXT"=>GetMessage("SB_FUSER_INFO"), "ACTION"=>$lAdmin->ActionRedirect("sale_buyers_profile.php?USER_ID=".$arBasket["USER_ID"]."&lang=".LANG));
 	}
@@ -594,7 +598,7 @@ $oFilter->Begin();
 					store_id = params.store_id || '0';
 
 				var popup = new BX.CDialog({
-					content_url: '/bitrix/admin/cat_product_search_dialog.php?lang='+lang+'&LID='+site_id+'&caller=' + caller + '&func_name='+callback+'&STORE_FROM_ID='+store_id,
+					content_url: '/bitrix/tools/sale/product_search_dialog.php?lang='+lang+'&LID='+site_id+'&caller=' + caller + '&func_name='+callback+'&STORE_FROM_ID='+store_id,
 					height: Math.max(500, window.innerHeight-400),
 					width: Math.max(800, window.innerWidth-400),
 					draggable: true,

@@ -878,7 +878,7 @@ if(!empty($arUser))
 
 		foreach ($arBasketItems as $arBasketOrder)
 		{
-			$measure = isset($arBasketOrder["MEASURE_TEXT"]) ? $arBasketOrder["MEASURE_TEXT"] : GetMessage("BUYERS_UNIT");
+			$measure = isset($arBasketOrder["MEASURE_TEXT"]) ? htmlspecialcharsEx($arBasketOrder["MEASURE_TEXT"]) : GetMessage("BUYERS_UNIT");
 
 			$class = "";
 			$hidden = "";
@@ -1261,7 +1261,7 @@ if(!empty($arUser))
 	{
 		$row =& $lAdmin_tab5->AddRow($arViews["PRODUCT_ID"], $arViews, '', '');
 
-		$name = "[".$arViews["PRODUCT_ID"]."] <a href=\"".$arViews["DETAIL_PAGE_URL"]."\">".$arViews["NAME"]."</a>";
+		$name = "[".$arViews["PRODUCT_ID"]."] <a href=\"".$arViews["DETAIL_PAGE_URL"]."\">".htmlspecialcharsEx($arViews["NAME"])."</a>";
 		if (floatVal($arViews["PRICE"]) <= 0)
 			$name .= "<div class=\"dont_can_buy\">(".GetMessage('BUYER_DONT_CAN_BUY').")</div>";
 		$name .= "<input type=\"hidden\" name=\"table_id\" value=\"".$sTableID_tab5."\">";
@@ -1365,12 +1365,8 @@ if(!empty($arUser))
 			$filter['=ITEM_ID'] = $find_item_id;
 		if($find_date_from_1)
 			$filter['>=DATE_FROM'] = $find_date_from_1;
-		if($find_date_from_2)
-			$filter['<=DATE_FROM'] = $find_date_from_2;
 		if($find_date_to_1)
 			$filter['>=DATE_TO'] = $find_date_to_1;
-		if($find_date_to_2)
-			$filter['<=DATE_TO'] = $find_date_to_2;
 		if($find_contact_type)
 			$filter['=CONTACT_TYPE'] = $find_contact_type;
 		if($find_active)
@@ -1392,6 +1388,16 @@ if(!empty($arUser))
 					array('<DATE_TO' => date($DB->dateFormatToPHP(CLang::getDateFormat('FULL')), time()))
 				);
 			}
+		}
+		if(!empty($find_date_from_2))
+		{
+			$filter['<=DATE_FROM'] = CIBlock::isShortDate($find_date_from_2) ?
+				ConvertTimeStamp(AddTime(MakeTimeStamp($find_date_from_2), 1, 'D'), 'FULL'): $find_date_from_2;
+		}
+		if(!empty($find_date_to_2))
+		{
+			$filter['<=DATE_TO'] = CIBlock::isShortDate($find_date_to_2) ?
+				ConvertTimeStamp(AddTime(MakeTimeStamp($find_date_to_2), 1, 'D'), 'FULL'): $find_date_to_2;
 		}
 
 		$subscribeManager = new \Bitrix\Catalog\Product\SubscribeManager();

@@ -2,6 +2,7 @@
 
 namespace Bitrix\Sale;
 
+use Bitrix\Main;
 use	Bitrix\Sale\Internals\StatusTable,
 	Bitrix\Sale\Internals\StatusLangTable,
 	Bitrix\Main\UserGroupTable,
@@ -222,7 +223,7 @@ abstract class StatusBase
 			$result = StatusTable::getList(array(
 				'select' => array('ID'),
 				'filter' => array('=TYPE' => static::TYPE),
-				'order'  => array('SORT')
+				'order'  => array('SORT' => 'ASC')
 			));
 			while ($row = $result->fetch())
 				static::$allStatuses[] = $row['ID'];
@@ -234,25 +235,40 @@ abstract class StatusBase
 
 	/**
 	 * Get all statuses names for current class type.
+	 * @param null $lang
 	 *
 	 * @return mixed
-	 * @throws \Bitrix\Main\ArgumentException
 	 */
-	public static function getAllStatusesNames()
+	public static function getAllStatusesNames($lang = null)
 	{
+
+		$filter =array(
+			'select' => array("ID", "NAME" => 'Bitrix\Sale\Internals\StatusLangTable:STATUS.NAME'),
+			'filter' => array(
+				'=TYPE' => static::TYPE,
+			),
+			'order'  => array('SORT' => 'ASC')
+		);
+
+		if ($lang !== null)
+		{
+			$filter['filter']['=Bitrix\Sale\Internals\StatusLangTable:STATUS.LID'] = $lang;
+		}
+		elseif (defined("LANGUAGE_ID"))
+		{
+			$filter['filter']['=Bitrix\Sale\Internals\StatusLangTable:STATUS.LID'] = LANGUAGE_ID;
+		}
+
 		if (empty(static::$allStatusesNames))
 		{
-			$result = StatusTable::getList(array(
-											   'select' => array("ID", "NAME" => 'Bitrix\Sale\Internals\StatusLangTable:STATUS.NAME'),
-											   'filter' => array('=TYPE' => static::TYPE),
-										   ));
+			$result = StatusTable::getList($filter);
 			while ($row = $result->fetch())
 			{
 				static::$allStatusesNames[$row['ID']] = $row['NAME'];
-
-				if (empty(static::$allStatuses))
-					static::$allStatuses[] = $row['ID'];
 			}
+
+			if (empty(static::$allStatuses))
+				static::$allStatuses = array_keys(static::$allStatusesNames);
 		}
 
 		return static::$allStatusesNames;
@@ -492,6 +508,66 @@ class OrderStatus extends StatusBase
 	protected static $allStatuses = array();
 	protected static $allStatusesNames = array();
 	protected static $cacheAllowStatuses = array();
+
+	/**
+	 * @return array
+	 */
+	public static function getDisallowPayStatusList()
+	{
+		$allowFlag = false;
+		$resultList = array();
+
+		$allowPayStatus = Main\Config\Option::get("sale", "allow_pay_status", static::getInitialStatus());
+
+		$statusList = static::getAllStatuses();
+		if (!empty($statusList))
+		{
+			foreach ($statusList as $statusId)
+			{
+				if ($allowPayStatus == $statusId)
+				{
+					break;
+				}
+
+				if ($allowFlag === false)
+				{
+					$resultList[] = $statusId;
+				}
+			}
+		}
+
+		return $resultList;
+	}
+
+	/**
+	 * @return array
+	 */
+	public static function getAllowPayStatusList()
+	{
+		$allowFlag = false;
+		$resultList = array();
+
+		$allowPayStatus = Main\Config\Option::get("sale", "allow_pay_status", static::getInitialStatus());
+
+		$statusList = static::getAllStatuses();
+		if (!empty($statusList))
+		{
+			foreach ($statusList as $statusId)
+			{
+				if ($allowPayStatus == $statusId)
+				{
+					$allowFlag = true;
+				}
+
+				if ($allowFlag === true)
+				{
+					$resultList[] = $statusId;
+				}
+			}
+		}
+
+		return $resultList;
+	}
 }
 
 class DeliveryStatus extends StatusBase

@@ -1,13 +1,13 @@
 <?
 /** @global CMain $APPLICATION */
-use Bitrix\Main;
-use Bitrix\Main\Application;
-use Bitrix\Main\Loader;
-use Bitrix\Main\Localization\Loc;
-use Bitrix\Main\SiteTable;
-use Bitrix\Main\UserTable;
-use Bitrix\Main\Config\Option;
-use Bitrix\Sale\Internals;
+use Bitrix\Main,
+	Bitrix\Main\Application,
+	Bitrix\Main\Loader,
+	Bitrix\Main\Localization\Loc,
+	Bitrix\Main\SiteTable,
+	Bitrix\Main\UserTable,
+	Bitrix\Main\Config\Option,
+	Bitrix\Sale\Internals;
 
 require_once($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/main/include/prolog_admin_before.php');
 require_once($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/sale/prolog.php');
@@ -28,22 +28,31 @@ $adminList = new CAdminList($adminListTableID, $adminSort);
 $filter = array();
 $filterFields = array(
 	'filter_lang',
-	'filter_active'
+	'filter_active',
+	'filter_preset_id'
 );
 
 $adminList->InitFilter($filterFields);
 
-if (!empty($_REQUEST['filter_lang']))
+$filterSite = array();
+if (!empty($filter_lang))
 {
-	$_REQUEST['filter_lang'] = (string)$_REQUEST['filter_lang'];
-	if ($_REQUEST['filter_lang'] != 'NOT_REF')
-		$filter['LID'] = (string)$_REQUEST['filter_lang'];
+	if (!is_array($filter_lang))
+		$filter_lang = ($filter_lang == 'NOT_REF' ? array() : array($filter_lang));
+	$filterSite = $filter_lang;
 }
+if (!empty($filterSite))
+	$filter["@LID"] = $filterSite;
+
 if (!empty($_REQUEST['filter_active']))
 {
 	$_REQUEST['filter_active'] = (string)$_REQUEST['filter_active'];
 	if ($_REQUEST['filter_active'] == 'Y' || $_REQUEST['filter_active'] == 'N')
 		$filter['ACTIVE'] = $_REQUEST['filter_active'];
+}
+if(!empty($_REQUEST['filter_preset_id']))
+{
+	$filter['=PRESET_ID'] = $_REQUEST['filter_preset_id'];
 }
 
 if (!$readOnly && $adminList->EditAction())
@@ -56,6 +65,32 @@ if (!$readOnly && $adminList->EditAction())
 			$ID = (int)$ID;
 			if ($ID <= 0 || !$adminList->IsUpdated($ID))
 				continue;
+
+			if (isset($fields['ACTIVE_FROM']) && is_string($fields['ACTIVE_FROM']))
+			{
+				try
+				{
+					$fields['ACTIVE_FROM'] = trim($fields['ACTIVE_FROM']);
+					$fields['ACTIVE_FROM'] = ($fields['ACTIVE_FROM'] !== '' ? new Main\Type\DateTime($fields['ACTIVE_FROM']) : null);
+				}
+				catch (Main\ObjectException $e)
+				{
+					$fields['ACTIVE_FROM'] = new Main\Type\Date($fields['ACTIVE_FROM']);
+				}
+			}
+
+			if (isset($fields['ACTIVE_TO']) && is_string($fields['ACTIVE_TO']))
+			{
+				try
+				{
+					$fields['ACTIVE_TO'] = trim($fields['ACTIVE_TO']);
+					$fields['ACTIVE_TO'] = ($fields['ACTIVE_TO'] !== '' ? new Main\Type\DateTime($fields['ACTIVE_TO']) : null);
+				}
+				catch (Main\ObjectException $e)
+				{
+					$fields['ACTIVE_TO'] = new Main\Type\Date($fields['ACTIVE_TO']);
+				}
+			}
 
 			$conn->startTransaction();
 			$result = Internals\DiscountTable::update($ID, $fields);
@@ -169,6 +204,20 @@ $headerList['LAST_DISCOUNT'] = array(
 	'sort' => 'LAST_DISCOUNT',
 	'default' => true
 );
+$headerList['LAST_LEVEL_DISCOUNT'] = array(
+	'id' => 'LAST_LEVEL_DISCOUNT',
+	'content' => Loc::getMessage('SDSN_LAST_LEVEL_DISCOUNT_NEW'),
+	'title' => Loc::getMessage('BX_SALE_ADM_DSC_HEADER_TITLE_LAST_LEVEL_DISCOUNT'),
+	'sort' => 'LAST_LEVEL_DISCOUNT',
+	'default' => true
+);
+$headerList['EXECUTE_MODULE'] = array(
+	'id' => 'EXECUTE_MODULE',
+	'content' => Loc::getMessage('SDSN_SHOW_IN_CATALOG'),
+	'title' => "",
+	'sort' => 'EXECUTE_MODULE',
+	'default' => true
+);
 $headerList['ACTIVE_FROM'] = array(
 	'id' => 'ACTIVE_FROM',
 	'content' => Loc::getMessage("SDSN_ACTIVE_FROM"),
@@ -225,6 +274,12 @@ $headerList['USE_COUPONS'] = array(
 	'sort' => 'USE_COUPONS',
 	'default' => true
 );
+
+if (Option::get('sale', 'use_sale_discount_only') !== 'Y')
+{
+	unset($headerList['EXECUTE_MODULE']);
+}
+
 $adminList->AddHeaders($headerList);
 
 $selectFields = array_fill_keys($adminList->GetVisibleHeaderColumns(), true);
@@ -233,16 +288,20 @@ $selectFieldsMap = array_fill_keys(array_keys($headerList), false);
 
 $selectFieldsMap = array_merge($selectFieldsMap, $selectFields);
 $selectFields['ACTIVE'] = true;
+$selectFields['PRESET_ID'] = true;
+$selectFields['ACTIONS_LIST'] = true;
 
+$filterSiteList = array();
 $arSitesShop = array();
 $arSitesTmp = array();
 $siteList = array();
 $siteIterator = SiteTable::getList(array(
-	'select' => array('LID', 'NAME', 'ACTIVE'),
+	'select' => array('LID', 'NAME', 'ACTIVE', 'SORT'),
 	'order' => array('SORT' => 'ASC')
 ));
 while ($site = $siteIterator->fetch())
 {
+	$filterSiteList[] = $site;
 	$siteList[$site['LID']] = $site['LID'];
 	if ($site['ACTIVE'] != 'Y')
 		continue;
@@ -295,6 +354,17 @@ $getListParams = array(
 	'filter' => $filter,
 	'order' => array($by => $order)
 );
+if(Option::get('sale', 'use_sale_discount_only', false) === 'Y' && Loader::includeModule('catalog'))
+{
+	$getListParams['runtime'] = array(
+		new Main\Entity\ReferenceField(
+			"CATALOG_DISCOUNT",
+			'Bitrix\Catalog\DiscountTable',
+			array("=this.ID" => "ref.SALE_ID")
+		)
+	);
+	$getListParams['select']['CATALOG_DISCOUNT_ID'] = 'CATALOG_DISCOUNT.ID';
+}
 if ($usePageNavigation)
 {
 	$getListParams['limit'] = $navyParams['SIZEN'];
@@ -327,10 +397,42 @@ $userList = array();
 $arUserID = array();
 $nameFormat = CSite::GetNameFormat(true);
 
+function canShowDiscountInCatalog(array $discount)
+{
+	if(
+		isset($discount['USE_COUPONS']) && $discount['USE_COUPONS'] === 'N' &&
+		($discount['EXECUTE_MODULE'] == 'all' || $discount['EXECUTE_MODULE'] == 'catalog')
+	)
+	{
+		if (empty($discount['ACTIONS_LIST']) || empty($discount['ACTIONS_LIST']['CHILDREN']))
+		{
+			return true;
+		}
+
+		foreach ($discount['ACTIONS_LIST']['CHILDREN'] as $childAction)
+		{
+			if ($childAction['CLASS_ID'] === 'ActSaleBsktGrp' && $childAction['DATA']['Type'] === 'Extra')
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	//in basket
+	return false;
+}
+
 $arRows = array();
 while ($discount = $discountIterator->Fetch())
 {
 	$discount['ID'] = (int)$discount['ID'];
+	if(!empty($discount['CATALOG_DISCOUNT_ID']))
+	{
+		$discount['NAME'] .= ' (' . Loc::getMessage('BT_SALE_DISCOUNT_LIST_MESS_TITLE_CATALOG_ID') . ')';
+	}
+
 	if ($selectFieldsMap['CREATED_BY'])
 	{
 		$discount['CREATED_BY'] = (int)$discount['CREATED_BY'];
@@ -343,7 +445,27 @@ while ($discount = $discountIterator->Fetch())
 		if ($discount['MODIFIED_BY'] > 0)
 			$arUserID[$discount['MODIFIED_BY']] = true;
 	}
+
 	$urlEdit = 'sale_discount_edit.php?ID='.$discount['ID'].'&lang='.LANGUAGE_ID.GetFilterParams('filter_');
+	if($discount['PRESET_ID'])
+	{
+		$urlEdit = 'sale_discount_preset_detail.php?DISCOUNT_ID='.$discount['ID'].'&from_list=discount&lang='.LANGUAGE_ID;
+	}
+
+	if ($selectFieldsMap['EXECUTE_MODULE'])
+	{
+		if(canShowDiscountInCatalog($discount))
+		{
+			//in catalog
+			$discount['EXECUTE_MODULE'] = 'Y';
+		}
+		else
+		{
+			//in basket
+			$discount['EXECUTE_MODULE'] = 'N';
+		}
+	}
+
 	$arRows[$discount['ID']] = $row = &$adminList->AddRow(
 		$discount['ID'],
 		$discount,
@@ -373,14 +495,18 @@ while ($discount = $discountIterator->Fetch())
 			$row->AddInputField('SORT', array('size' => 4));
 
 		if ($selectFieldsMap['ACTIVE_FROM'])
-			$row->AddCalendarField('ACTIVE_FROM');
+			$row->AddCalendarField('ACTIVE_FROM', array(), true);
 		if ($selectFieldsMap['ACTIVE_TO'])
-			$row->AddCalendarField('ACTIVE_TO');
+			$row->AddCalendarField('ACTIVE_TO', array(), true);
 
 		if ($selectFieldsMap['PRIORITY'])
 			$row->AddInputField('PRIORITY');
 		if ($selectFieldsMap['LAST_DISCOUNT'])
 			$row->AddCheckField('LAST_DISCOUNT');
+		if ($selectFieldsMap['LAST_LEVEL_DISCOUNT'])
+			$row->AddCheckField('LAST_LEVEL_DISCOUNT');
+		if ($selectFieldsMap['EXECUTE_MODULE'])
+			$row->AddCheckField('EXECUTE_MODULE', false);
 
 		if ($selectFieldsMap['XML_ID'])
 			$row->AddInputField('XML_ID', array('size' => 20, 'maxlength' => 255));
@@ -407,6 +533,10 @@ while ($discount = $discountIterator->Fetch())
 			$row->AddInputField('PRIORITY', false);
 		if ($selectFieldsMap['LAST_DISCOUNT'])
 			$row->AddCheckField('LAST_DISCOUNT', false);
+		if ($selectFieldsMap['LAST_LEVEL_DISCOUNT'])
+			$row->AddCheckField('LAST_LEVEL_DISCOUNT', false);
+		if ($selectFieldsMap['EXECUTE_MODULE'])
+			$row->AddCheckField('EXECUTE_MODULE', false);
 
 		if ($selectFieldsMap['XML_ID'])
 			$row->AddInputField('XML_ID', false);
@@ -421,12 +551,15 @@ while ($discount = $discountIterator->Fetch())
 	);
 	if (!$readOnly)
 	{
-		$arActions[] = array(
-			'ICON' => 'copy',
-			'TEXT' => Loc::getMessage('BT_SALE_DISCOUNT_LIST_MESS_COPY_DISCOUNT_SHORT'),
-			'ACTION' => $adminList->ActionRedirect($urlEdit.'&action=copy'),
-			'DEFAULT' => false,
-		);
+		if(empty($discount['PRESET_ID']))
+		{
+			$arActions[] = array(
+				'ICON' => 'copy',
+				'TEXT' => Loc::getMessage('BT_SALE_DISCOUNT_LIST_MESS_COPY_DISCOUNT_SHORT'),
+				'ACTION' => $adminList->ActionRedirect($urlEdit.'&action=copy'),
+				'DEFAULT' => false,
+			);
+		}
 		if ($discount['ACTIVE'] == 'Y')
 		{
 			$arActions[] = array(
@@ -522,7 +655,7 @@ $adminList->AddGroupActionTable(
 	)
 );
 
-if (!$readOnly)
+if (!$readOnly && !isset($filter['=PRESET_ID']))
 {
 	$siteLID = '';
 	$arSiteMenu = array();
@@ -573,19 +706,35 @@ $oFilter->Begin();
 ?>
 	<tr>
 		<td><?echo Loc::getMessage('LANG_FILTER_NAME')?>:</td>
-		<td><?echo CLang::SelectBox('filter_lang', (isset($filter['LID']) ? $filter['LID'] : ''), Loc::getMessage('DS_ALL')); ?></td>
+		<td><?
+			$siteSize = count($siteList);
+			if ($siteSize > 10)
+				$siteSize = 10;
+			elseif ($siteSize < 3)
+				$siteSize = 3;
+			?><select name="filter_lang[]" multiple size="<?=$siteSize; ?>"><?
+			foreach ($filterSiteList as $row)
+			{
+				?><option value="<?=$row['LID']; ?>"<?=(in_array($row['LID'], $filterSite) ? ' selected' : ''); ?>>[<?=$row['LID']; ?>]&nbsp;<?=htmlspecialcharsEx($row['NAME']); ?></option><?
+			}
+			unset($row);
+			?></select>
+		</td>
 	</tr>
 	<tr>
 		<td><? echo Loc::getMessage('FILTER_ACTIVE'); ?>:</td>
 		<td>
 			<select name="filter_active">
 				<option value=""><? echo Loc::getMessage('DS_ALL'); ?></option>
-				<option value="Y"<? if (isset($filter['ACTIVE']) && $filter['ACTIVE'] == 'Y') echo ' selected'; ?>><?= htmlspecialcharsex(Loc::getMessage('DSC_YES')) ?></option>
-				<option value="N"<? if (isset($filter['ACTIVE']) && $filter['ACTIVE'] == 'N') echo ' selected'; ?>><?= htmlspecialcharsex(Loc::getMessage('DSC_NO')) ?></option>
+				<option value="Y"<? if (isset($filter['ACTIVE']) && $filter['ACTIVE'] == 'Y') echo ' selected'; ?>><?= htmlspecialcharsEx(Loc::getMessage('DSC_YES')) ?></option>
+				<option value="N"<? if (isset($filter['ACTIVE']) && $filter['ACTIVE'] == 'N') echo ' selected'; ?>><?= htmlspecialcharsEx(Loc::getMessage('DSC_NO')) ?></option>
 			</select>
 		</td>
-	</tr>
-<?
+	</tr><?
+	if(isset($filter['=PRESET_ID']))
+	{
+		?><input type="hidden" name="filter_preset_id" value="<?= htmlspecialcharsbx($filter['=PRESET_ID']) ?>"><?
+	}
 $oFilter->Buttons(
 	array(
 		"table_id" => $adminListTableID,

@@ -28,7 +28,19 @@ class Fuser
 	 */
 	public static function getId($skipCreate = false)
 	{
-		$id = \CSaleUser::getID($skipCreate);
+		global $USER;
+
+		$id = null;
+
+		if (($USER && $USER instanceof \CUser) && $USER->IsAuthorized() && $USER->GetID() > 0)
+		{
+			$id = static::getIdByUserId($USER->GetID());
+		}
+
+		if (intval($id) <= 0)
+		{
+			$id = \CSaleUser::getID($skipCreate);
+		}
 		static::updateSession($id);
 		return $id;
 	}
@@ -128,7 +140,7 @@ class Fuser
 	public static function deleteOld($days)
 	{
 		$expired = new Main\Type\DateTime();
-		$expired->add('-'.$days.'days');
+		$expired->add('-'.$days.' days');
 		$expiredValue = $expired->format('Y-m-d H:i:s');
 
 		/** @var Main\DB\Connection $connection */

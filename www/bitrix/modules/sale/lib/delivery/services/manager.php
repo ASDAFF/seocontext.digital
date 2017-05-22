@@ -5,6 +5,7 @@ use Bitrix\Main\Config\Option;
 
 use Bitrix\Main\Error;
 use Bitrix\Main\Event;
+use Bitrix\Sale\Internals\Pool;
 use Bitrix\Sale\Result;
 use Bitrix\Main\IO\File;
 use Bitrix\Sale\Shipment;
@@ -36,7 +37,9 @@ class Manager
 
 	/* Directories where we can found handlers */
 	protected static $handlersDirectories = array();
-	
+	/** @var null|Pool  */
+	protected static $objectsPool = null;
+
 	/**
 	 * Returns service field, caches results during hit.
 	 * @param int $deliveryId
@@ -56,7 +59,7 @@ class Manager
 			self::$cachedFields[$deliveryId] = array();
 
 			$resSrvParams = Table::getList(array(
-				'filter' => array("ID" =>  $deliveryId)
+				'filter' => array("=ID" =>  $deliveryId)
 			));
 
 			if($srvParams = $resSrvParams->fetch())
@@ -84,7 +87,7 @@ class Manager
 			if(is_callable($srvParams["CLASS_NAME"]."::canHasChildren") && $srvParams["CLASS_NAME"]::canHasChildren())
 				continue;
 
-			$service = self::createObject($srvParams);
+			$service = self::getPooledObject($srvParams);
 
 			if(!$service)
 				continue;
@@ -156,11 +159,13 @@ class Manager
 			$result = array();
 			self::initHandlers();
 
+			$filter = array(
+				'=ACTIVE' => 'Y'
+			);
+
 			$params =  array(
 				'order' => array('SORT' =>'ASC', 'NAME' => 'ASC'),
-				'filter' => array(
-					"ACTIVE" =>  "Y"
-				)
+				'filter' => $filter
 			);
 
 			$params['runtime'] = array(
@@ -270,6 +275,21 @@ class Manager
 			$result = $active;
 		}
 
+		/*
+		 * Clean children if parent is not present in result.
+		 * We mean that it doesn't pass restrictions checks.
+		 * Or it is not active.
+		 */
+
+		foreach($result as $id => $fields)
+		{
+			if(intval($fields['PARENT_ID']) <= 0)
+				continue;
+
+			if(empty($result[$fields['PARENT_ID']]))
+				unset($result[$id]);
+		}
+
 		if($calculatingOnly)
 			$result = array_diff_key($result, $canHasChildren, $canHasProfiles);
 
@@ -297,7 +317,9 @@ class Manager
 			);
 		}
 
+		//Have restrictions and this restrictions successfully checked
 		$restrictedSrvIds = Restrictions\Manager::getRestrictedIds($shipment, $restrictionMode);
+		//Don't have any restrictions + successfully checked
 		$services = self::getActiveList(false, array_keys($restrictedSrvIds));
 
 		foreach($services as $srvParams)
@@ -325,8 +347,8 @@ class Manager
 	 * @param array $srvParams Delivery service fields from DataBase to construct service object.
 	 * @return Base|null Delivery service object
 	 * All errors it writes to system log.
+	 * It's better to use \Bitrix\Sale\Delivery\Services\Manager::getPooledObject for performance purposes
 	 */
-
 	public static function createObject(array $srvParams)
 	{
 		self::initHandlers();
@@ -370,6 +392,14 @@ class Manager
 		return $service;
 	}
 
+	public static function getPooledObject(array $fields)
+	{
+		if(self::$objectsPool === null)
+			self::$objectsPool = new ObjectPool();
+
+		return self::$objectsPool->getObject($fields);
+	}
+
 	/**
 	 * @param int $deliveryId Delivery service id
 	 * @return Base Delivery service object
@@ -386,7 +416,7 @@ class Manager
 		if(empty($srvParams))
 			return null;
 
-		return self::createObject($srvParams);
+		return self::getPooledObject($srvParams);
 	}
 
 	/**
@@ -423,7 +453,7 @@ class Manager
 			self::$cachedFields[$srvParams['ID']] = $srvParams;
 		}
 
-		return self::createObject($srvParams);
+		return self::getPooledObject($srvParams);
 	}
 
 	/**
@@ -766,7 +796,6 @@ class Manager
 
 	/**
 	 * @return array
-	 * todo: cache and call only active
 	 * registerEventHandler(
 	 * 	'sale', 'OnGetBusinessValueConsumers', 'sale',
 	 * 	'\Bitrix\Sale\Delivery\Services\Manager',
@@ -774,12 +803,53 @@ class Manager
 	 */
 	public static function onGetBusinessValueConsumers()
 	{
+		static $result = null;
+
+		if($result !== null)
+			return $result;
+
 		$result = array();
+		$handlers = self::getHandlersList();
+		$consumers = array();
+
+		/** @var Base $handlerClassName */
+		foreach($handlers as $handlerClassName)
+		{
+			$tmpCons = $handlerClassName::onGetBusinessValueConsumers();
+
+			/** @var string $handlerClassName*/
+			if(!empty($tmpCons))
+				$consumers[$handlerClassName] = $tmpCons;
+		}
+
+		$res = Table::getList(array(
+			'filter' => array(
+				'=CLASS_NAME' => array_keys($consumers),
+				'=ACTIVE' => 'Y'
+			),
+			'select' => array('ID', 'CLASS_NAME', 'NAME')
+		));
+
+		while($dlv = $res->fetch())
+		{
+			$result['DELIVERY_'.$dlv['ID']] = $consumers[$dlv['CLASS_NAME']];
+			$result['DELIVERY_'.$dlv['ID']]['NAME'] = $dlv['NAME'];
+		}
+
+		return $result;
+	}
+
+	public static function onGetBusinessValueGroups()
+	{
+		$result = array(
+			'DELIVERY' => array('NAME' => Loc::getMessage('SALE_DLVR_MNGR_DLV_SRVS'), 'SORT' => 100),
+		);
+
 		$handlers = self::getHandlersList();
 
 		/** @var Base $handlerClassName */
 		foreach($handlers as $handlerClassName)
-			$result = array_merge($result, $handlerClassName::onGetBusinessValueConsumers());
+			$result = array_merge($result, $handlerClassName::onGetBusinessValueGroups());
 
 		return $result;
 	}
@@ -1023,6 +1093,55 @@ class Manager
 		return \Bitrix\Sale\Delivery\Services\EmptyDeliveryService::getEmptyDeliveryServiceId();
 	}
 
+	/**
+	 * @internal
+	 * @param int|int[] $deliveryId
+	 * @param mixed $checkParams
+	 * @param string $restrictionClassName
+	 * @return bool|int[]
+	 * @throws ArgumentNullException
+	 * @throws SystemException
+	 * @throws \Bitrix\Main\ArgumentException
+	 * @throws \Bitrix\Main\NotImplementedException
+	 */
+	public static function checkServiceRestriction($deliveryId, $checkParams, $restrictionClassName)
+	{
+		if(empty($deliveryId))
+			throw new ArgumentNullException("deliveryId");
+
+		if(!is_array($deliveryId))
+			$deliveryId = array($deliveryId);
+
+		$dbRstrRes = ServiceRestrictionTable::getList(array(
+			'filter' => array(
+				'=SERVICE_ID' => $deliveryId,
+				'=SERVICE_TYPE' => Restrictions\Manager::SERVICE_TYPE_SHIPMENT,
+				'=CLASS_NAME' => $restrictionClassName
+			)
+		));
+
+		$tmp = array();
+		/** @var Restrictions\Base $restriction */
+		$restriction = static::getRestrictionObject($restrictionClassName);
+
+		while($rstFields = $dbRstrRes->fetch())
+		{
+			$rstParams = is_array($rstFields["PARAMS"]) ? $rstFields["PARAMS"] : array();
+			$tmp[$rstFields['SERVICE_ID']] = $restriction->check($checkParams, $rstParams, $deliveryId);
+		}
+
+		if(count($deliveryId) == 1)
+			return current($tmp);
+
+		$result = array();
+
+		foreach($deliveryId as $id)
+			if(!isset($tmp[$id]) || (isset($tmp[$id]) && $tmp[$id] == true))
+				$result[] = $id;
+
+		return $result;
+	}
+
 	/*
 	 * Deprecated methods. Will be removed in future versions.
 	 */
@@ -1064,32 +1183,6 @@ class Manager
 	public static function checkServiceRestrictions($deliveryId, Shipment $shipment, $restrictionsClassesToSkip = array())
 	{
 		return Restrictions\Manager::checkService($deliveryId, $shipment) == Restrictions\Manager::SEVERITY_NONE;
-	}
-
-	/**
-	 * @deprecated use Restrictions\Manager::checkService()
-	 */
-	public static function checkServiceRestriction($deliveryId, $checkParams, $restrictionClassName)
-	{
-		if($deliveryId <= 0)
-			throw new ArgumentNullException("deliveryId");
-
-		$dbRstrRes = ServiceRestrictionTable::getList(array(
-			'filter' => array(
-				'=SERVICE_ID' => $deliveryId,
-				'=SERVICE_TYPE' => Restrictions\Manager::SERVICE_TYPE_SHIPMENT,
-				'=CLASS_NAME' => $restrictionClassName
-			)
-		));
-
-		if(!$restrictionFields = $dbRstrRes->fetch())
-			return true;
-
-		$restrictionParams = is_array($restrictionFields["PARAMS"]) ? $restrictionFields["PARAMS"] : array();
-
-		/** @var Restrictions\Base $restriction */
-		$restriction = static::getRestrictionObject($restrictionClassName);
-		return $restriction->check($checkParams, $restrictionParams, $deliveryId);
 	}
 
 	/**

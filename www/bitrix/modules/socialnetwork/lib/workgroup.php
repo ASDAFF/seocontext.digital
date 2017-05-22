@@ -15,9 +15,22 @@ Loc::loadMessages(__FILE__);
 
 class WorkgroupTable extends Entity\DataManager
 {
+	const AUTO_MEMBERSHIP_YES = 'Y';
+	const AUTO_MEMBERSHIP_NO = 'N';
+
+	public static function getAutoMembershipValuesAll()
+	{
+		return array(self::AUTO_MEMBERSHIP_NO, self::AUTO_MEMBERSHIP_YES);
+	}
+
 	public static function getTableName()
 	{
 		return 'b_sonet_group';
+	}
+
+	public static function getUfId()
+	{
+		return 'SONET_GROUP';
 	}
 
 	public static function getMap()
@@ -60,6 +73,12 @@ class WorkgroupTable extends Entity\DataManager
 				'data_type' => 'boolean',
 				'values' => array('N','Y')
 			),
+			'DATE_CREATE' => array(
+				'data_type' => 'datetime'
+			),
+			'DATE_UPDATE' => array(
+				'data_type' => 'datetime'
+			),
 			'DATE_ACTIVITY' => array(
 				'data_type' => 'datetime'
 			),
@@ -75,6 +94,9 @@ class WorkgroupTable extends Entity\DataManager
 			),
 			'INITIATE_PERMS' => array(
 				'data_type' => 'string'
+			),
+			'NUMBER_OF_MEMBERS' => array(
+				'data_type' => 'integer',
 			),
 		);
 

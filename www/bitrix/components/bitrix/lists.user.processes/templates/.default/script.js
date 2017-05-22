@@ -4,9 +4,11 @@ BX.Lists.ListsProcessesClass = (function ()
 	var ListsProcessesClass = function (parameters)
 	{
 		this.ajaxUrl = '/bitrix/components/bitrix/lists.user.processes/ajax.php';
+
+		BX.bind(BX('lists-title-action-add'), 'click', BX.delegate(this.showProcesses, this));
 	};
 
-	ListsProcessesClass.prototype.showProcesses = function (iblockId)
+	ListsProcessesClass.prototype.showProcesses = function ()
 	{
 		var tabContainer = BX('bx-lists-store_items'),
 			menuItemsLists = [],
@@ -94,14 +96,14 @@ BX.Lists.ListsProcessesClass = (function ()
 
 	ListsProcessesClass.prototype.showMoreMenuLists = function(menuItemsLists)
 	{
+		var buttonRect = BX("lists-title-action-add").getBoundingClientRect();
 		var menu = BX.PopupMenu.create(
 			"lists",
-			BX("bx-lists-create-processes"),
+			BX("lists-title-action-add"),
 			menuItemsLists,
 			{
 				closeByEsc : true,
-				offsetTop: 5,
-				offsetLeft: 12,
+				offsetLeft: buttonRect.width/2,
 				angle: true
 			}
 		);

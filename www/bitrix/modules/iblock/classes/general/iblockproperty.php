@@ -17,7 +17,7 @@ class CAllIBlockProperty
 		";
 
 		$bJoinIBlock = false;
-		$arSqlSearch = "";
+		$arSqlSearch = array();
 		foreach($arFilter as $key => $val)
 		{
 			$val = $DB->ForSql($val);
@@ -90,27 +90,29 @@ class CAllIBlockProperty
 				WHERE ".implode("\n\t\t\t\tAND ", $arSqlSearch)."
 			";
 
+		$allowKeys = array(
+			"ID" => true,
+			"IBLOCK_ID" => true,
+			"NAME" => true,
+			"ACTIVE" => true,
+			"SORT" => true,
+			"FILTRABLE" => true,
+			"SEARCHABLE" => true
+		);
+		$orderKeys = array();
 		$arSqlOrder = array();
 		foreach($arOrder as $by => $order)
 		{
 			$by = strtoupper($by);
+			if (!isset($allowKeys[$by]))
+				$by = "TIMESTAMP_X";
+			if (isset($orderKeys[$by]))
+				continue;
+			$orderKeys[$by] = true;
 			$order = strtoupper($order) == "ASC"? "ASC": "DESC";
 
-			if(
-				$by === "ID"
-				|| $by === "IBLOCK_ID"
-				|| $by === "NAME"
-				|| $by === "ACTIVE"
-				|| $by === "SORT"
-				|| $by === "FILTRABLE"
-				|| $by === "SEARCHABLE"
-			)
-				$arSqlOrder[] = " BP.".$by." ".$order;
-			else
-				$arSqlOrder[] = " BP.TIMESTAMP_X ".$order;
+			$arSqlOrder[] = "BP.".$by." ".$order;
 		}
-
-		DelDuplicateSort($arSqlOrder);
 
 		if(!empty($arSqlOrder))
 			$strSql .= "
@@ -208,10 +210,15 @@ class CAllIBlockProperty
 		$seq = new CIBlockSequence($arProperty["IBLOCK_ID"], $ID);
 		$seq->Drop();
 
-		return $DB->Query("DELETE FROM b_iblock_property WHERE ID=".$ID, true);
+		$res = $DB->Query("DELETE FROM b_iblock_property WHERE ID=".$ID, true);
+
+		foreach (GetModuleEvents("iblock", "OnAfterIBlockPropertyDelete", true) as $arEvent)
+			ExecuteModuleEventEx($arEvent, array($arProperty));
+
+		return $res;
 	}
 	///////////////////////////////////////////////////////////////////
-	// Update
+	// Add
 	///////////////////////////////////////////////////////////////////
 	function Add($arFields)
 	{
@@ -355,7 +362,7 @@ class CAllIBlockProperty
 		if(array_key_exists("CODE", $arFields) && strlen($arFields["CODE"]))
 		{
 			if(strpos("0123456789", substr($arFields["CODE"], 0, 1))!==false)
-				$this->LAST_ERROR .= GetMessage("IBLOCK_PROPERTY_CODE_FIRST_LETTER")."<br>";
+				$this->LAST_ERROR .= GetMessage("IBLOCK_PROPERTY_CODE_FIRST_LETTER").": ".$arFields["CODE"]."<br>";
 			if(preg_match("/[^A-Za-z0-9_]/",  $arFields["CODE"]))
 				$this->LAST_ERROR .= GetMessage("IBLOCK_PROPERTY_WRONG_CODE")."<br>";
 		}
@@ -565,7 +572,6 @@ class CAllIBlockProperty
 
 		return $Result;
 	}
-
 
 	///////////////////////////////////////////////////////////////////
 	// Get property information by ID
@@ -1088,6 +1094,7 @@ class CAllIBlockProperty
 			"GetAdminFilterHTML" => array("CIBlockPropertyElementList","GetAdminFilterHTML"),
 			"PrepareSettings" =>array("CIBlockPropertyElementList","PrepareSettings"),
 			"GetSettingsHTML" =>array("CIBlockPropertyElementList","GetSettingsHTML"),
+			"GetExtendedValue" => array("CIBlockPropertyElementList", "GetExtendedValue"),
 		);
 	}
 
@@ -1117,6 +1124,7 @@ class CAllIBlockProperty
 			"GetPropertyFieldHtmlMulty" => array('CIBlockPropertyElementAutoComplete','GetPropertyFieldHtmlMulty'),
 			"GetAdminListViewHTML" => array("CIBlockPropertyElementAutoComplete","GetAdminListViewHTML"),
 			"GetPublicViewHTML" => array("CIBlockPropertyElementAutoComplete", "GetPublicViewHTML"),
+			"GetPublicEditHTML" => array("CIBlockPropertyElementAutoComplete", "GetPublicEditHTML"),
 			"GetAdminFilterHTML" => array('CIBlockPropertyElementAutoComplete','GetAdminFilterHTML'),
 			"GetSettingsHTML" => array('CIBlockPropertyElementAutoComplete','GetSettingsHTML'),
 			"PrepareSettings" => array('CIBlockPropertyElementAutoComplete','PrepareSettings'),
@@ -1133,6 +1141,7 @@ class CAllIBlockProperty
 			"GetPropertyFieldHtml" => array("CIBlockPropertySKU", "GetPropertyFieldHtml"),
 			"GetPropertyFieldHtmlMulty" => array("CIBlockPropertySKU", "GetPropertyFieldHtml"),
 			"GetPublicViewHTML" => array("CIBlockPropertySKU", "GetPublicViewHTML"),
+			"GetPublicEditHTML" => array("CIBlockPropertySKU", "GetPublicEditHTML"),
 			"GetAdminListViewHTML" => array("CIBlockPropertySKU","GetAdminListViewHTML"),
 			"GetAdminFilterHTML" => array('CIBlockPropertySKU','GetAdminFilterHTML'),
 			"GetSettingsHTML" => array('CIBlockPropertySKU','GetSettingsHTML'),
@@ -1151,6 +1160,7 @@ class CAllIBlockProperty
 			"GetPropertyFieldHtmlMulty" => array('CIBlockPropertySectionAutoComplete','GetPropertyFieldHtmlMulty'),
 			"GetAdminListViewHTML" => array("CIBlockPropertySectionAutoComplete","GetAdminListViewHTML"),
 			"GetPublicViewHTML" => array("CIBlockPropertySectionAutoComplete", "GetPublicViewHTML"),
+			"GetPublicEditHTML" => array("CIBlockPropertySectionAutoComplete", "GetPublicEditHTML"),
 			"GetAdminFilterHTML" => array('CIBlockPropertySectionAutoComplete','GetAdminFilterHTML'),
 			"GetSettingsHTML" => array('CIBlockPropertySectionAutoComplete','GetSettingsHTML'),
 			"PrepareSettings" => array('CIBlockPropertySectionAutoComplete','PrepareSettings'),

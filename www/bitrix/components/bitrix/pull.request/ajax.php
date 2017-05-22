@@ -25,7 +25,7 @@ if (defined('PULL_USER_ID'))
 {
 	$userId = PULL_USER_ID;
 }
-else if (!$USER->IsAuthorized() && IsModuleInstalled('statistic') && intval($_SESSION["SESS_SEARCHER_ID"]) <= 0 && intval($_SESSION["SESS_GUEST_ID"]) > 0 && COption::GetOptionString("pull", "guest") == 'Y')
+else if (!$USER->IsAuthorized() && intval($_SESSION["SESS_SEARCHER_ID"]) <= 0 && intval($_SESSION["SESS_GUEST_ID"]) > 0 && \CPullOptions::GetGuestStatus())
 {
 	$userId = intval($_SESSION["SESS_GUEST_ID"])*-1;
 }

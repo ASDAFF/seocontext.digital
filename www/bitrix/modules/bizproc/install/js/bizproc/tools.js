@@ -64,9 +64,20 @@ if (typeof BX.Bizproc.doInlineTask === 'undefined')
 						style: {width: '800px'}
 					});
 					wrapper.innerHTML = HTML;
+
+					var title = '', titleNode = BX.findChild(wrapper, {className: 'bp-popup-title'}, true);
+					if (titleNode)
+					{
+						title = titleNode.textContent;
+						BX.remove(titleNode);
+					}
+
 					BX.Bizproc.taskPopupInstance = new BX.PopupWindow("bp-task-popup-" + taskId + Math.round(Math.random() * 100000), null, {
 						content: wrapper,
-						closeIcon: {right: "20px", top: "10px"},
+						closeIcon: true,
+						titleBar: title,
+						contentColor: 'white',
+						contentNoPaddings : true,
 						zIndex: -100,
 						offsetLeft: 0,
 						offsetTop: 0,
@@ -74,15 +85,6 @@ if (typeof BX.Bizproc.doInlineTask === 'undefined')
 						draggable: {restrict: false},
 						overlay: {backgroundColor: 'black', opacity: 30},
 						events: {
-							onPopupShow: function(popup)
-							{
-								var title = BX.findChild(popup.contentContainer, {className: 'bp-popup-title'}, true);
-								if (title)
-								{
-									title.style.cursor = "move";
-									BX.bind(title, "mousedown", BX.proxy(popup._startDrag, popup));
-								}
-							},
 							onPopupClose: function (popup)
 							{
 								popup.destroy();
@@ -218,9 +220,20 @@ if (typeof BX.Bizproc.doInlineTask === 'undefined')
 						style: {width: '800px'}
 					});
 					wrapper.innerHTML = HTML;
+
+					var title = '', titleNode = BX.findChild(wrapper, {className: 'bp-popup-title'}, true);
+					if (titleNode)
+					{
+						title = titleNode.textContent;
+						BX.remove(titleNode);
+					}
+
 					var popup = new BX.PopupWindow("bp-wfi-popup-" + workflowId + Math.round(Math.random() * 100000), null, {
 						content: wrapper,
-						closeIcon: {right: "20px", top: "10px"},
+						closeIcon: true,
+						titleBar: title,
+						contentColor: 'white',
+						contentNoPaddings : true,
 						zIndex: -100,
 						offsetLeft: 0,
 						offsetTop: 0,
@@ -228,15 +241,6 @@ if (typeof BX.Bizproc.doInlineTask === 'undefined')
 						draggable: {restrict: false},
 						overlay: {backgroundColor: 'black', opacity: 30},
 						events: {
-							onPopupShow: function(popup)
-							{
-								var title = BX.findChild(popup.contentContainer, {className: 'bp-popup-title'}, true);
-								if (title)
-								{
-									title.style.cursor = "move";
-									BX.bind(title, "mousedown", BX.proxy(popup._startDrag, popup));
-								}
-							},
 							onPopupClose: function (popup)
 							{
 								popup.destroy();

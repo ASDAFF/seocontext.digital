@@ -93,15 +93,17 @@ class CBlogPost extends CAllBlogPost
 
 			if (CModule::IncludeModule("search"))
 			{
-				if ($arPost["DATE_PUBLISHED"] == "Y"
+				if (
+					$arPost["DATE_PUBLISHED"] == "Y"
 					&& $arPost["PUBLISH_STATUS"] == BLOG_PUBLISH_STATUS_PUBLISH
-					&& CBlogUserGroup::GetGroupPerms(1, $arPost["BLOG_ID"], $ID, BLOG_PERMS_POST) >= BLOG_PERMS_READ)
+					&& CBlogUserGroup::GetGroupPerms(1, $arPost["BLOG_ID"], $ID, BLOG_PERMS_POST) >= BLOG_PERMS_READ
+				)
 				{
 					$tag = "";
 					$arBlog = CBlog::GetByID($arPost["BLOG_ID"]);
 					if($arBlog["SEARCH_INDEX"] == "Y")
 					{
-						$arGroup = CBlogGroup::GetByID($arBlog["GROUP_ID"]);
+						$arGroup = CBlogGroup::GetByID(isset($arFields["SEARCH_GROUP_ID"]) && intval($arFields["SEARCH_GROUP_ID"]) > 0 ? $arFields["SEARCH_GROUP_ID"] : $arBlog["GROUP_ID"]);
 
 						if(strlen($arFields["PATH"]) > 0)
 						{
@@ -119,13 +121,13 @@ class CBlogPost extends CAllBlogPost
 						{
 							$arPostSite = array(
 								$arGroup["SITE_ID"] => CBlogPost::PreparePath(
-										$arBlog["URL"],
-										$arPost["ID"],
-										$arGroup["SITE_ID"],
-										false,
-										$arBlog["OWNER_ID"],
-										$arBlog["SOCNET_GROUP_ID"]
-									)
+									$arBlog["URL"],
+									$arPost["ID"],
+									$arGroup["SITE_ID"],
+									false,
+									$arBlog["OWNER_ID"],
+									$arBlog["SOCNET_GROUP_ID"]
+								)
 							);
 						}
 
@@ -163,21 +165,22 @@ class CBlogPost extends CAllBlogPost
 						$searchContent = blogTextParser::killAllTags($arPost["DETAIL_TEXT"]);
 						$searchContent .= "\r\n" . $USER_FIELD_MANAGER->OnSearchIndex("BLOG_POST", $arPost["ID"]);
 
-						$authorName = "";
 						if(IntVal($arPost["AUTHOR_ID"]) > 0)
 						{
 							$dbUser = CUser::GetByID($arPost["AUTHOR_ID"]);
 							if($arUser = $dbUser->Fetch())
 							{
 								$arTmpUser = array(
-										"NAME" => $arUser["NAME"],
-										"LAST_NAME" => $arUser["LAST_NAME"],
-										"SECOND_NAME" => $arUser["SECOND_NAME"],
-										"LOGIN" => $arUser["LOGIN"],
-									);
+									"NAME" => $arUser["NAME"],
+									"LAST_NAME" => $arUser["LAST_NAME"],
+									"SECOND_NAME" => $arUser["SECOND_NAME"],
+									"LOGIN" => $arUser["LOGIN"],
+								);
 								$authorName = CUser::FormatName(CSite::GetNameFormat(), $arTmpUser, false, false);
 								if(strlen($authorName) > 0)
+								{
 									$searchContent .= "\r\n".$authorName;
+								}
 							}
 						}
 
@@ -188,8 +191,8 @@ class CBlogPost extends CAllBlogPost
 							"PARAM2" => $arPost["BLOG_ID"],
 							"PARAM3" => $arPost["ID"],
 							"PERMISSIONS" => array(2),
-							"TITLE" => blogTextParser::killAllTags($arPost["TITLE"]),
-							"BODY" => $searchContent,
+							"TITLE" => CSearch::KillTags(blogTextParser::killAllTags($arPost["MICRO"] == "Y" ? $arPost["TITLE"] : htmlspecialcharsEx($arPost["TITLE"]))),
+							"BODY" => CSearch::KillTags($searchContent),
 							"TAGS" => $tag,
 							"USER_ID" => $arPost["AUTHOR_ID"],
 							"ENTITY_TYPE_ID" => "BLOG_POST",
@@ -198,42 +201,10 @@ class CBlogPost extends CAllBlogPost
 
 						if($arBlog["USE_SOCNET"] == "Y")
 						{
-							if(is_array($arFields["SC_PERM"]))
-							{
-								$arSearchIndex["PERMISSIONS"] = $arFields["SC_PERM"];
-								if(!in_array("U".$arPost["AUTHOR_ID"], $arSearchIndex["PERMISSIONS"]))
-									$arSearchIndex["PERMISSIONS"][] = "U".$arPost["AUTHOR_ID"];
-
-								$sgId = array();
-								foreach($arFields["SC_PERM"] as $perm)
-								{
-									if(strpos($perm, "SG") !== false)
-									{
-										$sgIdTmp = str_replace("SG", "", substr($perm, 0, strpos($perm, "_")));
-										if(!in_array($sgIdTmp, $sgId) && IntVal($sgIdTmp) > 0)
-											$sgId[] = $sgIdTmp;
-									}
-								}
-
-								if(!empty($sgId))
-								{
-									$arSearchIndex["PARAMS"] = array(
-										"socnet_group" => $sgId,
-										"entity" => "socnet_group",
-									);
-								}
-							}
+							CBlogSearch::fillSearchPermsWithSonetGroupData($arFields["SC_PERM"], $arPost["AUTHOR_ID"], $arSearchIndex, array("INIT_PERMISSIONS" => "Y"));
 
 							// get mentions and grats
-							$arMentionedUserID = CBlogPost::GetMentionedUserID($arPost);
-							if (!empty($arMentionedUserID))
-							{
-								if (!isset($arSearchIndex["PARAMS"]))
-								{
-									$arSearchIndex["PARAMS"] = array();
-								}
-								$arSearchIndex["PARAMS"]["mentioned_user_id"] = $arMentionedUserID;
-							}
+							CBlogSearch::fillSearchParamsWithMentionData(CBlogPost::GetMentionedUserID($arPost), $arSearchIndex);
 						}
 
 						CSearch::Index("blog", "P".$ID, $arSearchIndex);
@@ -247,7 +218,7 @@ class CBlogPost extends CAllBlogPost
 
 	public static function Update($ID, $arFields, $bSearchIndex = true)
 	{
-		global $DB, $USER_FIELD_MANAGER;
+		global $DB, $USER_FIELD_MANAGER, $CACHE_MANAGER;
 
 		$ID = IntVal($ID);
 		if(strlen($arFields["PATH"]) > 0)
@@ -375,7 +346,7 @@ class CBlogPost extends CAllBlogPost
 					)
 				{
 					$tag = "";
-					$arGroup = CBlogGroup::GetByID($arBlog["GROUP_ID"]);
+					$arGroup = CBlogGroup::GetByID(isset($arFields["SEARCH_GROUP_ID"]) && intval($arFields["SEARCH_GROUP_ID"]) > 0 ? $arFields["SEARCH_GROUP_ID"] : $arBlog["GROUP_ID"]);
 					if(strlen($arFields["PATH"]) > 0)
 					{
 						$arPostSite = array($arGroup["SITE_ID"] => $arFields["PATH"]);
@@ -393,13 +364,13 @@ class CBlogPost extends CAllBlogPost
 					{
 						$arPostSite = array(
 							$arGroup["SITE_ID"] => CBlogPost::PreparePath(
-									$arBlog["URL"],
-									$arNewPost["ID"],
-									$arGroup["SITE_ID"],
-									false,
-									$arBlog["OWNER_ID"],
-									$arBlog["SOCNET_GROUP_ID"]
-								)
+								$arBlog["URL"],
+								$arNewPost["ID"],
+								$arGroup["SITE_ID"],
+								false,
+								$arBlog["OWNER_ID"],
+								$arBlog["SOCNET_GROUP_ID"]
+							)
 						);
 					}
 
@@ -462,8 +433,8 @@ class CBlogPost extends CAllBlogPost
 						"PARAM2" => $arNewPost["BLOG_ID"],
 						"PARAM3" => $arNewPost["ID"],
 						"PERMISSIONS" => array(2),
-						"TITLE" => $arNewPost["TITLE"],
-						"BODY" => $searchContent,
+						"TITLE" => CSearch::KillTags($arNewPost["MICRO"] == "Y" ? $arNewPost["TITLE"] : htmlspecialcharsEx($arNewPost["TITLE"])),
+						"BODY" => CSearch::KillTags($searchContent),
 						"TAGS" => $tag,
 						"USER_ID" => $arNewPost["AUTHOR_ID"],
 						"ENTITY_TYPE_ID" => "BLOG_POST",
@@ -477,46 +448,19 @@ class CBlogPost extends CAllBlogPost
 						{
 							$arSearchIndex["PERMISSIONS"] = $arFields["SC_PERM"];
 							if($arFields["SC_PERM"] != $arFields["SC_PERM_OLD"])
+							{
 								$bIndexComment = true;
+							}
 						}
 						else
-							$arSearchIndex["PERMISSIONS"] = CBlogPost::GetSocnetPermsCode($ID);
-
-						if(!in_array("U".$arNewPost["AUTHOR_ID"], $arSearchIndex["PERMISSIONS"]))
-							$arSearchIndex["PERMISSIONS"][] = "U".$arNewPost["AUTHOR_ID"];
-
-						if(is_array($arSearchIndex["PERMISSIONS"]))
 						{
-							$sgId = array();
-							foreach($arSearchIndex["PERMISSIONS"] as $perm)
-							{
-								if(strpos($perm, "SG") !== false)
-								{
-									$sgIdTmp = str_replace("SG", "", substr($perm, 0, strpos($perm, "_")));
-									if(!in_array($sgIdTmp, $sgId) && IntVal($sgIdTmp) > 0)
-										$sgId[] = $sgIdTmp;
-								}
-							}
-
-							if(!empty($sgId))
-							{
-								$arSearchIndex["PARAMS"] = array(
-									"socnet_group" => $sgId,
-									"entity" => "socnet_group",
-								);
-							}
+							$arSearchIndex["PERMISSIONS"] = CBlogPost::GetSocnetPermsCode($ID);
 						}
+
+						CBlogSearch::fillSearchPermsWithSonetGroupData($arSearchIndex["PERMISSIONS"], $arNewPost["AUTHOR_ID"], $arSearchIndex, array("INIT_PERMISSIONS" => "N"));
 
 						// get mentions and grats
-						$arMentionedUserID = CBlogPost::GetMentionedUserID($arNewPost);
-						if (!empty($arMentionedUserID))
-						{
-							if (!isset($arSearchIndex["PARAMS"]))
-							{
-								$arSearchIndex["PARAMS"] = array();
-							}
-							$arSearchIndex["PARAMS"]["mentioned_user_id"] = $arMentionedUserID;
-						}
+						CBlogSearch::fillSearchParamsWithMentionData(CBlogPost::GetMentionedUserID($arNewPost), $arSearchIndex);
 					}
 
 					CSearch::Index("blog", "P".$ID, $arSearchIndex, True);
@@ -527,7 +471,7 @@ class CBlogPost extends CAllBlogPost
 							"BLOG_ID" => $arBlog["ID"],
 							"POST_ID" => $ID,
 							"SITE_ID" => $arGroup["SITE_ID"],
-							"PATH" => $arPostSite[$arGroup["SITE_ID"]]."?commentId=#comment_id###comment_id#",
+							"PATH" => $arPostSite[$arGroup["SITE_ID"]]."?commentId=#comment_id##com#comment_id#",
 							"BLOG_URL" => $arBlog["URL"],
 							"OWNER_ID" => $arBlog["OWNER_ID"],
 							"SOCNET_GROUP_ID" => $arBlog["SOCNET_GROUP_ID"],
@@ -543,7 +487,7 @@ class CBlogPost extends CAllBlogPost
 		BXClearCache(true, '/blog/socnet_post/gen/'.intval($ID / 100)."/".$ID);
 		if(defined("BX_COMP_MANAGED_CACHE"))
 		{
-			$GLOBALS["CACHE_MANAGER"]->ClearByTag("blog_post_".$ID);
+			$CACHE_MANAGER->ClearByTag("blog_post_".$ID);
 		}
 
 		return $ID;
@@ -632,9 +576,9 @@ class CBlogPost extends CAllBlogPost
 		}
 
 		if (count($arSelectFields) <= 0)
-			$arSelectFields = array("ID", "TITLE", "BLOG_ID", "AUTHOR_ID", "PREVIEW_TEXT", "PREVIEW_TEXT_TYPE", "DETAIL_TEXT", "DETAIL_TEXT_TYPE", "DATE_CREATE", "DATE_PUBLISH", "KEYWORDS", "PUBLISH_STATUS", "ATRIBUTE", "ATTACH_IMG", "ENABLE_TRACKBACK", "ENABLE_COMMENTS", "VIEWS", "NUM_COMMENTS", "CODE", "MICRO");
+			$arSelectFields = array("ID", "TITLE", "BLOG_ID", "AUTHOR_ID", "PREVIEW_TEXT", "PREVIEW_TEXT_TYPE", "DETAIL_TEXT", "DETAIL_TEXT_TYPE", "DATE_CREATE", "DATE_PUBLISH", "KEYWORDS", "PUBLISH_STATUS", "ATRIBUTE", "ATTACH_IMG", "ENABLE_TRACKBACK", "ENABLE_COMMENTS", "VIEWS", "NUM_COMMENTS", "NUM_COMMENTS_ALL", "CODE", "MICRO");
 		if(in_array("*", $arSelectFields))
-			$arSelectFields = array("ID", "TITLE", "BLOG_ID", "AUTHOR_ID", "PREVIEW_TEXT", "PREVIEW_TEXT_TYPE", "DETAIL_TEXT", "DETAIL_TEXT_TYPE", "DATE_CREATE", "DATE_PUBLISH", "KEYWORDS", "PUBLISH_STATUS", "ATRIBUTE", "ATTACH_IMG", "ENABLE_TRACKBACK", "ENABLE_COMMENTS", "NUM_COMMENTS", "NUM_TRACKBACKS", "VIEWS", "FAVORITE_SORT", "CATEGORY_ID", "PERMS", "AUTHOR_LOGIN", "AUTHOR_NAME", "AUTHOR_LAST_NAME", "AUTHOR_SECOND_NAME", "AUTHOR_EMAIL", "AUTHOR", "BLOG_USER_ALIAS", "BLOG_USER_AVATAR", "BLOG_URL", "BLOG_OWNER_ID", "BLOG_ACTIVE", "BLOG_GROUP_ID", "BLOG_GROUP_SITE_ID", "BLOG_SOCNET_GROUP_ID", "BLOG_ENABLE_RSS", "BLOG_USE_SOCNET", "CODE", "MICRO");
+			$arSelectFields = array("ID", "TITLE", "BLOG_ID", "AUTHOR_ID", "PREVIEW_TEXT", "PREVIEW_TEXT_TYPE", "DETAIL_TEXT", "DETAIL_TEXT_TYPE", "DATE_CREATE", "DATE_PUBLISH", "KEYWORDS", "PUBLISH_STATUS", "ATRIBUTE", "ATTACH_IMG", "ENABLE_TRACKBACK", "ENABLE_COMMENTS", "NUM_COMMENTS", "NUM_COMMENTS_ALL", "NUM_TRACKBACKS", "VIEWS", "FAVORITE_SORT", "CATEGORY_ID", "PERMS", "AUTHOR_LOGIN", "AUTHOR_NAME", "AUTHOR_LAST_NAME", "AUTHOR_SECOND_NAME", "AUTHOR_EMAIL", "AUTHOR", "BLOG_USER_ALIAS", "BLOG_USER_AVATAR", "BLOG_URL", "BLOG_OWNER_ID", "BLOG_ACTIVE", "BLOG_GROUP_ID", "BLOG_GROUP_SITE_ID", "BLOG_SOCNET_GROUP_ID", "BLOG_ENABLE_RSS", "BLOG_USE_SOCNET", "CODE", "MICRO");
 
 		if((array_key_exists("BLOG_GROUP_SITE_ID", $arFilter) || in_array("BLOG_GROUP_SITE_ID", $arSelectFields)) && !in_array("BLOG_URL", $arSelectFields))
 			$arSelectFields[] = "BLOG_URL";
@@ -659,6 +603,7 @@ class CBlogPost extends CAllBlogPost
 			"ENABLE_TRACKBACK" => array("FIELD" => "P.ENABLE_TRACKBACK", "TYPE" => "string"),
 			"ENABLE_COMMENTS" => array("FIELD" => "P.ENABLE_COMMENTS", "TYPE" => "string"),
 			"NUM_COMMENTS" => array("FIELD" => "P.NUM_COMMENTS", "TYPE" => "int"),
+			"NUM_COMMENTS_ALL" => array("FIELD" => "P.NUM_COMMENTS_ALL", "TYPE" => "int"),
 			"NUM_TRACKBACKS" => array("FIELD" => "P.NUM_TRACKBACKS", "TYPE" => "int"),
 			"VIEWS" => array("FIELD" => "P.VIEWS", "TYPE" => "int"),
 			"FAVORITE_SORT" => array("FIELD" => "P.FAVORITE_SORT", "TYPE" => "int"),

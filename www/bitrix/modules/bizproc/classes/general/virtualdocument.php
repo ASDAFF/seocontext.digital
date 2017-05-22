@@ -1660,6 +1660,11 @@ class CBPVirtualDocument
 		{
 			$t = $ar["PROPERTY_TYPE"].":".$ar["USER_TYPE"];
 
+			if($t == "S:ECrm")
+			{
+				$t = "E:ECrm";
+			}
+
 			if (COption::GetOptionString("bizproc", "SkipNonPublicCustomTypes", "N") == "Y"
 				&& !array_key_exists("GetPublicEditHTML", $ar) && $t != "S:UserID" && $t != "S:DateTime")
 				continue;
@@ -1699,6 +1704,12 @@ class CBPVirtualDocument
 			{
 				$arResult[$t]["BaseType"] = "int";
 				$arResult[$t]['typeClass'] = '\Bitrix\Iblock\BizprocType\UserTypePropertyDiskFile';
+			}
+			elseif($t == 'E:ECrm')
+			{
+				$arResult[$t]["BaseType"] = "string";
+				$arResult[$t]["Complex"] = true;
+				$arResult[$t]['typeClass'] = '\Bitrix\Iblock\BizprocType\ECrm';
 			}
 		}
 

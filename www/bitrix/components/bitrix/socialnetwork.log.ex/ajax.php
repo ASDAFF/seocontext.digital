@@ -84,6 +84,35 @@ if(CModule::IncludeModule("socialnetwork"))
 				'DESCRIPTION' => $provider->getSourceDescription(),
 				'DISK_OBJECTS' => $provider->getSourceDiskObjects()
 			);
+
+			if (isset($_REQUEST["params"]))
+			{
+				if (
+					isset($_REQUEST["params"]["getSonetGroupAvailableList"])
+					&& !!$_REQUEST["params"]["getSonetGroupAvailableList"]
+				)
+				{
+					$feature = $operation = false;
+					if (
+						isset($_REQUEST["params"]["checkParams"])
+						&& isset($_REQUEST["params"]["checkParams"]["feature"])
+						&& isset($_REQUEST["params"]["checkParams"]["operation"])
+					)
+					{
+						$feature = $_REQUEST["params"]["checkParams"]["feature"];
+						$operation = $_REQUEST["params"]["checkParams"]["operation"];
+					}
+					$arResult['GROUPS_AVAILABLE'] = $provider->getSonetGroupsAvailable($feature, $operation);
+				}
+
+				if (
+					isset($_REQUEST["params"]["getLivefeedUrl"])
+					&& !!$_REQUEST["params"]["getLivefeedUrl"]
+				)
+				{
+					$arResult['LIVEFEED_URL'] = $provider->getLiveFeedUrl();
+				}
+			}
 		}
 	}
 	elseif ($action == "create_task_comment")
@@ -766,7 +795,10 @@ if(CModule::IncludeModule("socialnetwork"))
 			$arResult["SUCCESS"] = "N";
 	}
 
-	header('Content-Type: application/x-javascript; charset='.LANG_CHARSET);
+	if (empty($_REQUEST['mobile_action']))
+	{
+		header('Content-Type: application/x-javascript; charset='.LANG_CHARSET);
+	}
 	echo CUtil::PhpToJSObject($arResult);
 }
 

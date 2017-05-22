@@ -217,7 +217,7 @@ if($_REQUEST['process'] == "Y")
 			$prefix = '';
 			if (count($NS['dump_site_id']) == 1)
 			{
-				$rs = CSite::GetList($by='sort', $order='asc', array('ID' => $NS['dump_site_id'][0]));
+				$rs = CSite::GetList($by='sort', $order='asc', array('ID' => $NS['dump_site_id'][0], 'ACTIVE' => 'Y'));
 				if ($f = $rs->Fetch())
 					$prefix = str_replace('/', '', $f['SERVER_NAME']);
 			}
@@ -446,7 +446,7 @@ if($_REQUEST['process'] == "Y")
 				if (is_array($NS['dump_site_id']))
 				{
 					$SITE_ID = reset($NS['dump_site_id']);
-					$rs = CSite::GetList($by='sort', $order='asc', array('ID' => $SITE_ID));
+					$rs = CSite::GetList($by='sort', $order='asc', array('ID' => $SITE_ID, 'ACTIVE' => 'Y'));
 					if ($f = $rs->Fetch())
 					{
 						$DOCUMENT_ROOT_SITE = rtrim(str_replace('\\','/',$f['ABS_DOC_ROOT']),'/');

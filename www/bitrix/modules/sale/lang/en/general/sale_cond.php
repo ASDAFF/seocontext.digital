@@ -85,4 +85,6 @@ $MESS["BT_MOD_SALE_COND_BASKET_PRODUCT_ID_LABEL"] = "Product in shopping cart";
 $MESS["BT_MOD_SALE_COND_BASKET_PRODUCT_ID_PREFIX"] = "\"Product in shopping cart\" field";
 $MESS["BT_MOD_SALE_COND_BASKET_PRODUCT_NAME_LABEL"] = "Name of product in shopping cart";
 $MESS["BT_MOD_SALE_COND_BASKET_PRODUCT_NAME_PREFIX"] = "\"Name of product in shopping cart\" field";
+$MESS["BT_SALE_COND_GROUP_PAST_ORDER_NAME"] = "Previous paid order";
+$MESS["BT_SALE_COND_GROUP_PAST_ORDER_NAME_SUFFIX"] = "(prev. order)";
 ?>

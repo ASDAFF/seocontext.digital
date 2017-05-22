@@ -1,24 +1,17 @@
 <?php
-/**
- * Bitrix Framework
- * @package bitrix
- * @subpackage socialnetwork
- * @copyright 2001-2014 Bitrix
- */
-
-/**
- * Bitrix vars
- * @global CUser $USER
- * @global CMain $APPLICATION
- * @global CDatabase $DB
- * @global CUserTypeManager $USER_FIELD_MANAGER
- * @param array $arParams
- * @param array $arResult
- * @param CBitrixComponent $this
- */
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
-
-global $USER_FIELD_MANAGER, $DB;
+/** @var CBitrixComponent $this */
+/** @var array $arParams */
+/** @var array $arResult */
+/** @var string $componentPath */
+/** @var string $componentName */
+/** @var string $componentTemplate */
+/** @global CDatabase $DB */
+/** @global CUser $USER */
+/** @global CMain $APPLICATION */
+/** @global CCacheManager $CACHE_MANAGER */
+/** @global CUserTypeManager $USER_FIELD_MANAGER */
+global $CACHE_MANAGER, $USER_FIELD_MANAGER;
 
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/components/bitrix/socialnetwork.group_create.ex/include.php");
 
@@ -28,10 +21,11 @@ if (!CModule::IncludeModule("socialnetwork"))
 	return;
 }
 
-if (intval($_REQUEST["SONET_GROUP_ID"]) > 0)
-	$arParams["GROUP_ID"] = intval($_REQUEST["SONET_GROUP_ID"]);
-else
-	$arParams["GROUP_ID"] = intval($arParams["GROUP_ID"]);
+$arParams["GROUP_ID"] = (
+	intval($_REQUEST["SONET_GROUP_ID"]) > 0
+		? intval($_REQUEST["SONET_GROUP_ID"])
+		: intval($arParams["GROUP_ID"])
+);
 
 $arParams["SET_NAV_CHAIN"] = ($arParams["SET_NAV_CHAIN"] == "N" ? "N" : "Y");
 $bAutoSubscribe = (array_key_exists("USE_AUTOSUBSCRIBE", $arParams) && $arParams["USE_AUTOSUBSCRIBE"] == "N" ? false : true);
@@ -103,8 +97,15 @@ if (!$USER->IsAuthorized())
 else
 {
 	$arResult["bIntranet"] = IsModuleInstalled("intranet");
-	$arResult["bExtranetInstalled"] = IsModuleInstalled("extranet");
-	$arResult["bExtranet"] = ($arResult["bExtranetInstalled"] && CExtranet::IsExtranetSite());
+	$arResult["bExtranetInstalled"] = (
+		IsModuleInstalled("extranet")
+		&& strlen(COption::GetOptionString("extranet", "extranet_site")) > 0
+	);
+	$arResult["bExtranet"] = (
+		$arResult["bExtranetInstalled"]
+		&& CModule::IncludeModule('extranet')
+		&& CExtranet::IsExtranetSite()
+	);
 	$arResult["isCurrentUserIntranet"] = (!CModule::IncludeModule('extranet') || CExtranet::IsIntranetUser());
 
 	$arResult["POST"] = array(
@@ -191,7 +192,7 @@ else
 
 			if (!array_key_exists("TAB", $arResult) || $arResult["TAB"] == "edit")
 			{
-				if (intval($_POST["GROUP_IMAGE_ID"]) > 0)
+				if (intval($_POST["GROUP_IMAGE_ID"]) > 0 && $_POST["GROUP_IMAGE_ID_del"] != "Y")
 				{
 					if (
 						intval($arResult["POST"]["IMAGE_ID"]) != intval($_POST["GROUP_IMAGE_ID"])
@@ -262,14 +263,13 @@ else
 				)
 				{
 					// new form
-					$arUserIDs = array();
-					$arUserCodes = array();
+					$arUserIDs = $arDepartmentIDs = $arUserCodes = array();
 
 					$arUserCodesFromPost = (is_array($_POST["USER_CODES"]) ? $_POST["USER_CODES"] : array($_POST["USER_CODES"]));
 
-					foreach ($arUserCodesFromPost as $user_code)
+					foreach ($arUserCodesFromPost as $destinationCode)
 					{
-						if(preg_match('/^U(\d+)$/', $user_code, $match))
+						if(preg_match('/^U(\d+)$/', $destinationCode, $match))
 						{
 							if (!in_array($match[1], $arUserIDs))
 							{
@@ -279,6 +279,18 @@ else
 							if (!array_key_exists('U'.$match[1], $arUserCodes))
 							{
 								$arUserCodes['U'.$match[1]] = 'users';
+							}
+						}
+						elseif(preg_match('/^DR(\d+)$/', $destinationCode, $match))
+						{
+							if (!in_array($match[1], $arUserIDs))
+							{
+								$arDepartmentIDs[] = $match[1];
+							}
+
+							if (!array_key_exists('DR'.$match[1], $arUserCodes))
+							{
+								$arUserCodes['DR'.$match[1]] = 'users';
 							}
 						}
 					}
@@ -303,6 +315,7 @@ else
 						array_key_exists("TAB", $arResult)
 						&& $arResult["TAB"] == "invite"
 						&& empty($arUserIDs)
+						&& empty($arDepartmentIDs)
 						&& !$arResult["bIntranet"])
 					{
 						$errorMessage .= GetMessage("SONET_GCE_NO_USERS").". ";
@@ -466,7 +479,6 @@ else
 				{
 					$arFields["=DATE_UPDATE"] = $DB->CurrentTimeFunction();
 					$arFields["=DATE_ACTIVITY"] = $DB->CurrentTimeFunction();
-
 					$arResult["GROUP_ID"] = CSocNetGroup::Update($arParams["GROUP_ID"], $arFields, $bAutoSubscribe);
 
 					if (!$arResult["GROUP_ID"] && ($e = $APPLICATION->GetException()))
@@ -489,7 +501,6 @@ else
 					else
 					{
 						$rsSite = CSite::GetList($by="sort", $order="desc", Array("ACTIVE" => "Y"));
-						
 						while($arSite = $rsSite->Fetch())
 						{
 							BXClearCache(true, "/".$arSite["ID"]."/bitrix/search.tags.cloud/");
@@ -498,11 +509,19 @@ else
 				}
 			}
 
-			if (strlen($errorMessage) <= 0 && array_key_exists("TAB", $arResult) && $arResult["TAB"] != "edit")
+			if (
+				strlen($errorMessage) <= 0
+				&& array_key_exists("TAB", $arResult)
+				&& $arResult["TAB"] != "edit"
+			)
+			{
 				$arResult["GROUP_ID"] = $arParams["GROUP_ID"];
+			}
 
 			if (strlen($arImageID["tmp_name"]) > 0)
+			{
 				CFile::ResizeImageDeleteCache($arImageID);
+			}
 
 			if (strlen($errorMessage) > 0)
 			{
@@ -524,13 +543,25 @@ else
 							(strlen($arFeature["FeatureName"]) > 0) ? $arFeature["FeatureName"] : false
 						);
 
+						if (
+							$arParams["GROUP_ID"] <= 0
+							&& $feature == 'chat'
+						)
+						{
+							\CUserOptions::setOption("socialnetwork", "default_chat_create_default", ($_POST[$feature."_active"] == "Y" ? 'Y' : 'N'));
+						}
+
 						if (!$idTmp)
 						{
 							if ($e = $APPLICATION->GetException())
+							{
 								$errorMessage .= $e->GetString();
+							}
 						}
 						else
+						{
 							$bSecondStepSuccess = true;
+						}
 					}
 				}
 
@@ -558,8 +589,14 @@ else
 							$arInvitedExtranetUsers = array();
 							$arEmailOriginal = preg_split("/[\n\r\t\\,;]+/", $_POST["EMAILS"]);
 
+							$emailCnt = 0;
 							foreach($arEmailOriginal as $addr)
 							{
+								if ($emailCnt >= 100)
+								{
+									break;
+								}
+
 								if(strlen($addr) > 0 && check_email($addr))
 								{
 									$addrX = "";
@@ -585,6 +622,7 @@ else
 										$phraseX = trim(trim($arMatches[0]), "\"");
 
 									$arEmail[] = array("EMAIL" => $addrX, "NAME" => $phraseX);
+									$emailCnt++;
 								}
 							}
 
@@ -625,7 +663,7 @@ else
 
 											if (!$ID_TRANSFERRED)
 											{
-												if($e = $GLOBALS["APPLICATION"]->GetException())
+												if($e = $APPLICATION->GetException())
 												{
 													$errorMessage .= $e->GetString();
 												}
@@ -725,7 +763,7 @@ else
 
 								if (!$ID_TRANSFERRED)
 								{
-									if($e = $GLOBALS["APPLICATION"]->GetException())
+									if($e = $APPLICATION->GetException())
 									{
 										$errorMessage .= (strlen($errorMessage) > 0 ? "<br />" : "").$e->GetString();
 									}
@@ -748,21 +786,34 @@ else
 						}
 					}
 
+					if (
+						isset($arUserIDs)
+						&& is_array($arUserIDs)
+					)
+					{
+						foreach($arUserIDs as $key => $value)
+						{
+							if ($value == $USER->getID())
+							{
+								unset($arUserIDs[$key]);
+							}
+						}
+					}
+
 					// send invitations
 					if (
-						is_array($arUserIDs) 
-						&& count($arUserIDs) > 0
+						isset($arUserIDs)
+						&& is_array($arUserIDs)
+						&& !empty($arUserIDs)
 					)
 					{
 						foreach($arUserIDs as $user_id)
 						{
-							$isCurrentUserTmp = ($USER->GetID() == $user_id);
 							$canInviteGroup = CSocNetUserPerms::CanPerformOperation($USER->GetID(), $user_id, "invitegroup", CSocNetUser::IsCurrentUserModuleAdmin());
 							$user2groupRelation = CSocNetUserToGroup::GetUserRole($user_id, $arResult["GROUP_ID"]);
 
 							if (
-								!$isCurrentUserTmp 
-								&& $canInviteGroup 
+								$canInviteGroup
 								&& !$user2groupRelation
 							)
 							{
@@ -804,8 +855,7 @@ else
 							}
 							//user already is related to group, don't invite him again
 							else if (
-								!$isCurrentUserTmp 
-								&& $canInviteGroup 
+								$canInviteGroup
 								&& $user2groupRelation
 							)
 							{
@@ -844,6 +894,28 @@ else
 							$warningMessage = "";
 						}
 					}
+
+					if (
+						isset($arDepartmentIDs)
+						&& is_array($arDepartmentIDs)
+						&& !empty($arDepartmentIDs)
+					)
+					{
+						if (
+							$arParams["GROUP_ID"] > 0
+							&& !empty($arResult["GROUP_PROPERTIES"]["UF_SG_DEPT"])
+							&& !empty($arResult["GROUP_PROPERTIES"]["UF_SG_DEPT"])
+							&& !empty($arResult["GROUP_PROPERTIES"]["UF_SG_DEPT"]["VALUE"])
+							&& is_array($arResult["GROUP_PROPERTIES"]["UF_SG_DEPT"]["VALUE"])
+						)
+						{
+							$arDepartmentIDs = array_unique(array_map('intval', array_merge($arDepartmentIDs, $arResult["GROUP_PROPERTIES"]["UF_SG_DEPT"]["VALUE"])));
+						}
+
+						CSocNetGroup::Update($arResult["GROUP_ID"], array(
+							'UF_SG_DEPT' => $arDepartmentIDs
+						));
+					}
 				}
 
 				//if some e-mails belong to internal users and can't be used for invitation
@@ -857,7 +929,11 @@ else
 				}
 
 				//if no users were invited
-				if ($arResult["TAB"] == "invite" && (!is_array($arUserIDs) || count($arUserIDs) <= 0))
+				if (
+					$arResult["TAB"] == "invite"
+					&& empty($arUserIDs)
+					&& empty($arDepartmentIDs)
+				)
 				{
 					$errorMessage .= GetMessage("SONET_GCE_NO_USERS").". ";
 					$arResult["ErrorFields"][] = "USERS";
@@ -1064,10 +1140,31 @@ else
 				&& !empty($arResult["DEST_USERS_LAST"])
 			)
 			{
+				foreach($arResult["DEST_USERS_LAST"] as $key => $user_code)
+				{
+					if ($user_code == 'U'.$USER->getId())
+					{
+						unset($arResult["DEST_USERS_LAST"][$key]);
+						break;
+					}
+				}
+			}
+
+			if (
+				is_array($arResult["DEST_USERS_LAST"])
+				&& !empty($arResult["DEST_USERS_LAST"])
+			)
+			{
 				$arLastUserID = array();
 
-				foreach($arResult["DEST_USERS_LAST"] as $user_code)
+				foreach($arResult["DEST_USERS_LAST"] as $key => $user_code)
 				{
+					if ($user_code == 'U'.$USER->getId())
+					{
+						unset($arResult["DEST_USERS_LAST"][$key]);
+						continue;
+					}
+
 					if(preg_match('/^U(\d+)$/', $user_code, $match))
 					{
 						$arLastUserID[] = $match[1];

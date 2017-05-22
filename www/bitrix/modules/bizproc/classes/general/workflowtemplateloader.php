@@ -303,7 +303,7 @@ class CAllBPWorkflowTemplateLoader
 		foreach ($arWorkflowTemplate as $activityFormatted)
 		{
 			if (in_array($activityFormatted["Name"], $arActivityNames))
-				throw new Exception("DublicateAcrivityName");
+				throw new Exception("DuplicateActivityName");
 
 			$arActivityNames[] = $activityFormatted["Name"];
 			$activity = $this->CreateActivity($activityFormatted["Type"], $activityFormatted["Name"]);

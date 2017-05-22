@@ -390,6 +390,7 @@ class Actions
 
 		$orderCurrency = static::getCurrency();
 		$value = (float)$action['VALUE'];
+		$limitValue = (int)$action['LIMIT_VALUE'];
 		$unit = (string)$action['UNIT'];
 		$currency = (isset($action['CURRENCY']) ? $action['CURRENCY'] : $orderCurrency);
 		$maxBound = false;
@@ -425,6 +426,15 @@ class Actions
 				return;
 				break;
 		}
+
+		if(!empty($limitValue))
+		{
+			$actionDescription['ACTION_TYPE'] = Sale\OrderDiscountManager::DESCR_TYPE_LIMIT_VALUE;
+			$actionDescription['LIMIT_TYPE'] = Sale\OrderDiscountManager::DESCR_LIMIT_MAX;
+			$actionDescription['LIMIT_UNIT'] = $orderCurrency;
+			$actionDescription['LIMIT_VALUE'] = $limitValue;
+		}
+
 		static::setActionDescription(self::RESULT_ENTITY_BASKET, $actionDescription);
 
 		if (empty($order['BASKET_ITEMS']) || !is_array($order['BASKET_ITEMS']))
@@ -468,6 +478,11 @@ class Actions
 				$calculateValue = static::percentToValue($basketRow, $calculateValue);
 			$calculateValue = static::roundValue($calculateValue, $basketRow['CURRENCY']);
 
+			if(!empty($limitValue) && $limitValue + $calculateValue <= 0)
+			{
+				$calculateValue = -$limitValue;
+			}
+
 			$result = static::roundZeroValue($basketRow['PRICE'] + $calculateValue);
 			if ($maxBound && $result < 0)
 			{
@@ -489,6 +504,15 @@ class Actions
 				$rowActionDescription['BASKET_CODE'] = $basketCode;
 				$rowActionDescription['RESULT_VALUE'] = abs($calculateValue);
 				$rowActionDescription['RESULT_UNIT'] = $orderCurrency;
+
+				if(!empty($limitValue))
+				{
+					$rowActionDescription['ACTION_TYPE'] = Sale\OrderDiscountManager::DESCR_TYPE_LIMIT_VALUE;
+					$rowActionDescription['LIMIT_TYPE'] = Sale\OrderDiscountManager::DESCR_LIMIT_MAX;
+					$rowActionDescription['LIMIT_UNIT'] = $orderCurrency;
+					$rowActionDescription['LIMIT_VALUE'] = $limitValue;
+				}
+
 				static::setActionResult(self::RESULT_ENTITY_BASKET, $rowActionDescription);
 				unset($rowActionDescription);
 			}
@@ -896,6 +920,80 @@ class Actions
 		}
 
 		return $value;
+	}
+
+	public static function getActionConfiguration(array $discount)
+	{
+		$actionStructure = self::getActionStructure($discount);
+
+		if(!$actionStructure || !is_array($actionStructure))
+		{
+			return null;
+		}
+
+		if($actionStructure['CLASS_ID'] != 'CondGroup')
+		{
+			return null;
+		}
+
+		if(count($actionStructure['CHILDREN']) > 1)
+		{
+			return null;
+		}
+
+		$action = reset($actionStructure['CHILDREN']);
+		if($action['CLASS_ID'] != 'ActSaleBsktGrp')
+		{
+			return null;
+		}
+
+		$actionData = $action['DATA'];
+
+		$configuration = array(
+			'TYPE' => $actionData['Type'],
+			'VALUE' => $actionData['Value'],
+			'LIMIT_VALUE' => $actionData['Max']?: 0,
+		);
+		switch ($actionData['Unit'])
+		{
+			case 'CurEach':
+				$configuration['VALUE_TYPE'] = Sale\Discount\Actions::VALUE_TYPE_FIX;
+				break;
+			case 'CurAll':
+				$configuration['VALUE_TYPE'] = Sale\Discount\Actions::VALUE_TYPE_SUMM;
+				break;
+			default:
+				$configuration['VALUE_TYPE'] = Sale\Discount\Actions::VALUE_TYPE_PERCENT;
+				break;
+		}
+
+		return $configuration;
+	}
+
+	protected static function getActionStructure(array $discount)
+	{
+		$actionStructure = null;
+		if (isset($discount['ACTIONS']) && !empty($discount['ACTIONS']))
+		{
+			$actionStructure = false;
+			if (!is_array($discount['ACTIONS']))
+			{
+				if (CheckSerializedData($discount['ACTIONS']))
+				{
+					$actionStructure = unserialize($discount['ACTIONS']);
+				}
+			}
+			else
+			{
+				$actionStructure = $discount['ACTIONS'];
+			}
+		}
+		elseif(isset($discount['ACTIONS_LIST']) && is_array($discount['ACTIONS_LIST']))
+		{
+			$actionStructure = $discount['ACTIONS_LIST'];
+		}
+
+		return $actionStructure;
 	}
 
 	/**

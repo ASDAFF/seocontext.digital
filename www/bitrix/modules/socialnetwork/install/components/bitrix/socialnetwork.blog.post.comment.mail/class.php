@@ -97,7 +97,7 @@ class CBitrixSocialnetworkBlogPostCommentMailComponent extends CBitrixComponent
 			isset($arParams["AVATAR_SIZE_COMMENT"])
 			&& intval($arParams["AVATAR_SIZE_COMMENT"]) > 0
 				? intval($arParams["AVATAR_SIZE_COMMENT"])
-				: 42
+				: 100
 		);
 		$arParams["COMMENTS_COUNT"] = (
 			isset($arParams["COMMENTS_COUNT"])
@@ -149,7 +149,7 @@ class CBitrixSocialnetworkBlogPostCommentMailComponent extends CBitrixComponent
 
 		if ($this->postId > 0)
 		{
-			$arResult["COMMENTS"] =  ComponentHelper::getBlogCommentListData($this->arParams["POST_ID"], $this->arParams, $this->getLanguageId(), $this->authorIdList);
+			$arResult["COMMENTS"] = ComponentHelper::getBlogCommentListData($this->arParams["POST_ID"], array_merge($this->arParams, array("MAIL" => "Y")), $this->getLanguageId(), $this->authorIdList);
 			$arResult["COMMENTS_ALL_COUNT"] = ComponentHelper::getBlogCommentListCount($this->arParams["POST_ID"]);
 		}
 	}

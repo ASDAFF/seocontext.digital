@@ -186,7 +186,7 @@ class CUser extends CAllUser
 			"PERSONAL_MOBILE", "PERSONAL_PAGER", "PERSONAL_STREET", "PERSONAL_MAILBOX", "PERSONAL_CITY", "PERSONAL_STATE", "PERSONAL_ZIP", "PERSONAL_COUNTRY", "PERSONAL_NOTES",
 			"WORK_COMPANY", "WORK_DEPARTMENT", "WORK_POSITION", "WORK_WWW", "WORK_PHONE", "WORK_FAX", "WORK_PAGER", "WORK_STREET", "WORK_MAILBOX", "WORK_CITY", "WORK_STATE",
 			"WORK_ZIP", "WORK_COUNTRY", "WORK_PROFILE", "WORK_NOTES", "ADMIN_NOTES", "XML_ID", "LAST_NAME", "SECOND_NAME", "STORED_HASH", "CHECKWORD_TIME", "EXTERNAL_AUTH_ID",
-			"CONFIRM_CODE", "LOGIN_ATTEMPTS", "LAST_ACTIVITY_DATE", "AUTO_TIME_ZONE", "TIME_ZONE", "TIME_ZONE_OFFSET", "PASSWORD", "CHECKWORD", "LID", "TITLE",
+			"CONFIRM_CODE", "LOGIN_ATTEMPTS", "LAST_ACTIVITY_DATE", "AUTO_TIME_ZONE", "TIME_ZONE", "TIME_ZONE_OFFSET", "PASSWORD", "CHECKWORD", "LID", "LANGUAGE_ID", "TITLE",
 		);
 		$arFields_all = array_merge($arFields_m, $arFields);
 
@@ -197,16 +197,12 @@ class CUser extends CAllUser
 			foreach ($arParams['FIELDS'] as $field)
 			{
 				$field = strtoupper($field);
-				if ($field == 'TIMESTAMP_X')
-					$arSelectFields[$field] =	$DB->DateToCharFunction("U.TIMESTAMP_X")." TIMESTAMP_X";
-				elseif ($field == 'IS_ONLINE')
-					$arSelectFields[$field] =	"IF(U.LAST_ACTIVITY_DATE > DATE_SUB(NOW(), INTERVAL ".$online_interval." SECOND), 'Y', 'N') IS_ONLINE";
-				elseif ($field == 'DATE_REGISTER')
-					$arSelectFields[$field] =	$DB->DateToCharFunction("U.DATE_REGISTER")." DATE_REGISTER";
-				elseif ($field == 'LAST_LOGIN')
-					$arSelectFields[$field] =	$DB->DateToCharFunction("U.LAST_LOGIN")." LAST_LOGIN";
+				if ($field == 'TIMESTAMP_X' || $field == 'DATE_REGISTER' || $field == 'LAST_LOGIN')
+					$arSelectFields[$field] = $DB->DateToCharFunction("U.".$field)." ".$field.", U.".$field." ".$field."_DATE";
 				elseif ($field == 'PERSONAL_BIRTHDAY')
-					$arSelectFields[$field] =	$DB->DateToCharFunction("U.PERSONAL_BIRTHDAY", "SHORT")." PERSONAL_BIRTHDAY";
+					$arSelectFields[$field] = $DB->DateToCharFunction("U.PERSONAL_BIRTHDAY", "SHORT")." PERSONAL_BIRTHDAY, U.PERSONAL_BIRTHDAY PERSONAL_BIRTHDAY_DATE";
+				elseif ($field == 'IS_ONLINE')
+					$arSelectFields[$field] = "IF(U.LAST_ACTIVITY_DATE > DATE_SUB(NOW(), INTERVAL ".$online_interval." SECOND), 'Y', 'N') IS_ONLINE";
 				elseif (in_array($field, $arFields_all))
 					$arSelectFields[$field] = 'U.'.$field;
 			}
@@ -462,7 +458,7 @@ class CUser extends CAllUser
 			if($field == "CURRENT_BIRTHDAY")
 			{
 				$cur_year = intval(date('Y'));
-				$arSqlOrder[$field] = "IF(ISNULL(PERSONAL_BIRTHDAY), '9999-99-99', IF (
+				$arSqlOrder[$field] = "IF(ISNULL(U.PERSONAL_BIRTHDAY), '9999-99-99', IF (
 					DATE_FORMAT(U.PERSONAL_BIRTHDAY, '".$cur_year."-%m-%d') < DATE_FORMAT(DATE_ADD(".$DB->CurrentTimeFunction().", INTERVAL ".CTimeZone::GetOffset()." SECOND), '%Y-%m-%d'),
 					DATE_FORMAT(U.PERSONAL_BIRTHDAY, '".($cur_year + 1)."-%m-%d'),
 					DATE_FORMAT(U.PERSONAL_BIRTHDAY, '".$cur_year."-%m-%d')

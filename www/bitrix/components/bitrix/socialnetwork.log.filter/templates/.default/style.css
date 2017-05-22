@@ -261,3 +261,25 @@ select.log-filter-field-inp {
 }
 
 .sonet-log-filter-popup-window .popup-window-content { padding: 7px; }
+
+.feed-smart-follow-hint {
+	background-color: #e1eec1;
+	color: #000000;
+	font-size: 13px;
+	line-height: 14px;
+	min-height: 28px;
+	padding: 14px;
+	position: relative;
+}
+.sonet-log-filter-block {
+	display: none;
+	padding: 0 5px 5px;
+}
+.sonet-log-filter-checkbox {
+	display: inline;
+	padding-right: 30px;
+}
+.sonet-log-filter-submit {
+	padding-top: 10px;
+	text-align: center;
+}

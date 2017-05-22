@@ -71,6 +71,7 @@ class sender extends CModule
 			// connectors of module sender
 			RegisterModuleDependences("sender", "OnConnectorList", "sender", "bitrix\\sender\\connectormanager", "onConnectorListContact");
 			RegisterModuleDependences("sender", "OnConnectorList", "sender", "bitrix\\sender\\connectormanager", "onConnectorListRecipient");
+			RegisterModuleDependences("sender", "OnConnectorList", "sender", "bitrix\\sender\\connectormanager", "onConnectorList");
 
 			// mail templates and blocks
 			RegisterModuleDependences("sender", "OnPresetTemplateList", "sender", "Bitrix\\Sender\\Preset\\TemplateBase", "onPresetTemplateList");
@@ -124,6 +125,7 @@ class sender extends CModule
 
 		UnRegisterModuleDependences("sender", "OnConnectorList", "sender", "bitrix\\sender\\connectormanager", "onConnectorListContact");
 		UnRegisterModuleDependences("sender", "OnConnectorList", "sender", "bitrix\\sender\\connectormanager", "onConnectorListRecipient");
+		UnRegisterModuleDependences("sender", "OnConnectorList", "sender", "bitrix\\sender\\connectormanager", "onConnectorList");
 
 		UnRegisterModuleDependences("sender", "OnPresetTemplateList", "sender", "Bitrix\\Sender\\Preset\\TemplateBase", "onPresetTemplateList");
 		UnRegisterModuleDependences("sender", "OnPresetTemplateList", "sender", "Bitrix\\Sender\\TemplateTable", "onPresetTemplateList");

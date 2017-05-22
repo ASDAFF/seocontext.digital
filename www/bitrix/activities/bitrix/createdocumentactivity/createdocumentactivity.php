@@ -4,6 +4,9 @@ if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
 class CBPCreateDocumentActivity
 	extends CBPActivity
 {
+	const EXECUTION_MAX_DEPTH = 1;
+	private static $executionDepth = array();
+
 	public function __construct($name)
 	{
 		parent::__construct($name);
@@ -38,7 +41,11 @@ class CBPCreateDocumentActivity
 			$fieldValue = $fixedFields;
 		}
 
+		$executionKey = $rootActivity->GetWorkflowTemplateId();
+
+		self::increaseExecutionDepth($executionKey);
 		$documentService->CreateDocument($documentId, $fieldValue);
+		self::resetExecutionDepth($executionKey);
 
 		return CBPActivityExecutionStatus::Closed;
 	}
@@ -211,5 +218,20 @@ class CBPCreateDocumentActivity
 
 		return true;
 	}
+
+	private static function increaseExecutionDepth($key)
+	{
+		if (!isset(self::$executionDepth[$key]))
+		{
+			self::$executionDepth[$key] = 0;
+		}
+		self::$executionDepth[$key]++;
+
+		if (self::$executionDepth[$key] > self::EXECUTION_MAX_DEPTH)
+			throw new Exception(GetMessage('BPCDA_RECURSION_ERROR'));
+	}
+	private static function resetExecutionDepth($key)
+	{
+		self::$executionDepth[$key] = 0;
+	}
 }
-?>

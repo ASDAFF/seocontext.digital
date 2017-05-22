@@ -1,5 +1,6 @@
 <?if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();?>
 <?
+
 $arFieldsSorted = array(
 	"LOGIN",
 	"NAME",	
@@ -383,10 +384,10 @@ else
 	$strPhoto = "";
 }
 
-if (IsModuleInstalled('extranet'))
+if (IsModuleInstalled('extranet') || IsModuleInstalled('mail'))
 {
 	if (
-		!is_array($arUserFields) 
+		!is_array($arUserFields)
 		|| count($arUserFields) <= 0
 	)
 	{
@@ -397,11 +398,29 @@ if (IsModuleInstalled('extranet'))
 		(is_array($arUserFields["UF_DEPARTMENT"]["VALUE"]) && count($arUserFields["UF_DEPARTMENT"]["VALUE"]) <= 0)
 		|| (!is_array($arUserFields["UF_DEPARTMENT"]["VALUE"]) && intval($arUserFields["UF_DEPARTMENT"]["VALUE"]) <= 0)
 	);
-	$strUserNameClass = ($bExtranetUser ? " bx-user-info-extranet" : "");
+	$bEmailUser = ($arResult["User"]["EXTERNAL_AUTH_ID"] == 'email');
+	$bCrmEmailUser = !empty($arUserFields["UF_USER_CRM_ENTITY"]["VALUE"]);
+
+	if ($bCrmEmailUser)
+	{
+		$strUserNameClass = " bx-user-info-emailcrm";
+	}
+	elseif ($bEmailUser)
+	{
+		$strUserNameClass = " bx-user-info-email";
+	}
+	elseif ($bExtranetUser)
+	{
+		$strUserNameClass = " bx-user-info-extranet";
+	}
+	else
+	{
+		$strUserNameClass = "";
+	}
 }
-		
+
 $strNameFormatted = CUser::FormatName($arParams['NAME_TEMPLATE'], $arTmpUser, $bUseLogin);
-		
+
 $strPhoto = '<a href="'.$arTmpUser["DETAIL_URL"].'" class="'.$photoClass.'">'.$strPhoto.'</a>';
 
 $data_cont_class = ($GLOBALS["USER"]->IsAuthorized() && $arResult["CurrentUserPerms"]["Operations"]["videocall"] ? "bx-user-info-data-cont-video" : "bx-user-info-data-cont");
@@ -413,4 +432,12 @@ $strCard .= '<div class="bx-user-info-data-name '.$strUserNameClass.'"><a href="
 $strCard .= ($bExtranetUser ? '<div class="bx-user-info-extranet-description">'.GetMessage("MAIN_UL_EXTRANET_USER").'</div>' : '');
 $strCard .= '<div class="bx-user-info-data-info">'.$strUserFields.$strTmpUserRatings.'</div>';
 $strCard .= '</div>';
+
+static $includedOnce = false;
+if (!$includedOnce)
+{
+	$arScripts = array("BX.message({ MULSonetMessageChatTemplate: '".CUtil::JSEscape($arParams["~PATH_TO_SONET_MESSAGES_CHAT"])."', MULVideoCallTemplate: '".CUtil::JSEscape($arParams["~PATH_TO_VIDEO_CALL"])."' });");
+}
+
+$includedOnce = true;
 ?>

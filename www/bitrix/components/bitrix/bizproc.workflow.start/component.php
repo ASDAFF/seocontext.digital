@@ -116,7 +116,10 @@ $arResult["DocumentService"] = $runtime->GetService("DocumentService");
 ********************************************************************/
 $dbWorkflowTemplate = CBPWorkflowTemplateLoader::GetList(
 	array(),
-	array("DOCUMENT_TYPE" => $arParams["DOCUMENT_TYPE"], "ACTIVE" => "Y"),
+	array(
+		"DOCUMENT_TYPE" => $arParams["DOCUMENT_TYPE"], "ACTIVE" => "Y",
+		'!AUTO_EXECUTE' => CBPDocumentEventType::Automation
+	),
 	false,
 	false,
 	array("ID", "NAME", "DESCRIPTION", "MODIFIED", "USER_ID", "PARAMETERS")
@@ -229,7 +232,8 @@ if ($arParams["TEMPLATE_ID"] > 0 && strlen($_POST["CancelStartParamWorkflow"]) <
 			foreach ($arErrorsTmp as $e)
 				$arError[] = array(
 					"id" => "StartWorkflowError",
-					"text" => "[".$e["code"]."] ".$e["message"]);
+					"text" => ($e['code'] > 0 ? '['.$e['code'].'] ': '').$e['message']
+				);
 		}
 		else
 		{

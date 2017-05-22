@@ -552,4 +552,43 @@ class ShipmentItemStoreCollection
 		return $shipmentItemStoreCollectionClone;
 	}
 
+
+	/**
+	 * @param $value
+	 *
+	 * @return string
+	 */
+	public function getErrorEntity($value)
+	{
+		$className = null;
+		/** @var ShipmentItemStore $shipmentItemStore */
+		foreach ($this->collection as $shipmentItemStore)
+		{
+			if ($className = $shipmentItemStore->getErrorEntity($value))
+			{
+				break;
+			}
+		}
+		return $className;
+	}
+
+	/**
+	 * @param $value
+	 *
+	 * @return string
+	 */
+	public function canAutoFixError($value)
+	{
+		$autoFix = false;
+		/** @var ShipmentItemStore $shipmentItemStore */
+		foreach ($this->collection as $shipmentItemStore)
+		{
+			if ($autoFix = $shipmentItemStore->canAutoFixError($value))
+			{
+				break;
+			}
+		}
+		return $autoFix;
+	}
+
 } 

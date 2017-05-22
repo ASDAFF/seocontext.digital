@@ -526,7 +526,7 @@ else
 								<?if($arParams["AJAX_POST"] == "Y"):?>
 									<a href="javascript:void(0)" onclick="if(confirm('<?=GetMessage("BPC_MES_DELETE_POST_CONFIRM")?>')) deleteComment('<?=$comment["urlToDelete"]."&".bitrix_sessid_get()?>', '<?=$comment["ID"]?>');" title="<?=GetMessage("BPC_MES_DELETE")?>">
 								<?else:?>
-									<a href="javascript:if(confirm('<?=GetMessage("BPC_MES_DELETE_POST_CONFIRM")?>')) window.location='<?=$comment["urlToDelete"]."&".bitrix_sessid_get()?>'" title="<?=GetMessage("BPC_MES_DELETE")?>">
+									<a href="javascript:if(confirm('<?=GetMessage("BPC_MES_DELETE_POST_CONFIRM")?>')) window.location='<?=urlencode($comment["urlToDelete"])."&".bitrix_sessid_get()?>'" title="<?=GetMessage("BPC_MES_DELETE")?>">
 								<?endif;?>
 								<?=GetMessage("BPC_MES_DELETE")?></a></span>
 							<?
@@ -578,9 +578,9 @@ else
 					{
 						$commentPreview = Array(
 								"ID" => "preview",
-								"TitleFormated" => htmlspecialcharsEx($_POST["subject"]),
-								"TextFormated" => $_POST["commentFormated"],
-								"AuthorName" => $User["NAME"],
+								"TitleFormated" => htmlspecialcharsbx($_POST["subject"]),
+								"TextFormated" => htmlspecialcharsbx($_POST["commentFormated"]),
+								"AuthorName" => htmlspecialcharsbx($User["NAME"]),
 								"DATE_CREATE" => GetMessage("B_B_MS_PREVIEW_TITLE"),
 							);
 						ShowComment($commentPreview, (IntVal($_POST["edit_id"]) == $comment["ID"] && $comment["CAN_EDIT"] == "Y") ? $level : ($level+1), 2.5, false, Array(), false, false, false, $arParams);

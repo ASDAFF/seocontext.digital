@@ -142,7 +142,7 @@ if ($arEvent)
 				{
 					foreach($arCacheVars["Assets"]["CSS"] as $cssFile)
 					{
-						\Bitrix\Main\Page\Asset::getInstance()->addCss($cssFile, true);
+						\Bitrix\Main\Page\Asset::getInstance()->addCss($cssFile);
 					}
 				}
 
@@ -150,7 +150,7 @@ if ($arEvent)
 				{
 					foreach($arCacheVars["Assets"]["JS"] as $jsFile)
 					{
-						\Bitrix\Main\Page\Asset::getInstance()->addJs($jsFile, true);
+						\Bitrix\Main\Page\Asset::getInstance()->addJs($jsFile);
 					}
 				}
 			}
@@ -202,7 +202,7 @@ if ($arEvent)
 				"ID", "LOG_ID", "SOURCE_ID", "ENTITY_TYPE", "ENTITY_ID", "USER_ID", "EVENT_ID", "LOG_DATE", "MESSAGE", "TEXT_MESSAGE", "URL", "MODULE_ID",
 				"GROUP_NAME", "GROUP_OWNER_ID", "GROUP_VISIBLE", "GROUP_OPENED", "GROUP_IMAGE_ID",
 				"USER_NAME", "USER_LAST_NAME", "USER_SECOND_NAME", "USER_LOGIN", "USER_PERSONAL_PHOTO", "USER_PERSONAL_GENDER",
-				"CREATED_BY_NAME", "CREATED_BY_LAST_NAME", "CREATED_BY_SECOND_NAME", "CREATED_BY_LOGIN", "CREATED_BY_PERSONAL_PHOTO", "CREATED_BY_PERSONAL_GENDER",
+				"CREATED_BY_NAME", "CREATED_BY_LAST_NAME", "CREATED_BY_SECOND_NAME", "CREATED_BY_LOGIN", "CREATED_BY_PERSONAL_PHOTO", "CREATED_BY_PERSONAL_GENDER", "CREATED_BY_EXTERNAL_AUTH_ID",
 				"LOG_SITE_ID", "LOG_SOURCE_ID",
 				"RATING_TYPE_ID", "RATING_ENTITY_ID",
 				"UF_*"
@@ -239,6 +239,22 @@ if ($arEvent)
 				$arListParams
 			);
 
+			if (
+				!empty($arEvent["EVENT_FORMATTED"])
+				&& !empty($arEvent["EVENT_FORMATTED"]["DESTINATION"])
+				&& is_array($arEvent["EVENT_FORMATTED"]["DESTINATION"])
+			)
+			{
+				foreach($arEvent["EVENT_FORMATTED"]["DESTINATION"] as $destination)
+				{
+					if (!empty($destination["CRM_USER_ID"]))
+					{
+						$arParams["ENTRY_HAS_CRM_USER"] = true;
+						break;
+					}
+				}
+			}
+
 			while($arComments = $dbComments->GetNext())
 			{
 				if (defined("BX_COMP_MANAGED_CACHE"))
@@ -255,7 +271,6 @@ if ($arEvent)
 						$arComments["UF"][$field_name]["ENTITY_VALUE_ID"] = $arComments["ID"];
 					}
 				}
-
 				$arCommentsFullList[] = __SLEGetLogCommentRecord($arComments, $arParams, $arAssets);
 			}
 
@@ -329,7 +344,8 @@ if ($arEvent)
 
 		$arCommentRights = CSocNetLogComponent::getCommentRights(array(
 			"EVENT_ID" => $arEvent["EVENT"]["EVENT_ID"],
-			"SOURCE_ID" => $arEvent["EVENT"]["SOURCE_ID"]
+			"SOURCE_ID" => $arEvent["EVENT"]["SOURCE_ID"],
+			"USER_ID" => $USER->getId()
 		));
 		$arResult["COMMENT_RIGHTS_EDIT"] = $arCommentRights["COMMENT_RIGHTS_EDIT"];
 		$arResult["COMMENT_RIGHTS_DELETE"] = $arCommentRights["COMMENT_RIGHTS_DELETE"];

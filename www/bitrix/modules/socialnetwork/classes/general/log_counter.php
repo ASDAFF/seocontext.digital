@@ -20,7 +20,7 @@ class CAllSocNetLogCounter
 		);
 	}
 
-	function GetSubSelect($entityId, $entity_type = false, $entity_id = false, $event_id = false, $created_by_id = false, $arOfEntities = false, $arAdmin = false, $transport = false, $visible = "Y", $type = "L", $params = array(), $bDecrement = false, $bForAllAccess = false)
+	public static function GetSubSelect($entityId, $entity_type = false, $entity_id = false, $event_id = false, $created_by_id = false, $arOfEntities = false, $arAdmin = false, $transport = false, $visible = "Y", $type = "L", $params = array(), $bDecrement = false, $bForAllAccess = false)
 	{
 		global $DB;
 

@@ -216,7 +216,7 @@ class Subscription
 		{
 			$postingDb = PostingRecipientTable::getList(array(
 				'select' => array('POSTING_ID', 'POSTING_MAILING_ID' => 'POSTING.MAILING_ID'),
-				'filter' => array('ID' => $data['RECIPIENT_ID'], 'EMAIL' => $data['EMAIL'])
+				'filter' => array('=ID' => $data['RECIPIENT_ID'], '=EMAIL' => $data['EMAIL'])
 			));
 			$posting = $postingDb->fetch();
 		}
@@ -224,7 +224,7 @@ class Subscription
 		$mailingDb = MailingTable::getList(array(
 			'select' => array('ID'),
 			'filter' => array(
-				'ID' => $data['UNSUBSCRIBE_LIST'],
+				'=ID' => $data['UNSUBSCRIBE_LIST'],
 			)
 		));
 		while($mailing = $mailingDb->fetch())
@@ -242,7 +242,7 @@ class Subscription
 			{
 				$mailingPostingDb = PostingRecipientTable::getList(array(
 					'select' => array('RECIPIENT_ID' => 'ID', 'POSTING_ID'),
-					'filter' => array('=POSTING.MAILING_ID' => $mailing['ID'], 'EMAIL' => $data['EMAIL'])
+					'filter' => array('=POSTING.MAILING_ID' => $mailing['ID'], '=EMAIL' => $data['EMAIL'])
 				));
 				if($mailingPosting = $mailingPostingDb->fetch())
 				{

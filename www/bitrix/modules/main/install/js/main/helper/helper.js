@@ -60,19 +60,15 @@ BX.Helper =
 			html : this.topBarHtml
 		});
 
-		this.createFrame();
-		this.closeBtnHandler();
-		this.createPopup();
-
 		BX.bind(this.openBtn, 'click', BX.proxy(this.show, this));
 		BX.bind(this.openBtn, 'click', BX.proxy(this.setBlueHeroView, this));
 
 		BX.bind(window, 'message', BX.proxy(function(event)
 		{
 			event = event || window.event;
-			if(typeof(event.data.action) == "undefined")
+			if(typeof(event.data.action) == "undefined" && this.isOpen)
 			{
-				if(event.data.height && this.isOpen)
+				if(event.data.height)
 					this.frameNode.style.height = event.data.height + 'px';
 				this.insertTopBar(typeof(event.data) == 'object' ? event.data.title : event.data);
 				this._showContent();
@@ -94,6 +90,11 @@ BX.Helper =
 			if(event.data.action == "SetCounter")
 			{
 				BX.Helper.showNotification(event.data.num);
+			}
+
+			if(event.data.action == "OpenChat")
+			{
+				BXIM.openMessenger(event.data.user_id);
 			}
 		}, this));
 
@@ -128,6 +129,9 @@ BX.Helper =
 
 	createFrame : function ()
 	{
+		if (BX('help-frame') && typeof BX('help-frame') === "object")
+			return;
+
 		this.frameNode = BX.create('iframe', {
 			attrs: {
 				className: 'bx-help-frame',
@@ -173,11 +177,15 @@ BX.Helper =
 
 	closeBtnHandler : function()
 	{
+		if (BX("bx-help-close") && typeof BX("bx-help-close") === "object")
+			return;
+
 		if(this.isAdmin == 'N')
 		{
 			this.closeBtn = BX.create('div', {
 				attrs: {
-					className: 'bx-help-close'
+					className: 'bx-help-close',
+					id: 'bx-help-close'
 				},
 				children : [BX.create('div', {attrs: {className: 'bx-help-close-inner'}})]
 			});
@@ -192,9 +200,13 @@ BX.Helper =
 
 	createPopup : function()
 	{
+		if (BX("bx-help-curtain") && typeof BX("bx-help-curtain") === "object")
+			return;
+
 		this.curtainNode = BX.create('div', {
 			attrs: {
-				"className": 'bx-help-curtain'
+				"className": 'bx-help-curtain',
+				"id": "bx-help-curtain"
 			}
 		});
 
@@ -306,7 +318,7 @@ BX.Helper =
 			this.closeBtn.style.display = 'block';
 		}
 
-		BX.addClass(this.openBtn, 'help-block-active')
+		BX.addClass(this.openBtn, 'help-block-active');
 
 		if(this.popupNode.style.transition !== undefined){
 			BX.bind(this.popupNode, 'transitionend', BX.proxy(this.loadFrame, this));
@@ -337,6 +349,10 @@ BX.Helper =
 
 	show : function(additionalParam)
 	{
+		this.createFrame();
+		this.closeBtnHandler();
+		this.createPopup();
+
 		var windowScroll = BX.GetWindowScrollPos();
 		if (windowScroll.scrollTop !== 0)
 		{
@@ -428,7 +444,7 @@ BX.Helper =
 		{
 			numBlock = "";
 		}
-//		this.notifyBlock.innerHTML = numBlock;
+		this.notifyBlock.innerHTML = numBlock;
 
 		this.setNotification(num);
 	},

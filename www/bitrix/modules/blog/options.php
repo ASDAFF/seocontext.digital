@@ -4,10 +4,10 @@ $BLOG_RIGHT = $APPLICATION->GetGroupRight($module_id);
 if ($BLOG_RIGHT>="R") :
 
 global $MESS;
-IncludeModuleLangFile($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/options.php");
+
 IncludeModuleLangFile($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/blog/options.php");
 
-include_once($GLOBALS["DOCUMENT_ROOT"]."/bitrix/modules/blog/include.php");
+CModule::IncludeModule('blog');
 
 if ($REQUEST_METHOD=="GET" && strlen($RestoreDefaults)>0 && $BLOG_RIGHT=="W" && check_bitrix_sessid())
 {

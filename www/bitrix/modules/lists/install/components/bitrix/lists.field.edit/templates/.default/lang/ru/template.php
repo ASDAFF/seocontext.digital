@@ -49,4 +49,6 @@ $MESS["CT_BLFE_FIELD_EDIT_READ_ONLY_FIELD"] = "Только для чтения 
 $MESS["CT_BLFE_FIELD_SHOW_FIELD_PREVIEW"] = "Показать поле при формировании ссылки на элемент списка";
 $MESS["CT_BLEE_SAVE_BUTTON"] = "Сохранить";
 $MESS["CT_BLEE_CANCEL_BUTTON"] = "Отмена";
+$MESS["CT_BLFE_TOOLBAR_ACTION"] = "Действия";
+$MESS["CT_BLFE_TOOLBAR_RETURN_LIST_ELEMENT"] = "К СПИСКУ ПОЛЕЙ";
 ?>

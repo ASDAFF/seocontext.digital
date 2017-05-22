@@ -25,4 +25,8 @@ $MESS["BLOG_BPE_DESTINATION_EMPTY"] = "Please specify at least one person.";
 $MESS["B_B_HIDDEN_GROUP"] = "Hidden group";
 $MESS["B_B_PC_DUPLICATE_POST"] = "You have already added your post";
 $MESS["SBPE_MULTIPLE_PREMODERATION"] = "Cannot publish post because some of the selected groups are pre-moderated.";
+$MESS["SBPE_EXISTING_POST_PREMODERATION"] = "Cannot publish because a pre-moderated user group is selected as recipient.";
+$MESS["BLOG_EMPTY_TITLE_PLACEHOLDER2"] = "File";
+$MESS["B_B_HIDDEN_USER"] = "Hidden user";
+$MESS["B_B_HIDDEN_DEPARTMENT"] = "Hidden department";
 ?>

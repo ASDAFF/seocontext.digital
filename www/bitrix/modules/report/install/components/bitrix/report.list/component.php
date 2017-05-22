@@ -66,9 +66,8 @@ if($isPost && isset($_POST['IMPORT_REPORT']))
 {
 	if(is_uploaded_file($_FILES['IMPORT_REPORT_FILE']['tmp_name']))
 	{
-		$file = fopen($_FILES['IMPORT_REPORT_FILE']['tmp_name'], 'r');
-		$reportData= fgetcsv($file, 10000, '|');
-		fclose($file);
+		$file = file_get_contents($_FILES['IMPORT_REPORT_FILE']['tmp_name']);
+		$reportData = explode('|', $file);
 		if(!empty($reportData) && is_array($reportData))
 		{
 			$fields = array();
@@ -213,7 +212,7 @@ while ($report = $queryObject->fetch())
 		array('FIELDS' => array('ID', 'NAME', 'LAST_NAME')));
 	if($user = $users->fetch())
 	{
-		$report['CREATED_BY_FULL'] = CUser::formatName($arResult['NAME_FORMAT'], $user, false);
+		$report['CREATED_BY_FULL'] = CUser::formatName($arResult['NAME_FORMAT'], $user, false, false);
 	}
 	$report['RIGHTS'] = $sharingData[$report['ID']]['RIGHTS'];
 	$arResult['SHARED_REPORT'][] = $report;

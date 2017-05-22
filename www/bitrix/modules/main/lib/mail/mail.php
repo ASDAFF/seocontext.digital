@@ -682,7 +682,11 @@ class Mail
 			return $matches[0];
 
 		$srcTrimmed = trim($src);
-		if(substr($srcTrimmed,0, 1) == "/")
+		if(substr($srcTrimmed,0, 2) == "//")
+		{
+			$src = $this->trackLinkProtocol . ":" . $srcTrimmed;
+		}
+		else if(substr($srcTrimmed,0, 1) == "/")
 		{
 			$srcModified = false;
 			if(count($this->attachment)>0)

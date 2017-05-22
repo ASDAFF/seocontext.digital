@@ -92,7 +92,7 @@ class CUserTypeEnum
 		<tr>
 			<td>'.GetMessage("USER_TYPE_ENUM_CAPTION_NO_VALUE").':</td>
 			<td>
-				<input type="text" name="'.$arHtmlControl["NAME"].'[CAPTION_NO_VALUE]" size="10" value="'.$value.'">
+				<input type="text" name="'.$arHtmlControl["NAME"].'[CAPTION_NO_VALUE]" size="10" value="'.htmlspecialcharsbx($value).'">
 			</td>
 		</tr>
 		';
@@ -335,6 +335,25 @@ class CUserTypeEnum
 	{
 		$obEnum = new CUserFieldEnum;
 		$rsEnum = $obEnum->GetList(array(), array("USER_FIELD_ID"=>$arUserField["ID"]));
+		return $rsEnum;
+	}
+
+	/**
+	 * Returns values from multiple enumerations by their ID.
+	 * @param array[] $userFields It has to have the "ID" keys in subarrays.
+	 * @return bool|CDBResult
+	 */
+	public static function GetListMultiple(array $userFields)
+	{
+		$ids = array();
+		foreach ($userFields as $field)
+		{
+			$ids[] = $field["ID"];
+		}
+		$obEnum = new CUserFieldEnum;
+		$rsEnum = $obEnum->GetList(
+			array("USER_FIELD_ID" => "ASC", "SORT" => "ASC", "ID" => "ASC"),
+			array("USER_FIELD_ID" => $ids));
 		return $rsEnum;
 	}
 

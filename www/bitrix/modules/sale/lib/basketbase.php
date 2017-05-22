@@ -51,13 +51,13 @@ abstract class BasketBase
 	 * Load the contents of the basket to order
 	 *
 	 * @param OrderBase $order - object of the order
-	 * @return static
+	 * @return Basket
 	 */
 	public static function loadItemsForOrder(OrderBase $order)
 	{
 		$basket = new static();
 		$basket->setOrder($order);
-		return $basket->loadFromDB(array(
+		return $basket->loadFromDb(array(
 			"ORDER_ID" => $order->getId()
 		));
 	}
@@ -344,7 +344,7 @@ abstract class BasketBase
 	 * @internal
 	 * @param \SplObjectStorage $cloneEntity
 	 *
-	 * @return Basket
+	 * @return BasketBase
 	 */
 	public function createClone(\SplObjectStorage $cloneEntity = null)
 	{

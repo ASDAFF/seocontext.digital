@@ -21,7 +21,7 @@ Loc::loadMessages(__FILE__);
  * <li> CALL_NUMBER string(20) optional
  * <li> EXTRANET bool optional default 'N'
  * <li> ENTITY_TYPE string(50) optional
- * <li> ENTITY_ID string(50) optional
+ * <li> ENTITY_ID string(255) optional
  * <li> ENTITY_DATA_1 string(255 optional
  * <li> ENTITY_DATA_2 string(255) optional
  * <li> ENTITY_DATA_3 string(255) optional
@@ -128,9 +128,18 @@ class ChatTable extends Entity\DataManager
 			'DISK_FOLDER_ID' => array(
 				'data_type' => 'integer'
 			),
+			'PIN_MESSAGE_ID' => array(
+				'data_type' => 'integer',
+				'default_value' => 0
+			),
 			'LAST_MESSAGE_ID' => array(
 				'data_type' => 'integer',
 				'default_value' => 0
+			),
+			'DATE_CREATE' => array(
+				'data_type' => 'datetime',
+				'required' => false,
+				'default_value' => array(__CLASS__, 'getCurrentDate'),
 			),
 		);
 	}
@@ -161,7 +170,7 @@ class ChatTable extends Entity\DataManager
 	public static function validateEntityId()
 	{
 		return array(
-			new Entity\Validator\Length(null, 50),
+			new Entity\Validator\Length(null, 255),
 		);
 	}
 	public static function validateCallNumber()
@@ -176,6 +185,10 @@ class ChatTable extends Entity\DataManager
 			new Entity\Validator\Length(null, 255),
 		);
 	}
+	public static function getCurrentDate()
+	{
+		return new \Bitrix\Main\Type\DateTime();
+	}	
 }
 
 class_alias("Bitrix\\Im\\Model\\ChatTable", "Bitrix\\Im\\ChatTable", false);

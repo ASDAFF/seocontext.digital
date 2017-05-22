@@ -270,6 +270,25 @@ $MESS["SALE_SUBSCRIBE_PRODUCT_HTML_TEXT"] = "Товар \"#NAME#\" (#PAGE_URL#) 
 Спасибо за покупку!
 ";
 $MESS["SKGS_STATUS_MAIL_HTML_TITLE"] = "Изменение статуса заказа в магазине #SITE_NAME#";
+
+$MESS["SALE_CHECK_PRINT_TYPE_NAME"] = "Уведомление о печати чека";
+$MESS["SALE_CHECK_PRINT_TYPE_DESC"] = "#ORDER_ID# - код заказа
+#ORDER_DATE# - дата заказа
+#ORDER_USER# - заказчик
+#ORDER_ACCOUNT_NUMBER_ENCODE# - код заказа(для ссылок)
+#CHECK_LINK# - ссылка на чек";
+$MESS["SALE_CHECK_PRINT_SUBJECT"] = "Ссылка на чек";
+
+$MESS["SALE_CHECK_PRINT_HTML_TITLE"] = "Вы оплатили заказ на сайте #SITE_NAME#";
+$MESS["SALE_CHECK_PRINT_HTML_SUB_TITLE"] = "Уважаемый #ORDER_USER#,";
+$MESS["SALE_CHECK_PRINT_HTML_TEXT"] = "
+Согласно требованиям закона ФЗ-54 о фискальных чеках по вашему заказу произведена оплата и сформирован фискальный кассовый чек, который вы можете посмотреть по ссылке:
+
+#CHECK_LINK#
+
+Для получения подробной информации по заказу №#ORDER_ID# от #ORDER_DATE# пройдите на сайт http://#SERVER_NAME#/personal/order/detail/#ORDER_ACCOUNT_NUMBER_ENCODE#/
+";
+
 $MESS["SALE_ORDER_TRACKING_NUMBER_TYPE_NAME"] = "Уведомление об изменении идентификатора почтового отправления";
 $MESS["SALE_ORDER_TRACKING_NUMBER_TYPE_DESC"] = "#ORDER_ID# - код заказа
 #ORDER_ACCOUNT_NUMBER_ENCODE# - код заказа(для ссылок)

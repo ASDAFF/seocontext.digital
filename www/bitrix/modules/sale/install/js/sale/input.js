@@ -741,6 +741,15 @@ BX.Sale.Input = (function () {
 				settings.SIZE = 30;
 			}
 
+			if (settings.PATTERN && settings.PATTERN.length)
+			{
+				var clearPattern = settings.PATTERN.substr(1, settings.PATTERN.lastIndexOf(settings.PATTERN[0]) - 1);
+				if (clearPattern && clearPattern.length)
+				{
+					settings.PATTERN = clearPattern;
+				}
+			}
+
 			Utils.applyBooleanAttributesTo(element, settings, Utils.globalBooleanAttributes, {DISABLED:'', READONLY:'', AUTOFOCUS:'', REQUIRED:'', AUTOCOMPLETE:'on'});
 			Utils.applyValueAttributesTo(element, settings, Utils.globalValueAttributes, {FORM:1, MAXLENGTH:1, PLACEHOLDER:1, DIRNAME:1, SIZE:1, LIST:1, PATTERN:1});
 			this.applyEventAttributesTo(element, settings, Utils.globalEventAttributes);

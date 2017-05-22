@@ -89,6 +89,7 @@ class SitesData
 						if($siteInfo["DocumentRoot"] == $docRoot)
 						{
 							$resSite[$siteId]["NAME"] = $site["NAME"]." (".$site["LID"].") ";
+							$resSite[$siteId]["LID"] = $site["LID"];
 						}
 						else
 						{

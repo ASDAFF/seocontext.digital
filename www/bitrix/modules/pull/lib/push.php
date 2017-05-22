@@ -216,6 +216,7 @@ class PushTable extends Main\Entity\DataManager
 
 		$result = new Entity\EventResult;
 		$data = $event->getParameter("fields");
+		$data["UNIQUE_HASH"] = \CPullPush::getUniqueHash($data["USER_ID"], $data["APP_ID"]);
 		$data["DATE_AUTH"] = new Main\Type\DateTime();
 		$result->modifyFields($data);
 

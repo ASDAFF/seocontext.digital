@@ -8,7 +8,7 @@ include_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/bizproc/include.php");
 IncludeModuleLangFile(__FILE__);
 
 if(!$USER->IsAuthorized())
-	die('<script>alert("'.GetMessage("ACCESS_DENIED").'");</script>');
+	die('<script>alert("'.GetMessageJS("ACCESS_DENIED").'");</script>');
 
 CBPHelper::decodeTemplatePostData($_POST);
 
@@ -43,7 +43,7 @@ catch (Exception $e)
 
 if(!$canWrite)
 {
-	echo '<script>alert("'.GetMessage("ACCESS_DENIED").'");</script>';
+	echo '<script>alert("'.GetMessageJS("ACCESS_DENIED").'");</script>';
 	die();
 }
 
@@ -259,6 +259,36 @@ function _RecFindParams($act, $arFilter, &$arResult)
 				$arResult = array_merge($arResult, $arResultTmp);
 			}
 		}
+		elseif(is_array($arAllActivities[$value['Type']]['ADDITIONAL_RESULT']))
+		{
+			$resultTmp = array();
+			foreach($arAllActivities[$value['Type']]['ADDITIONAL_RESULT'] as $propertyKey)
+			{
+				if(!is_array($value['Properties'][$propertyKey]))
+					continue;
+
+				foreach($value['Properties'][$propertyKey] as $fieldId => $fieldData)
+				{
+					if($arFilter !== false && !in_array($fieldData['Type'], $arFilter))
+						continue;
+
+					$resultTmp[] = array(
+						'ID' => '{='.$value['Name'].':'.$fieldId.'}',
+						'NAME' => '...'.$fieldData['Name'],
+						'TYPE' => $fieldData['Type']
+					);
+				}
+			}
+
+			if(count($resultTmp) > 0)
+			{
+				$arResult[] = array(
+					'ID' => $value['Name'],
+					'NAME' => $value['Properties']['Title']
+				);
+				$arResult = array_merge($arResult, $resultTmp);
+			}
+		}
 
 		if(is_array($value["Children"]))
 			_RecFindParams($value["Children"], $arFilter, $arResult);
@@ -371,12 +401,17 @@ _RecFindParams($arWorkflowTemplate, $arFilter, $arReturns);
 					$dbuser = $DB->Query($str);
 					while($user = $dbuser->fetch())
 					{
-						if ($user['EXTERNAL_AUTH_ID'] == 'replica' || $user['EXTERNAL_AUTH_ID'] == 'email')
+						if (
+								$user['EXTERNAL_AUTH_ID'] == 'replica'
+								|| $user['EXTERNAL_AUTH_ID'] == 'email'
+								|| $user['EXTERNAL_AUTH_ID'] == 'imconnector'
+								|| $user['EXTERNAL_AUTH_ID'] == 'bot'
+						)
 							continue;
 
 						$n = CUser::FormatName(str_replace(",","", COption::GetOptionString("bizproc", "name_template", CSite::GetNameFormat(false), SITE_ID)), $user, true, true);
 						?>
-						<option value="<?= $n ?> [<?=$user['ID']?>]; "><?=$n?> &lt;<?=$user['EMAIL']?>&gt; [<?=$user['ID']?>]</option>
+						<option value="<?= $n ?> [<?=(int)$user['ID']?>]; "><?=$n?> &lt;<?=htmlspecialcharsbx($user['EMAIL'])?>&gt; [<?=(int)$user['ID']?>]</option>
 						<?
 					}
 				}
@@ -407,11 +442,14 @@ function BPSVInsert(v)
 
 	if(!v)
 	{
-		alert('<?=GetMessage("BIZPROC_SEL_ERR")?>');
+		alert('<?=GetMessageJS("BIZPROC_SEL_ERR")?>');
 		return;
 	}
 	else
 	{
+		<?if ($selectorMode == 'employee'):?>
+		v = BX.util.trim(v.replace(';', ''));
+		<?endif;?>
 		var tdocument = top.document;
 		var toField = tdocument.getElementById('<?=AddSlashes(htmlspecialcharsbx($_POST["fieldName"]))?>');
 

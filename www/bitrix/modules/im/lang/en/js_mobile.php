@@ -49,4 +49,8 @@ $MESS["IM_FILE_LISTEN_NA"] = "Playing sound files on the phone is temporarily un
 $MESS["IM_MENU_WARN"] = "Attention";
 $MESS["IM_MENU_LEAVE_CONFIRM"] = "Are you sure you want to leave this chat?";
 $MESS["IM_LINES"] = "Open channel";
+$MESS["IM_B24DISK"] = "Bitrix24.Drive";
+$MESS["IM_CHOOSE_PHOTO"] = "Select from gallery";
+$MESS["IM_CAMERA_ROLL"] = "Take a photo";
+$MESS["IM_CHOOSE_FILE_TITLE"] = "Files";
 ?>

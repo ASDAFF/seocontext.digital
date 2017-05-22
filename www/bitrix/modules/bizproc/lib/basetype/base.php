@@ -549,7 +549,7 @@ class Base
 				$value[$k] = $result;
 		}
 
-		//apppend selector value
+		//append selector value
 		$nameText = $field['Field'].'_text';
 		$text = isset($request[$nameText]) ? $request[$nameText] : null;
 		if (\CBPActivity::isExpression($text))

@@ -264,6 +264,7 @@ Class blog extends CModule
 
 		RegisterModuleDependences("main", "OnGetRatingContentOwner", "blog", "CRatingsComponentsBlog", "OnGetRatingContentOwner", 200);
 		RegisterModuleDependences("im", "OnGetNotifySchema", "blog", "CBlogNotifySchema", "OnGetNotifySchema");
+		RegisterModuleDependences("im", "OnAnswerNotify", "blog", "CBlogNotifySchema", "CBlogEventsIMCallback");
 
 		RegisterModuleDependences("main", "OnAfterRegisterModule", "main", "blog", "installUserFields", 100, "/modules/blog/install/index.php"); // check UF
 
@@ -274,6 +275,8 @@ Class blog extends CModule
 		$eventManager = \Bitrix\Main\EventManager::getInstance();
 		$eventManager->registerEventHandler('mail', 'onReplyReceivedBLOG_POST', 'blog', '\Bitrix\Blog\Internals\MailHandler', 'handleReplyReceivedBlogPost');
 		$eventManager->registerEventHandler('mail', 'onForwardReceivedBLOG_POST', 'blog', '\Bitrix\Blog\Internals\MailHandler', 'handleForwardReceivedBlogPost');
+		$eventManager->registerEventHandler('socialnetwork', 'onLogIndexGetContent', 'blog', '\Bitrix\Blog\Integration\Socialnetwork\Log', 'onIndexGetContent');
+		$eventManager->registerEventHandler('socialnetwork', 'onLogCommentIndexGetContent', 'blog', '\Bitrix\Blog\Integration\Socialnetwork\LogComment', 'onIndexGetContent');
 
 		CModule::IncludeModule("blog");
 		if (CModule::IncludeModule("search"))
@@ -439,6 +442,7 @@ Class blog extends CModule
 		
 		UnRegisterModuleDependences("main", "OnGetRatingContentOwner", "blog", "CRatingsComponentsBlog", "OnGetRatingContentOwner");
 		UnRegisterModuleDependences("im", "OnGetNotifySchema", "blog", "CBlogNotifySchema", "OnGetNotifySchema");
+		UnRegisterModuleDependences("im", "OnAnswerNotify", "blog", "CBlogNotifySchema", "CBlogEventsIMCallback");
 
 		UnRegisterModuleDependences("main", "OnAfterRegisterModule", "main", "blog", "installUserFields", "/modules/blog/install/index.php"); // check UF
 
@@ -449,6 +453,9 @@ Class blog extends CModule
 		$eventManager = \Bitrix\Main\EventManager::getInstance();
 		$eventManager->unregisterEventHandler('mail', 'onReplyReceivedBLOG_POST', 'blog', '\Bitrix\Blog\Internals\MailHandler', 'handleReplyReceivedBlogPost');
 		$eventManager->unregisterEventHandler('mail', 'onForwardReceivedBLOG_POST', 'blog', '\Bitrix\Blog\Internals\MailHandler', 'handleForwardReceivedBlogPost');
+		$eventManager->unregisterEventHandler('socialnetwork', 'onLogIndexGetContent', 'blog', '\Bitrix\Blog\Integration\Socialnetwork\Log', 'onIndexGetContent');
+		$eventManager->unregisterEventHandler('socialnetwork', 'onLogCommentIndexGetContent', 'blog', '\Bitrix\Blog\Integration\Socialnetwork\LogComment', 'onIndexGetContent');
+
 
 		UnRegisterModule("blog");
 

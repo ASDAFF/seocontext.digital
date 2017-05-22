@@ -600,7 +600,7 @@ final class Manager
 	 */
 	public function disableExistenceDiscountsWithGift()
 	{
-		Option::set('sale', 'exists_discounts_with_gift', 'Y');
+		Option::set('sale', 'exists_discounts_with_gift', 'N');
 	}
 
 	/**

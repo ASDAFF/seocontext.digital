@@ -60,7 +60,7 @@ if($this->startResultCache(false, array($elementID, ($arParams["CACHE_GROUPS"]==
 	$product = false;
 	if (!$isProductHaveSet)
 	{
-		$product = CCatalogSKU::GetProductInfo($elementID, $arParams['IBLOCK_ID']);
+		$product = CCatalogSku::GetProductInfo($elementID, $arParams['IBLOCK_ID']);
 		if (!empty($product))
 		{
 			$isProductHaveSet = CCatalogProductSet::isProductHaveSet($product['ID'], CCatalogProductSet::TYPE_GROUP);
@@ -70,7 +70,7 @@ if($this->startResultCache(false, array($elementID, ($arParams["CACHE_GROUPS"]==
 	}
 	if (!$isProductHaveSet)
 	{
-		$this->AbortResultCache();
+		$this->abortResultCache();
 		return;
 	}
 
@@ -137,7 +137,7 @@ if($this->startResultCache(false, array($elementID, ($arParams["CACHE_GROUPS"]==
 	unset($oneSet, $allSets);
 	if (empty($currentSet))
 	{
-		$this->AbortResultCache();
+		$this->abortResultCache();
 		return;
 	}
 	Main\Type\Collection::sortByColumn($currentSet['ITEMS'], array('SORT' => SORT_ASC), '', null, true);
@@ -191,77 +191,108 @@ if($this->startResultCache(false, array($elementID, ($arParams["CACHE_GROUPS"]==
 	$tagIblockList[$arResult['ELEMENT_IBLOCK_ID']] = $arResult['ELEMENT_IBLOCK_ID'];
 	$tagCurrencyList = array();
 
-	$found = false;
+	$foundMain = false;
 	$itemsList = array();
-	$emptyOffers = array();
+	$offerList = array();
 	$itemsIterator = CIBlockElement::GetList(
 		array(),
-		array('ID' => $arSetItemsID),
+		array(
+			'ID' => $arSetItemsID,
+			'IBLOCK_LID' => SITE_ID,
+			'ACTIVE_DATE' => 'Y',
+			'ACTIVE' => 'Y',
+			'CHECK_PERMISSIONS' => 'Y',
+			'MIN_PERMISSION' => 'R'
+		),
 		false,
 		false,
 		$select
 	);
 	while ($item = $itemsIterator->GetNext())
 	{
-		$found = true;
+		if (
+			$item['CATALOG_TYPE'] != Catalog\ProductTable::TYPE_PRODUCT
+			&& $item['CATALOG_TYPE'] != Catalog\ProductTable::TYPE_SET
+			&& $item['CATALOG_TYPE'] != Catalog\ProductTable::TYPE_OFFER
+		)
+			continue;
+
 		$item['ID'] = (int)$item['ID'];
 		$item['IBLOCK_ID'] = (int)$item['IBLOCK_ID'];
-		$tagIblockList[$item['IBLOCK_ID']] = $item['IBLOCK_ID'];
 		$itemsList[$item['ID']] = $item;
-		if (empty($item['PREVIEW_PICTURE']) && empty($item['DETAIL_PICTURE']))
-			$emptyOffers[] = $item['ID'];
+		if ($item['CATALOG_TYPE'] == Catalog\ProductTable::TYPE_OFFER)
+			$offerList[$item['ID']] = $item['ID'];
+		if ($item['ID'] == $arResult['ELEMENT_ID'])
+			$foundMain = true;
 	}
 	unset($select, $item, $itemsIterator);
-	if (!$found)
+	if (!$foundMain || count($itemsList) < 2)
 	{
 		$this->abortResultCache();
 		return;
 	}
-	if (!empty($emptyOffers))
+
+	if (!empty($offerList))
 	{
-		$parents = CCatalogSku::getProductList($emptyOffers);
+		$parents = CCatalogSku::getProductList($offerList);
 		if (!empty($parents) && is_array($parents))
 		{
-			$offerLinks = array();
+			$offersMap = array();
 			foreach ($parents as $offerId => $parentData)
 			{
 				$parentId = $parentData['ID'];
-				if (!isset($offerLinks[$parentId]))
-					$offerLinks[$parentId] = array();
-				if (!isset($itemsList[$offerId]))
-					continue;
-				$offerLinks[$parentId][] = &$itemsList[$offerId];
+				if (!isset($offersMap[$parentId]))
+					$offersMap[$parentId] = array();
+				$offersMap[$parentId][$offerId] = $offerId;
 			}
 			unset($offerId, $parentData);
-			$itemsIterator = Iblock\ElementTable::getList(array(
-				'select' => array('ID', 'PREVIEW_PICTURE', 'DETAIL_PICTURE'),
-				'filter' => array(
-					'@ID' => array_keys($offerLinks),
-					array(
-						'LOGIC' => 'OR',
-						'!=PREVIEW_PICTURE' => null,
-						'!=DETAIL_PICTURE' => null
-					)
-				)
-			));
-			while ($item = $itemsIterator->fetch())
+			$iterator = CIBlockElement::GetList(
+				array(),
+				array(
+					'ID' => array_keys($offersMap),
+					'IBLOCK_LID' => SITE_ID,
+					'ACTIVE_DATE' => 'Y',
+					'ACTIVE' => 'Y',
+					'CHECK_PERMISSIONS' => 'Y',
+					'MIN_PERMISSION' => 'R'
+				),
+				false,
+				false,
+				array('ID', 'IBLOCK_ID', 'PREVIEW_PICTURE', 'DETAIL_PICTURE')
+			);
+			while ($row = $iterator->Fetch())
 			{
-				$id = (int)$item['ID'];
-				if (empty($offerLinks[$id]))
-					continue;
-				foreach (array_keys($offerLinks[$id]) as $offerIndex)
+				$row['ID'] = (int)$row['ID'];
+				foreach ($offersMap[$row['ID']] as $itemId)
 				{
-					$offerLinks[$id][$offerIndex]['PREVIEW_PICTURE'] = $item['PREVIEW_PICTURE'];
-					$offerLinks[$id][$offerIndex]['DETAIL_PICTURE'] = $item['DETAIL_PICTURE'];
+					unset($offerList[$itemId]);
+					if ($itemsList[$itemId]['PREVIEW_PICTURE'] === null)
+						$itemsList[$itemId]['PREVIEW_PICTURE'] = $row['PREVIEW_PICTURE'];
+					if ($itemsList[$itemId]['DETAIL_PICTURE'] === null)
+						$itemsList[$itemId]['DETAIL_PICTURE'] = $row['DETAIL_PICTURE'];
 				}
-				unset($offerIndex);
+				unset($itemId);
 			}
-			unset($item, $itemsIterator);
-			unset($offerLinks);
+			unset($row, $iterator);
+			unset($offersMap);
 		}
-		unset($parents);
+
+		if (!empty($offerList))
+		{
+			foreach ($offerList as $clearId)
+				unset($itemsList[$clearId]);
+			unset($clearId);
+		}
 	}
-	unset($emptyOffers);
+	if (empty($itemsList))
+	{
+		$this->abortResultCache();
+		return;
+	}
+
+	foreach ($itemsList as $item)
+		$tagIblockList[$item['IBLOCK_ID']] = $item['IBLOCK_ID'];
+	unset($item);
 
 	foreach ($itemsList as $item)
 	{
@@ -379,7 +410,7 @@ if($this->startResultCache(false, array($elementID, ($arParams["CACHE_GROUPS"]==
 	unset($setItem, $currentSet);
 	if (!$found || empty($arResult['SET_ITEMS']['DEFAULT']))
 	{
-		$this->AbortResultCache();
+		$this->abortResultCache();
 		return;
 	}
 	unset($found);
@@ -404,10 +435,16 @@ if($this->startResultCache(false, array($elementID, ($arParams["CACHE_GROUPS"]==
 		}
 	}
 
+	$arResult['SHOW_DEFAULT_SET_DISCOUNT'] = true;
 	if ($arResult["SET_ITEMS"]["OLD_PRICE"] && $arResult["SET_ITEMS"]["OLD_PRICE"] != $arResult["SET_ITEMS"]["PRICE"])
+	{
 		$arResult["SET_ITEMS"]["OLD_PRICE"] = CCurrencyLang::CurrencyFormat($arResult["SET_ITEMS"]["OLD_PRICE"], $defaultCurrency, true);
+	}
 	else
+	{
 		$arResult["SET_ITEMS"]["OLD_PRICE"] = 0;
+		$arResult['SHOW_DEFAULT_SET_DISCOUNT'] = false;
+	}
 	if ($arResult["SET_ITEMS"]["PRICE"])
 		$arResult["SET_ITEMS"]["PRICE"] = CCurrencyLang::CurrencyFormat($arResult["SET_ITEMS"]["PRICE"], $defaultCurrency, true);
 	if ($arResult["SET_ITEMS"]["PRICE_DISCOUNT_DIFFERENCE"])
@@ -429,6 +466,6 @@ if($this->startResultCache(false, array($elementID, ($arParams["CACHE_GROUPS"]==
 	);
 	unset($currencyFormat);
 
-	$this->SetResultCacheKeys(array());
-	$this->IncludeComponentTemplate();
+	$this->setResultCacheKeys(array());
+	$this->includeComponentTemplate();
 }

@@ -30,10 +30,10 @@ class CAllEvent
 		return Mail\EventManager::cleanUpAgent();
 	}
 
-	public static function SendImmediate($event, $lid, $arFields, $Duplicate = "Y", $message_id="", $files=array())
+	public static function SendImmediate($event, $lid, $arFields, $Duplicate = "Y", $message_id="", $files=array(), $languageId = '')
 	{
 		foreach(GetModuleEvents("main", "OnBeforeEventAdd", true) as $arEvent)
-			if(ExecuteModuleEventEx($arEvent, array(&$event, &$lid, &$arFields, &$message_id, &$files)) === false)
+			if(ExecuteModuleEventEx($arEvent, array(&$event, &$lid, &$arFields, &$message_id, &$files, &$languageId)) === false)
 				return false;
 
 		if(!is_array($arFields))
@@ -44,29 +44,31 @@ class CAllEvent
 		$arLocalFields = array(
 			"EVENT_NAME" => $event,
 			"C_FIELDS" => $arFields,
-			"LID" => is_array($lid)? implode(",", $lid): $lid,
-			"DUPLICATE" => $Duplicate != "N"? "Y": "N",
-			"MESSAGE_ID" => intval($message_id) > 0? intval($message_id): "",
+			"LID" => (is_array($lid)? implode(",", $lid) : $lid),
+			"DUPLICATE" => ($Duplicate != "N"? "Y" : "N"),
+			"MESSAGE_ID" => (intval($message_id) > 0? intval($message_id): ""),
 			"DATE_INSERT" => GetTime(time(), "FULL"),
 			"FILE" => $files,
+			"LANGUAGE_ID" => ($languageId == ''? LANGUAGE_ID : $languageId),
 			"ID" => "0",
 		);
 
 		return Mail\Event::sendImmediate($arLocalFields);
 	}
 
-	public static function Send($event, $lid, $arFields, $Duplicate = "Y", $message_id="", $files=array())
+	public static function Send($event, $lid, $arFields, $Duplicate = "Y", $message_id="", $files=array(), $languageId = '')
 	{
 		foreach(GetModuleEvents("main", "OnBeforeEventAdd", true) as $arEvent)
-			if(ExecuteModuleEventEx($arEvent, array(&$event, &$lid, &$arFields, &$message_id, &$files)) === false)
+			if(ExecuteModuleEventEx($arEvent, array(&$event, &$lid, &$arFields, &$message_id, &$files, &$languageId)) === false)
 				return false;
 
 		$arLocalFields = array(
 			"EVENT_NAME" => $event,
 			"C_FIELDS" => $arFields,
-			"LID" => is_array($lid)? implode(",", $lid): $lid,
-			"DUPLICATE" => $Duplicate != "N"? "Y": "N",
+			"LID" => (is_array($lid)? implode(",", $lid) : $lid),
+			"DUPLICATE" => ($Duplicate != "N"? "Y" : "N"),
 			"FILE" => $files,
+			"LANGUAGE_ID" => ($languageId == ''? LANGUAGE_ID : $languageId),
 		);
 		if(intval($message_id) > 0)
 			$arLocalFields["MESSAGE_ID"] = intval($message_id);
@@ -370,7 +372,7 @@ class CAllEventMessage
 				Mail\Internal\EventMessageSiteTable::delete($ID);
 				$resultDb = \Bitrix\Main\SiteTable::getList(array(
 					'select' => array('LID'),
-					'filter' => array('LID' => $arLID),
+					'filter' => array('=LID' => $arLID),
 				));
 				while($arResultSite = $resultDb->fetch())
 				{
@@ -450,7 +452,7 @@ class CAllEventMessage
 			Mail\Internal\EventMessageSiteTable::delete($ID);
 			$resultDb = \Bitrix\Main\SiteTable::getList(array(
 				'select' => array('LID'),
-				'filter' => array('LID' => $arLID),
+				'filter' => array('=LID' => $arLID),
 			));
 			while($arResultSite = $resultDb->fetch())
 			{
@@ -489,7 +491,7 @@ class CAllEventMessage
 
 		$resultDb = Mail\Internal\EventMessageSiteTable::getList(array(
 			'select' => array('*', ''=> 'SITE.*'),
-			'filter' => array('EVENT_MESSAGE_ID' => $event_message_id),
+			'filter' => array('=EVENT_MESSAGE_ID' => $event_message_id),
 			'runtime' => array(
 				'SITE' => array(
 					'data_type' => 'Bitrix\Main\Site',
@@ -619,6 +621,9 @@ class CAllEventMessage
 						$bIsLang = true;
 						$arSearch["=SITE_ID"] = $val;
 						break;
+					case "LANGUAGE_ID":
+						$arSearch["=LANGUAGE_ID"] = $val;
+						break;
 					case "ACTIVE":
 						$arSearch['='.$key] = $val;
 						break;
@@ -662,6 +667,7 @@ class CAllEventMessage
 		elseif ($by == "bcc") $strSqlOrder = "BCC";
 		elseif ($by == "body_type") $strSqlOrder = "BODY_TYPE";
 		elseif ($by == "subject") $strSqlOrder = "SUBJECT";
+		elseif ($by == "language_id") $strSqlOrder = "LANGUAGE_ID";
 		else
 		{
 			$strSqlOrder = "ID";
@@ -1082,7 +1088,7 @@ class CEventType
 	public static function GetByID($ID, $LID)
 	{
 		$result = Mail\Internal\EventTypeTable::getList(array(
-			'filter' => array('LID' => $LID, 'EVENT_NAME' => $ID),
+			'filter' => array('=LID' => $LID, '=EVENT_NAME' => $ID),
 		));
 
 		return new CDBResult($result);

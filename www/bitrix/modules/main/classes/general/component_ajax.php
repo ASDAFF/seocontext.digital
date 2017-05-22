@@ -317,7 +317,7 @@ class CComponentAjax
 	{
 		$add_param = CAjax::GetSessionParam($this->componentID);
 
-		$regexp_links = '/(<a[^>]*?>.*?<\/a>)/is'.BX_UTF_PCRE_MODIFIER;
+		$regexp_links = '/(<a\s[^>]*?>.*?<\/a>)/is'.BX_UTF_PCRE_MODIFIER;
 		$regexp_params = '/([\w\-]+)\s*=\s*([\"\'])(.*?)\2/is'.BX_UTF_PCRE_MODIFIER;
 
 		$this->_checkPcreLimit($data);
@@ -338,7 +338,7 @@ class CComponentAjax
 
 		for($iData = 1; $iData < $cData; $iData += 2)
 		{
-			if(!preg_match('/^<a([^>]*?)>(.*?)<\/a>$/is'.BX_UTF_PCRE_MODIFIER, $arData[$iData], $match))
+			if(!preg_match('/^<a\s([^>]*?)>(.*?)<\/a>$/is'.BX_UTF_PCRE_MODIFIER, $arData[$iData], $match))
 				continue;
 
 			$params = $match[1];

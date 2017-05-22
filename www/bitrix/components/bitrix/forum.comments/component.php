@@ -1,6 +1,6 @@
 <?if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
 /**
- * @var $this CBitrixComponent
+ * @var ForumCommentsComponent $this
  * @var $USER CUser
  * @var $DB CDataBase
  * @var $arParams array
@@ -181,7 +181,7 @@ if ($arResult["SHOW_POST_FORM"] == "Y")
 		$arResult["MESSAGE_VIEW"] = array(
 			"POST_MESSAGE_TEXT" => $parser->convert($arResult["MESSAGE_VIEW"]["POST_MESSAGE"], array_merge(
 					$arAllow, array("SMILES" => $arAllow["ALLOW_SMILES"] == "Y" && $arResult["MESSAGE_VIEW"]["USE_SMILES"] == "Y" ? "Y" : "N"))),
-			"AUTHOR_NAME" => htmlspecialcharsEx($arResult["USER"]["SHOWED_NAME"]),
+			"AUTHOR_NAME" => htmlspecialcharsbx($arResult["USER"]["SHOWED_NAME"]),
 			"AUTHOR_ID" => intval($arResult["USER"]["ID"]),
 			"AUTHOR_URL" => CComponentEngine::MakePathFromTemplate($arParams["URL_TEMPLATES_PROFILE_VIEW"], array("UID" => $arResult["MESSAGE_VIEW"]["AUTHOR_ID"])),
 			"POST_DATE" => CForumFormat::DateFormat($arParams["DATE_TIME_FORMAT"], time()+CTimeZone::GetOffset()),
@@ -194,9 +194,9 @@ if ($arResult["SHOW_POST_FORM"] == "Y")
 	$arResult["~REVIEW_TEXT"] = $_POST["REVIEW_TEXT"];
 	$arResult["~REVIEW_USE_SMILES"] = ($_POST["REVIEW_USE_SMILES"] == "Y" ? "Y" : "N");
 
-	$arResult["REVIEW_AUTHOR"] = htmlspecialcharsEx($arResult["~REVIEW_AUTHOR"]);
-	$arResult["REVIEW_EMAIL"] = htmlspecialcharsEx($arResult["~REVIEW_EMAIL"]);
-	$arResult["REVIEW_TEXT"] = htmlspecialcharsEx($arResult["~REVIEW_TEXT"]);
+	$arResult["REVIEW_AUTHOR"] = htmlspecialcharsbx($arResult["~REVIEW_AUTHOR"]);
+	$arResult["REVIEW_EMAIL"] = htmlspecialcharsbx($arResult["~REVIEW_EMAIL"]);
+	$arResult["REVIEW_TEXT"] = htmlspecialcharsbx($arResult["~REVIEW_TEXT"]);
 	$arResult["REVIEW_USE_SMILES"] = $arResult["~REVIEW_USE_SMILES"];
 
 	// Form Info
@@ -226,7 +226,7 @@ elseif (empty($arParams["~URL_TEMPLATES_READ"]))
 	$arParams["~URL_TEMPLATES_READ"] = $APPLICATION->GetCurPage()."?PAGE_NAME=read&FID=#FID#&TID=#TID#&MID=#MID#";
 $arParams["~URL_TEMPLATES_READ"] = str_replace(array("#FORUM_ID#", "#TOPIC_ID#", "#MESSAGE_ID#"),
 		array("#FID#", "#TID#", "#MID#"), $arParams["~URL_TEMPLATES_READ"]);
-$arParams["URL_TEMPLATES_READ"] = htmlspecialcharsEx($arParams["~URL_TEMPLATES_READ"]);
+$arParams["URL_TEMPLATES_READ"] = htmlspecialcharsbx($arParams["~URL_TEMPLATES_READ"]);
 //
 // Link to forum
 $arResult["read"] = CComponentEngine::MakePathFromTemplate($arParams["URL_TEMPLATES_READ"],

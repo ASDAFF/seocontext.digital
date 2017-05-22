@@ -137,11 +137,11 @@ class Collection
 	}
 
 	/**
-	 * convert array values to int, return unique values > 0. optionally sorted array
+	 * Convert array values to int, return unique values > 0. Optionally sorted array.
 	 *
-	 * @param array $map - array for normalize
-	 * @param bool $sorted - if sorted true, result array will be sorted
-	 * @return null
+	 * @param array &$map	Array for normalize.
+	 * @param bool $sorted	If sorted true, result array will be sorted.
+	 * @return void
 	 */
 	public static function normalizeArrayValuesByInt(&$map, $sorted = true)
 	{

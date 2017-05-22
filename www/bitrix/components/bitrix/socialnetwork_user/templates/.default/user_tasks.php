@@ -3,15 +3,47 @@
 $pageId = "user_tasks";
 include("util_menu.php");
 include("util_profile.php");
-?>
-<?
+
 if (CSocNetFeatures::IsActiveFeature(SONET_ENTITY_USER, $arResult["VARIABLES"]["user_id"], "tasks"))
 {
+	if(class_exists('Bitrix\Tasks\Ui\Filter\Task'))
+	{
+		\Bitrix\Tasks\Ui\Filter\Task::setUserId($arResult[ "VARIABLES" ][ "user_id" ]);
+		$state = \Bitrix\Tasks\Ui\Filter\Task::listStateInit()->getState();
+
+		switch ($state[ 'VIEW_SELECTED' ][ 'CODENAME' ])
+		{
+			case 'VIEW_MODE_GANTT':
+				$componentName = 'bitrix:tasks.task.gantt';
+				break;
+			case 'VIEW_MODE_KANBAN':
+				$componentName = 'bitrix:tasks.kanban';
+				break;
+			case 'VIEW_MODE_TIMELINE':
+				$componentName = 'bitrix:tasks.timeline';
+				break;
+			default:
+				$componentName = 'bitrix:tasks.task.list';
+				break;
+		}
+	}
+	else
+	{
+		$componentName = 'bitrix:tasks.list';
+	}
+
 	$APPLICATION->IncludeComponent(
-		"bitrix:tasks.list",
+		$componentName,
 		".default",
 		Array(
+			"INCLUDE_INTERFACE_HEADER" => "Y",
 			"USER_ID" => $arResult["VARIABLES"]["user_id"],
+			"STATE" => array(
+				'ROLES'=>$state['ROLES'],
+				'SELECTED_ROLES'=>$state['ROLES'],
+				'VIEWS'=>$state['VIEWS'],
+				'SELECTED_VIEWS'=>$state['VIEWS'],
+			),
 			"ITEMS_COUNT" => "50",
 			"PAGE_VAR" => $arResult["ALIASES"]["page"],
 			"USER_VAR" => $arResult["ALIASES"]["user_id"],
@@ -33,7 +65,6 @@ if (CSocNetFeatures::IsActiveFeature(SONET_ENTITY_USER, $arResult["VARIABLES"]["
 			"PATH_TO_GROUP_TASKS_VIEW" => $arParams["PATH_TO_GROUP_TASKS_VIEW"],
 			"PATH_TO_GROUP_TASKS_REPORT" => $arParams["PATH_TO_GROUP_TASKS_REPORT"],
 			'PATH_TO_USER_TASKS_PROJECTS_OVERVIEW' => $arResult['PATH_TO_USER_TASKS_PROJECTS_OVERVIEW'],
-			"TASKS_FIELDS_SHOW" => $arParams["TASKS_FIELDS_SHOW"],
 			"SET_NAV_CHAIN" => $arResult["SET_NAV_CHAIN"],
 			"SET_TITLE" => $arResult["SET_TITLE"],
 			"FORUM_ID" => $arParams["TASK_FORUM_ID"],
@@ -45,6 +76,7 @@ if (CSocNetFeatures::IsActiveFeature(SONET_ENTITY_USER, $arResult["VARIABLES"]["
 			"CACHE_TIME" => $arParams["CACHE_TIME"],
 			"USE_THUMBNAIL_LIST" => "N",
 			"INLINE" => "Y",
+            "USE_PAGINATION"=>'Y',
 			'HIDE_OWNER_IN_TITLE' => $arParams['HIDE_OWNER_IN_TITLE'],
 			"PREORDER" => array('STATUS_COMPLETE' => 'asc')
 		),

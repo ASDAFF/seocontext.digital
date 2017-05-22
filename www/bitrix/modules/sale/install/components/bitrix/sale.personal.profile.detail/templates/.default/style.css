@@ -18,13 +18,38 @@
 	padding-top: 10px;
 }
 
-.sale-personal-profile-detail-btn-load-file{
-	position: absolute;
-	min-width: 120px;
-}
 .sale-personal-profile-detail-input-file{
-	margin-left: -13px;
+	display: none !important;
 }
+
+.sale-personal-profile-detail-load-file-info{
+	margin-left: 5px;
+	font-size: 14px;
+	font-weight: normal;
+	line-height: 1.42857143;
+	cursor: pointer;
+}
+
+.sale-personal-profile-detail-load-file-cancel{
+	display: inline-block;
+	width: 18px;
+	height: 18px;
+	background: url(/bitrix/components/bitrix/sale.personal.profile.detail/templates/.default/images/sale-profile-detail-sprite.svg) 1px 1px no-repeat;
+	-webkit-transition: opacity .3s ease;
+	-moz-transition: opacity .3s ease;
+	transition: opacity .3s ease;
+	opacity: 1;
+	cursor: pointer;
+}
+
+.sale-personal-profile-hide{
+	display: none;
+}
+
+.sale-personal-profile-detail-load-file-cancel:hover{
+	opacity: 0.5;
+}
+
 .sale-personal-profile-btn-block{
 	padding-bottom: 100px;
 }

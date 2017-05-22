@@ -127,17 +127,21 @@ else
 				$arResult["RECORDS"][$key]['data']["NAME"] .= '<span class="bp-status"><span class="bp-status-inner"><span>'.$record['data']["WORKFLOW_STATE"].'</span></span></span>';
 			}
 
-			ob_start();
-			$APPLICATION->IncludeComponent(
-				"bitrix:bizproc.workflow.faces",
-				"",
-				array(
-					"WORKFLOW_ID" => $record['data']["WORKFLOW_ID"],
-					'TARGET_TASK_ID' => $record['data']['ID']
-				),
-				$component
-			);
-			$arResult["RECORDS"][$key]['data']['WORKFLOW_PROGRESS'] = ob_get_clean();
+			$arResult["RECORDS"][$key]['data']['WORKFLOW_PROGRESS'] = '';
+			if (empty($arResult['HIDE_WORKFLOW_PROGRESS']))
+			{
+				ob_start();
+				$APPLICATION->IncludeComponent(
+					"bitrix:bizproc.workflow.faces",
+					"",
+					array(
+						"WORKFLOW_ID"    => $record['data']["WORKFLOW_ID"],
+						'TARGET_TASK_ID' => $record['data']['ID']
+					),
+					$component
+				);
+				$arResult["RECORDS"][$key]['data']['WORKFLOW_PROGRESS'] = ob_get_clean();
+			}
 		}
 	}
 

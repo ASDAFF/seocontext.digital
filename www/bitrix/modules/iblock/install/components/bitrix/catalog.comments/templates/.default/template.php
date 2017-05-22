@@ -93,7 +93,7 @@ if (!$templateData['BLOG']['BLOG_FROM_AJAX'])
 		$arJSParams['settings']['facebook'] = array(
 			'parentContID' => $templateData['TABS_ID'],
 			'contID' => 'bx-cat-soc-comments-fb_'.$arResult['ELEMENT']['ID'],
-			'facebookPath' => '//connect.facebook.net/'.(strtolower(LANGUAGE_ID)."_".strtoupper(LANGUAGE_ID)).'/all.js#xfbml=1'
+			'facebookPath' => 'https://connect.facebook.net/'.(strtolower(LANGUAGE_ID)."_".strtoupper(LANGUAGE_ID)).'/sdk.js#xfbml=1&version=v2.8'
 		);
 		$arData["FB"] = array(
 			"NAME" => isset($arParams["FB_TITLE"]) && trim($arParams["FB_TITLE"]) != "" ? $arParams["FB_TITLE"] : "Facebook",
@@ -114,7 +114,7 @@ if (!$templateData['BLOG']['BLOG_FROM_AJAX'])
 			"CONTENT" => '
 				<div id="vk_comments"></div>
 				<script type="text/javascript">
-					BX.load([\'//vk.com/js/api/openapi.js\'], function(){
+					BX.load([\'https://vk.com/js/api/openapi.js?142\'], function(){
 						if (!!window.VK)
 						{
 							VK.init({

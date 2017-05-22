@@ -169,14 +169,14 @@ if($_SERVER["REQUEST_METHOD"] == "POST" && ($_POST["save"] <> '' || $_POST["appl
 			$p = CSite::GetSiteDocRoot($LID).$siteDir;
 			CheckDirPath($p);
 
-			$indexContent = '<'.'?'.
-				'define("B_PROLOG_INCLUDED", true);'.
-				'define("WIZARD_DEFAULT_SITE_ID", "'.$LID.'");'.
-				'define("WIZARD_DEFAULT_TONLY", true);'.
-				'define("PRE_LANGUAGE_ID","'.$arSite["LANGUAGE_ID"].'");'.
-				'define("PRE_INSTALL_CHARSET","'.$arSite["CHARSET"].'");'.
-				'include_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/install/wizard/wizard.php");'.
-				'?'.'>';
+			$indexContent = '<'.'?
+				define("B_PROLOG_INCLUDED", true);
+				define("WIZARD_DEFAULT_SITE_ID", "'.$LID.'");
+				define("WIZARD_DEFAULT_TONLY", true);
+				define("PRE_LANGUAGE_ID","'.$arSite["LANGUAGE_ID"].'");
+				define("PRE_INSTALL_CHARSET","'.$arSite["CHARSET"].'");
+				include_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/install/wizard/wizard.php");
+				?'.'>';
 
 			$handler = fopen($p."index.php", "wb");
 			fwrite($handler, $indexContent);

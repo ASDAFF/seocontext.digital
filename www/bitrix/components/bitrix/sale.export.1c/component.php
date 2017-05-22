@@ -220,8 +220,9 @@ else
 			}
 			if($arParams["SITE_LIST"])
 				$arFilter["LID"] = $arParams["SITE_LIST"];
+
 			if(strlen(COption::GetOptionString("sale", "last_export_time_committed_".$curPage, ""))>0)
-				$arFilter[">=DATE_UPDATE"] = ConvertTimeStamp(COption::GetOptionString("sale", "last_export_time_committed_".$curPage, ""), "FULL");
+				$arFilter[">DATE_UPDATE"] = ConvertTimeStamp(COption::GetOptionString("sale", "last_export_time_committed_".$curPage, ""), "FULL");
 			COption::SetOptionString("sale", "last_export_time_".$curPage, time());
 		}
 		else
@@ -274,7 +275,13 @@ else
 		);
 		CTimeZone::Enable();
 
-		if ($bCrmMode)
+		if (!$bCrmMode)
+		{
+			$time = intval($_SESSION["BX_CML2_EXPORT"][CSaleExport::getOrderPrefix()]);
+			if($time>0)
+				COption::SetOptionString("sale", "last_export_time_".$curPage, $time);
+		}
+		else
 		{
 			$crmSiteUrl = "";
 			if(isset($_POST["CRM_SITE_URL"]) && !empty($_POST["CRM_SITE_URL"]))
@@ -312,6 +319,8 @@ else
 	{
 		if($_COOKIE[COption::GetOptionString("sale", "export_session_name_".$curPage, "")] == COption::GetOptionString("sale", "export_session_id_".$curPage, ""))
 		{
+			$_SESSION["BX_CML2_EXPORT"][CSaleExport::getOrderPrefix()] = 0;
+
 			COption::SetOptionString("sale", "last_export_time_committed_".$curPage, COption::GetOptionString("sale", "last_export_time_".$curPage, ""));
 			global $CACHE_MANAGER;
 			$CACHE_MANAGER->Clean("sale_orders"); // for real-time orders
@@ -500,17 +509,45 @@ else
 				$_SESSION["BX_CML2_EXPORT"]["last_xml_entry"] = "";
 
 			$position = false;
-			$loader = new CSaleOrderLoader;
-			$loader->arParams = $arParams;
-			$loader->bNewVersion = true;
-			$loader->crmCompatibleMode = $bExportFromCrm;
 			$startTime = time();
+
+			$loader = new CSaleOrderLoader;
+
+			if(!function_exists('getImporter'))
+            {
+				function getImporter($loader, $params=array())
+				{
+					$class='';
+					if(isset($params['CLASS']))
+						$class = $params['CLASS'];
+					if(isset($params['PARAMS']))
+						$arParams = $params['PARAMS'];
+					if(isset($params['CRM_COMPATIBLE_MODE']))
+						$bExportFromCrm = $params['CRM_COMPATIBLE_MODE'];
+
+					$loader->arParams = $arParams;
+
+					switch($class)
+					{
+						case 'ImportOneCPackage':
+							\Bitrix\Sale\Exchange\ImportOneCPackage::configuration();
+							$loader->importer = \Bitrix\Sale\Exchange\ImportOneCPackage::getInstance();
+							break;
+						default;
+							$loader->bNewVersion = true;
+							$loader->crmCompatibleMode = $bExportFromCrm;
+					}
+
+					return $loader;
+				};
+            }
 
 			$o = new CXMLFileStream;
 
-			$o->registerElementHandler("/".GetMessage("CC_BSC1_COM_INFO"), array($loader, "elementHandler"));
-			$o->registerNodeHandler("/".GetMessage("CC_BSC1_COM_INFO")."/".GetMessage("CC_BSC1_DOCUMENT"), array($loader, "nodeHandler"));
-			$o->registerNodeHandler("/".GetMessage("CC_BSC1_COM_INFO")."/".GetMessage("CC_BSC1_AGENTS")."/".GetMessage("CC_BSC1_AGENT"), array($loader, "nodeHandler"));
+			$o->registerElementHandler("/".GetMessage("CC_BSC1_COM_INFO"), array(getImporter($loader, array('PARAMS'=>$arParams,'CRM_COMPATIBLE_MODE'=>$bExportFromCrm)), "elementHandler"));
+			$o->registerNodeHandler("/".GetMessage("CC_BSC1_COM_INFO")."/".GetMessage("CC_BSC1_DOCUMENT"), array(getImporter($loader, array('PARAMS'=>$arParams,'CRM_COMPATIBLE_MODE'=>$bExportFromCrm)), "nodeHandler"));
+			$o->registerNodeHandler("/".GetMessage("CC_BSC1_COM_INFO")."/".GetMessage("CC_BSC1_CONTAINER"), array(getImporter($loader, array('CLASS'=>'ImportOneCPackage', 'PARAMS'=>$arParams)), "nodeHandler"));
+			$o->registerNodeHandler("/".GetMessage("CC_BSC1_COM_INFO")."/".GetMessage("CC_BSC1_AGENTS")."/".GetMessage("CC_BSC1_AGENT"), array(getImporter($loader, array('PARAMS'=>$arParams,'CRM_COMPATIBLE_MODE'=>$bExportFromCrm)), "nodeHandler"));
 
 			$o->setPosition($_SESSION["BX_CML2_EXPORT"]["last_xml_entry"]);
 			if ($o->openFile($ABS_FILE_NAME))

@@ -123,9 +123,7 @@ class Asset
 		$this->targetList['KERNEL']['JS_LIST']['KERNEL_main'] = array();
 
 		$this->target = &$this->targetList['TEMPLATE'];
-
-		$ieVersion = IsIE();
-		$this->isIE = ($ieVersion !== false && $ieVersion < 10);
+		$this->isIE = false;
 		$this->documentRoot = Main\Loader::getDocumentRoot();
 	}
 
@@ -171,7 +169,7 @@ class Asset
 			$bGzip = (
 				Option::get('main','compres_css_js_files', 'N') == 'Y'
 				&& extension_loaded('zlib')
-				&& function_exists('gzcompress')
+				&& function_exists('gzopen')
 			);
 		}
 		return $bGzip;
@@ -1765,7 +1763,7 @@ class Asset
 
 			if(!empty($assetList))
 			{
-				$res .= '<script type="text/javascript">'."BX.setJSList(['".implode("','", $assetList)."']); </script>\n";
+				$res .= '<script type="text/javascript">'."BX.setJSList(['".implode("','", array_map(array($this, "getAssetPath"), $assetList))."']); </script>\n";
 			}
 		}
 
@@ -1786,7 +1784,7 @@ class Asset
 
 			if(!empty($assetList))
 			{
-				$res .= '<script type="text/javascript">'."BX.setCSSList(['".implode("','", $assetList)."']); </script>\n";
+				$res .= '<script type="text/javascript">'."BX.setCSSList(['".implode("','", array_map(array($this, "getAssetPath"), $assetList))."']); </script>\n";
 			}
 		}
 		return $res;

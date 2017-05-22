@@ -20,4 +20,5 @@ $MESS["REPORT_PRCNT_FROM_TITLE"] = "% от";
 $MESS["REPORT_CHART_TYPE_LINE"] = "График";
 $MESS["REPORT_CHART_TYPE_BAR"] = "Гистограмма";
 $MESS["REPORT_CHART_TYPE_PIE"] = "Круговая";
+$MESS["REPORT_HELPER_NOT_DEFINED"] = "Не задан вспомогательный класс.";
 ?>

@@ -99,7 +99,12 @@ class CUserTypeDateTime
 
 	function GetFilterHTML($arUserField, $arHtmlControl)
 	{
-		return CAdminCalendar::CalendarDate($arHtmlControl["NAME"], $arHtmlControl["VALUE"], 20, true);
+		return CalendarPeriod(
+							$arHtmlControl['NAME'].'_from',
+							$GLOBALS[$arHtmlControl['NAME'].'_from'],
+							$arHtmlControl['NAME'].'_to',
+							$GLOBALS[$arHtmlControl['NAME'].'_to'],
+							'find_form', 'Y');
 	}
 
 	function GetAdminListViewHTML($arUserField, $arHtmlControl)

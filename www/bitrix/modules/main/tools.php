@@ -26,7 +26,16 @@ function InputType($strType, $strName, $strValue, $strCmp, $strPrintValue=false,
 	$bLabel = false;
 	if ($strType == 'radio')
 		$bLabel = true;
-	return ($bLabel? '<label>': '').'<input type="'.$strType.'" '.$field1.' name="'.$strName.'" id="'.($strId <> ''? $strId : $strName).'" value="'.$strValue.'"'.
+
+	$bId = true;
+	if($strType == 'radio' || $strType == 'checkbox')
+	{
+		$bId = !preg_match('/^id="/', $field1) && !preg_match('/\sid="/', $field1);
+	}
+
+	return ($bLabel? '<label>': '').'<input type="'.$strType.'" '.$field1.' name="'.$strName.'"'.
+		($bId ? ' id="'.($strId <> ''? $strId : $strName).'"' : '').
+		' value="'.$strValue.'"'.
 		($bCheck? ' checked':'').'>'.($strPrintValue? $strValue:$strPrint).($bLabel? '</label>': '');
 }
 
@@ -105,7 +114,7 @@ function SelectBoxM($strBoxName, $a, $arr, $strDetText = "", $strDetText_selecte
  *
  * @param string $strBoxName Input name
  * @param array $a Array with items
- * @param array $arr Selected values
+ * @param array|false $arr Selected values
  * @param string $strDetText Empty item text
  * @param bool $strDetText_selected Allow to choose an empty item
  * @param string $size Size attribute
@@ -161,22 +170,26 @@ function SelectBoxFromArray(
 	$form="form1"
 	)
 {
+	$boxName = htmlspecialcharsbx($strBoxName);
 	if($go)
 	{
+		$funName = preg_replace("/[^a-z0-9_]/i", "", $strBoxName);
+		$jsName = CUtil::JSEscape($strBoxName);
+
 		$strReturnBox = "<script type=\"text/javascript\">\n".
-			"function ".$strBoxName."LinkUp()\n".
-			"{var number = document.".$form.".".$strBoxName.".selectedIndex;\n".
-			"if(document.".$form.".".$strBoxName.".options[number].value!=\"0\"){ \n".
-			"document.".$form.".".$strBoxName."_SELECTED.value=\"yes\";\n".
+			"function ".$funName."LinkUp()\n".
+			"{var number = document.".$form."['".$jsName."'].selectedIndex;\n".
+			"if(document.".$form."['".$jsName."'].options[number].value!=\"0\"){ \n".
+			"document.".$form."['".$jsName."_SELECTED'].value=\"yes\";\n".
 			"document.".$form.".submit();\n".
 			"}}\n".
 			"</script>\n";
-		$strReturnBox .= '<input type="hidden" name="'.$strBoxName.'_SELECTED" id="'.$strBoxName.'_SELECTED" value="">';
-		$strReturnBox .= '<select '.$field1.' name="'.$strBoxName.'" id="'.$strBoxName.'" onchange="'.$strBoxName.'LinkUp()" class="typeselect">';
+		$strReturnBox .= '<input type="hidden" name="'.$boxName.'_SELECTED" id="'.$boxName.'_SELECTED" value="">';
+		$strReturnBox .= '<select '.$field1.' name="'.$boxName.'" id="'.$boxName.'" onchange="'.$funName.'LinkUp()" class="typeselect">';
 	}
 	else
 	{
-		$strReturnBox = '<select '.$field1.' name="'.$strBoxName.'" id="'.$strBoxName.'">';
+		$strReturnBox = '<select '.$field1.' name="'.$boxName.'" id="'.$boxName.'">';
 	}
 
 	if(isset($db_array["reference"]) && is_array($db_array["reference"]))
@@ -313,6 +326,8 @@ function ".$sFromName."_SetDate()
  */
 function CheckDateTime($datetime, $format=false)
 {
+	$datetime = strval($datetime);
+
 	if ($format===false && defined("FORMAT_DATETIME"))
 		$format = FORMAT_DATETIME;
 
@@ -345,7 +360,7 @@ function CheckDateTime($datetime, $format=false)
 		}
 		else
 		{
-			$month = GetNumMonth($ar["M"], true);
+			$month = GetNumMonth($ar["M"]);
 			if (!$month)
 				$month = intval(date('m', strtotime($ar["M"])));
 		}
@@ -3455,7 +3470,7 @@ function LocalRedirect($url, $skip_security_check=false, $status="302 Found")
 	{
 		$url = \Bitrix\Main\Text\Encoding::convertEncoding($url, LANG_CHARSET, "UTF-8");
 	}
-
+	
 	if(function_exists("getmoduleevents"))
 	{
 		foreach(GetModuleEvents("main", "OnBeforeLocalRedirect", true) as $arEvent)
@@ -4396,7 +4411,7 @@ JS;
 		$scriptsList = array();
 		foreach(self::$arCurrentlyLoadedExt as $ext=>$q)
 		{
-			if($ext!='core')
+			if($ext!='core' && isset(self::$arRegisteredExt[$ext]['js']))
 			{
 				if(is_array(self::$arRegisteredExt[$ext]['js']))
 				{
@@ -4411,7 +4426,7 @@ JS;
 		return $scriptsList;
 	}
 
-	private function _loadExt($ext, $bReturn)
+	private static function _loadExt($ext, $bReturn)
 	{
 		$ret = '';
 
@@ -4423,7 +4438,41 @@ JS;
 				&& self::$arCurrentlyLoadedExt[$ext]
 			)
 		)
+		{
 			return '';
+		}
+
+		if(isset(self::$arRegisteredExt[$ext]['oninit']) && is_callable(self::$arRegisteredExt[$ext]['oninit']))
+		{
+			$callbackResult = call_user_func_array(
+				self::$arRegisteredExt[$ext]['oninit'],
+				array(self::$arRegisteredExt[$ext])
+			);
+
+			if(is_array($callbackResult))
+			{
+				foreach($callbackResult as $key => $value)
+				{
+					if(!is_array($value))
+					{
+						$value = array($value);
+					}
+
+					if(!isset(self::$arRegisteredExt[$ext][$key]))
+					{
+						self::$arRegisteredExt[$ext][$key] = array();
+					}
+					elseif(!is_array(self::$arRegisteredExt[$ext][$key]))
+					{
+						self::$arRegisteredExt[$ext][$key] = array(self::$arRegisteredExt[$ext][$key]);
+					}
+
+					self::$arRegisteredExt[$ext][$key] = array_merge(self::$arRegisteredExt[$ext][$key], $value);
+				}
+			}
+
+			unset(self::$arRegisteredExt[$ext]['oninit']);
+		}
 
 		self::$arCurrentlyLoadedExt[$ext] = true;
 
@@ -4438,16 +4487,40 @@ JS;
 			}
 		}
 
-		if (self::$arRegisteredExt[$ext]['css'])
+		if (!empty(self::$arRegisteredExt[$ext]['css']))
+		{
+			if (!empty(self::$arRegisteredExt[$ext]['bundle_css']))
+			{
+				self::registerCssBundle(
+					self::$arRegisteredExt[$ext]['bundle_css'],
+					self::$arRegisteredExt[$ext]['css']
+				);
+			}
+
 			$ret .= self::_loadCSS(self::$arRegisteredExt[$ext]['css'], $bReturn);
+		}
+
 		if (self::$arRegisteredExt[$ext]['js'])
+		{
+			if (!empty(self::$arRegisteredExt[$ext]['bundle_js']))
+			{
+				self::registerJsBundle(
+					self::$arRegisteredExt[$ext]['bundle_js'],
+					self::$arRegisteredExt[$ext]['js']
+				);
+			}
+
 			$ret .= self::_loadJS(self::$arRegisteredExt[$ext]['js'], $bReturn);
+		}
+
 		if (self::$arRegisteredExt[$ext]['lang'] || self::$arRegisteredExt[$ext]['lang_additional'])
+		{
 			$ret .= self::_loadLang(
 				self::$arRegisteredExt[$ext]['lang'],
 				$bReturn,
-				isset(self::$arRegisteredExt[$ext]['lang_additional'])? self::$arRegisteredExt[$ext]['lang_additional']: false
+				!empty(self::$arRegisteredExt[$ext]['lang_additional'])? self::$arRegisteredExt[$ext]['lang_additional']: false
 			);
+		}
 
 		return $ret;
 	}
@@ -4576,6 +4649,20 @@ JS;
 			$APPLICATION->SetAdditionalCSS($css);
 
 		return '';
+	}
+
+	private static function registerJsBundle($bundleName, $files)
+	{
+		$files = is_array($files) ? $files : array($files);
+
+		\Bitrix\Main\Page\Asset::getInstance()->addJsKernelInfo($bundleName, $files);
+	}
+
+	private static function registerCssBundle($bundleName, $files)
+	{
+		$files = is_array($files) ? $files : array($files);
+
+		\Bitrix\Main\Page\Asset::getInstance()->addCssKernelInfo($bundleName, $files);
 	}
 }
 
@@ -5084,6 +5171,7 @@ class CUtil
 
 	public static function InitJSCore($arExt = array(), $bReturn = false)
 	{
+		
 		return CJSCore::Init($arExt, $bReturn);
 	}
 

@@ -255,4 +255,20 @@ $MESS["SALE_ORDER_TRACKING_NUMBER_TYPE_DESC"] = "#ORDER_ID# - order ID
 #EMAIL# - customer e-mail
 #BCC# - BCC e-mail
 #SALE_EMAIL# - sales dept. e-mail";
+$MESS["SALE_CHECK_PRINT_TYPE_NAME"] = "Receipt printout notification";
+$MESS["SALE_CHECK_PRINT_TYPE_DESC"] = "#ORDER_ID# - order ID
+#ORDER_DATE# - order date
+#ORDER_USER# - customer
+#ORDER_ACCOUNT_NUMBER_ENCODE# - order Id for use in links
+#CHECK_LINK# - receipt link";
+$MESS["SALE_CHECK_PRINT_SUBJECT"] = "Receipt link";
+$MESS["SALE_CHECK_PRINT_HTML_TITLE"] = "Your payment for order with #SITE_NAME#";
+$MESS["SALE_CHECK_PRINT_HTML_SUB_TITLE"] = "Dear #ORDER_USER#,";
+$MESS["SALE_CHECK_PRINT_HTML_TEXT"] = "
+your payment has been processed and a respective receipt has been created. To view the receipt, use the link:
+
+#CHECK_LINK#
+
+To get more details on your order ##ORDER_ID# or #ORDER_DATE# please follow this link: http://#SERVER_NAME#/personal/order/detail/#ORDER_ACCOUNT_NUMBER_ENCODE#/
+";
 ?>

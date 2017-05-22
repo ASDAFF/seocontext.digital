@@ -127,6 +127,14 @@ if(!($dbEvent->Fetch()))
 			"DESCRIPTION" => GetMessage("SALE_ORDER_TRACKING_NUMBER_TYPE_DESC"),
 		));
 
+		$et = new CEventType;
+		$et->Add(array(
+			"LID" => $lid,
+			"EVENT_NAME" => "SALE_CHECK_PRINT",
+			"NAME" => GetMessage("SALE_CHECK_PRINT_TYPE_NAME"),
+			"DESCRIPTION" => GetMessage("SALE_CHECK_PRINT_TYPE_DESC"),
+		));
+
 		$arSites = array();
 		$sites = CSite::GetList(($b=""), ($o=""), Array("LANGUAGE_ID"=>$lid));
 		while ($site = $sites->Fetch())
@@ -138,7 +146,7 @@ if(!($dbEvent->Fetch()))
 
 			$arHTMLEvents = array(
 				"SALE_NEW_ORDER", "SALE_ORDER_CANCEL", "SALE_ORDER_DELIVERY", "SALE_ORDER_PAID",
-				"SALE_ORDER_REMIND_PAYMENT", "SALE_SUBSCRIBE_PRODUCT", "SALE_ORDER_TRACKING_NUMBER"
+				"SALE_ORDER_REMIND_PAYMENT", "SALE_SUBSCRIBE_PRODUCT", "SALE_ORDER_TRACKING_NUMBER", "SALE_CHECK_PRINT"
 			);
 
 			foreach($arHTMLEvents as $eventName)

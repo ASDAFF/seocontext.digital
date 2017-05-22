@@ -1,16 +1,16 @@
-var ECUserControll = function(Params)
+var ECUserControll = function(params)
 {
-	this.oEC = Params.oEC;
+	this.oEC = params.oEC;
 	var _this = this;
 	this.count = 0;
 	this.countAgr = 0;
 	this.countDec = 0;
 
-	this.bEditMode = Params.view !== true;
-	this.pAttendeesCont = Params.AttendeesCont;
-	this.pAttendeesList = Params.AttendeesList;
-	this.pParamsCont = Params.AdditionalParams;
-	this.pSummary = Params.SummaryCont;
+	this.bEditMode = params.view !== true;
+	this.pAttendeesCont = params.AttendeesCont;
+	this.pAttendeesList = params.AttendeesList;
+	this.pParamsCont = params.AdditionalParams;
+	this.pSummary = params.SummaryCont;
 
 	this.pCount = this.pSummary.appendChild(BX.create("A", {props: {className: 'bxc-count', href:"javascript:void(0)"}}));
 	this.pCountArg = this.pSummary.appendChild(BX.create("A", {props: {className: 'bxc-count-agr', href:"javascript:void(0)"}}));
@@ -20,9 +20,9 @@ var ECUserControll = function(Params)
 	this.pCountArg.onclick = function(){_this.ListMode('agree');};
 	this.pCountDec.onclick = function(){_this.ListMode('decline');};
 
-	this._getFromDate = (Params.fromDateGetter && typeof Params.fromDateGetter == 'function') ? Params.fromDateGetter : function(){return false;};
-	this._getToDate = (Params.toDateGetter && typeof Params.toDateGetter == 'function') ? Params.toDateGetter : function(){return false;};
-	this._getEventId = (Params.eventIdGetter && typeof Params.eventIdGetter == 'function') ? Params.eventIdGetter : function(){return false;};
+	this._getFromDate = (params.fromDateGetter && typeof params.fromDateGetter == 'function') ? params.fromDateGetter : function(){return false;};
+	this._getToDate = (params.toDateGetter && typeof params.toDateGetter == 'function') ? params.toDateGetter : function(){return false;};
+	this._getEventId = (params.eventIdGetter && typeof params.eventIdGetter == 'function') ? params.eventIdGetter : function(){return false;};
 
 	this.ListMode('all');
 	this.Attendees = {};
@@ -30,7 +30,7 @@ var ECUserControll = function(Params)
 	// Only if we need to add or delete users
 	if (this.bEditMode)
 	{
-		this.pLinkCont = Params.AddLinkCont;
+		this.pLinkCont = params.AddLinkCont;
 		var
 			pIcon = this.pLinkCont.appendChild(BX.create("I")),
 			pTitle = this.pLinkCont.appendChild(BX.create("SPAN", {text: EC_MESS.AddAttendees}));
@@ -39,7 +39,6 @@ var ECUserControll = function(Params)
 		var arMenuItems = [{text : EC_MESS.AddGuestsDef, onclick: BX.proxy(this.OpenSelectUser, this)}];
 		if (!this.oEC.bExtranet && this.oEC.type == 'group')
 			arMenuItems.push({text : EC_MESS.AddGroupMemb, title: EC_MESS.AddGroupMembTitle, onclick: BX.proxy(this.oEC.AddGroupMembers, this.oEC)});
-		//arMenuItems.push({text : EC_MESS.AddGuestsEmail,onclick: BX.proxy(this.AddByEmail, this)});
 
 		if (arMenuItems.length > 1)
 		{
@@ -53,7 +52,7 @@ var ECUserControll = function(Params)
 
 		BX.addCustomEvent(window, "onUserSelectorOnChange", BX.proxy(this.UserOnChange, this));
 	}
-}
+};
 
 ECUserControll.prototype = {
 SetValues: function(Attendees)
@@ -86,10 +85,6 @@ SetValues: function(Attendees)
 
 GetValues: function()
 {
-	// for (var key in this.Attendees)
-	// {
-	// }
-
 	return this.Attendees;
 },
 
@@ -165,18 +160,20 @@ OpenSelectUser : function(e)
 						_this.SelectUserPopup.close();
 						for (var id in _this.selectedUsers)
 						{
-							id = parseInt(id);
-							if (!isNaN(id) && id > 0)
+							if (_this.selectedUsers.hasOwnProperty(id))
 							{
-
-								if (!_this.Attendees[id] && _this.selectedUsers[id]) // Add new user
+								id = parseInt(id);
+								if (!isNaN(id) && id > 0)
 								{
-									_this.selectedUsers[id].key = id;
-									_this.DisplayAttendee(_this.selectedUsers[id]);
-								}
-								else if(_this.Attendees[id] && !_this.selectedUsers[id]) // Del user from our list
-								{
-									_this.RemoveAttendee(id, false);
+									if (!_this.Attendees[id] && _this.selectedUsers[id]) // Add new user
+									{
+										_this.selectedUsers[id].key = id;
+										_this.DisplayAttendee(_this.selectedUsers[id]);
+									}
+									else if (_this.Attendees[id] && !_this.selectedUsers[id]) // Del user from our list
+									{
+										_this.RemoveAttendee(id, false);
+									}
 								}
 							}
 						}
@@ -1265,7 +1262,9 @@ ECColorPicker.prototype = {
 		var pColCont = document.body.appendChild(BX.create("DIV", {props: {className: "ec-colpick-cont"}, style: {zIndex: this.zIndex}}));
 
 		var
-			arColors = ['#FF0000', '#FFFF00', '#00FF00', '#00FFFF', '#0000FF', '#FF00FF', '#FFFFFF', '#EBEBEB', '#E1E1E1', '#D7D7D7', '#CCCCCC', '#C2C2C2', '#B7B7B7', '#ACACAC', '#A0A0A0', '#959595',
+			arColors = [
+			'#3AD0FF', '#A6DC00', '#FF5C5A', '#B47153','#2FC7F7','#04B4AB','#FFA801','#5CD1DF','#6E54D1','#29AD49','#FE5957','#DAA187','#78D4F1','#43DAD2','#EECE8F','#AEE5EC',
+			'#FF0000', '#FFFF00', '#00FF00', '#00FFFF', '#0000FF', '#FF00FF', '#FFFFFF', '#EBEBEB', '#E1E1E1', '#D7D7D7', '#CCCCCC', '#C2C2C2', '#B7B7B7', '#ACACAC', '#A0A0A0', '#959595',
 			'#EE1D24', '#FFF100', '#00A650', '#00AEEF', '#2F3192', '#ED008C', '#898989', '#7D7D7D', '#707070', '#626262', '#555', '#464646', '#363636', '#262626', '#111', '#000000',
 			'#F7977A', '#FBAD82', '#FDC68C', '#FFF799', '#C6DF9C', '#A4D49D', '#81CA9D', '#7BCDC9', '#6CCFF7', '#7CA6D8', '#8293CA', '#8881BE', '#A286BD', '#BC8CBF', '#F49BC1', '#F5999D',
 			'#F16C4D', '#F68E54', '#FBAF5A', '#FFF467', '#ACD372', '#7DC473', '#39B778', '#16BCB4', '#00BFF3', '#438CCB', '#5573B7', '#5E5CA7', '#855FA8', '#A763A9', '#EF6EA8', '#F16D7E',
@@ -1526,7 +1525,7 @@ window.BxEditEventGridSearch = function(event)
 			this.FillFormFields();
 		},
 
-		SaveForm: function(Params)
+		SaveForm: function(params, bConfirmed)
 		{
 			var
 				fromDate, toDate,
@@ -1549,6 +1548,17 @@ window.BxEditEventGridSearch = function(event)
 				toDate = this.oEC.ParseDate(BX.util.trim(this.pToDate.value) + (this.pFullDay.checked ? '' : ' ' + BX.util.trim(this.pToTime.value)));
 			}
 
+			if (params.recurentEventEditMode)
+			{
+				BX('event-current-date-from' + this.id).value = this.oEvent.DATE_FROM;
+				BX('event-rec-edit-mode' + this.id).value = params.recurentEventEditMode;
+			}
+			else
+			{
+				BX('event-current-date-from' + this.id).value = '';
+				BX('event-rec-edit-mode' + this.id).value = '';
+			}
+
 			// Location
 			BX('event-location-old' + this.id).value = this.Loc.OLD || false;
 			BX('event-location-new' + this.id).value = this.Loc.NEW;
@@ -1559,8 +1569,14 @@ window.BxEditEventGridSearch = function(event)
 				return false;
 			}
 
+			if (!this.CheckUserAccessibility())
+			{
+				alert(EC_MESS.EC_BUSY_ALERT);
+				return;
+			}
+
 			// Check Meeting and Video Meeting rooms accessibility
-			if (this.Loc.NEW.substr(0, 5) == 'ECMR_' && !Params.bLocationChecked)
+			if (this.Loc.NEW.substr(0, 5) == 'ECMR_' && !params.bLocationChecked)
 			{
 				if (toDate && this.pFullDay.checked)
 				{
@@ -1584,8 +1600,8 @@ window.BxEditEventGridSearch = function(event)
 							if (check == 'reserved')
 								return alert(EC_MESS.MRNotReservedErr);
 
-							Params.bLocationChecked = true;
-							_this.SaveForm(Params);
+							params.bLocationChecked = true;
+							_this.SaveForm(params);
 						}
 					);
 					return false;
@@ -1624,19 +1640,37 @@ window.BxEditEventGridSearch = function(event)
 				}
 			}
 
+			if (this.oEvent.ID && this.oEC.Event.IsRecursive(this.oEvent) && !bConfirmed)
+			{
+				if (this.CheckForSignificantChanges())
+				{
+					this.oEC.ShowConfirmEditDialog(this.oEvent, {params: params});
+					return false;
+				}
+			}
+
 			BX.ajax.submit(this.Form, function()
 			{
-				var oRes = top.BXCRES[reqId];
-				if(top.BXCRES[reqId])
+				if (params.recurentEventEditMode)
 				{
-					_this.oEC.Event.UnDisplay(oRes.id, false);
-					_this.oEC.HandleEvents(oRes.events, oRes.attendees);
-					_this.oEC.arLoadedMonth[month + '.' + year] = true;
-
-					if (oRes.deletedEventId > 0)
-						_this.oEC.Event.UnDisplay(oRes.deletedEventId, false);
-
-					_this.oEC.Event.Display();
+					_this.oEC.Event.ReloadAll(false);
+				}
+				else
+				{
+					var oRes = top.BXCRES[reqId];
+					if (oRes)
+					{
+						if (oRes.eventIds && oRes.eventIds.length > 0)
+						{
+							for (var i = 0; i < oRes.eventIds.length; i++)
+							{
+								_this.oEC.Event.UnDisplay(oRes.eventIds[i], false);
+							}
+						}
+						_this.oEC.HandleEvents(oRes.events, oRes.attendees);
+						_this.oEC.arLoadedMonth[month + '.' + year] = true;
+						_this.oEC.Event.Display();
+					}
 				}
 			});
 
@@ -1657,13 +1691,167 @@ window.BxEditEventGridSearch = function(event)
 				this.config.userTimezoneName = this.oEC.arConfig.userTimezoneName = this.pDefTimezone.value;
 			}
 
-			if (Params.callback)
-				Params.callback();
+			if (params.callback)
+				params.callback();
+		},
+
+		CheckUserAccessibility: function()
+		{
+			var i, res = true;
+			if (this.plannerData)
+			{
+				for (i in this.plannerData.entries)
+				{
+					if (this.plannerData.entries.hasOwnProperty(i) &&
+						this.plannerData.entries[i].id &&
+						this.plannerData.entries[i].status != 'h' &&
+						this.plannerData.entries[i].strictStatus &&
+						!this.plannerData.entries[i].currentStatus
+					)
+					{
+						res = false;
+						break;
+					}
+				}
+			}
+			return res;
+		},
+
+		CheckForSignificantChanges: function()
+		{
+			var res = false;
+
+			// Name
+			if (!res && this.oEvent.NAME !== this.Form.name.value)
+				res = true;
+			// Description
+			if (!res && this.oEvent.DESCRIPTION !== this.Form.desc.value)
+				res = true;
+			// Location
+			if (!res && this.oEvent.LOCATION !== this.Loc.NEW)
+				res = true;
+
+			// Color
+			if (!res && this.oEvent.displayColor !== this.Color)
+				res = true;
+			// Text color
+			if (!res && this.oEvent.displayTextColor !== this.TextColor)
+				res = true;
+
+			// Date & time
+			if (!res && (this.oEvent.DT_SKIP_TIME == 'Y') != this.Form.skip_time.checked)
+				res = true;
+
+			if (!res)
+			{
+				var
+					dateFrom = this.pFromDate.value,
+					dateTo = this.pToDate.value;
+
+				if (this.oEvent.DT_SKIP_TIME != 'Y')
+				{
+					// Timezones
+					if (!res && (this.oEvent.TZ_FROM != this.Form.tz_from.value || this.oEvent.TZ_TO != this.Form.tz_to.value))
+						res = true;
+
+					dateFrom += ' ' + this.pFromTime.value;
+					dateTo += ' ' + this.pToTime.value;
+
+					if (!res)
+					{
+						var
+							dFromOrig = this.oEC.ParseDate(this.oEvent['~DATE_FROM']),
+							dToOrig = this.oEC.ParseDate(this.oEvent['~DATE_TO']),
+							dFrom = this.oEC.ParseDate(dateFrom),
+							dTo = this.oEC.ParseDate(dateTo);
+
+							if (!dFromOrig || !dToOrig || !dFrom || !dTo)
+								res = true;
+
+						if (!res && Math.abs(dFromOrig.getTime() - dFrom.getTime()) > 1000 || Math.abs(dToOrig.getTime() - dTo.getTime()) > 1000)
+							res = true;
+					}
+				}
+				else
+				{
+					if (!res && (this.oEvent['~DATE_FROM'] != dateFrom || this.oEvent['~DATE_TO'] != dateTo))
+						res = true;
+				}
+			}
+
+			// Attendees
+			if (!res && this.plannerData)
+			{
+				var i, attendeesInd = {}, count = 0;
+				if (this.oEvent.IS_MEETING && this.oEvent['~ATTENDEES'])
+				{
+					for (i in this.oEvent['~ATTENDEES'])
+					{
+						if (this.oEvent['~ATTENDEES'].hasOwnProperty(i) && this.oEvent['~ATTENDEES'][i]['USER_ID'])
+						{
+							attendeesInd[this.oEvent['~ATTENDEES'][i]['USER_ID']] = true;
+							count++
+						}
+					}
+				}
+
+				// Check if we have new attendees
+				for (i in this.plannerData.entries)
+				{
+					if (this.plannerData.entries.hasOwnProperty(i) && this.plannerData.entries[i].type == 'user' && this.plannerData.entries[i].id)
+					{
+						if (attendeesInd[this.plannerData.entries[i].id])
+						{
+							attendeesInd[this.plannerData.entries[i].id] = '+';
+						}
+						else
+						{
+							res = true;
+							break;
+						}
+					}
+				}
+
+				// Check if we have all old attendees
+				if (!res && attendeesInd)
+				{
+					for (i in attendeesInd)
+					{
+						if (attendeesInd.hasOwnProperty(i) && attendeesInd[i] !== '+')
+						{
+							res = true;
+							break;
+						}
+					}
+				}
+			}
+
+			// Recurtion
+			if (!res && (this.oEvent.RRULE.FREQ != this.RepeatSelect.value))
+				res = true;
+
+			if (!res && (this.oEvent.RRULE.INTERVAL != this.RepeatCount.value))
+				res = true;
+
+			if (!res && this.oEvent.RRULE.FREQ == 'WEEKLY' && this.oEvent.RRULE.BYDAY)
+			{
+				var BYDAY = [];
+				for (i in this.oEvent.RRULE.BYDAY)
+				{
+					if (this.oEvent.RRULE.BYDAY.hasOwnProperty(i))
+					{
+						BYDAY.push(this.oEvent.RRULE.BYDAY[i]);
+					}
+				}
+				if (BYDAY.join(',') != BX('event-rrule-byday' + this.id).value)
+					res = true;
+			}
+
+			return res;
 		},
 
 		InitDestinationControls: function()
 		{
-			var _this = this;
 			BX.addCustomEvent('OnDestinationAddNewItem', BX.proxy(this.CheckPlannerState, this));
 			BX.addCustomEvent('OnDestinationUnselect', BX.proxy(this.CheckPlannerState, this));
 			BX.addCustomEvent('OnSetTab', BX.proxy(this.OnPlannerTabShow, this));
@@ -1824,17 +2012,23 @@ window.BxEditEventGridSearch = function(event)
 
 			this.plannerLoadedTimezone = params.tzFrom || this.pFromTz.value;
 			this.plannerLoadedlocation = params.location || '';
-			var _this = this;
+
+			var
+				_this = this,
+				curEventId = params.eventId || this.oEvent.ID || 0,
+				addCurUserToAttendees = !curEventId || !this.oEvent || !this.oEvent.IS_MEETING;
+
 			this.oEC.Request({
 				getData: this.oEC.GetReqData('update_planner', {
 					codes: params.codes || [],
-					cur_event_id: params.eventId || this.oEvent.ID || 0,
+					cur_event_id: curEventId,
 					date_from: params.dateFrom || params.from || '',
 					date_to: params.dateTo || params.to || '',
 					timezone: this.plannerLoadedTimezone,
 					location: this.plannerLoadedlocation,
 					roomEventId: params.roomEventId || '',
-					entries: params.entrieIds || false
+					entries: params.entrieIds || false,
+					add_cur_user_to_list: addCurUserToAttendees ? 'Y' : 'N'
 				}),
 				handler: function(oRes)
 				{
@@ -1882,10 +2076,12 @@ window.BxEditEventGridSearch = function(event)
 			if (!params || typeof params !== 'object')
 				params = {};
 
+			this.plannerData = params.data;
+
 			var
 				fromDate, toDate,
 				fullDay = this.pFullDay.checked,
-				config = {},
+				config = {}, i,
 				plannerWidth,
 				scaleFrom, scaleTo,
 				plannerShown = this.pPlannerCont && BX.hasClass(this.pPlannerCont, 'event-grid-planner-cont-shown');
@@ -1965,12 +2161,19 @@ window.BxEditEventGridSearch = function(event)
 
 						if (RRULE.FREQ == 'WEEKLY')
 						{
-							RRULE.WEEK_DAYS = [], i;
+							RRULE.WEEK_DAYS = [];
 							for (i = 0; i < 7; i++)
+							{
 								if (this.RepeatWeekDaysCh[i].checked)
+								{
 									RRULE.WEEK_DAYS.push(this.RepeatWeekDaysCh[i].value);
-							if (ar.length == 0)
+								}
+							}
+
+							if (!RRULE.WEEK_DAYS.length)
+							{
 								RRULE = false;
+							}
 						}
 					}
 
@@ -2389,7 +2592,12 @@ window.BxEditEventGridSearch = function(event)
 			this.RepeatPhrase2 = BX(this.id + '_edit_ed_rep_phrase2');
 			this.RepeatWeekDays = BX(this.id + '_edit_ed_rep_week_days');
 			this.RepeatCount = BX(this.id + '_edit_ed_rep_count');
+
+			this.RepeatEndsOnNever = BX(this.id + 'edit-ev-rep-endson-never');
+			this.RepeatEndsOnCount = BX(this.id + 'edit-ev-rep-endson-count');
+			this.RepeatEndsOnUntil = BX(this.id + 'edit-ev-rep-endson-until');
 			this.RepeatDiapTo = BX(this.id + 'edit-ev-rep-diap-to');
+			this.RepeatCountInp = BX(this.id + 'edit-ev-rep-endson-count-input');
 
 			this.RepeatSelect.onchange = function() {_this.RepeatSelectOnChange(this.value);};
 			this.RepeatCount.onmousedown = function() {_this.bEditEventDialogOver = true;};
@@ -2402,15 +2610,35 @@ window.BxEditEventGridSearch = function(event)
 					BX.removeClass(_this.RepeatCont, 'bxec-popup-row-repeat-show');
 			};
 
+			BX.bind(this.RepeatEndsOnNever, 'change', BX.proxy(this.EndsOnChange, this));
+			BX.bind(this.RepeatEndsOnCount, 'change', BX.proxy(this.EndsOnChange, this));
+			BX.bind(this.RepeatEndsOnUntil, 'change', BX.proxy(this.EndsOnChange, this));
+
+			BX.bind(this.RepeatDiapTo, 'click', BX.proxy(function()
+			{
+				this.RepeatEndsOnUntil.checked = 'checked';
+				BX.calendar({node: this.RepeatDiapTo, field: this.RepeatDiapTo, bTime: false});
+				BX.focus(this.RepeatDiapTo);
+				this.EndsOnChange();
+			}, this));
+
+			BX.bind(this.RepeatCountInp, 'click', BX.proxy(function()
+			{
+				this.RepeatEndsOnCount.checked = 'checked';
+				BX.focus(this.RepeatCountInp);
+				this.EndsOnChange();
+			}, this));
+
+			/*
 			this.RepeatDiapTo.onblur = this.RepeatDiapTo.onchange = function()
 			{
-				if (this.value && this.value != EC_MESS.NoLimits)
-				{
-					this.style.color = '#000000';
-					return;
-				}
-				this.value = EC_MESS.NoLimits;
-				this.style.color = '#C0C0C0';
+				//if (this.value && this.value != EC_MESS.NoLimits)
+				//{
+				//	this.style.color = '#000000';
+				//	return;
+				//}
+				//this.value = EC_MESS.NoLimits;
+				//this.style.color = '#C0C0C0';
 			};
 
 			this.RepeatDiapTo.onclick = function(){BX.calendar({node: this, field: this, bTime: false});BX.focus(this);};
@@ -2420,6 +2648,7 @@ window.BxEditEventGridSearch = function(event)
 					this.value = '';
 				this.style.color = '#000000';
 			};
+			*/
 
 			// Set recurtion rules "RRULE"
 			if (this.oEC.Event.IsRecursive(this.oEvent))
@@ -2452,20 +2681,36 @@ window.BxEditEventGridSearch = function(event)
 				this.ColorControl.Set(this.oEC.oSections[sectId].COLOR, this.oEC.oSections[sectId].TEXT_COLOR);
 		},
 
-		LocationOnChange: function(oLoc, ind, value)
+		EndsOnChange: function()
 		{
-			var D = this.oEditEventDialog;
-			if (ind === false)
+			if (this.RepeatEndsOnNever.checked)
 			{
-				this.Loc.NEW = value || '';
+				this.RepeatCountInp.value = '';
+				this.RepeatDiapTo.value = '';
+			}
+			else if (this.RepeatEndsOnCount.checked)
+			{
+				this.RepeatDiapTo.value = '';
+				if (!this.RepeatCountInp.value)
+					this.RepeatCountInp.value = this.RepeatCountInp.placeholder;
+				BX.focus(this.RepeatCountInp);
+				this.RepeatCountInp.select();
 			}
 			else
 			{
-				// Same meeting room
-				//if (ind != this.Loc.OLD_mrid)
-				//	this.Loc.CHANGED = true;
-				this.Loc.NEW = 'ECMR_' + this.oEC.meetingRooms[ind].ID;
+				this.RepeatCountInp.value = '';
+				BX.focus(this.RepeatDiapTo);
+				this.RepeatDiapTo.select();
 			}
+		},
+
+		LocationOnChange: function(oLoc, ind, value)
+		{
+			this.Loc.NEW = (ind === false)
+				?
+					(value || '')
+				:
+					'ECMR_' + this.oEC.meetingRooms[ind].ID;
 		},
 
 		RepeatSelectOnChange: function(val)
@@ -2536,13 +2781,26 @@ window.BxEditEventGridSearch = function(event)
 
 				if (!this.oEvent.ID || !bPer)
 				{
-					this.RepeatDiapTo.value = '';
+					this.RepeatEndsOnNever.checked = true;
 				}
 				else
 				{
-					this.RepeatDiapTo.value = this.oEvent.RRULE['~UNTIL'] || '';
+					if (this.oEvent.RRULE && this.oEvent.RRULE.COUNT > 0)
+					{
+						this.RepeatCountInp.value = parseInt(this.oEvent.RRULE.COUNT);
+						this.RepeatEndsOnCount.checked = true;
+					}
+					else if (this.oEvent.RRULE && this.oEvent.RRULE['~UNTIL'])
+					{
+						this.RepeatDiapTo.value = this.oEvent.RRULE['~UNTIL'];
+						this.RepeatEndsOnUntil.checked = true;
+					}
+					else
+					{
+						this.RepeatEndsOnNever.checked = true;
+					}
+					this.EndsOnChange();
 				}
-				this.RepeatDiapTo.onchange();
 			}
 		},
 
@@ -2939,7 +3197,7 @@ window.BxEditEventGridSearch = function(event)
 			if(!this.enabled)
 				return;
 
-			var bDeny = (event['~TYPE'] == 'tasks' || !this.oEC.Event.CanDo(event, 'edit') || this.oEC.Event.IsRecursive(event));
+			var bDeny = (event['~TYPE'] == 'tasks' || !this.oEC.Event.CanDo(event, 'edit'));
 
 			if (this.oEC.Event.IsMeeting(event) && !this.oEC.Event.IsHost(event))
 				bDeny = true;
@@ -3021,7 +3279,7 @@ window.BxEditEventGridSearch = function(event)
 			if(!this.enabled)
 				return;
 
-			var bDeny = (event['~TYPE'] == 'tasks' || !this.oEC.Event.CanDo(event, 'edit') || this.oEC.Event.IsRecursive(event));
+			var bDeny = (event['~TYPE'] == 'tasks' || !this.oEC.Event.CanDo(event, 'edit'));
 
 			if (this.oEC.Event.IsMeeting(event) && !this.oEC.Event.IsHost(event))
 				bDeny = true;
@@ -3099,7 +3357,7 @@ window.BxEditEventGridSearch = function(event)
 			if(!this.enabled)
 				return;
 
-			var bDeny = (event['~TYPE'] == 'tasks' || !this.oEC.Event.CanDo(event, 'edit') || this.oEC.Event.IsRecursive(event));
+			var bDeny = (event['~TYPE'] == 'tasks' || !this.oEC.Event.CanDo(event, 'edit'));
 
 			ddResizer.setAttribute('data-bx-event-resizer', 'Y');
 
@@ -3160,24 +3418,42 @@ window.BxEditEventGridSearch = function(event)
 
 		ResizeEventTimeline: function(event, length)
 		{
+			var
+				attendees = [],
+				_this = this;
 			event.DT_LENGTH = Math.max(parseInt(event.DT_LENGTH, 10) + length, 0);
 			event.DT_LENGTH = Math.round(event.DT_LENGTH / 600) * 600; // Round to 10 min
 			event.dateTo.setTime(event.dateFrom.getTime() + event.DT_LENGTH * 1000);
 			event.DATE_TO = this.oEC.FormatDateTime(event.dateTo);
 
+			if (this.oEC.Event.IsMeeting(event))
+			{
+				event['~ATTENDEES'].forEach(function(element){attendees.push(element['USER_ID']);});
+			}
+
+			var setTimezone = event.TZ_FROM != this.oEC.arConfig.userTimezoneName || event.TZ_TO != this.oEC.arConfig.userTimezoneName;
+
 			this.oEC.Request({
 				postData: this.oEC.GetReqData('move_event_to_date',
 					{
 						id: event.ID,
+						current_date_from: event.DATE_FROM,
+						recursive: this.oEC.Event.IsRecursive(event) ? 'Y' : 'N',
+						is_meeting: this.oEC.Event.IsMeeting(event) ? 'Y' : 'N',
+						attendees: attendees,
 						date_from: event.DATE_FROM,
 						date_to: event.DATE_TO,
 						section: event.SECT_ID,
-						skip_time: event.DT_SKIP_TIME
+						skip_time: event.DT_SKIP_TIME,
+						timezone: setTimezone ? this.oEC.arConfig.userTimezoneName : event.TZ_FROM, //timezone
+						set_timezone: setTimezone ? 'Y' : 'N'
 					}
 				),
 				errorText: EC_MESS.EventSaveError,
 				handler: function(oRes)
 				{
+					if (oRes.reload || _this.oEC.Event.IsRecursive(event))
+						_this.oEC.Event.ReloadAll(false);
 					return true;
 				}
 			});
@@ -3189,6 +3465,8 @@ window.BxEditEventGridSearch = function(event)
 		MoveEventToNewDate: function(event, newDate, mode, DT_LENGTH)
 		{
 			var
+				attendees = [],
+				_this = this,
 				dayLen = 86400000,
 				newDateTo;
 
@@ -3211,23 +3489,44 @@ window.BxEditEventGridSearch = function(event)
 				newDateTo = new Date(newDate.getTime() + event.DT_LENGTH * 1000 - dayLen);
 			}
 
+			var currentDateFrom = event.DATE_FROM;
 			event.DATE_FROM = event.DT_SKIP_TIME == 'Y' ? this.oEC.FormatDate(newDate) : this.oEC.FormatDateTime(newDate);
 			event.DATE_TO = event.DT_SKIP_TIME == 'Y' ? this.oEC.FormatDate(newDateTo) : this.oEC.FormatDateTime(newDateTo);
+
+			if (this.oEC.Event.IsMeeting(event))
+			{
+				event['~ATTENDEES'].forEach(function(element){attendees.push(element['USER_ID']);});
+			}
+
+			var setTimezone = event.TZ_FROM != this.oEC.arConfig.userTimezoneName || event.TZ_TO != this.oEC.arConfig.userTimezoneName;
 
 			this.oEC.Request({
 				postData: this.oEC.GetReqData('move_event_to_date',
 					{
 						id: event.ID,
+						current_date_from: currentDateFrom,
+						recursive: this.oEC.Event.IsRecursive(event) ? 'Y' : 'N',
+						is_meeting: this.oEC.Event.IsMeeting(event) ? 'Y' : 'N',
+						attendees: attendees,
 						date_from: event.DATE_FROM,
 						date_to: event.DATE_TO,
 						section: event.SECT_ID,
 						skip_time: event.DT_SKIP_TIME,
-						timezone: (event.TZ_FROM != this.oEC.arConfig.userTimezoneName || event.TZ_TO != this.oEC.arConfig.userTimezoneName) ? this.oEC.arConfig.userTimezoneName : '' //timezone
+						timezone: setTimezone ? this.oEC.arConfig.userTimezoneName : event.TZ_FROM, //timezone
+						set_timezone: setTimezone ? 'Y' : 'N'
 					}
 				),
 				errorText: EC_MESS.EventSaveError,
 				handler: function(oRes)
 				{
+					if (oRes.reload || _this.oEC.Event.IsRecursive(event))
+						_this.oEC.Event.ReloadAll(false);
+
+					if (_this.oEC.Event.IsMeeting(event) && oRes.busy_warning)
+					{
+						alert(EC_MESS.EC_BUSY_ALERT);
+					}
+
 					return true;
 				}
 			});
@@ -3256,8 +3555,6 @@ window.BxEditEventGridSearch = function(event)
 
 			if (event['~TYPE'] == 'tasks')
 				this.pNotice.innerHTML = EC_MESS.ddDenyTask;
-			else if(this.oEC.Event.IsRecursive(event))
-				this.pNotice.innerHTML = EC_MESS.ddDenyRepeted;
 			else
 				this.pNotice.innerHTML = EC_MESS.ddDenyEvent;
 

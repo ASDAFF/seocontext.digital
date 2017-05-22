@@ -1,4 +1,5 @@
 <?
+/** @global CMain $APPLICATION */
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
 CModule::IncludeModule("iblock");
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/iblock/prolog.php");
@@ -410,9 +411,7 @@ require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_aft
 /*********************************************************************/
 CAdminMessage::ShowMessage($strError);
 ?>
-
-<form method="POST" action="<?echo $sDocPath?>?lang=<?echo LANG ?>" ENCTYPE="multipart/form-data" name="dataload">
-
+<form method="POST" action="<?=$APPLICATION->GetCurPage();?>?lang=<?=LANGUAGE_ID; ?>" ENCTYPE="multipart/form-data" name="dataload">
 <input type="hidden" name="STEP" value="<?echo $STEP + 1;?>">
 <?=bitrix_sessid_post()?>
 <?
@@ -420,9 +419,6 @@ if ($STEP > 1)
 {
 	?><input type="hidden" name="IBLOCK_ID" value="<?echo $IBLOCK_ID ?>"><?
 }
-?>
-
-<?
 if (!$bPublicMode)
 	$aTabs = array(
 		array("DIV" => "edit1", "TAB" => GetMessage("IBLOCK_ADM_EXP_TAB1"), "ICON" => "iblock", "TITLE" => GetMessage("IBLOCK_ADM_EXP_TAB1_ALT")),
@@ -605,8 +601,19 @@ if ($STEP == 2)
 	</tr>
 	<tr>
 		<td><?echo GetMessage("IBLOCK_ADM_EXP_ENTER_FILE_NAME") ?>:</td>
-		<td>
-			<input type="text" name="DATA_FILE_NAME" size="40" value="<?echo htmlspecialcharsbx(strlen($DATA_FILE_NAME) > 0? $DATA_FILE_NAME: "/".COption::GetOptionString("main", "upload_dir", "upload")."/export_file_".mt_rand(0, 999999).".csv")?>"><br>
+		<td><?
+			if (strlen($DATA_FILE_NAME) > 0)
+			{
+				$exportFileName = $DATA_FILE_NAME;
+			}
+			else
+			{
+				$exportFileName = "/".COption::GetOptionString("main", "upload_dir", "upload")."/export_file_";
+				$exportFileName .= randString(16);
+				$exportFileName .= '.csv';
+			}
+			?>
+			<input type="text" name="DATA_FILE_NAME" size="40" value="<?=htmlspecialcharsbx($exportFileName); ?>"><br>
 			<small><?echo GetMessage("IBLOCK_ADM_EXP_FILE_WARNING") ?></small>
 		</td>
 	</tr>
@@ -682,9 +689,6 @@ BX.ready(function() {
 <?
 endif;
 ?>
-
 </form>
-
 <?
 require($DOCUMENT_ROOT."/bitrix/modules/main/include/epilog_admin.php");
-?>

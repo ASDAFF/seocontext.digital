@@ -6,14 +6,14 @@ class Replacement
 	public static function getLocalityTypes()
 	{
 		return array(
+			'РАБОЧИЙ ПОСЁЛОК' => array(),
 			'ПОСЁЛОК ГОРОДСКОГО ТИПА' => array('ПГТ'),
 			'ПОСЁЛОК' => array('П', 'ПОС', 'ПОСЕЛОК'),
 			'АУЛ' => array(),
 			'СЕЛО' => array('C'),
 			'ХУТОР' => array('Х'),
 			'ДЕРЕВНЯ' => array('Д', 'ДЕР'),
-			'СТАНИЦА' => array('СТ-ЦА', 'СТАН'),
-			'РАБОЧИЙ ПОСЁЛОК' => array()
+			'СТАНИЦА' => array('СТ-ЦА', 'СТАН')
 		);
 	}
 
@@ -68,5 +68,10 @@ class Replacement
 		return array(
 			'РАЙОН' => array('Р-Н', 'Р-ОН')
 		);
+	}
+
+	public static function changeYoE($string)
+	{
+		return str_replace('Ё', 'Е', $string);
 	}
 }

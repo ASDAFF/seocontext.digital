@@ -8,9 +8,6 @@
 namespace Bitrix\Main\Mail;
 
 use Bitrix\Main;
-use Bitrix\Main\Event as SystemEvent;
-use Bitrix\Main\EventResult as SystemEventResult;
-use Bitrix\Main\SystemException;
 use Bitrix\Main\Mail\Internal as MailInternal;
 use Bitrix\Main\Config as Config;
 use Bitrix\Main\Application;
@@ -89,7 +86,11 @@ class Event
 	}
 
 	/**
+	 * @param array $arEvent
 	 * @return string
+	 * @throws Main\ArgumentException
+	 * @throws Main\ArgumentNullException
+	 * @throws Main\ArgumentTypeException
 	 */
 	public static function handleEvent(array $arEvent)
 	{
@@ -97,7 +98,7 @@ class Event
 			$arEvent['FIELDS'] = $arEvent['C_FIELDS'];
 
 		if(!is_array($arEvent['FIELDS']))
-			throw new \Bitrix\Main\ArgumentTypeException("FIELDS" );
+			throw new Main\ArgumentTypeException("FIELDS" );
 
 		$flag = static::SEND_RESULT_TEMPLATE_NOT_FOUND; // no templates
 		$arResult = array(
@@ -113,28 +114,39 @@ class Event
 		if(array_key_exists('TRACK_CLICK', $arEvent))
 			$trackClick = $arEvent['TRACK_CLICK'];
 
-
 		$arSites = explode(",", $arEvent["LID"]);
-		if(count($arSites) <= 0)
+		if(empty($arSites))
+		{
 			return $flag;
-
+		}
 
 		// get charset and server name for languages of event
+		// actually it's one of the sites (let it be the first one)
 		$charset = false;
 		$serverName = null;
-		$siteDb = Main\SiteTable::getList(array(
-			'select'=>array('SERVER_NAME', 'CULTURE_CHARSET'=>'CULTURE.CHARSET'),
-			'filter' => array('LID' => $arSites)
-		));
-		if($arSiteDb = $siteDb->fetch())
+
+		static $sites = array();
+		$infoSite = reset($arSites);
+
+		if(!isset($sites[$infoSite]))
 		{
-			$charset = $arSiteDb['CULTURE_CHARSET'];
-			$serverName = $arSiteDb['SERVER_NAME'];
+			$siteDb = Main\SiteTable::getList(array(
+				'select' => array('SERVER_NAME', 'CULTURE_CHARSET'=>'CULTURE.CHARSET'),
+				'filter' => array('=LID' => $infoSite)
+			));
+			$sites[$infoSite] = $siteDb->fetch();
+		}
+
+		if(is_array($sites[$infoSite]))
+		{
+			$charset = $sites[$infoSite]['CULTURE_CHARSET'];
+			$serverName = $sites[$infoSite]['SERVER_NAME'];
 		}
 
 		if(!$charset)
+		{
 			return $flag;
-
+		}
 
 		// get filter for list of message templates
 		$arEventMessageFilter = array();
@@ -144,18 +156,28 @@ class Event
 			$eventMessageDb = MailInternal\EventMessageTable::getById($MESSAGE_ID);
 			if($eventMessageDb->Fetch())
 			{
-				$arEventMessageFilter['ID'] = $MESSAGE_ID;
-				$arEventMessageFilter['ACTIVE'] = 'Y';
+				$arEventMessageFilter['=ID'] = $MESSAGE_ID;
+				$arEventMessageFilter['=ACTIVE'] = 'Y';
 			}
 		}
-		if(count($arEventMessageFilter)==0)
+		if(empty($arEventMessageFilter))
 		{
 			$arEventMessageFilter = array(
-				'ACTIVE' => 'Y',
-				'EVENT_NAME' => $arEvent["EVENT_NAME"],
-				'EVENT_MESSAGE_SITE.SITE_ID' => $arSites,
+				'=ACTIVE' => 'Y',
+				'=EVENT_NAME' => $arEvent["EVENT_NAME"],
+				'=EVENT_MESSAGE_SITE.SITE_ID' => $arSites,
 			);
+
+			if($arEvent["LANGUAGE_ID"] <> '')
+			{
+				$arEventMessageFilter[] = array(
+					"LOGIC" => "OR",
+					array("=LANGUAGE_ID" => $arEvent["LANGUAGE_ID"]),
+					array("=LANGUAGE_ID" => null),
+				);
+			}
 		}
+
 		// get list of message templates of event
 		$messageDb = MailInternal\EventMessageTable::getList(array(
 			'select' => array('ID'),
@@ -166,16 +188,16 @@ class Event
 		while($arMessage = $messageDb->fetch())
 		{
 			$eventMessage = MailInternal\EventMessageTable::getRowById($arMessage['ID']);
+
 			$eventMessage['FILES'] = array();
 			$attachmentDb = MailInternal\EventMessageAttachmentTable::getList(array(
 				'select' => array('FILE_ID'),
-				'filter' => array('EVENT_MESSAGE_ID' => $arMessage['ID']),
+				'filter' => array('=EVENT_MESSAGE_ID' => $arMessage['ID']),
 			));
 			while($arAttachmentDb = $attachmentDb->fetch())
 			{
 				$eventMessage['FILE'][] = $arAttachmentDb['FILE_ID'];
 			}
-
 
 			$arFields = $arEvent['FIELDS'];
 			foreach (GetModuleEvents("main", "OnBeforeEventSend", true) as $event)
@@ -185,7 +207,6 @@ class Event
 					continue 2;
 				}
 			}
-
 
 			// get message object for send mail
 			$arMessageParams = array(
@@ -207,7 +228,6 @@ class Event
 				continue;
 			}
 
-
 			// send mail
 			$result = Main\Mail\Mail::send(array(
 				'TO' => $message->getMailTo(),
@@ -220,7 +240,7 @@ class Event
 				'ATTACHMENT' => $message->getMailAttachment(),
 				'TRACK_READ' => $trackRead,
 				'TRACK_CLICK' => $trackClick,
-				'LINK_PROTOCOL' => \Bitrix\Main\Config\Option::get("main", "mail_link_protocol", ''),
+				'LINK_PROTOCOL' => Config\Option::get("main", "mail_link_protocol", ''),
 				'LINK_DOMAIN' => $serverName
 			));
 			if($result)

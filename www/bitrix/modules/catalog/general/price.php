@@ -77,6 +77,57 @@ class CAllPrice
 		return true;
 	}
 
+	/**
+	 * @param int $id
+	 * @return array|false
+	 */
+	public static function GetByID($id)
+	{
+		global $USER;
+
+		$id = (int)$id;
+		if ($id <= 0)
+			return false;
+
+		$price = Catalog\PriceTable::getById($id)->fetch();
+		if (empty($price))
+			return false;
+
+		if ($price['TIMESTAMP_X'] instanceof Main\Type\DateTime)
+			$price['TIMESTAMP_X'] = $price['TIMESTAMP_X']->toString();
+
+		$priceTypes = CCatalogGroup::GetListArray();
+		$price['CATALOG_GROUP_NAME'] = null;
+		if (isset($priceTypes[$price['CATALOG_GROUP_ID']]))
+		{
+			$price['CATALOG_GROUP_NAME'] = ($priceTypes[$price['CATALOG_GROUP_ID']]['NAME_LANG'] !== null
+				? $priceTypes[$price['CATALOG_GROUP_ID']]['NAME_LANG']
+				: $priceTypes[$price['CATALOG_GROUP_ID']]['NAME']
+			);
+		}
+		unset($priceTypes);
+
+		$price['CAN_ACCESS'] = 'N';
+		$price['CAN_BUY'] = 'N';
+		$iterator = Catalog\GroupAccessTable::getList(array(
+			'select' => array('ACCESS'),
+			'filter' => array(
+				'=CATALOG_GROUP_ID' => $price['CATALOG_GROUP_ID'],
+				'@GROUP_ID' => (CCatalog::IsUserExists() ? $USER->GetUserGroupArray() : array(2))
+			)
+		));
+		while ($row = $iterator->fetch())
+		{
+			if ($row['ACCESS'] == Catalog\GroupAccessTable::ACCESS_BUY)
+				$price['CAN_ACCESS'] = 'Y';
+			elseif ($row['ACCESS'] == Catalog\GroupAccessTable::ACCESS_VIEW)
+				$price['CAN_BUY'] = 'Y';
+		}
+		unset($row, $iterator);
+
+		return $price;
+	}
+
 	public static function Update($ID, $arFields, $boolRecalc = false)
 	{
 		global $DB;
@@ -390,14 +441,14 @@ class CAllPrice
 					if (!empty($arExtra))
 					{
 						$boolSearch = true;
-						$arExtraList[$arExtra['ID']] = $arExtra['PERCENTAGE'];
+						$arExtraList[$arExtra['ID']] = (float)$arExtra['PERCENTAGE'];
 					}
 				}
 				if ($boolSearch)
 				{
 					$arNewPrice = array(
 						'CURRENCY' => $arFields['CURRENCY'],
-						'PRICE' => RoundEx($arFields["PRICE"] * (1 + DoubleVal($arExtraList[$arPrice['EXTRA_ID']])/100), CATALOG_VALUE_PRECISION),
+						'PRICE' => roundEx($arFields["PRICE"] * (1 + $arExtraList[$arPrice['EXTRA_ID']]/100), CATALOG_VALUE_PRECISION),
 					);
 					CPrice::Update($arPrice['ID'],$arNewPrice,false);
 				}
@@ -422,6 +473,7 @@ class CAllPrice
 					$arExtra = CExtra::GetByID($arFields['EXTRA_ID']);
 					if (!empty($arExtra))
 					{
+						$arExtra["PERCENTAGE"] = (float)$arExtra["PERCENTAGE"];
 						$arFilter = array('PRODUCT_ID' => $arFields['PRODUCT_ID'],'CATALOG_GROUP_ID' => $arBaseGroup['ID']);
 						if (isset($arFields['QUANTITY_FROM']))
 							$arFilter['QUANTITY_FROM'] = $arFields['QUANTITY_FROM'];
@@ -437,7 +489,10 @@ class CAllPrice
 						if ($arBasePrice = $rsBasePrices->Fetch())
 						{
 							$arFields['CURRENCY'] = $arBasePrice['CURRENCY'];
-							$arFields['PRICE'] = RoundEx($arBasePrice["PRICE"] * (1 + DoubleVal($arExtra["PERCENTAGE"])/100), CATALOG_VALUE_PRECISION);
+							$arFields['PRICE'] = roundEx($arBasePrice["PRICE"] * (1 + $arExtra["PERCENTAGE"]/100), CATALOG_VALUE_PRECISION);
+							$currency = CCurrency::GetByID($arBasePrice['CURRENCY']);
+							if (!empty($currency))
+								$arFields['PRICE_SCALE'] = $arFields['PRICE']*$currency['CURRENT_BASE_RATE'];
 						}
 						else
 						{

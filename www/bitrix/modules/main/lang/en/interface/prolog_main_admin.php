@@ -70,4 +70,5 @@ $MESS["prolog_main_support_menu1"] = "in:";
 $MESS["prolog_main_support_menu2"] = "week";
 $MESS["prolog_main_support_menu3"] = "two weeks";
 $MESS["prolog_main_support_menu4"] = "<span style=\"color:red;\">month</span>";
+$MESS["DEVSERVER_ADMIN_MESSAGE"] = "This installation exists as a Bitrix Site Manager development workbench. It must not be used as a publicly available website.";
 ?>

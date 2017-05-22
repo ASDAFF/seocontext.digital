@@ -59,7 +59,7 @@ if(
 			|| ($_REQUEST["cachetype"] === "managed")
 			|| ($_REQUEST["cachetype"] === "html");
 
-		$curentTime = mktime();
+		$curentTime = time();
 		$endTime = time()+5;
 
 		$obCacheCleaner = new CFileCacheCleaner($_REQUEST["cachetype"]);

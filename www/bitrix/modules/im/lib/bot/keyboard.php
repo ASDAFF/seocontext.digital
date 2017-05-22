@@ -15,7 +15,7 @@ class Keyboard
 	private $buttons = Array();
 	private $voteMode = false;
 
-	function __construct($botId, array $colors = Array(), $voteMode = false)
+	function __construct($botId = 0, array $colors = Array(), $voteMode = false)
 	{
 		$this->botId = intval($botId);
 		$this->voteMode = $voteMode? true: false;
@@ -48,9 +48,6 @@ class Keyboard
 
 	public function addButton($params)
 	{
-		if ($this->botId <= 0)
-			return false;
-
 		$button = Array();
 		$button['BOT_ID'] = $this->botId;
 		$button['TYPE'] = 'BUTTON';
@@ -62,7 +59,11 @@ class Keyboard
 		{
 			$button['LINK'] = htmlspecialcharsbx($params['LINK']);
 		}
-		else if (isset($params['COMMAND']) && strlen(trim($params['COMMAND'])) > 0)
+		else if (isset($params['FUNCTION']))
+		{
+			$button['FUNCTION'] = htmlspecialcharsbx($params['FUNCTION']);
+		}
+		else if ($this->botId > 0 && isset($params['COMMAND']) && strlen(trim($params['COMMAND'])) > 0)
 		{
 			$button['COMMAND'] = substr($params['COMMAND'], 0, 1) == '/'? substr($params['COMMAND'], 1): $params['COMMAND'];
 			$button['COMMAND_PARAMS'] = isset($params['COMMAND_PARAMS']) && strlen(trim($params['COMMAND_PARAMS'])) > 0? $params['COMMAND_PARAMS']: '';
@@ -77,7 +78,9 @@ class Keyboard
 		$button['VOTE'] = $this->voteMode? 'Y': 'N';
 
 		$button['BLOCK'] = $params['BLOCK'] == 'Y'? 'Y': 'N';
-
+		
+		$button['CONTEXT'] = in_array($params['CONTEXT'], Array('MOBILE', 'DESKTOP'))? $params['CONTEXT']: 'ALL';
+		
 		$button['DISABLED'] = $params['DISABLED'] == 'Y'? 'Y': 'N';
 
 		$button['DISPLAY'] = in_array($params['DISPLAY'], Array('BLOCK', 'LINE'))? $params['DISPLAY']: 'BLOCK';
@@ -136,8 +139,14 @@ class Keyboard
 
 	public static function getKeyboardByJson($params, $textReplace = array())
 	{
-		if (!is_array($params) || intval($params['BOT_ID']) <= 0)
+		if (is_string($params))
+		{
+			$params = \CUtil::JsObjectToPhp($params);
+		}
+		if (!is_array($params))
+		{
 			return null;
+		}
 
 		$colors = is_array($params['COLORS'])? $params['COLORS']: Array();
 		$voteMode = isset($params['VOTE']) && $params['VOTE'] == 'Y';
@@ -148,6 +157,9 @@ class Keyboard
 			if (isset($button['TYPE']) && $button['TYPE'] == 'NEWLINE')
 			{
 				$keyboard->addNewLine();
+			}
+			else if (isset($button['FUNCTION']))
+			{
 			}
 			else
 			{

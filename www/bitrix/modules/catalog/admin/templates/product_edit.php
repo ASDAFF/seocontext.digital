@@ -1,6 +1,7 @@
 <?
 /** @global CUser $USER */
 /** @global array $arShowTabs */
+/** @global CMain $APPLICATION */
 use Bitrix\Main,
 	Bitrix\Currency,
 	Bitrix\Catalog;
@@ -20,6 +21,15 @@ if ($USER->CanDoOperation('catalog_read') || $USER->CanDoOperation('catalog_pric
 	}
 	unset($currency, $currencyName);
 
+	$bDiscount = $USER->CanDoOperation('catalog_discount');
+	$bStore = $USER->CanDoOperation('catalog_store');
+	$bUseStoreControl = (COption::GetOptionString('catalog', 'default_use_store_control') == 'Y');
+	$bEnableReservation = (COption::GetOptionString('catalog', 'enable_reservation') != 'N');
+
+	$availQuantityTrace = COption::GetOptionString("catalog", "default_quantity_trace");
+	$availCanBuyZero = COption::GetOptionString("catalog", "default_can_buy_zero");
+	$strGlobalSubscribe = COption::GetOptionString("catalog", "default_subscribe");
+
 	$IBLOCK_ID = (int)$IBLOCK_ID;
 	if ($IBLOCK_ID <= 0)
 		return;
@@ -37,6 +47,7 @@ if ($USER->CanDoOperation('catalog_read') || $USER->CanDoOperation('catalog_pric
 			'QUANTITY_TRACE_ORIG' => Catalog\ProductTable::STATUS_DEFAULT,
 			'CAN_BUY_ZERO_ORIG' => Catalog\ProductTable::STATUS_DEFAULT,
 			'SUBSCRIBE_ORIG' => Catalog\ProductTable::STATUS_DEFAULT,
+			'SUBSCRIBE' => $strGlobalSubscribe,
 			'PURCHASING_PRICE' => '',
 			'PURCHASING_CURRENCY' => '',
 			'BARCODE_MULTI' => '',
@@ -58,6 +69,7 @@ if ($USER->CanDoOperation('catalog_read') || $USER->CanDoOperation('catalog_pric
 			'QUANTITY_TRACE_ORIG' => Catalog\ProductTable::STATUS_DEFAULT,
 			'CAN_BUY_ZERO_ORIG' => Catalog\ProductTable::STATUS_DEFAULT,
 			'SUBSCRIBE_ORIG' => Catalog\ProductTable::STATUS_DEFAULT,
+			'SUBSCRIBE' => $strGlobalSubscribe,
 			'PURCHASING_PRICE' => '',
 			'PURCHASING_CURRENCY' => '',
 			'WEIGHT' => '',
@@ -78,7 +90,7 @@ if ($USER->CanDoOperation('catalog_read') || $USER->CanDoOperation('catalog_pric
 				'ID', 'QUANTITY', 'QUANTITY_RESERVED', 'QUANTITY_TRACE_ORIG',
 				'VAT_ID', 'VAT_INCLUDED', 'CAN_BUY_ZERO_ORIG',
 				'PRICE_TYPE', 'RECUR_SCHEME_TYPE', 'RECUR_SCHEME_LENGTH', 'TRIAL_PRICE_ID', 'WITHOUT_ORDER',
-				'PURCHASING_PRICE', 'PURCHASING_CURRENCY', 'BARCODE_MULTI', 'SUBSCRIBE_ORIG', 'TYPE'
+				'PURCHASING_PRICE', 'PURCHASING_CURRENCY', 'BARCODE_MULTI', 'SUBSCRIBE_ORIG', 'SUBSCRIBE', 'TYPE'
 			);
 		}
 		else
@@ -86,7 +98,7 @@ if ($USER->CanDoOperation('catalog_read') || $USER->CanDoOperation('catalog_pric
 			$arProductSelect = array(
 				'ID', 'QUANTITY', 'QUANTITY_RESERVED', 'QUANTITY_TRACE_ORIG', 'WEIGHT', 'WIDTH', 'LENGTH', 'HEIGHT', 'MEASURE',
 				'VAT_ID', 'VAT_INCLUDED', 'CAN_BUY_ZERO_ORIG',
-				'PURCHASING_PRICE', 'PURCHASING_CURRENCY', 'BARCODE_MULTI', 'SUBSCRIBE_ORIG', 'TYPE'
+				'PURCHASING_PRICE', 'PURCHASING_CURRENCY', 'BARCODE_MULTI', 'SUBSCRIBE_ORIG', 'SUBSCRIBE', 'TYPE'
 			);
 		}
 		$rsProducts = CCatalogProduct::GetList(
@@ -119,17 +131,7 @@ if ($USER->CanDoOperation('catalog_read') || $USER->CanDoOperation('catalog_pric
 		)
 	);
 
-	$bDiscount = $USER->CanDoOperation('catalog_discount');
-	$bStore = $USER->CanDoOperation('catalog_store');
-	$bUseStoreControl = (COption::GetOptionString('catalog', 'default_use_store_control') == 'Y');
-	$bEnableReservation = (COption::GetOptionString('catalog', 'enable_reservation') != 'N');
-
-	$availQuantityTrace = COption::GetOptionString("catalog", "default_quantity_trace");
-	$availCanBuyZero = COption::GetOptionString("catalog", "default_can_buy_zero");
-	$strGlobalSubscribe = COption::GetOptionString("catalog", "default_subscribe");
-
-	$subscribeEnabled = $arBaseProduct["SUBSCRIBE_ORIG"] == 'Y'
-		|| ($arBaseProduct["SUBSCRIBE_ORIG"] == 'D' && $strGlobalSubscribe == 'Y');
+	$subscribeEnabled = $arBaseProduct['SUBSCRIBE'] == 'Y';
 	$activitySubscribeTab = $PRODUCT_ID > 0 && !$bCopy && $subscribeEnabled;
 
 	$arExtraList = array();
@@ -314,6 +316,7 @@ function togglePriceType()
 	$tabControl1->Begin();
 
 	// Define boundaries
+	$usedRanges = false;
 	$arProductFilter = array("PRODUCT_ID" => $PRODUCT_ID);
 	if (!CBXFeatures::IsFeatureEnabled('CatMultiPrice'))
 	{
@@ -327,8 +330,14 @@ function togglePriceType()
 	);
 	while ($arPrice = $dbPrice->Fetch())
 	{
+		$arPrice['RAW_QUANTITY_FROM'] = $arPrice['QUANTITY_FROM'];
+		$arPrice['RAW_QUANTITY_TO'] = $arPrice['QUANTITY_TO'];
 		$arPrice['QUANTITY_FROM'] = (int)$arPrice['QUANTITY_FROM'];
 		$arPrice['QUANTITY_TO'] = (int)$arPrice['QUANTITY_TO'];
+		if ($arPrice['RAW_QUANTITY_FROM'] !== null && $arPrice['QUANTITY_FROM'] > 0)
+			$usedRanges = true;
+		if ($arPrice['RAW_QUANTITY_TO'] !== null && $arPrice['QUANTITY_TO'] > 0)
+			$usedRanges = true;
 		if ($arPrice["BASE"] == "Y")
 		{
 			$arPriceBoundaries[] = array(
@@ -388,7 +397,7 @@ function togglePriceType()
 		{
 			Main\Type\Collection::sortByColumn($arPriceBoundaries, array('FROM' => SORT_ASC));
 		}
-		else
+		elseif (!$usedRanges)
 		{
 			$arPriceBoundaries[0]['FROM'] = false;
 			$arPriceBoundaries[0]['TO'] = false;
@@ -398,7 +407,7 @@ function togglePriceType()
 // prices tab
 	$tabControl1->BeginNextTab();
 	$arCatPricesExist = array(); // attr for exist prices for range
-	$bUseExtendedPrice = $bVarsFromForm ? $price_useextform == 'Y' : count($arPriceBoundaries) > 1;
+	$bUseExtendedPrice = $bVarsFromForm ? $price_useextform == 'Y' : $usedRanges;
 	$str_CAT_VAT_ID = $bVarsFromForm ? $CAT_VAT_ID : ($arBaseProduct['VAT_ID'] == 0 ? $arMainCatalog['VAT_ID'] : $arBaseProduct['VAT_ID']);
 	$str_CAT_VAT_INCLUDED = $bVarsFromForm ? $CAT_VAT_INCLUDED : $arBaseProduct['VAT_INCLUDED'];
 	?>
@@ -1773,21 +1782,27 @@ function CloneBarcodeField()
 		<tr>
 			<td width="40%"><?echo GetMessage("C2IT_MEASURE")?>:</td>
 			<td width="60%"><?
-				$str_CAT_MEASURE = $arBaseProduct["MEASURE"];
 				$arAllMeasure = array();
-				$dbResultList = CCatalogMeasure::getList(array(), array(), false, false, array("ID", "CODE", "MEASURE_TITLE", "SYMBOL_INTL", "IS_DEFAULT"));
+				$dbResultList = CCatalogMeasure::getList(
+					array(),
+					array(),
+					false,
+					false,
+					array("ID", "CODE", "MEASURE_TITLE", "SYMBOL_INTL", "IS_DEFAULT")
+				);
 				while($arMeasure = $dbResultList->Fetch())
 				{
 					$arAllMeasure[] = $arMeasure;
 				}
-				if($bVarsFromForm) $str_CAT_MEASURE = $CAT_MEASURE;
+				$str_CAT_MEASURE = $arBaseProduct["MEASURE"];
+				if($bVarsFromForm)
+					$str_CAT_MEASURE = $CAT_MEASURE;
 				if(!empty($arAllMeasure)):?>
 					<select style="max-width:220px" id="CAT_MEASURE" name="CAT_MEASURE" <?if ($bReadOnly || $productIsSet) echo "disabled readonly"; ?>>
-						<?foreach($arAllMeasure as &$arMeasure):?>
-							<option <?if(($arBaseProduct["MEASURE"] == $arMeasure["ID"]) || ($str_CAT_MEASURE == '' && $arMeasure["IS_DEFAULT"] == 'Y')) echo " selected";?>  value="<?=$arMeasure["ID"]?>"><?=htmlspecialcharsbx($arMeasure["MEASURE_TITLE"])?></option>
+						<?foreach($arAllMeasure as $arMeasure):?>
+							<option <?if ($str_CAT_MEASURE == $arMeasure["ID"] || ($str_CAT_MEASURE == '' && $arMeasure["IS_DEFAULT"] == 'Y')) echo " selected";?>  value="<?=$arMeasure["ID"]?>"><?=htmlspecialcharsbx($arMeasure["MEASURE_TITLE"])?></option>
 						<?endforeach;
-						if (isset($arMeasure))
-							unset($arMeasure);
+						unset($arMeasure);
 						?>
 					</select>
 				<?else:
@@ -2196,6 +2211,13 @@ if ('Y' == $arMainCatalog['SUBSCRIPTION']):
 	}
 	else
 	{
+		$showDiscountUrl = $bDiscount;
+		$discountUrl = '/bitrix/admin/cat_discount_edit.php?ID=';
+		if (Main\ModuleManager::isModuleInstalled('sale') && (string)Main\Config\Option::get('sale', 'use_sale_discount_only') == 'Y')
+		{
+			$showDiscountUrl = ($APPLICATION->GetGroupRight('sale') >= 'W');
+			$discountUrl = '/bitrix/admin/sale_discount_edit.php?ID=';
+		}
 		?><table border="0" cellspacing="0" cellpadding="0" class="internal" align="center" width="100%">
 		<tr class="heading">
 			<td>ID</td>
@@ -2203,7 +2225,7 @@ if ('Y' == $arMainCatalog['SUBSCRIPTION']):
 			<td><?echo GetMessage("C2IT_ACTIVITY")?></td>
 			<td><?echo GetMessage("C2IT_NAME")?></td>
 			<td><?echo GetMessage("C2IT_AMOUNT")?></td>
-			<? if ($bDiscount)
+			<? if ($showDiscountUrl)
 			{
 			?><td><?echo GetMessage("C2IT_ACTIONS")?></td><?
 			}
@@ -2234,11 +2256,11 @@ if ('Y' == $arMainCatalog['SUBSCRIPTION']):
 			?>
 			</td>
 			<?
-			if ($bDiscount)
+			if ($showDiscountUrl)
 			{
 			?>
 				<td style="text-align: center;">
-					<a href="/bitrix/admin/cat_discount_edit.php?ID=<? echo $arProductDiscounts["ID"] ?>&lang=<? echo LANGUAGE_ID; ?>#tb" target="_blank"><?echo GetMessage("C2IT_MODIFY")?></a>
+					<a href="<?=$discountUrl.$arProductDiscounts["ID"] ?>&lang=<?=LANGUAGE_ID; ?>" target="_blank"><?echo GetMessage("C2IT_MODIFY")?></a>
 				</td>
 			<?
 			}
@@ -2291,8 +2313,8 @@ if ('Y' == $arMainCatalog['SUBSCRIPTION']):
 		{
 			foreach ($storeIds as $store)
 			{
-				if (isset($_POST['AR_AMOUNT'][$store]))
-					$storeLink[$store]['PRODUCT_AMOUNT'] = htmlspecialcharsbx($_POST['AR_AMOUNT'][$store]);
+				if (isset($_POST['AR_AMOUNT'][$store]) && is_string($_POST['AR_AMOUNT'][$store]))
+					$storeLink[$store]['PRODUCT_AMOUNT'] = $_POST['AR_AMOUNT'][$store];
 			}
 			unset($store);
 		}
@@ -2318,15 +2340,15 @@ if ('Y' == $arMainCatalog['SUBSCRIPTION']):
 			if ($bStore)
 			{
 				$storeId = $row['ID'];
-				$address = ('' != $row['ADDRESS'] ? $row['ADDRESS'] : '<a href="/bitrix/admin/cat_store_edit.php?ID='.$row['ID'].'&lang='.LANGUAGE_ID.'">'.GetMessage("C2IT_EDIT").'</a>');
+				$address = ('' != $row['ADDRESS'] ? htmlspecialcharsbx($row['ADDRESS']) : '<a href="/bitrix/admin/cat_store_edit.php?ID='.$row['ID'].'&lang='.LANGUAGE_ID.'">'.GetMessage("C2IT_EDIT").'</a>');
 				$storeUrl = '<a href="/bitrix/admin/cat_store_edit.php?ID='.$row['ID'].'&lang='.LANGUAGE_ID.'">'.$storeUrl.'</a>';
 			}
 			?><tr>
 			<td style="text-align:center;"><?=$storeUrl; ?></td>
 			<td style="text-align:center;"><?=$storeId; ?></td>
-			<td style="text-align:center;"><?=$row['TITLE']; ?></td>
+			<td style="text-align:center;"><?=htmlspecialcharsbx($row['TITLE']); ?></td>
 			<td style="text-align:center;"><?=$address; ?></td>
-			<td style="text-align:center;"><input type="text" id="AR_AMOUNT_<?=$row['ID']; ?>" name="AR_AMOUNT[<?=$row['ID']?>]" size="12" value="<?=$row['PRODUCT_AMOUNT']; ?>" <? echo ((!$bStore || $bUseStoreControl) ? 'disabled readonly' : ''); ?>><?
+			<td style="text-align:center;"><input type="text" id="AR_AMOUNT_<?=$row['ID']; ?>" name="AR_AMOUNT[<?=$row['ID']?>]" size="12" value="<?=htmlspecialcharsbx($row['PRODUCT_AMOUNT']); ?>" <? echo ((!$bStore || $bUseStoreControl) ? 'disabled readonly' : ''); ?>><?
 			if ($bStore)
 			{
 				?><input type="hidden" name="AR_STORE_ID[<?=$row['ID']?>]" value="<?=$row['ID']?>"><?

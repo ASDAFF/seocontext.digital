@@ -143,9 +143,12 @@ $tabControl->BeginNextTab();
 			<script type="text/javascript">
 				function ShortUriChangeHandler(val)
 				{
+					val = BX.util.htmlspecialchars(val);
 					var d = document.getElementById("id_short_uri_span");
 					if (d)
-						d.innerHTML = '<a href="<?= (CMain::IsHTTPS() ? "https://" : "http://").$_SERVER["HTTP_HOST"] ?>/' + encodeURIComponent(val) +'"><?= (CMain::IsHTTPS() ? "https://" : "http://").$_SERVER["HTTP_HOST"] ?>/' + val + '</a>';
+					{
+						d.innerHTML = '<a href="<?= (CMain::IsHTTPS() ? "https://" : "http://").$_SERVER["HTTP_HOST"] ?>/' + val +'"><?= (CMain::IsHTTPS() ? "https://" : "http://").$_SERVER["HTTP_HOST"] ?>/' + val + '</a>';
+					}
 				}
 
 				setTimeout("ShortUriChangeHandler('<?= $str_SHORT_URI ?>')", 2);

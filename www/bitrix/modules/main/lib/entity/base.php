@@ -3,7 +3,7 @@
  * Bitrix Framework
  * @package bitrix
  * @subpackage main
- * @copyright 2001-2012 Bitrix
+ * @copyright 2001-2016 Bitrix
  */
 
 namespace Bitrix\Main\Entity;
@@ -460,7 +460,7 @@ class Base
 	 */
 	public function getConnection()
 	{
-		return \Bitrix\Main\Application::getInstance()->getConnectionPool()->getConnection($this->connectionName);
+		return Main\Application::getInstance()->getConnectionPool()->getConnection($this->connectionName);
 	}
 
 	public function getDBTableName()
@@ -825,6 +825,139 @@ class Base
 			return true;
 		}
 
+		return false;
+	}
+
+	/**
+	 * Reads data from cache.
+	 * @param int $ttl TTL.
+	 * @param string $cacheId The cache ID.
+	 * @param bool $countTotal Whether to read total count from the cache.
+	 * @return Main\DB\ArrayResult|null
+	 */
+	public function readFromCache($ttl, $cacheId, $countTotal = false)
+	{
+		if($ttl > 0)
+		{
+			$cache = Main\Application::getInstance()->getManagedCache();
+			$cacheDir = $this->getCacheDir();
+
+			$count = null;
+			if($countTotal && $cache->read($ttl, $cacheId.".total", $cacheDir))
+			{
+				$count = $cache->get($cacheId.".total");
+			}
+			if($cache->read($ttl, $cacheId, $cacheDir))
+			{
+				$result = new Main\DB\ArrayResult($cache->get($cacheId));
+				if($count !== null)
+				{
+					$result->setCount($count);
+				}
+				return $result;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * @param Main\DB\Result $result A query result to cache.
+	 * @param string $cacheId The cache ID.
+	 * @param bool $countTotal Whether to write total count to the cache.
+	 * @return Main\DB\ArrayResult
+	 */
+	public function writeToCache(Main\DB\Result $result, $cacheId, $countTotal = false)
+	{
+		$rows = $result->fetchAll();
+		$arrayResult = new Main\DB\ArrayResult($rows);
+
+		$cache = Main\Application::getInstance()->getManagedCache();
+		$cache->set($cacheId, $rows);
+
+		if($countTotal)
+		{
+			$count = $result->getCount();
+			$cache->set($cacheId.".total", $count);
+			$arrayResult->setCount($count);
+		}
+		return $arrayResult;
+	}
+
+	/**
+	 * Returns cache TTL for the entity, possibly limited by the .settings.php:
+	 * 'cache_flags' => array('value'=> array(
+	 *		"b_group_max_ttl" => 200,
+	 *		"b_group_min_ttl" => 100,
+	 * ))
+	 * Maximum is a higher-priority.
+	 * @param int $ttl Preferable TTL
+	 * @return int Caclulated TTL
+	 */
+	public function getCacheTtl($ttl)
+	{
+		$table = $this->getDBTableName();
+		$cacheFlags = Main\Config\Configuration::getValue("cache_flags");
+		if(isset($cacheFlags[$table."_min_ttl"]))
+		{
+			$ttl = (int)max($ttl, $cacheFlags[$table."_min_ttl"]);
+		}
+		if(isset($cacheFlags[$table."_max_ttl"]))
+		{
+			$ttl = (int)min($ttl, $cacheFlags[$table."_max_ttl"]);
+		}
+		return $ttl;
+	}
+
+	protected function getCacheDir()
+	{
+		return "orm_".$this->getDBTableName();
+	}
+
+	/**
+	 * Cleans all cache entries for the entity.
+	 */
+	public function cleanCache()
+	{
+		$cache = Main\Application::getInstance()->getManagedCache();
+		$cache->cleanDir($this->getCacheDir());
+	}
+
+	/**
+	 * Sets a flag indicating full text index support for a field.
+	 * @param string $field
+	 * @param bool $mode
+	 */
+	public function enableFullTextIndex($field, $mode = true)
+	{
+		$table = $this->getDBTableName();
+		$options = array();
+		$optionString = Main\Config\Option::get("main", "~ft_".$table);
+		if($optionString <> '')
+		{
+			$options = unserialize($optionString);
+		}
+		$options[strtoupper($field)] = $mode;
+		Main\Config\Option::set("main", "~ft_".$table, serialize($options));
+	}
+
+	/**
+	 * Returns true if full text index is enabled for a field.
+	 * @param string $field
+	 * @return bool
+	 */
+	public function fullTextIndexEnabled($field)
+	{
+		$table = $this->getDBTableName();
+		$optionString = Main\Config\Option::get("main", "~ft_".$table);
+		if($optionString <> '')
+		{
+			$field = strtoupper($field);
+			$options = unserialize($optionString);
+			if(isset($options[$field]) && $options[$field] === true)
+			{
+				return true;
+			}
+		}
 		return false;
 	}
 }

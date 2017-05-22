@@ -1,7 +1,7 @@
 .bx-finder-box { position: relative; }
 .bx-finder-box.bx-finder-box-vertical{}
 .bx-lm-box {
-	min-width: 650px !important;
+	min-width: 665px !important;
 	max-height: 400px;
 	min-height: 250px;
 	overflow: auto;
@@ -24,7 +24,7 @@
 	padding-left:16px;
 	padding-top:44px;
 	float:right;
-	width:200px;
+	width:215px;
 }
 .bx-finder-box.bx-finder-box-vertical .bx-finder-box-tabs:after{
 	position:absolute;
@@ -203,6 +203,26 @@
 .bx-finder-box-selected-item-icon:hover { background: url(/bitrix/js/main/core/images/controls-sprite.png) no-repeat -17px -282px;}
 .bx-finder-box-selected-item-text {font: normal normal normal 12px/normal Arial, Helvetica, sans-serif; display:inline-block; text-decoration: none; overflow: hidden; padding: 0 0 0 4px;  color: #000; width: 164px;}
 .bx-finder-workgroup-avatar {  background: url(/bitrix/js/main/core/images/finder-sprite.png) no-repeat 0 -30px;  height: 24px;  width: 24px; }
+
+.bx-finder-box-button {
+	background-color: #3bc8f5;
+	border-color: #3bc8f5;
+	border-radius: 19px;
+	color: #fff;
+	opacity: 1;
+	padding-left: 12px;
+	padding-right: 12px;
+	padding-top: 4px;
+	padding-bottom: 4px;
+	text-decoration: none;
+	cursor: pointer;
+	display: inline-block;
+	font: 12px "Helvetica Neue",Helvetica,Arial,sans-serif;
+	transition: opacity .3s ease 0s;
+	overflow: hidden;
+	margin-left: 6px;
+	margin-top: 12px;
+}
 
 .bx-finder-box-item-t2 {
 	display: inline-block;
@@ -434,6 +454,15 @@
 }
 
 .bx-finder-search-block .feed-add-destination-inp {
+	background: #fff;
+	border: none;
+	color: #555;
+	display: inline-block;
+	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+	height: 30px;
+	min-width: 108px;
+	outline: none;
+	vertical-align: middle;
 	margin: 0;
 	padding: 2px 0;
 	font-size: 14px;
@@ -479,4 +508,8 @@
 
 .bx-feed-email-checkbox {
 	vertical-align: middle;
+}
+
+.bx-finder-popup {
+	padding: 10px 0 10px 10px;
 }

@@ -47,6 +47,12 @@ else
 										<span class="sale-order-payment-change-status-success"><?=Loc::getMessage('SOPC_TPL_PAID')?></span>
 										<?
 									}
+									elseif ($arResult['IS_ALLOW_PAY'] == 'N')
+									{
+										?>
+										<span class="sale-order-payment-change-status-restricted"><?=Loc::getMessage('SOPC_TPL_RESTRICTED_PAID')?></span>
+										<?
+									}
 									else
 									{
 										?>
@@ -77,18 +83,16 @@ else
 										<?= ($key == 0) ? "checked='checked'" :""?>
 									>
 									<?
-									if (isset($paySystem['LOGOTIP']))
-									{
-										?>
-										<div class="sale-order-payment-change-pp-company-image"
-											style="
-												background-image: url(<?=$paySystem['LOGOTIP']?>);
-												background-image: -webkit-image-set(url(<?=$paySystem['LOGOTIP']?>) 1x, url(<?=$paySystem['LOGOTIP']?>) 2x);
-												">
-										</div>
-										<?
-									}
+									if (empty($paySystem['LOGOTIP']))
+										$paySystem['LOGOTIP'] = '/bitrix/images/sale/nopaysystem.gif';
+
 									?>
+									<div class="sale-order-payment-change-pp-company-image"
+										style="
+											background-image: url(<?=htmlspecialcharsbx($paySystem['LOGOTIP'])?>);
+											background-image: -webkit-image-set(url(<?=htmlspecialcharsbx($paySystem['LOGOTIP'])?>) 1x, url(<?=htmlspecialcharsbx($paySystem['LOGOTIP'])?>) 2x);
+											">
+									</div>
 									<div class="sale-order-payment-change-pp-company-smalltitle">
 										<?=CUtil::JSEscape(htmlspecialcharsbx($paySystem['NAME']))?>
 									</div>
@@ -108,6 +112,8 @@ else
 		"templateFolder" => CUtil::JSEscape($templateFolder),
 		"accountNumber" => $arParams['ACCOUNT_NUMBER'],
 		"paymentNumber" => $arParams['PAYMENT_NUMBER'],
+		"inner" => $arParams['ALLOW_INNER'],
+		"onlyInnerFull" => $arParams['ONLY_INNER_FULL'],
 		"wrapperId" => $wrapperId
 	);
 	$javascriptParams = CUtil::PhpToJSObject($javascriptParams);

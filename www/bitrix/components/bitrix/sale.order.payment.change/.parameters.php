@@ -14,15 +14,18 @@ $arComponentParameters = array(
 	)
 );
 
-$paySystemList = array(GetMessage("SAPP_SHOW_ALL"));
+$paySystemList = array(GetMessage("SOPC_SHOW_ALL"));
 
-$paySystemManagerResult = Bitrix\Sale\PaySystem\Manager::getList(array('select' => array('ID','NAME')));
-
-while ($paySystem = $paySystemManagerResult->fetch())
+if (\Bitrix\Main\Loader::includeModule('sale'))
 {
-	if (!empty($paySystem['NAME']))
+	$paySystemManagerResult = Bitrix\Sale\PaySystem\Manager::getList(array('select' => array('ID','NAME')));
+
+	while ($paySystem = $paySystemManagerResult->fetch())
 	{
-		$paySystemList[$paySystem['ID']] = $paySystem['NAME'].' ['.$paySystem['ID'].']';
+		if (!empty($paySystem['NAME']))
+		{
+			$paySystemList[$paySystem['ID']] = $paySystem['NAME'].' ['.$paySystem['ID'].']';
+		}
 	}
 }
 
@@ -40,4 +43,20 @@ if (isset($paySystemList))
 	);
 }
 
+if (CBXFeatures::IsFeatureEnabled('SaleAccounts'))
+{
+	$arComponentParameters['PARAMETERS']['ALLOW_INNER'] = array(
+		"NAME" => GetMessage("SPOC_ALLOW_INNER"),
+		"TYPE" => "CHECKBOX",
+		"DEFAULT" => "N",
+		"PARENT" => "ORDER",
+	);
+
+	$arComponentParameters['PARAMETERS']['ONLY_INNER_FULL'] = array(
+		"NAME" => GetMessage("SPOC_ONLY_INNER_FULL"),
+		"TYPE" => "CHECKBOX",
+		"DEFAULT" => "N",
+		"PARENT" => "ORDER",
+	);
+}
 

@@ -64,7 +64,7 @@ class DiscountRestrictionTable extends Main\Entity\DataManager
 			)),
 			'DISCOUNT' => new Main\Entity\ReferenceField(
 				'DISCOUNT',
-				'Bitrix\Catalog\Discount',
+				'\Bitrix\Catalog\Discount',
 				array('=this.DISCOUNT_ID' => 'ref.ID')
 			)
 		);

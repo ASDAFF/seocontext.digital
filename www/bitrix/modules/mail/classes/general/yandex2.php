@@ -115,7 +115,7 @@ class CMailYandex2
 	 */
 	public static function deleteDomain($token, $domain, &$error)
 	{
-		$result = self::post('https://pddimp.yandex.ru/api2/domain/delete', array(
+		$result = self::post('https://pddimp.yandex.ru/api2/admin/domain/delete', array(
 			'token'  => $token,
 			'domain' => $domain
 		));

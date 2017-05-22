@@ -268,17 +268,15 @@ abstract class CCatalogDocsTypes
 
 	protected static function clearPublicCache($productID, $productInfo = array())
 	{
-		global $CACHE_MANAGER;
-
 		$productID = (int)$productID;
 		if ($productID <= 0)
 			return;
 		$iblockID = (int)(isset($productInfo['IBLOCK_ID']) ? $productInfo['IBLOCK_ID'] : CIBlockElement::GetIBlockByID($productID));
 		if ($iblockID <= 0)
 			return;
-		if (defined('BX_COMP_MANAGED_CACHE') && !isset(self::$clearAutoCache[$iblockID]))
+		if (!isset(self::$clearAutoCache[$iblockID]))
 		{
-			$CACHE_MANAGER->ClearByTag('iblock_id_'.$iblockID);
+			CIBlock::clearIblockTagCache($iblockID);
 			self::$clearAutoCache[$iblockID] = true;
 		}
 
@@ -337,15 +335,21 @@ class CAllCatalogArrivalDocsType extends CCatalogDocsTypes
 			$APPLICATION->ThrowException(GetMessage("CAT_DOC_WRONG_CONTRACTOR"));
 			return false;
 		}
-		$dbDocElements = CCatalogStoreDocsElement::getList(array(), array("DOC_ID" => $documentId));
+		$dbDocElements = CCatalogStoreDocsElement::getList(
+			array(),
+			array("DOC_ID" => $documentId),
+			false,
+			false,
+			array("ID", "DOC_ID", "STORE_FROM", "STORE_TO", "ELEMENT_ID", "AMOUNT", "PURCHASING_PRICE", "ELEMENT_NAME")
+		);
 		while($arDocElement = $dbDocElements->Fetch())
 		{
-			$elementId = (int)$arDocElement["ELEMENT_ID"];
-
-			if(!self::checkAmountField($arDocElement))
+			if(!self::checkAmountField($arDocElement, $arDocElement["ELEMENT_NAME"]))
 			{
 				return false;
 			}
+			$elementId = (int)$arDocElement["ELEMENT_ID"];
+
 			if (!isset($arElement[$elementId]))
 				$arElement[$elementId] = array();
 			$arElement[$elementId][$arDocElement["ID"]] = $arDocElement;
@@ -430,12 +434,18 @@ class CAllCatalogArrivalDocsType extends CCatalogDocsTypes
 		$arElement = array();
 		$arDocElementId = array();
 		$sumAmountBarcodes = array();
-		$dbDocElements = CCatalogStoreDocsElement::getList(array(), array("DOC_ID" => $documentId));
+		$dbDocElements = CCatalogStoreDocsElement::getList(
+			array(),
+			array("DOC_ID" => $documentId),
+			false,
+			false,
+			array("ID", "DOC_ID", "STORE_FROM", "STORE_TO", "ELEMENT_ID", "AMOUNT", "PURCHASING_PRICE", "ELEMENT_NAME")
+		);
 		while($arDocElement = $dbDocElements->Fetch())
 		{
 			$elementId = (int)$arDocElement["ELEMENT_ID"];
 
-			if(!self::checkAmountField($arDocElement))
+			if(!self::checkAmountField($arDocElement, $arDocElement["ELEMENT_NAME"]))
 			{
 				return false;
 			}
@@ -506,6 +516,11 @@ class CAllCatalogArrivalDocsType extends CCatalogDocsTypes
 
 }
 
+class CCatalogArrivalDocs extends CAllCatalogArrivalDocsType
+{
+
+}
+
 class CAllCatalogMovingDocsType extends CCatalogDocsTypes
 {
 	/** The method returns an array of fields needed for this type of document.
@@ -541,12 +556,18 @@ class CAllCatalogMovingDocsType extends CCatalogDocsTypes
 		$arElement = array();
 		$arDocElementId = array();
 		$sumAmountBarcodes = array();
-		$dbDocElements = CCatalogStoreDocsElement::getList(array(), array("DOC_ID" => $documentId));
+		$dbDocElements = CCatalogStoreDocsElement::getList(
+			array(),
+			array("DOC_ID" => $documentId),
+			false,
+			false,
+			array("ID", "DOC_ID", "STORE_FROM", "STORE_TO", "ELEMENT_ID", "AMOUNT", "PURCHASING_PRICE", "ELEMENT_NAME")
+		);
 		while($arDocElement = $dbDocElements->Fetch())
 		{
 			$elementId = (int)$arDocElement["ELEMENT_ID"];
 
-			if(!self::checkAmountField($arDocElement))
+			if(!self::checkAmountField($arDocElement, $arDocElement["ELEMENT_NAME"]))
 			{
 				return false;
 			}
@@ -632,12 +653,18 @@ class CAllCatalogMovingDocsType extends CCatalogDocsTypes
 		$arElement = array();
 		$arDocElementId = array();
 		$sumAmountBarcodes = array();
-		$dbDocElements = CCatalogStoreDocsElement::getList(array(), array("DOC_ID" => $documentId));
+		$dbDocElements = CCatalogStoreDocsElement::getList(
+			array(),
+			array("DOC_ID" => $documentId),
+			false,
+			false,
+			array("ID", "DOC_ID", "STORE_FROM", "STORE_TO", "ELEMENT_ID", "AMOUNT", "PURCHASING_PRICE", "ELEMENT_NAME")
+		);
 		while($arDocElement = $dbDocElements->Fetch())
 		{
 			$elementId = (int)$arDocElement["ELEMENT_ID"];
 
-			if(!self::checkAmountField($arDocElement))
+			if(!self::checkAmountField($arDocElement, $arDocElement['ELEMENT_NAME']))
 			{
 				return false;
 			}
@@ -706,6 +733,11 @@ class CAllCatalogMovingDocsType extends CCatalogDocsTypes
 
 }
 
+class CCatalogMovingDocs extends CAllCatalogMovingDocsType
+{
+
+}
+
 class CAllCatalogReturnsDocsType extends CCatalogDocsTypes
 {
 	/** The method returns an array of fields needed for this type of document.
@@ -740,12 +772,18 @@ class CAllCatalogReturnsDocsType extends CCatalogDocsTypes
 		$arElement = array();
 		$arDocElementId = array();
 		$sumAmountBarcodes = array();
-		$dbDocElements = CCatalogStoreDocsElement::getList(array(), array("DOC_ID" => $documentId));
+		$dbDocElements = CCatalogStoreDocsElement::getList(
+			array(),
+			array("DOC_ID" => $documentId),
+			false,
+			false,
+			array("ID", "DOC_ID", "STORE_FROM", "STORE_TO", "ELEMENT_ID", "AMOUNT", "PURCHASING_PRICE", "ELEMENT_NAME")
+		);
 		while($arDocElement = $dbDocElements->Fetch())
 		{
 			$elementId = (int)$arDocElement["ELEMENT_ID"];
 
-			if(!self::checkAmountField($arDocElement))
+			if(!self::checkAmountField($arDocElement, $arDocElement["ELEMENT_NAME"]))
 			{
 				return false;
 			}
@@ -833,12 +871,18 @@ class CAllCatalogReturnsDocsType extends CCatalogDocsTypes
 		$arElement = array();
 		$arDocElementId = array();
 		$sumAmountBarcodes = array();
-		$dbDocElements = CCatalogStoreDocsElement::getList(array(), array("DOC_ID" => $documentId));
+		$dbDocElements = CCatalogStoreDocsElement::getList(
+			array(),
+			array("DOC_ID" => $documentId),
+			false,
+			false,
+			array("ID", "DOC_ID", "STORE_FROM", "STORE_TO", "ELEMENT_ID", "AMOUNT", "PURCHASING_PRICE", "ELEMENT_NAME")
+		);
 		while($arDocElement = $dbDocElements->Fetch())
 		{
 			$elementId = (int)$arDocElement["ELEMENT_ID"];
 
-			if(!self::checkAmountField($arDocElement))
+			if(!self::checkAmountField($arDocElement, $arDocElement["ELEMENT_NAME"]))
 			{
 				return false;
 			}
@@ -908,6 +952,11 @@ class CAllCatalogReturnsDocsType extends CCatalogDocsTypes
 
 }
 
+class CCatalogReturnsDocs extends CAllCatalogReturnsDocsType
+{
+
+}
+
 class CAllCatalogDeductDocsType extends CCatalogDocsTypes
 {
 	/** The method returns an array of fields needed for this type of document.
@@ -942,12 +991,18 @@ class CAllCatalogDeductDocsType extends CCatalogDocsTypes
 		$arElement = array();
 		$arDocElementId = array();
 		$sumAmountBarcodes = array();
-		$dbDocElements = CCatalogStoreDocsElement::getList(array(), array("DOC_ID" => $documentId));
+		$dbDocElements = CCatalogStoreDocsElement::getList(
+			array(),
+			array("DOC_ID" => $documentId),
+			false,
+			false,
+			array("ID", "DOC_ID", "STORE_FROM", "STORE_TO", "ELEMENT_ID", "AMOUNT", "PURCHASING_PRICE", "ELEMENT_NAME")
+		);
 		while($arDocElement = $dbDocElements->Fetch())
 		{
 			$elementId = (int)$arDocElement["ELEMENT_ID"];
 
-			if(!self::checkAmountField($arDocElement))
+			if(!self::checkAmountField($arDocElement, $arDocElement["ELEMENT_NAME"]))
 			{
 				return false;
 			}
@@ -1036,12 +1091,18 @@ class CAllCatalogDeductDocsType extends CCatalogDocsTypes
 		$arElement = array();
 		$arDocElementId = array();
 		$sumAmountBarcodes = array();
-		$dbDocElements = CCatalogStoreDocsElement::getList(array(), array("DOC_ID" => $documentId));
+		$dbDocElements = CCatalogStoreDocsElement::getList(
+			array(),
+			array("DOC_ID" => $documentId),
+			false,
+			false,
+			array("ID", "DOC_ID", "STORE_FROM", "STORE_TO", "ELEMENT_ID", "AMOUNT", "PURCHASING_PRICE", "ELEMENT_NAME")
+		);
 		while($arDocElement = $dbDocElements->Fetch())
 		{
 			$elementId = (int)$arDocElement["ELEMENT_ID"];
 
-			if(!self::checkAmountField($arDocElement))
+			if(!self::checkAmountField($arDocElement, $arDocElement["ELEMENT_NAME"]))
 			{
 				return false;
 			}
@@ -1112,6 +1173,11 @@ class CAllCatalogDeductDocsType extends CCatalogDocsTypes
 
 }
 
+class CCatalogDeductDocs extends CAllCatalogDeductDocsType
+{
+
+}
+
 class CAllCatalogUnReservedDocsType extends CCatalogDocsTypes
 {
 	/** The method returns an array of fields needed for this type of document.
@@ -1139,10 +1205,16 @@ class CAllCatalogUnReservedDocsType extends CCatalogDocsTypes
 
 		$documentId = (int)$documentId;
 		$i = 0;
-		$dbDocElements = CCatalogStoreDocsElement::getList(array(), array("DOC_ID" => $documentId));
+		$dbDocElements = CCatalogStoreDocsElement::getList(
+			array(),
+			array("DOC_ID" => $documentId),
+			false,
+			false,
+			array("ID", "DOC_ID", "STORE_FROM", "STORE_TO", "ELEMENT_ID", "AMOUNT", "PURCHASING_PRICE", "ELEMENT_NAME")
+		);
 		while($arDocElement = $dbDocElements->Fetch())
 		{
-			if (!self::checkAmountField($arDocElement))
+			if (!self::checkAmountField($arDocElement, $arDocElement["ELEMENT_NAME"]))
 			{
 				return false;
 			}
@@ -1258,4 +1330,8 @@ class CAllCatalogUnReservedDocsType extends CCatalogDocsTypes
 		return ($i > 0);
 	}
 }
-?>
+
+class CCatalogUnReservedDocs extends CAllCatalogUnReservedDocsType
+{
+
+}

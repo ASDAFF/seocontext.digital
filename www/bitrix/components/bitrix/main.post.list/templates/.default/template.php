@@ -16,7 +16,12 @@ if (!empty($arParams["RATING_TYPE_ID"]))
 	\Bitrix\Main\Page\Asset::getInstance()->addJs("/bitrix/js/main/rating_like.js");
 }
 
-CUtil::InitJSCore(array("date", "fx", "popup", "viewer", "tooltip"));
+CUtil::InitJSCore(array("date", "fx", "popup", "viewer", "tooltip", "clipboard"));
+if (CModule::IncludeModule('socialnetwork'))
+{
+	CUtil::InitJSCore(array("comment_aux"));
+}
+
 $tooltip_ajax_page = (
 	isset($arParams["AUTHOR_URL"])
 	&& $arParams["AUTHOR_URL"] != ""
@@ -46,7 +51,7 @@ ob_start();
 				?>
 			<!--/noindex-->
 			<div class="feed-com-informers">
-				<span class="feed-time">#DATE#</span>
+				<span class="feed-comment-time-wrap"><span class="feed-time"><a href="#VIEW_URL##com#ID#">#DATE#</a></span></span>
 				#BEFORE_ACTIONS#
 				<?if ( $arParams["SHOW_POST_FORM"] == "Y" )
 				{
@@ -63,7 +68,14 @@ ob_start();
 					?>bx-mpl-moderate-url="#MODERATE_URL#" bx-mpl-moderate-show="#MODERATE_SHOW#" bx-mpl-moderate-approved="#APPROVED#" <?
 					?>bx-mpl-delete-url="#DELETE_URL###ID#" bx-mpl-delete-show="#DELETE_SHOW#" <?
 					?>bx-mpl-createtask-show="#CREATETASK_SHOW#" <?
-					?>onclick="fcShowActions('#ENTITY_XML_ID#', '#ID#', this); return BX.PreventDefault(this);" <?
+					if (!!$arParams["bPublicPage"])
+					{
+						?>onclick="javascript:void(0); return BX.PreventDefault(this);" <?
+					}
+					else
+					{
+						?>onclick="fcShowActions('#ENTITY_XML_ID#', '#ID#', this); return BX.PreventDefault(this);" <?
+					}
 					?>class="feed-post-more-link feed-post-more-link-#VIEW_SHOW#-#EDIT_SHOW#-#MODERATE_SHOW#-#DELETE_SHOW#"><?
 					?><span class="feed-post-more-text"><?=GetMessage("BLOG_C_BUTTON_MORE")?></span><?
 					?><span class="feed-post-more-arrow"></span><?
@@ -164,7 +176,8 @@ BX.ready(function(){
 			rights : {
 				MODERATE : '<?=$arParams["RIGHTS"]["MODERATE"]?>',
 				EDIT : '<?=$arParams["RIGHTS"]["EDIT"]?>',
-				DELETE : '<?=$arParams["RIGHTS"]["DELETE"]?>'
+				DELETE : '<?=$arParams["RIGHTS"]["DELETE"]?>',
+				CREATETASK : '<?=$arParams["RIGHTS"]["CREATETASK"]?>'
 			},
 			sign : '<?=$arParams["SIGN"]?>'
 		},

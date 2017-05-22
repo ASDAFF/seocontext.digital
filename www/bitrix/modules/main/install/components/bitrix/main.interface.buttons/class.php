@@ -17,7 +17,7 @@ class CMainInterfaceButtons extends CBitrixComponent
 	 * this is Options Category
 	 * @var string
 	 */
-	protected $userOptionsCategory = "UI";
+	protected $userOptionsCategory = "ui";
 
 
 	/**
@@ -49,15 +49,15 @@ class CMainInterfaceButtons extends CBitrixComponent
 	{
 		$result = true;
 
-		if (empty($this->arParams["ID"])) 
+		if (empty($this->arParams["ID"]))
 		{
 			ShowError(Loc::getMessage("MIB_ID_NOT_SET"));
 			$result = false;
 		}
 
-		if (!is_array($this->arParams["ITEMS"]) || empty($this->arParams["ITEMS"])) 
+		if (!is_array($this->arParams["ITEMS"]) || empty($this->arParams["ITEMS"]))
 		{
-			ShowError(Loc::getMessage("MIB_ITEMS_NOT_FOUND"));
+			//ShowError(Loc::getMessage("MIB_ITEMS_NOT_FOUND"));
 			$result = false;
 		}
 
@@ -98,9 +98,9 @@ class CMainInterfaceButtons extends CBitrixComponent
 
 	/**
 	 * Gets user options as is
-	 * @return array|null 
+	 * @return array|null
 	 */
-	protected function getUserOptions() 
+	protected function getUserOptions()
 	{
 		return CUserOptions::GetOption($this->userOptionsCategory, $this->arParams["ID"]);
 	}
@@ -108,7 +108,7 @@ class CMainInterfaceButtons extends CBitrixComponent
 
 	/**
 	 * Prepares container id
-	 * @param  string $id 
+	 * @param  string $id
 	 * @return string Container id
 	 */
 	protected function prepareContainerId($id)
@@ -126,13 +126,13 @@ class CMainInterfaceButtons extends CBitrixComponent
 	 * @param  array $arUserOptions $this->getUserOptions() result
 	 * @return array User options
 	 */
-	protected function prepareUserOptions($userOptions) 
+	protected function prepareUserOptions($userOptions)
 	{
 		$userOptionsSettings = array();
 
-		if (is_array($userOptions) && 
-			isset($userOptions[$this->userOptionsKey]) && 
-			!empty($userOptions[$this->userOptionsKey])) 
+		if (is_array($userOptions) &&
+			isset($userOptions[$this->userOptionsKey]) &&
+			!empty($userOptions[$this->userOptionsKey]))
 		{
 			$userOptionsSettings = json_decode($userOptions[$this->userOptionsKey], true);
 		}
@@ -144,7 +144,7 @@ class CMainInterfaceButtons extends CBitrixComponent
 	/**
 	 * Prepares settings
 	 */
-	protected function prepareSettings() 
+	protected function prepareSettings()
 	{
 		$userOptionsRaw = $this->getUserOptions();
 		$settings = $this->prepareUserOptions($userOptionsRaw);
@@ -154,10 +154,10 @@ class CMainInterfaceButtons extends CBitrixComponent
 
 	/**
 	 * Gets item settings by item id
-	 * @param  string $id 
+	 * @param  string $id
 	 * @return array
 	 */
-	protected function getItemSettingsByItemId($id) 
+	protected function getItemSettingsByItemId($id)
 	{
 		$result = array();
 
@@ -175,7 +175,7 @@ class CMainInterfaceButtons extends CBitrixComponent
 	 * @param  string $text Text string
 	 * @return string
 	 */
-	protected function prepareItemText($text) 
+	protected function prepareItemText($text)
 	{
 		return $this->safeString($text);
 	}
@@ -186,7 +186,7 @@ class CMainInterfaceButtons extends CBitrixComponent
 	 * @param  string $html
 	 * @return string
 	 */
-	protected function prepareItemHtml($html) 
+	protected function prepareItemHtml($html)
 	{
 		return Text\Converter::getHtmlConverter()->decode($html);
 	}
@@ -197,7 +197,7 @@ class CMainInterfaceButtons extends CBitrixComponent
 	 * @param  string $url
 	 * @return string
 	 */
-	protected function prepareItemUrl($url) 
+	protected function prepareItemUrl($url)
 	{
 		return $this->safeString($url);
 	}
@@ -205,10 +205,10 @@ class CMainInterfaceButtons extends CBitrixComponent
 
 	/**
 	 * Prepares item class
-	 * @param  string $class 
+	 * @param  string $class
 	 * @return string
 	 */
-	protected function prepareItemClass($class) 
+	protected function prepareItemClass($class)
 	{
 		return $this->safeString($class);
 	}
@@ -219,11 +219,11 @@ class CMainInterfaceButtons extends CBitrixComponent
 	 * @param  string $id
 	 * @return string
 	 */
-	protected function prepareItemId($id) 
+	protected function prepareItemId($id)
 	{
 		$result = "";
 
-		if (!empty($id)) 
+		if (!empty($id))
 		{
 			$result = $this->safeString($id);
 			$result = str_replace('-', '_', $result);
@@ -241,22 +241,22 @@ class CMainInterfaceButtons extends CBitrixComponent
 	 * @param  string $onClickString
 	 * @return string
 	 */
-	protected function prepareItemOnClickString($onClickString) 
+	protected function prepareItemOnClickString($onClickString)
 	{
 		return $this->safeString($onClickString);
 	}
 
 
 	/**
-	 * Prepares item counter value 
-	 * @param  integer $counter 
+	 * Prepares item counter value
+	 * @param  integer $counter
 	 * @return integer|boolean
 	 */
-	protected function prepareItemCounter($counter) 
+	protected function prepareItemCounter($counter)
 	{
 		$result = false;
 
-		if (is_float($counter) || is_int($counter)) 
+		if (is_float($counter) || is_int($counter))
 		{
 			$result = $counter;
 		}
@@ -270,11 +270,11 @@ class CMainInterfaceButtons extends CBitrixComponent
 	 * @param  boolean $isLocked
 	 * @return boolean json_encode'd
 	 */
-	protected function prepareItemIsLocked($isLocked) 
+	protected function prepareItemIsLocked($isLocked)
 	{
 		$result = "false";
 
-		if (!empty($isLocked) && is_bool($isLocked)) 
+		if (!empty($isLocked) && is_bool($isLocked))
 		{
 			$result = json_encode($isLocked);
 		}
@@ -289,12 +289,12 @@ class CMainInterfaceButtons extends CBitrixComponent
 	 * @param  string $id
 	 * @return boolean json_encode'd
 	 */
-	protected function prepareItemIsDisabled($isDisabled, $id) 
+	protected function prepareItemIsDisabled($isDisabled, $id)
 	{
 		$result = "false";
 		$settings = $this->getItemSettingsByItemId($id);
 
-		if (!empty($isDisabled) && is_bool($isDisabled)) 
+		if (!empty($isDisabled) && is_bool($isDisabled))
 		{
 			$result = $isDisabled;
 		}
@@ -314,9 +314,9 @@ class CMainInterfaceButtons extends CBitrixComponent
 	/**
 	 * Prepares item sublink array
 	 * @param  array $sublink
-	 * @return array|boolean return false if sublink not set 
+	 * @return array|boolean return false if sublink not set
 	 */
-	protected function prepareItemSublink($sublink) 
+	protected function prepareItemSublink($sublink)
 	{
 		$result = false;
 
@@ -341,18 +341,18 @@ class CMainInterfaceButtons extends CBitrixComponent
 
 	/**
 	 * Prepares item sort index value
-	 * @param  string $id 
+	 * @param  string $id
 	 * @param  integer $key
 	 * @return integer Sort index
 	 */
-	protected function prepareItemSort($id, $key) 
+	protected function prepareItemSort($id, $key)
 	{
 		$result = $key;
 		$settings = $this->getItemSettingsByItemId($id);
 
-		if (!empty($settings) && is_array($settings)) 
+		if (!empty($settings) && is_array($settings))
 		{
-			if (is_int($settings["sort"])) 
+			if (is_int($settings["sort"]))
 			{
 				$result = $settings["sort"];
 			}
@@ -364,7 +364,7 @@ class CMainInterfaceButtons extends CBitrixComponent
 
 	/**
 	 * Prepares item is active value
-	 * @param  string $url 
+	 * @param  string $url
 	 * @return boolean
 	 */
 	protected function prepareItemIsActive($item)
@@ -380,7 +380,7 @@ class CMainInterfaceButtons extends CBitrixComponent
 				$result = true;
 			}
 
-			if (!$result && isset($item["ADDITIONAL_URL"]) && is_array($item["ADDITIONAL_URL"])) 
+			if (!$result && isset($item["ADDITIONAL_URL"]) && is_array($item["ADDITIONAL_URL"]))
 			{
 				$result = array_search($requestUri, $item["ADDITIONAL_URL"]);
 				$result = !is_null($result) ? true : false;
@@ -396,21 +396,50 @@ class CMainInterfaceButtons extends CBitrixComponent
 
 
 	/**
-	 * Prepares item 
+	 * Prepares item
 	 * @param  array $item
 	 * @param  integer $key
 	 * @return array Prepared $item
 	 */
-	protected function prepareItem($item, $key = 0) 
+	protected function prepareItem($item, $key = 0)
 	{
 		$item["TEXT"] = $this->prepareItemText($item["TEXT"]);
 		$item["HTML"] = $this->prepareItemHtml($item["HTML"]);
 		$item["URL"] = $this->prepareItemUrl($item["URL"]);
 		$item["CLASS"] = $this->prepareItemClass($item["CLASS"]);
 		$item["CLASS_SUBMENU_ITEM"] = $this->prepareItemClass($item["CLASS_SUBMENU_ITEM"]);
+		$item["DATA_ID"] = $item["ID"];
 		$item["ID"] = $this->prepareItemId($item["ID"]);
 		$item["ON_CLICK"] = $this->prepareItemOnClickString($item["ON_CLICK"]);
-		$item["COUNTER"] = $this->prepareItemCounter($item["COUNTER"]);
+
+		if (isset($item["COUNTER"]))
+		{
+			$counter = $this->prepareItemCounter($item["COUNTER"]);
+
+			if ($counter !== false && !empty($counter))
+			{
+				$item["COUNTER"] = $counter;
+			}
+			else
+			{
+				unset($item["COUNTER"]);
+			}
+		}
+
+		if (isset($item["COUNTER_ID"]))
+		{
+			$counterId = $this->prepareItemCounterId($item);
+
+			if (!empty($counterId) && is_string($counterId))
+			{
+				$item["COUNTER_ID"] = $counterId;
+			}
+			else
+			{
+				unset($item["COUNTER_ID"]);
+			}
+		}
+
 		$item["IS_LOCKED"] = $this->prepareItemIsLocked($item["IS_LOCKED"]);
 		$item["IS_DISABLED"] = $this->prepareItemIsDisabled($item["IS_DISABLED"], $item["ID"]);
 		$item["SUB_LINK"] = $this->prepareItemSublink($item["SUB_LINK"]);
@@ -418,6 +447,18 @@ class CMainInterfaceButtons extends CBitrixComponent
 		$item["IS_ACTIVE"] = $this->prepareItemIsActive($item);
 
 		return $item;
+	}
+
+	protected function prepareItemCounterId($item)
+	{
+		$id = '';
+
+		if (isset($item["COUNTER_ID"]) && is_string($item["COUNTER_ID"]) && !empty($item["COUNTER_ID"]))
+		{
+			$id = $item["COUNTER_ID"];
+		}
+
+		return $id;
 	}
 
 
@@ -438,9 +479,9 @@ class CMainInterfaceButtons extends CBitrixComponent
 	protected function filterItems()
 	{
 		$itemsCount;
-		$items = array_filter($this->arParams["ITEMS"], function($item) 
+		$items = array_filter($this->arParams["ITEMS"], function($item)
 		{
-			return is_array($item); 
+			return is_array($item);
 		});
 
 		$itemsCount = count($items);
@@ -459,7 +500,7 @@ class CMainInterfaceButtons extends CBitrixComponent
 
 	protected function prepareItems($items = array())
 	{
-		foreach ($items as $key => $item) 
+		foreach ($items as $key => $item)
 		{
 			$items[$key] = $this->prepareItem($item, $key);
 		}
@@ -472,12 +513,12 @@ class CMainInterfaceButtons extends CBitrixComponent
 
 	/**
 	 * Sorts array bi sort index
-	 * @param  array $array 
+	 * @param  array $array
 	 * @return array Sorted array
 	 */
 	protected function sortBySortIndex($array = array())
 	{
-		usort($array, function($a, $b) 
+		usort($array, function($a, $b)
 		{
 			return $a["SORT"] - $b["SORT"];
 		});
@@ -505,7 +546,7 @@ class CMainInterfaceButtons extends CBitrixComponent
 
 	public function executeComponent()
 	{
-		if ($this->checkRequiredParams()) 
+		if ($this->checkRequiredParams())
 		{
 			if ($this->filterItems())
 			{
@@ -513,7 +554,7 @@ class CMainInterfaceButtons extends CBitrixComponent
 				$this->prepareParams();
 				$this->prepareResult();
 				$this->setStyles();
-				$this->includeComponentTemplate();				
+				$this->includeComponentTemplate();
 			}
 
 		}

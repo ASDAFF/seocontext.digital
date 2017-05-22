@@ -51,6 +51,7 @@ $APPLICATION->IncludeComponent(
 		"NEW_TEMPLATE" => $arParams["LOG_NEW_TEMPLATE"],
 		"SUBSCRIBE_ONLY" => "N",
 		"AUTH" => $arParams["LOG_AUTH"],
+		"CHECK_COMMENTS_PERMS" => (isset($arParams["CHECK_COMMENTS_PERMS"]) && $arParams["CHECK_COMMENTS_PERMS"] == "Y" ? "Y" : "N")
 	),
 	$component 
 );

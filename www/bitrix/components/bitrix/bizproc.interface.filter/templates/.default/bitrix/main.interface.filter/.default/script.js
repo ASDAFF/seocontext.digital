@@ -1907,11 +1907,8 @@ if(typeof(BX.InterfaceGridFilterSaveAsDialog) === "undefined")
 					offsetTop: 0,
 					bindOptions: { forceBindPosition: false },
 					closeByEsc: true,
-					closeIcon: { top: '10px', right: '15px' },
-					titleBar:
-					{
-						content: BX.create("span", {"text": BX.InterfaceGridFilter.getMessage('saveAsDialogTitle')})
-					},
+					closeIcon: true,
+					titleBar: BX.InterfaceGridFilter.getMessage('saveAsDialogTitle'),
 					events:
 					{
 						onPopupClose: BX.delegate(this._handleDialogClose, this)

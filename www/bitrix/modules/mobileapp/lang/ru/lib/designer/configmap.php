@@ -94,6 +94,7 @@ $MESS["COMMON_PARAMS"] = "Общие настройки";
 $MESS["ADDITIONAL"] = "Дополнительно";
 $MESS["ADDITIONAL_PUSH_USE_PUSH"] = "Использовать push-уведомления";
 $MESS["ADDITIONAL_PUSH_APP_PUSH_ID"] = "Идентификатор приложения для отправки";
+$MESS["ADDITIONAL_USECSSSTYLE"] = "Использовать CSS для настройки";
 $MESS["ADDITIONAL_USE_SLIDER"] = "Использовать слайдер-меню";
 $MESS["ADDITIONAL_USE_TOP_BAR"] = "Отображать верхнюю панель";
 $MESS["ADDITIONAL_CSS_FILE_PATH"] = "Путь к css-файлу";

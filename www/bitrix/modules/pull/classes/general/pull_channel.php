@@ -116,13 +116,13 @@ class CPullChannel
 
 	public static function SignChannel($channelId)
 	{
-		$signatureKey = COption::GetOptionString("pull", "signature_key", "");
+		$signatureKey = \CPullOptions::GetSignatureKey();
 		if ($signatureKey === "" || !is_string($channelId))
 		{
 			return $channelId;
 		}
 
-		$signatureAlgo = COption::GetOptionString("pull", "signature_algo", "sha1");
+		$signatureAlgo = \CPullOptions::GetSignatureAlgorithm();
 		$hmac = new Sign\HmacAlgorithm();
 		$hmac->setHashAlgorithm($signatureAlgo);
 		$signer = new Sign\Signer($hmac);

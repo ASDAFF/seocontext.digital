@@ -9,4 +9,6 @@ $MESS ["SPPD_PROFILE_NO"]="Профиль № #ID#";
 $MESS ["SPPD_DOWNLOAD_FILE"]="Скачать файл #FILE_NAME#";
 $MESS ["SPPD_DELETE_FILE"]="Удалить файл";
 $MESS ["SPPD_SELECT"]="Выбрать";
+$MESS ["SPPD_FILE_NOT_SELECTED"]="Файл не выбран";
+$MESS ["SPPD_FILE_COUNT"]="Выбрано файлов: ";
 ?>

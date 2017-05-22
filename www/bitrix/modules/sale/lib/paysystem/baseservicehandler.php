@@ -8,7 +8,6 @@ use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Request;
 use Bitrix\Sale\BusinessValue;
 use Bitrix\Sale\Payment;
-use Bitrix\Sale\Result;
 
 Loc::loadMessages(__FILE__);
 
@@ -38,6 +37,7 @@ abstract class BaseServiceHandler
 	abstract public function initiatePay(Payment $payment, Request $request = null);
 
 	/**
+	 * BaseServiceHandler constructor.
 	 * @param $type
 	 * @param Service $service
 	 */
@@ -83,7 +83,13 @@ abstract class BaseServiceHandler
 		}
 		else
 		{
-			$result->addError(new Error('SALE_PS_BASE_SERVICE_TEMPLATE_ERROR'));
+			$result->addError(new Error(Loc::getMessage('SALE_PS_BASE_SERVICE_TEMPLATE_ERROR')));
+		}
+
+		if ($this->service->getField('ENCODING') != '')
+		{
+			define("BX_SALE_ENCODING", $this->service->getField('ENCODING'));
+			AddEventHandler('main', 'OnEndBufferContent', array($this, 'OnEndBufferContent'));
 		}
 
 		return $result;
@@ -198,7 +204,7 @@ abstract class BaseServiceHandler
 	/**
 	 * @return array
 	 */
-	private function getExtraParams()
+	protected function getExtraParams()
 	{
 		return $this->extraParams;
 	}
@@ -307,7 +313,7 @@ abstract class BaseServiceHandler
 	/**
 	 * @param \SplObjectStorage $cloneEntity
 	 *
-	 * @return Service
+	 * @return BaseServiceHandler
 	 */
 	public function createClone(\SplObjectStorage $cloneEntity)
 	{
@@ -349,5 +355,32 @@ abstract class BaseServiceHandler
 	public function getHandlerType()
 	{
 		return $this->handlerType;
+	}
+
+	/**
+	 * @param $content
+	 */
+	public function OnEndBufferContent(&$content)
+	{
+		global $APPLICATION;
+		header("Content-Type: text/html; charset=".BX_SALE_ENCODING);
+		$content = $APPLICATION->ConvertCharset($content, SITE_CHARSET, BX_SALE_ENCODING);
+		$content = str_replace("charset=".SITE_CHARSET, "charset=".BX_SALE_ENCODING, $content);
+	}
+
+	/**
+	 * @return array
+	 */
+	public function getDemoParams()
+	{
+		return array();
+	}
+
+	/**
+	 * @return bool
+	 */
+	public function isTuned()
+	{
+		return true;
 	}
 }

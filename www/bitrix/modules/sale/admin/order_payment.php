@@ -11,7 +11,7 @@ Loader::includeModule('sale');
 Loader::includeModule('currency');
 
 $saleModulePermissions = $APPLICATION->GetGroupRight("sale");
-if ($saleModulePermissions < "U")
+if ($saleModulePermissions == "D")
 	$APPLICATION->AuthForm(GetMessage("ACCESS_DENIED"));
 
 IncludeModuleLangFile(__FILE__);
@@ -47,6 +47,7 @@ $filter = array(
 $lAdmin->InitFilter($filter);
 
 $arFilter = array();
+$runtimeFields = array();
 
 $filter_order_id_from = intval($filter_order_id_from);
 $filter_order_id_to = intval($filter_order_id_to);
@@ -101,9 +102,35 @@ if(strlen($filter_date_paid_to)>0)
 }
 
 $allowedStatusesView = \Bitrix\Sale\OrderStatus::getStatusesUserCanDoOperations($USER->GetID(), array('view'));
+$allowedStatusesUpdate = \Bitrix\Sale\OrderStatus::getStatusesUserCanDoOperations($USER->GetID(), array('update'));
+
+if($saleModulePermissions == "P")
+{
+	$userCompanyList = \Bitrix\Sale\Services\Company\Manager::getUserCompanyList($USER->GetID());
+
+	$arFilter[] = array(
+		'LOGIC' => 'OR',
+		'=COMPANY_ID' => $userCompanyList,
+		'=ORDER.RESPONSIBLE_ID' => intval($USER->GetID()),
+		'=ORDER.COMPANY_ID' => $userCompanyList,
+		'=RESPONSIBLE_ID' => intval($USER->GetID())
+	);
+}
+
 
 if($saleModulePermissions < "W")
-	$arFilter["=ORDER.STATUS_ID"] = $allowedStatusesView;
+{
+	$statusList = array();
+	if (!empty($allowedStatusesView) && is_array($allowedStatusesView))
+	{
+		$statusList = $allowedStatusesView;
+	}
+	if (!empty($allowedStatusesUpdate) && is_array($allowedStatusesUpdate))
+	{
+		$statusList = array_merge($statusList, $allowedStatusesUpdate);
+	}
+	$arFilter["=ORDER.STATUS_ID"] = array_unique($statusList);
+}
 
 if (($ids = $lAdmin->GroupAction()) && !$bReadOnly)
 {
@@ -117,7 +144,8 @@ if (($ids = $lAdmin->GroupAction()) && !$bReadOnly)
 		'select' => $select,
 		'filter' => array_merge($arFilter, array('ID' => $ids)),
 		'order'  => array($by => $order),
-		'limit'  => 1000
+		'limit'  => 1000,
+		'runtime' => $runtimeFields
 	);
 
 	$dbResultList = PaymentTable::getList($params);
@@ -305,14 +333,16 @@ $select = array(
 	'ORDER_USER_LOGIN' => 'ORDER.USER.LOGIN',
 	'ORDER_USER_NAME' => 'ORDER.USER.NAME',
 	'ORDER_USER_LAST_NAME' => 'ORDER.USER.LAST_NAME',
-	'ORDER_USER_ID' => 'ORDER.USER_ID'
+	'ORDER_USER_ID' => 'ORDER.USER_ID',
+	'ORDER_RESPONSIBLE_ID' => 'ORDER.RESPONSIBLE_ID',
 );
+
 $params = array(
 	'select' => $select,
 	'filter' => $arFilter,
 	'order'  => array($by => $order),
+	'runtime' => $runtimeFields
 );
-
 
 $usePageNavigation = true;
 $navyParams = array();
@@ -343,6 +373,10 @@ if ($usePageNavigation)
 	$countQuery = new \Bitrix\Main\Entity\Query(PaymentTable::getEntity());
 	$countQuery->addSelect(new \Bitrix\Main\Entity\ExpressionField('CNT', 'COUNT(1)'));
 	$countQuery->setFilter($params['filter']);
+
+	foreach ($params['runtime'] as $key => $field)
+		$countQuery->registerRuntimeField($key, clone $field);
+
 	$totalCount = $countQuery->setLimit(null)->setOffset(null)->exec()->fetch();
 	unset($countQuery);
 	$totalCount = (int)$totalCount['CNT'];
@@ -387,12 +421,14 @@ $visibleHeaders = $lAdmin->GetVisibleHeaderColumns();
 
 while ($payment = $dbResultList->Fetch())
 {
+
 	if ($payment['ORDER_USER_NAME'] || $payment['ORDER_USER_LAST_NAME'])
 		$userName = htmlspecialcharsbx($payment['ORDER_USER_NAME'])." ".htmlspecialcharsbx($payment['ORDER_USER_LAST_NAME']);
 	else
 		$userName = htmlspecialcharsbx($payment['ORDER_USER_LOGIN']);
 
 	$row =& $lAdmin->AddRow($payment['ID'], $payment);
+
 	$row->AddField("ID", "<a href=\"sale_order_payment_edit.php?order_id=".$payment['ORDER_ID']."&payment_id=".$payment['ID']."&lang=".$lang.GetFilterParams("filter_")."\">".$payment['ID']."</a>");
 	$row->AddField("ORDER_ID", "<a href=\"sale_order_edit.php?ID=".$payment['ORDER_ID']."&lang=".$lang.GetFilterParams("filter_")."\">".$payment['ORDER_ID']."</a>");
 	$row->AddField("ACCOUNT_NUMBER", "<a href=\"sale_order_edit.php?ID=".$payment['ORDER_ID']."&lang=".$lang.GetFilterParams("filter_")."\">".htmlspecialcharsbx($payment['ORDER_ACCOUNT_NUMBER'])."</a>");
@@ -623,13 +659,13 @@ $oFilter->Begin();
 <tr>
 	<td><?echo \Bitrix\Main\Localization\Loc::getMessage("SALE_PAYMENT_F_USER_LOGIN");?>:</td>
 	<td>
-		<input type="text" name="filter_user_login" value="<?echo htmlspecialcharsEx($filter_user_login)?>" size="40">
+		<input type="text" name="filter_user_login" value="<?echo htmlspecialcharsbx($filter_user_login)?>" size="40">
 	</td>
 </tr>
 <tr>
 	<td><?echo \Bitrix\Main\Localization\Loc::getMessage("SALE_PAYMENT_F_USER_EMAIL");?>:</td>
 	<td>
-		<input type="text" name="filter_user_email" value="<?echo htmlspecialcharsEx($filter_user_email)?>" size="40">
+		<input type="text" name="filter_user_email" value="<?echo htmlspecialcharsbx($filter_user_email)?>" size="40">
 	</td>
 </tr>
 

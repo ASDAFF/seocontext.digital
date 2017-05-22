@@ -8,7 +8,7 @@ $MESS["MB_DEMO_ADD_PLUS"] = "Добавить кнопку плюс";
 $MESS["MB_DEMO_CAMERA_OPEN"] = "Снять фото";
 $MESS["MB_DEMO_TAKE_FROM_GALLERY"] = "Выбрать фото из галереи";
 $MESS["MB_DEMO_CONFIM"] = "Простой confirm";
-$MESS["MB_DEMO_CONTEXT_MENU"] = "Контекстного меню";
+$MESS["MB_DEMO_CONTEXT_MENU"] = "Контекстное меню";
 $MESS["MB_DEMO_FULL_LOADING"] = "Показать полноэкранный индикатор";
 $MESS["MB_DEMO_SMALL_LOADING"] = "Показать маленький индикатор";
 

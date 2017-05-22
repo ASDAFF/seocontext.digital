@@ -8,7 +8,7 @@ IncludeModuleLangFile(__FILE__);
 $TRANS_RIGHT = $APPLICATION->GetGroupRight($module_id);
 if ($TRANS_RIGHT>="R") :
 
-if ($REQUEST_METHOD=="GET" && $TRANS_RIGHT=="W" && strlen($RestoreDefaults)>0 && check_bitrix_sessid())
+if ($_SERVER["REQUEST_METHOD"] == "GET" && $TRANS_RIGHT=="W" && strlen($RestoreDefaults)>0 && check_bitrix_sessid())
 {
 	COption::RemoveOption("translate");
 	$z = CGroup::GetList($v1="id",$v2="asc", array("ACTIVE" => "Y", "ADMIN" => "N"));
@@ -30,7 +30,7 @@ $aTabs = array(
 );
 $tabControl = new CAdminTabControl("tabControl", $aTabs);
 
-if(($REQUEST_METHOD=="POST") && (strlen($Update.$Apply.$RestoreDefaults)>0) && ($TRANS_RIGHT=="W") && check_bitrix_sessid())
+if($_SERVER["REQUEST_METHOD"]=="POST" && strlen($Update.$Apply.$RestoreDefaults)>0 && $TRANS_RIGHT=="W" && check_bitrix_sessid())
 {
 	if(strlen($RestoreDefaults)>0)
 	{
@@ -47,14 +47,17 @@ if(($REQUEST_METHOD=="POST") && (strlen($Update.$Apply.$RestoreDefaults)>0) && (
 				continue;
 
 			$name = $option[0];
-			$val = ${$name};
+			if (!isset($_POST[$name]))
+				continue;
+			$val = (string)$_POST[$name];
 			if($option[3][0] == "checkbox" && $val != "Y")
 				$val = "N";
 			if($option[3][0] == "multiselectbox")
 				$val = @implode(",", $val);
 
-			COption::SetOptionString($module_id, $name, $val, $option[1]);
+			COption::SetOptionString($module_id, $name, $val);
 		}
+		unset($option);
 	}
 
 	$Update = $Update.$Apply;
@@ -65,25 +68,23 @@ if(($REQUEST_METHOD=="POST") && (strlen($Update.$Apply.$RestoreDefaults)>0) && (
 	if(strlen($_REQUEST["back_url_settings"]) > 0)
 	{
 		if((strlen($Apply) > 0) || (strlen($RestoreDefaults) > 0))
-			LocalRedirect($APPLICATION->GetCurPage()."?mid=".urlencode($mid)."&lang=".urlencode(LANGUAGE_ID)."&back_url_settings=".urlencode($_REQUEST["back_url_settings"])."&".$tabControl->ActiveTabParam());
+			LocalRedirect($APPLICATION->GetCurPage()."?mid=".urlencode($mid)."&lang=".LANGUAGE_ID."&back_url_settings=".urlencode($_REQUEST["back_url_settings"])."&".$tabControl->ActiveTabParam());
 		else
 			LocalRedirect($_REQUEST["back_url_settings"]);
 	}
 	else
 	{
-		LocalRedirect($APPLICATION->GetCurPage()."?mid=".urlencode($mid)."&lang=".urlencode(LANGUAGE_ID)."&".$tabControl->ActiveTabParam());
+		LocalRedirect($APPLICATION->GetCurPage()."?mid=".urlencode($mid)."&lang=".LANGUAGE_ID."&".$tabControl->ActiveTabParam());
 	}
 }
 
-?>
-<?
 $tabControl->Begin();
 ?><form method="POST" action="<?echo $APPLICATION->GetCurPage()?>?mid=<?=htmlspecialcharsbx($mid)?>&amp;lang=<?=LANGUAGE_ID?>"><?
 $tabControl->BeginNextTab();
 __AdmSettingsDrawList("translate", $arAllOptions);
-$tabControl->BeginNextTab();?>
-<?require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/admin/group_rights.php");?>
-<?$tabControl->Buttons();?>
+$tabControl->BeginNextTab();
+require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/admin/group_rights.php");
+$tabControl->Buttons();?>
 	<input <?if ($TRANS_RIGHT<"W") echo "disabled" ?> type="submit" name="Update" value="<?=GetMessage("MAIN_SAVE")?>" title="<?=GetMessage("MAIN_OPT_SAVE_TITLE")?>">
 	<input <?if ($TRANS_RIGHT<"W") echo "disabled" ?> type="submit" name="Apply" value="<?=GetMessage("MAIN_OPT_APPLY")?>" title="<?=GetMessage("MAIN_OPT_APPLY_TITLE")?>">
 	<?if(strlen($_REQUEST["back_url_settings"])>0):?>
@@ -94,4 +95,4 @@ $tabControl->BeginNextTab();?>
 	<?=bitrix_sessid_post();?>
 <?$tabControl->End();?>
 </form>
-<?endif;?>
+<?endif;

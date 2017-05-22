@@ -50,7 +50,7 @@ JCEC.prototype.ResizeTabTitle = function(oTab)
 		oTab.dayColWidth = width;
 		oTab.arDayColWidth = [oTab.dayColWidth];
 	}
-}
+};
 
 JCEC.prototype.FillWeekDaysTitle = function(P)
 {
@@ -144,7 +144,7 @@ JCEC.prototype.FillWeekDaysTitle = function(P)
 	}
 
 	return arDays;
-}
+};
 
 JCEC.prototype.BuildTimelineGrid = function(oTab, arDays)
 {
@@ -240,6 +240,8 @@ JCEC.prototype.BuildTimelineGrid = function(oTab, arDays)
 
 	oTab.pTimelineTable = tbl;
 	oTab.pTimelineCont.appendChild(tbl);
+	tbl.parentNode.style.width = '100%';
+
 	setTimeout(function()
 	{
 		// Scroll to the start of the work time
@@ -250,7 +252,9 @@ JCEC.prototype.BuildTimelineGrid = function(oTab, arDays)
 			var d = 3;
 			if (BX.browser.IsChrome() || BX.browser.IsSafari())
 				d = 6;
-			tbl.style.width = (oTab.pBodyCont.offsetWidth - d)+ 'px';
+
+			tbl.style.width = (oTab.pBodyCont.offsetWidth - d) + 'px';
+			tbl.parentNode.style.width = (oTab.pBodyCont.offsetWidth - d) + 'px';
 		}
 	}, 0);
 
@@ -262,7 +266,7 @@ JCEC.prototype.BuildTimelineGrid = function(oTab, arDays)
 	this.dragDrop.RegisterTimeline(oTab.pTimelineCont, oTab);
 
 	this.BuildWeekEventHolder();
-}
+};
 
 JCEC.prototype.TimeCellOnMouseOver = function(pCell, tabId)
 {
@@ -496,26 +500,30 @@ JCEC.prototype._SelectTime = function(P)
 	{
 		pCell = pTable.rows[i].cells[this.__ConvertCellIndex(i, P.col, true)];
 		BX.addClass(pCell, 'bxec-time-selected');
-		xxx = this.arSelectedTime.push({pCell : pCell});
+		this.arSelectedTime.push({pCell : pCell});
 	}
 
 	if (P.bShowNotifier)
 	{
 		if (min == P.eRow && (P.eRow != P.sRow))
 		{
-			_d = P.oDays.sDay; P.oDays.sDay = P.oDays.eDay; P.oDays.eDay = _d; // Swap days
-			_t = P.oDays.sTime; P.oDays.sTime = P.oDays.eTime; P.oDays.eTime = _t; // Swap time
+			var _d = P.oDays.sDay;
+			P.oDays.sDay = P.oDays.eDay;
+			P.oDays.eDay = _d; // Swap days
+			var _t = P.oDays.sTime;
+			P.oDays.sTime = P.oDays.eTime;
+			P.oDays.eTime = _t; // Swap time
 		}
 		this.ShowSelectTimeNotifier({tabId: P.tabId, rowInd: min, colInd: P.col, oDays: P.oDays});
 	}
-}
+};
 
 JCEC.prototype.__ConvertCellIndex = function(rowInd, cellInd, bInv)
 {
 	if ((rowInd / 2) !== Math.round((rowInd / 2)))
 		cellInd += bInv ? -1 : 1;
 	return cellInd;
-}
+};
 
 JCEC.prototype.DeSelectTime = function(tabId)
 {
@@ -526,7 +534,7 @@ JCEC.prototype.DeSelectTime = function(tabId)
 		BX.removeClass(this.arSelectedTime[i].pCell, 'bxec-time-selected');
 	this.HideSelectTimeNotifier({tabId: tabId});
 	this.arSelectedTime = [];
-}
+};
 
 JCEC.prototype.ShowSelectTimeNotifier = function(P, bShow)
 {
@@ -552,15 +560,8 @@ JCEC.prototype.ShowSelectTimeNotifier = function(P, bShow)
 	if (!oTab.pSTNotifier)
 		oTab.pSTNotifier = pTable.parentNode.appendChild(BX.create('DIV', {props: {className: 'bxec-st-notifier'}}));
 
-	//if (sMin < 10)
-	//	sMin = '0' + sMin.toString();
-	//if (eMin < 10)
-	//	eMin = '0' + eMin.toString();
-
 	t1 = this.FormatTimeByNum(sHour, sMin);
 	t2 = this.FormatTimeByNum(eHour, eMin);
-	//t1 = sHour + ':' + sMin;
-	//t2 = eHour + ':' + eMin;
 
 	if (P.oDays.sDay == P.oDays.eDay) // during one day
 		innnerHTML = '<nobr>' + t1 + ' - ' + t2 + '</nobr>';
@@ -575,7 +576,7 @@ JCEC.prototype.ShowSelectTimeNotifier = function(P, bShow)
 	oTab.pSTNotifier.style.left = left + dLeft + 'px';
 	oTab.pSTNotifier.style.top = top + dTop + 'px';
 	oTab.pSTNotifier.style.display = 'block';
-}
+};
 
 JCEC.prototype.HideSelectTimeNotifier = function(P)
 {
@@ -583,7 +584,7 @@ JCEC.prototype.HideSelectTimeNotifier = function(P)
 	if (!oTab.pSTNotifier)
 		return;
 	oTab.pSTNotifier.style.display = 'none';
-}
+};
 
 JCEC.prototype.BuildSingleDayTable = function()
 {
@@ -601,12 +602,13 @@ JCEC.prototype.BuildSingleDayTable = function()
 
 	oTab.pTimelineCont = pGridR.cells[0].firstChild;
 	this.ResizeTabTitle(oTab);
-}
+};
 
 JCEC.prototype.ShowCurTimePointer = function(tabId)
 {
-	var _this = this;
-	var oTab = this.Tabs[tabId];
+	var
+		_this = this,
+		oTab = this.Tabs[tabId];
 	if (!oTab.oCurTimePointer)
 		this.CreateCurTimePointer(tabId);
 
@@ -621,7 +623,7 @@ JCEC.prototype.ShowCurTimePointer = function(tabId)
 
 		oTab.oCurTimePointer.pWnd.style.top = dTop + 'px';
 		oTab.oCurTimePointer.pWnd.title = EC_MESS.CurTime + ' - ' + _this.FormatTimeByNum(h, m);
-	};
+	}
 
 	var
 		oCTP = oTab.oCurTimePointer,
@@ -632,17 +634,17 @@ JCEC.prototype.ShowCurTimePointer = function(tabId)
 
 	oTab.pTimelineCont.appendChild(oCTP.pWnd);
 	oCTP.pWnd.style.display = 'block';
-	oCTP.pWnd.style.left = (bxInt(c.offsetLeft) - bxGetPixel()) + 'px';
+	oCTP.pWnd.style.left = bxInt(c.offsetLeft) + 'px';
 	oCTP.pWnd.style.width = bxInt(c.offsetWidth) + 'px';
 	oCTP.interval = setInterval(fMove, 60000);
 
 	fMove();
-}
+};
 
 JCEC.prototype.CreateCurTimePointer = function(tabId)
 {
 	this.Tabs[tabId].oCurTimePointer = {pWnd : BX.create('DIV', {props: {className: 'bxec-time-pointer'}, html: '<img class="bxec-iconkit" src="/bitrix/images/1.gif">'})};
-}
+};
 
 JCEC.prototype.HideCurTimePointer = function(tabId)
 {
@@ -653,7 +655,7 @@ JCEC.prototype.HideCurTimePointer = function(tabId)
 	if (oTab.oCurTimePointer.interval)
 		clearInterval(oTab.oCurTimePointer.interval);
 	oTab.oCurTimePointer.pWnd.style.display = 'none';
-}
+};
 
 JCEC.prototype.SetWeek = function(w1, m1, y1)
 {

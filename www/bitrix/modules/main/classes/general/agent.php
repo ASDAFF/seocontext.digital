@@ -185,6 +185,7 @@ class CAllAgent
 			"LAST_EXEC" => "A.LAST_EXEC",
 			"AGENT_INTERVAL" => "A.AGENT_INTERVAL",
 			"NEXT_EXEC" => "A.NEXT_EXEC",
+			"DATE_CHECK" => "A.DATE_CHECK",
 			"SORT" => "A.SORT"
 		);
 
@@ -261,9 +262,10 @@ class CAllAgent
 		}
 
 		$strSql = "SELECT A.ID, A.MODULE_ID, A.USER_ID, B.LOGIN, B.NAME as USER_NAME, B.LAST_NAME, A.SORT, ".
-			"A.NAME, A.ACTIVE, ".
+			"A.NAME, A.ACTIVE, A.RUNNING, ".
 			$DB->DateToCharFunction("A.LAST_EXEC")." as LAST_EXEC, ".
 			$DB->DateToCharFunction("A.NEXT_EXEC")." as NEXT_EXEC, ".
+			$DB->DateToCharFunction("A.DATE_CHECK")." as DATE_CHECK, ".
 			"A.AGENT_INTERVAL, A.IS_PERIOD ".
 			"FROM b_agent A LEFT JOIN b_user B ON(A.USER_ID = B.ID)";
 		$strSql .= (count($arSqlSearch)>0) ? " WHERE ".implode(" AND ", $arSqlSearch) : "";

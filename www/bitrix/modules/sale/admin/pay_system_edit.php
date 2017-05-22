@@ -114,6 +114,7 @@ if ($server->getRequestMethod() == "POST"
 			"NAME" => $name,
 			"PSA_NAME" => $request->get('PSA_NAME'),
 			"ACTIVE" => ($request->get('ACTIVE') != 'Y') ? 'N' : $request->get('ACTIVE'),
+			"CAN_PRINT_CHECK" => ($request->get('CAN_PRINT_CHECK') != 'Y') ? 'N' : $request->get('CAN_PRINT_CHECK'),
 			"CODE" => $request->get('CODE'),
 			"NEW_WINDOW" => ($request->get('NEW_WINDOW') != 'Y') ? 'N' : $request->get('NEW_WINDOW'),
 			"ALLOW_EDIT_PAYMENT" => ($request->get('ALLOW_EDIT_PAYMENT') != 'Y') ? 'N' : $request->get('ALLOW_EDIT_PAYMENT'),
@@ -440,7 +441,7 @@ $tabControl->BeginNextTab();
 					<?endforeach;?>
 				</optgroup>
 			</select>
-			<input type="hidden" value="<?=$paySystem['ACTION_FILE']?>" name="PRIOR_ACTION_FILE">
+			<input type="hidden" value="<?=htmlspecialcharsbx($paySystem['ACTION_FILE'])?>" name="PRIOR_ACTION_FILE">
 		</td>
 	</tr>
 	<tbody id="pay_system_ps_mode">
@@ -610,21 +611,19 @@ $tabControl->BeginNextTab();
 			<input type="checkbox" name="ALLOW_EDIT_PAYMENT" id="ALLOW_EDIT_PAYMENT" value="Y"<?=($allowEditPayment == 'Y') ? ' checked' : '';?>>
 		</td>
 	</tr>
-	<!--
 	<tr>
-		<td width="40%" align="right"><label for="AUTO_CHANGE_1C"><?=Loc::getMessage("SPS_AUTO_CHANGE_1C");?>:</label></td>
+		<td width="40%" align="right"><label for="CAN_PRINT_CHECK"><?=Loc::getMessage("SPS_CAN_PRINT_CHECK");?>:</label></td>
 		<td width="60%">
 			<?
 				if ($request->isPost())
-					$autoChange1c = $request->get('AUTO_CHANGE_1C') ? $request->get('AUTO_CHANGE_1C') : '';
+					$printable = $request->get('CAN_PRINT_CHECK') ? $request->get('CAN_PRINT_CHECK') : '';
 				else
-					$autoChange1c = isset($paySystem['AUTO_CHANGE_1C']) ? $paySystem['AUTO_CHANGE_1C'] : 'N';
+					$printable = isset($paySystem['CAN_PRINT_CHECK']) ? $paySystem['CAN_PRINT_CHECK'] : 'N';
 			?>
 
-			<input type="checkbox" name="AUTO_CHANGE_1C" id="AUTO_CHANGE_1C" value="Y"<?=($autoChange1c == 'Y') ? ' checked' : '';?>>
+			<input type="checkbox" name="CAN_PRINT_CHECK" id="CAN_PRINT_CHECK" value="Y"<?=($printable == 'Y') ? ' checked' : '';?>>
 		</td>
 	</tr>
-	-->
 	<tr>
 		<td width="40%" align="right"><?=Loc::getMessage("SPS_ENCODING");?>:</td>
 		<td width="60%">
@@ -731,27 +730,55 @@ $tabControl->BeginNextTab();
 			}
 		?>
 	</tbody>
-	<tbody id="pay_system_yandex_return">
+	<tbody id="pay_system_yandex_settings">
 	<?
-		if ($paySystem && array_key_exists('ACTION_FILE', $paySystem) && $paySystem['ACTION_FILE'] == 'yandex')
+		if ($paySystem && array_key_exists('ACTION_FILE', $paySystem))
 		{
-			$service = new PaySystem\Service($paySystem);
-			if ($service->isRefundable())
+			if ($paySystem['ACTION_FILE'] == 'yandex')
 			{
-				$pathToReturnPage = $documentRoot.'/bitrix/modules/sale/admin/yandex_return_settings.php';
-				if (IO\File::isFileExists($pathToReturnPage)):?>					
+				$service = new PaySystem\Service($paySystem);
+				if ($service->isRefundable())
+				{
+					$pathToReturnPage = $documentRoot.'/bitrix/modules/sale/handlers/paysystem/'.$handlerName.'/settings/refund.php';
+					if (IO\File::isFileExists($pathToReturnPage)):?>
+						<tr>
+							<td colspan="2" align="center" class="heading" style="padding-top: 10px">
+								<?=Loc::getMessage('SALE_PSE_RETURN')?>
+							</td>
+						</tr>
+						<tr>
+							<td colspan="2" style="padding-top: 10px" align="center">
+								<?
+								echo Loc::getMessage('SALE_PS_RETURN_SETTINGS_YANDEX');
+								?>
+							</td>
+						</tr>
+					<?endif;
+				}
+			}
+			elseif ($paySystem['ACTION_FILE'] == 'yandexinvoice')
+			{
+				$pathToReturnPage = $documentRoot.'/bitrix/modules/sale/admin/yandexinvoice_settings.php';
+				if (IO\File::isFileExists($pathToReturnPage)):?>
 					<tr>
 						<td colspan="2" align="center" class="heading" style="padding-top: 10px">
-							<?=Loc::getMessage('SALE_PSE_RETURN')?>
+							<?=Loc::getMessage('SALE_PSE_YANDEX_INVOICE_SETTINGS_TITLE')?>
 						</td>
 					</tr>
 					<tr>
 						<td colspan="2" style="padding-top: 10px" align="center">
 							<?
-								if (PaySystem\YandexCert::isLoaded($id, null))
-									echo Loc::getMessage('SALE_PS_RETURN_SETTINGS_YANDEX_OK', array('#ID#' => $id));
+								$yandexInvoiceSettings = array();
+								$shopId = BusinessValue::get('YANDEX_INVOICE_SHOP_ID', 'PAYSYSTEM_'.$id, null);
+								if ($shopId)
+								{
+									$dbRes = \Bitrix\Sale\Internals\YandexSettingsTable::getById($shopId);
+									$yandexInvoiceSettings = $dbRes->fetch();
+								}
+								if ($yandexInvoiceSettings && $yandexInvoiceSettings['PKEY'] && $yandexInvoiceSettings['PUB_KEY'])
+									echo Loc::getMessage('SALE_PSE_YANDEX_INVOICE_SETTINGS_OK', array('#ID#' => $id));
 								else
-									echo Loc::getMessage('SALE_PS_RETURN_SETTINGS_YANDEX', array('#ID#' => $id));
+									echo Loc::getMessage('SALE_PSE_YANDEX_INVOICE_SETTINGS', array('#ID#' => $id));
 							?>
 						</td>
 					</tr>

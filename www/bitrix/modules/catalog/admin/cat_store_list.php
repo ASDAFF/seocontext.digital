@@ -162,6 +162,7 @@ $arSelect = array(
 	"ISSUING_CENTER",
 	"SHIPPING_CENTER",
 	"SITE_ID",
+	"CODE",
 	"UF_*"
 );
 
@@ -298,6 +299,12 @@ $headers = array(
 		"content" => GetMessage("STORE_SITE_ID"),
 		"sort" => "SITE_ID",
 		"default" => true
+	),
+	array(
+		"id" => "CODE",
+		"content" => GetMessage("STORE_CODE"),
+		"sort" => "CODE",
+		"default" => false
 	)
 );
 
@@ -321,7 +328,8 @@ $arSelectFieldsMap = array(
 	"EMAIL" => false,
 	"ISSUING_CENTER" => false,
 	"SHIPPING_CENTER" => false,
-	"SITE_ID" => false
+	"SITE_ID" => false,
+	"CODE" => false
 );
 
 $lAdmin->AddHeaders($headers);
@@ -341,6 +349,7 @@ $arRows = array();
 while ($arRes = $dbResultList->Fetch())
 {
 	$arRes['ID'] = (int)$arRes['ID'];
+	$arRes['SORT'] = (int)$arRes['SORT'];
 	if($arSelectFieldsMap['USER_ID'])
 	{
 		$arRes['USER_ID'] = (int)$arRes['USER_ID'];
@@ -358,7 +367,9 @@ while ($arRes = $dbResultList->Fetch())
 	$row->AddField("ID", "<a href=\""."cat_store_edit.php?ID=".$arRes['ID']."&lang=".LANGUAGE_ID."&".GetFilterParams("filter_")."\">".$arRes['ID']."</a>");
 	if($bReadOnly)
 	{
-		$row->AddViewField("SORT", $f_SORT);
+		$row->AddViewField("SORT", $arRes['SORT']);
+		if($arSelectFieldsMap['CODE'])
+			$row->AddInputField("CODE", false);
 		if($arSelectFieldsMap['TITLE'])
 			$row->AddInputField("TITLE", false);
 		if($arSelectFieldsMap['ADDRESS'])
@@ -383,8 +394,8 @@ while ($arRes = $dbResultList->Fetch())
 	else
 	{
 		$row->AddInputField("SORT", array("size" => "3"));
-		if($arSelectFieldsMap['SITE_ID'])
-			$row->AddViewField("SITE_ID", getSiteTitle($arRes['SITE_ID']));
+		if($arSelectFieldsMap['CODE'])
+			$row->AddInputField("CODE");
 		if($arSelectFieldsMap['TITLE'])
 			$row->AddInputField("TITLE");
 		if($arSelectFieldsMap['ACTIVE'])
@@ -407,6 +418,8 @@ while ($arRes = $dbResultList->Fetch())
 			$row->AddField("IMAGE_ID", CFile::ShowImage($arRes['IMAGE_ID'], 100, 100, "border=0", "", true));
 	}
 
+	if($arSelectFieldsMap['SITE_ID'])
+		$row->AddViewField("SITE_ID", htmlspecialcharsbx(getSiteTitle($arRes['SITE_ID'])));
 	if($arSelectFieldsMap['DATE_CREATE'])
 		$row->AddCalendarField("DATE_CREATE", false);
 	if($arSelectFieldsMap['DATE_MODIFY'])
@@ -511,7 +524,6 @@ $lAdmin->CheckListMode();
 $APPLICATION->SetTitle(GetMessage("STORE_TITLE"));
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_after.php");
 ?>
-
 	<form name="find_form" method="GET" action="<?echo $APPLICATION->GetCurPage()?>?">
 		<?
 		$arFindFields = array(GetMessage("STORE_SITE_ID"));
@@ -543,10 +555,7 @@ require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_aft
 		$oFilter->End();
 		?>
 	</form>
-
-
 <?
 $lAdmin->DisplayList();
-?>
 
-<?require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");?>
+require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");

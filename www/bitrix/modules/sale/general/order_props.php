@@ -862,7 +862,10 @@ final class CSaleOrderPropsAdapter implements FetchAdapter
 		}
 
 		$oldProperty = self::convertNewToOld($newProperty);
-		$oldProperty['VALUE'] = self::getOldValue($newProperty['VALUE'], $newProperty['TYPE']);
+		if (array_key_exists('VALUE', $newProperty))
+		{
+			$oldProperty['VALUE'] = self::getOldValue($newProperty['VALUE'], $newProperty['TYPE']);
+		}
 
 		return array_intersect_key($oldProperty, $this->select);
 	}

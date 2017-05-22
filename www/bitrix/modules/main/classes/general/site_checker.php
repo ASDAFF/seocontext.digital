@@ -64,6 +64,7 @@ class CSiteCheckerTest
 			array('check_mbstring' =>GetMessage('SC_T_MBSTRING')),
 			array('check_install_scripts' => GetMessage('SC_T_INSTALL_SCRIPTS')),
 			array('check_socket' => GetMessage('SC_T_SOCK')),
+			array('check_bx_crontab' => GetMessage("MAIN_SC_AGENTS_CRON")),
 		);
 
 		$arGroupName[2] = GetMessage("MAIN_SC_BUSINESS");
@@ -81,6 +82,8 @@ class CSiteCheckerTest
 			array('check_ca_file' => GetMessage("MAIN_SC_CLOUD_TEST")),
 			array('check_connect_mail' => GetMessage("MAIN_SC_TEST_MAIL_INTEGRATION")),
 			array('check_socnet' => GetMessage("MAIN_SC_TEST_SOCNET_INTEGRATION")),
+			array('check_rest' => GetMessage("MAIN_SC_TEST_REST")),
+			array('check_mail_push' => GetMessage("MAIN_SC_TEST_MAIL_PUSH")),
 		);
 		if (IsModuleInstalled('extranet'))
 			$arTestGroup[2][] = array('check_extranet' => GetMessage("MAIN_SC_EXTRANET_ACCESS")); 
@@ -105,7 +108,6 @@ class CSiteCheckerTest
 		$arTestGroup[16] = array(
 			array('check_dbconn_settings' => GetMessage('SC_T_DBCONN_SETTINGS')),
 			array('check_dbconn' => GetMessage('SC_T_DBCONN')),
-			array('check_bx_crontab' => GetMessage("MAIN_SC_AGENTS_CRON")),
 			array('check_session_ua' => GetMessage('SC_T_SESS_UA')),
 			array('check_sites' => GetMessage('SC_T_SITES')),
 			array('check_clone' => GetMessage('SC_T_CLONE')),
@@ -163,9 +165,18 @@ class CSiteCheckerTest
 					);
 				break;
 				case 3:
-				default:
 					$this->arTest = array(
 						array('check_mysql_table_structure' => GetMessage('SC_T_STRUCTURE')),
+					);
+				break;
+				case 4:
+					$this->arTest = array(
+						array('check_mbstring' => GetMessage('SC_T_MBSTRING')),
+					);
+				break;
+				default:
+					$this->arTest = array(
+						array('check_server_vars' => GetMessage('SC_T_SERVER')),
 					);
 				break;
 			}
@@ -556,7 +567,7 @@ class CSiteCheckerTest
 		if ($val)
 		{
 			if ($time > 1)
-				return $this->Result(false, GetMessage('SC_SENT').' '.$time.' '.GetMessage('SC_SEC'));
+				return $this->Result($this->arTestVars['check_bx_crontab'] ? null : false, GetMessage('SC_SENT').' '.$time.' '.GetMessage('SC_SEC'));
 		}
 		else
 			return false;
@@ -603,8 +614,73 @@ class CSiteCheckerTest
 		$oAuthManager = new CSocServAuthManager();
 		$arActiveSocServ = $oAuthManager->GetActiveAuthServices(array());
 		if (count($arActiveSocServ))
-			return true;
+		{
+			if (is_array($arActiveSocServ['Bitrix24Net']))
+				return true;
+			return $this->Result(null, GetMessage("MAIN_SC_NO_SOCIAL_SERVICES_24NET"));
+		}
 		return $this->Result(null, GetMessage("MAIN_SC_NO_SOCIAL_SERVICES"));
+	}
+
+	function check_rest()
+	{
+		if (!CModule::IncludeModule('rest'))
+			return $this->Result(null, GetMessage("MAIN_SC_NO_REST_MODULE"));
+		return true;
+	}
+
+	function check_mail_push()
+	{
+		$site = \Bitrix\Main\SiteTable::getList(array(
+			'select' => array('LID', 'NAME', 'SERVER_NAME'),
+			'order'  => array('DEF' => 'DESC', 'SORT' => 'ASC'),
+		))->fetch();
+		$context = \Bitrix\Main\Application::getInstance()->getContext();
+
+		$domain = $site['SERVER_NAME'] ?: \COption::getOptionString('main', 'server_name', '');
+
+		if (preg_match('/^(?<domain>.+):(?<port>\d+)$/', $domain, $matches))
+			$domain = $matches['domain'];
+		if (!getmxrr($domain, $mxhosts) || !count($mxhosts))
+			return $this->Result(null ,GetMessage('SC_ERR_DNS', array('#DOMAIN#' => $domain)));
+
+		foreach($mxhosts as $mx)
+		{
+			if ($mx != 'mail-001.bitrix24.com')
+			{
+				print_r($mxhosts);
+				return $this->Result(null, GetMessage('SC_ERR_DNS_WRONG', array('#DOMAIN#' => $mx)));
+			}
+		}
+
+		if (!$res = $this->ConnectToHost('mail-001.bitrix24.com', 25))
+			return $this->Result(null, GetMessage('SC_ERR_CONNECT_MAIL001'));
+
+		echo fgets($res);
+		fwrite($res, "HELO ".$domain."\r\n");
+		echo fgets($res);
+		fwrite($res, "MAIL FROM: site_checker_from@".$domain."\r\n");
+		echo fgets($res);
+		fwrite($res, "RCPT TO: site_checker_to@".$domain."\r\n");
+		echo fgets($res);
+		fwrite($res, "DATA\r\n");
+		echo fgets($res);
+		fwrite($res, 
+		"From: site_checker_from@".$domain."\r\n".
+		"To: site_checker_to@".$domain."\r\n".
+		"Subject: Site checker mail test\r\n".
+		"Content-type: text/plain\r\n".
+		"MIME-Version: 1.0\r\n".
+		"\r\n".
+		".\r\n");
+		echo ($str = fgets($res));
+		fclose($res);
+		if (preg_match('#\(Bad Request 400\)#i', $str))
+		{
+			echo "Success\n";
+			return true;
+		}
+		return $this->Result(null, GetMessage('SC_ERR_TEST_MAIL_PUSH', array('#DOMAIN#' => $domain)));
 	}
 
 	function check_socket()
@@ -887,6 +963,8 @@ class CSiteCheckerTest
 		{
 			$ok = true;
 			$cur = ini_get('memory_limit');
+			if (preg_match('#([0-9]+) *G#i', $cur, $regs))
+				$cur = $regs[1] * 1024;
 			if ($cur > 0 && $cur < $last_success)
 			{
 				$res .= '<br> '.GetMessage('SC_MEMORY_CHANGED', array('#VAL0#' => $cur, '#VAL1#' => '512M'));
@@ -946,6 +1024,32 @@ class CSiteCheckerTest
 
 	function check_mbstring()
 	{
+		$file = $_SERVER['DOCUMENT_ROOT'].'/bitrix/.settings.php';
+
+		if ($this->fix_mode)
+		{
+			if (!file_exists($file))
+			{
+				\Bitrix\Main\Config\Configuration::wnc();
+				bx_accelerator_reset();
+			}
+			return $this->Result(file_exists($file));
+		}
+
+		if (!file_exists($file))
+		{
+			$this->arTestVars['check_mbstring_fail'] = true;
+			$mode = 4;
+			$link = ' <a href="javascript:show_popup(\'' . GetMessageJS('SC_FIX_MBSTRING') . '\', \'?fix_mode='.$mode.'\', \'' . GetMessageJS('SC_FIX_MBSTRING_CONFIRM') . '\')">' . GetMessage('SC_FIX') . '</a>';
+			return $this->Result(false, GetMessage('SC_ERR_NO_SETTINGS').$link);
+		}
+
+		if (\Bitrix\Main\Config\Configuration::getValue("utf_mode") !== (defined('BX_UTF') && BX_UTF === true))
+		{
+			return $this->Result(false, GetMessage('MAIN_SC_MBSTRING_SETTIGNS_DIFFER'));
+			$this->arTestVars['check_mbstring_fail'] = true;
+		}
+
 		$retVal = true;
 		$bUtf = false;
 
@@ -1418,7 +1522,7 @@ class CSiteCheckerTest
 			return $this->Result($retVal, GetMessage("MAIN_NO_PULL_MODULE"));
 		if (COption::GetOptionString('pull', 'push', 'N') != 'Y')
 			return $this->Result(null, GetMessage("MAIN_NO_OPTION_PULL"));
-		if (!$ar = parse_url(COption::GetOptionString('pull', 'path_to_mobile_listener'.($this->ssl ? '_secure' : ''))))
+		if (!$ar = parse_url(str_replace('#DOMAIN#', $this->host, COption::GetOptionString('pull', 'path_to_mobile_listener'.($this->ssl ? '_secure' : '')))))
 			return $this->Result(false, GetMessage("MAIN_SC_PATH_SUB"));
 		$sub_port = $ar['port'];
 		if (!$sub_port)
@@ -1555,7 +1659,8 @@ class CSiteCheckerTest
 				'bitrix6setup.php',
 				'bitrix7setup.php',
 				'bitrix8setup.php',
-				'export_file.csv'
+				'export_file.csv',
+				'1c_bx_import.php'
 			) as $file)
 		{
 			if (file_exists($_SERVER['DOCUMENT_ROOT'].'/'.$file))
@@ -1720,14 +1825,16 @@ class CSiteCheckerTest
 
 	function check_bx_crontab()
 	{
+		$this->arTestVars['check_bx_crontab'] = false;
 		if (defined('BX_CRONTAB'))
 			return $this->Result(false, GetMessage("MAIN_BX_CRONTAB_DEFINED"));
 
 		$bCron = COption::GetOptionString("main", "agents_use_crontab", "N") == 'Y' || defined('BX_CRONTAB_SUPPORT') && BX_CRONTAB_SUPPORT === true || COption::GetOptionString("main", "check_agents", "Y") != 'Y';
 		if ($bCron)
 		{
-			if (!$GLOBALS['DB']->Query('SELECT LAST_EXEC FROM b_agent WHERE LAST_EXEC > NOW() - INTERVAL 1 DAY LIMIT 1')->Fetch())
+			if (!$GLOBALS['DB']->Query('SELECT LAST_EXEC FROM b_agent WHERE LAST_EXEC > NOW() - INTERVAL 1 DAY AND IS_PERIOD = "N" LIMIT 1')->Fetch())
 				return $this->Result(false, GetMessage("MAIN_CRON_NO_START"));
+			$this->arTestVars['check_bx_crontab'] = true;
 			return true;
 		}
 		return $this->Result(null, GetMessage("MAIN_AGENTS_HITS"));
@@ -2708,6 +2815,23 @@ function InitPureDB()
 			if ($m = trim($module))
 				return file_exists($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/'.$m);
 			return false;
+		}
+	}
+	if (!function_exists('GetMessageJS'))
+	{
+		function GetMessageJS($name, $aReplace=false)
+		{
+			return GetMessage($name, $aReplace);
+		}
+	}
+	if (!function_exists('bx_accelerator_reset'))
+	{
+		function bx_accelerator_reset()
+		{
+			if(function_exists("accelerator_reset"))
+				accelerator_reset();
+			elseif(function_exists("wincache_refresh_if_changed"))
+				wincache_refresh_if_changed();
 		}
 	}
 	global $DB, $DBType, $DBDebug, $DBDebugToFile, $DBHost, $DBName, $DBLogin, $DBPassword;

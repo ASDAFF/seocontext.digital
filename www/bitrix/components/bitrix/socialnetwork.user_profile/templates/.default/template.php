@@ -101,6 +101,7 @@ else
 			"G_SONET_USER_LINKS_URL_VIDEOCALL" => htmlspecialcharsback($arResult["Urls"]["VideoCall"]),
 			"G_SONET_USER_LINKS_URL_SECURITY" => htmlspecialcharsback($arResult["Urls"]["Security"]),
 			"G_SONET_USER_LINKS_URL_PASSWORDS" => htmlspecialcharsback($arResult["Urls"]["Passwords"]),
+			"G_SONET_USER_LINKS_URL_SYNCHRONIZE" => htmlspecialcharsback($arResult["Urls"]["Synchronize"]),
 			"G_SONET_USER_LINKS_URL_CODES" => htmlspecialcharsback($arResult["Urls"]["Codes"]),
 			"G_SONET_USER_OTP" => $arResult["User"]["OTP"],
 
@@ -198,7 +199,6 @@ else
 			$arDesktopParams["G_TASKS_SHOW_TITLE"] = "N";
 			$arDesktopParams["G_TASKS_SHOW_FOOTER"] = "N";
 			$arDesktopParams["G_TASKS_TEMPLATE_NAME"] = ".default";
-			$arDesktopParams["G_TASKS_IBLOCK_ID"] = $arParams["TASK_IBLOCK_ID"];
 			$arDesktopParams["G_TASKS_OWNER_ID"] = $arResult["User"]["ID"];
 			$arDesktopParams["G_TASKS_TASK_TYPE"] = 'user';
 			$arDesktopParams["G_TASKS_ITEMS_COUNT"] = 10;
@@ -213,8 +213,7 @@ else
 			$arDesktopParams["G_TASKS_PATH_TO_USER_TASKS"] = $arParams["PATH_TO_USER_TASKS"];
 			$arDesktopParams["G_TASKS_PATH_TO_USER_TASKS_TASK"] = $arParams["PATH_TO_USER_TASKS_TASK"];
 			$arDesktopParams["G_TASKS_PATH_TO_USER_TASKS_VIEW"] = $arParams["PATH_TO_USER_TASKS_VIEW"];
-			$arDesktopParams["G_TASKS_TASKS_FIELDS_SHOW"] = $arParams["TASKS_FIELDS_SHOW"];
-			$arDesktopParams["G_TASKS_FORUM_ID"] = $arParams["TASK_FORUM_ID"];		
+			$arDesktopParams["G_TASKS_FORUM_ID"] = $arParams["TASK_FORUM_ID"];
 		}
 		else
 			$arDesktopParams["G_TASKS_SHOW"] = "N";

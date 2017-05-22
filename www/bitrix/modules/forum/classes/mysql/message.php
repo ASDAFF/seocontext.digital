@@ -78,9 +78,16 @@ class CForumMessage extends CAllForumMessage
 		$_SESSION["SESS_RECOUNT_DB"] = "Y";
 
 		$USER_FIELD_MANAGER->Update("FORUM_MESSAGE", $ID, $arFields, (array_key_exists("USER_ID", $arFields) ? $arFields["USER_ID"] : false));
+
+		$arMessage = CForumMessage::GetByIDEx($ID, array("GET_FORUM_INFO" => "N", "GET_TOPIC_INFO" => "Y", "FILTER" => "Y"));
+
+		/***************** Events onAfterMessageAdd ************************/
+		foreach(GetModuleEvents("forum", "onAfterMessageAdd", true) as $arEvent)
+			ExecuteModuleEventEx($arEvent, array(&$ID, $arMessage, $arMessage["TOPIC_INFO"], $arMessage["FORUM_INFO"], $arFields));
+		/***************** /Events *****************************************/
+
 		if ($arParams["SKIP_STATISTIC"] == "Y" && $arParams["SKIP_INDEXING"] == "Y")
 			return $ID;
-		$arMessage = CForumMessage::GetByIDEx($ID, array("GET_FORUM_INFO" => "N", "GET_TOPIC_INFO" => "Y", "FILTER" => "Y"));
 
 		if ($arParams["SKIP_STATISTIC"] != "Y")
 		{
@@ -91,90 +98,95 @@ class CForumMessage extends CAllForumMessage
 			CForumTopic::SetStat($arMessage["TOPIC_ID"],  array("MESSAGE" => $arMessage));
 			CForumNew::SetStat($arMessage["FORUM_ID"],  array("MESSAGE" => $arMessage));
 		}
-/***************** Events onAfterMessageAdd ************************/
-		foreach(GetModuleEvents("forum", "onAfterMessageAdd", true) as $arEvent)
-			ExecuteModuleEventEx($arEvent, array(&$ID, $arMessage, $arMessage["TOPIC_INFO"], $arMessage["FORUM_INFO"], $arFields));
-/***************** /Events *****************************************/
-		if ($arMessage["APPROVED"] == "Y")
+		if ($arMessage["APPROVED"] == "Y" && $arParams["SKIP_INDEXING"] != "Y" && CModule::IncludeModule("search"))
 		{
-			if ($arParams["SKIP_INDEXING"] != "Y" && CModule::IncludeModule("search"))
+			$arMessage["POST_MESSAGE"] = (COption::GetOptionString("forum", "FILTER", "Y") == "Y" ?
+				$arMessage["POST_MESSAGE_FILTER"] : $arMessage["POST_MESSAGE"]);
+			$arParams = array(
+				"PERMISSION" => array(),
+				"SITE" => CForumNew::GetSites($arMessage["FORUM_ID"]),
+				"DEFAULT_URL" => "/");
+
+			$arGroups = CForumNew::GetAccessPermissions($arMessage["FORUM_ID"]);
+			foreach($arGroups as $arGroup)
 			{
-				$arMessage["POST_MESSAGE"] = (COption::GetOptionString("forum", "FILTER", "Y") == "Y" ?
-					$arMessage["POST_MESSAGE_FILTER"] : $arMessage["POST_MESSAGE"]);
-				$arParams = array(
-					"PERMISSION" => array(),
-					"SITE" => CForumNew::GetSites($arMessage["FORUM_ID"]),
-					"DEFAULT_URL" => "/");
-
-				$arGroups = CForumNew::GetAccessPermissions($arMessage["FORUM_ID"]);
-				foreach($arGroups as $arGroup)
+				if ($arGroup[1] >= "E")
 				{
-					if ($arGroup[1] >= "E")
-					{
-						$arParams["PERMISSION"][] = $arGroup[0];
-						if ($arGroup[0] == 2)
-							break;
-					}
+					$arParams["PERMISSION"][] = $arGroup[0];
+					if ($arGroup[0] == 2)
+						break;
 				}
-
-				$arSearchInd = array(
-					"LID" => array(),
-					"LAST_MODIFIED" => $arMessage["POST_DATE"],
-					"PARAM1" => $arMessage["FORUM_ID"],
-					"PARAM2" => $arMessage["TOPIC_ID"],
-					"ENTITY_TYPE_ID"  => ($arMessage["NEW_TOPIC"] == "Y"? "FORUM_TOPIC": "FORUM_POST"),
-					"ENTITY_ID" => ($arMessage["NEW_TOPIC"] == "Y"? $arMessage["TOPIC_ID"]: $ID),
-					"USER_ID" => $arMessage["AUTHOR_ID"],
-					"PERMISSIONS" => $arParams["PERMISSION"],
-					"TITLE" => $arMessage["TOPIC_INFO"]["TITLE"].($arMessage["NEW_TOPIC"] == "Y" && !empty($arMessage["TOPIC_INFO"]["DESCRIPTION"]) ?
-						", ".$arMessage["TOPIC_INFO"]["DESCRIPTION"] : ""),
-					"TAGS" => ($arMessage["NEW_TOPIC"] == "Y" ? $arMessage["TOPIC_INFO"]["TAGS"] : ""),
-					"BODY" => GetMessage("AVTOR_PREF")." ".$arMessage["AUTHOR_NAME"].". ".(forumTextParser::clearAllTags($arMessage["POST_MESSAGE"])),
-					"URL" => "",
-					"INDEX_TITLE" => $arMessage["NEW_TOPIC"] == "Y",
-				);
-
-				// get mentions
-				$arMentionedUserID = CForumMessage::GetMentionedUserID($arMessage["POST_MESSAGE"]);
-				if (!empty($arMentionedUserID))
-				{
-					$arSearchInd["PARAMS"] = array(
-						"mentioned_user_id" => $arMentionedUserID
-					);
-				}
-
-				$urlPatterns = array(
-					"FORUM_ID" => $arMessage["FORUM_ID"],
-					"TOPIC_ID" => $arMessage["TOPIC_ID"],
-					"TITLE_SEO" => $arMessage["TOPIC_INFO"]["TITLE_SEO"],
-					"MESSAGE_ID" => $arMessage["ID"],
-					"SOCNET_GROUP_ID" => $arMessage["TOPIC_INFO"]["SOCNET_GROUP_ID"],
-					"OWNER_ID" => $arMessage["TOPIC_INFO"]["OWNER_ID"],
-					"PARAM1" => $arMessage["PARAM1"],
-					"PARAM2" => $arMessage["PARAM2"]);
-				foreach ($arParams["SITE"] as $key => $val)
-				{
-					$arSearchInd["LID"][$key] = CForumNew::PreparePath2Message($val, $urlPatterns);
-					if (empty($arSearchInd["URL"]) && !empty($arSearchInd["LID"][$key]))
-						$arSearchInd["URL"] = $arSearchInd["LID"][$key];
-				}
-
-				if (empty($arSearchInd["URL"]))
-				{
-					foreach ($arParams["SITE"] as $key => $val):
-						$db_lang = CLang::GetByID($key);
-						if ($db_lang && $ar_lang = $db_lang->Fetch()):
-							$arParams["DEFAULT_URL"] = $ar_lang["DIR"];
-							break;
-						endif;
-					endforeach;
-					$arParams["DEFAULT_URL"] .= COption::GetOptionString("forum", "REL_FPATH", "").
-						"forum/read.php?FID=#FID#&TID=#TID#&MID=#MID##message#MID#";
-
-					$arSearchInd["URL"] = CForumNew::PreparePath2Message($arParams["DEFAULT_URL"], $urlPatterns);
-				}
-				CSearch::Index("forum", $ID, $arSearchInd);
 			}
+
+			$arSearchInd = array(
+				"LID" => array(),
+				"LAST_MODIFIED" => $arMessage["POST_DATE"],
+				"PARAM1" => $arMessage["FORUM_ID"],
+				"PARAM2" => $arMessage["TOPIC_ID"],
+				"ENTITY_TYPE_ID"  => ($arMessage["NEW_TOPIC"] == "Y"? "FORUM_TOPIC": "FORUM_POST"),
+				"ENTITY_ID" => ($arMessage["NEW_TOPIC"] == "Y"? $arMessage["TOPIC_ID"]: $ID),
+				"USER_ID" => $arMessage["AUTHOR_ID"],
+				"PERMISSIONS" => $arParams["PERMISSION"],
+				"TITLE" => $arMessage["TOPIC_INFO"]["TITLE"].($arMessage["NEW_TOPIC"] == "Y" && !empty($arMessage["TOPIC_INFO"]["DESCRIPTION"]) ?
+					", ".$arMessage["TOPIC_INFO"]["DESCRIPTION"] : ""),
+				"TAGS" => ($arMessage["NEW_TOPIC"] == "Y" ? $arMessage["TOPIC_INFO"]["TAGS"] : ""),
+				"BODY" => GetMessage("AVTOR_PREF")." ".$arMessage["AUTHOR_NAME"].". ".(CSearch::KillTags(forumTextParser::clearAllTags($arMessage["POST_MESSAGE"]))),
+				"URL" => "",
+				"INDEX_TITLE" => $arMessage["NEW_TOPIC"] == "Y",
+			);
+
+			// get mentions
+			$arMentionedUserID = CForumMessage::GetMentionedUserID($arMessage["POST_MESSAGE"]);
+			if (!empty($arMentionedUserID))
+			{
+				$arSearchInd["PARAMS"] = array(
+					"mentioned_user_id" => $arMentionedUserID
+				);
+			}
+
+			$urlPatterns = array(
+				"FORUM_ID" => $arMessage["FORUM_ID"],
+				"TOPIC_ID" => $arMessage["TOPIC_ID"],
+				"TITLE_SEO" => $arMessage["TOPIC_INFO"]["TITLE_SEO"],
+				"MESSAGE_ID" => $arMessage["ID"],
+				"SOCNET_GROUP_ID" => $arMessage["TOPIC_INFO"]["SOCNET_GROUP_ID"],
+				"OWNER_ID" => $arMessage["TOPIC_INFO"]["OWNER_ID"],
+				"PARAM1" => $arMessage["PARAM1"],
+				"PARAM2" => $arMessage["PARAM2"]);
+			foreach ($arParams["SITE"] as $key => $val)
+			{
+				$arSearchInd["LID"][$key] = CForumNew::PreparePath2Message($val, $urlPatterns);
+				if (empty($arSearchInd["URL"]) && !empty($arSearchInd["LID"][$key]))
+					$arSearchInd["URL"] = $arSearchInd["LID"][$key];
+			}
+
+			if (empty($arSearchInd["URL"]))
+			{
+				foreach ($arParams["SITE"] as $key => $val):
+					$db_lang = CLang::GetByID($key);
+					if ($db_lang && $ar_lang = $db_lang->Fetch()):
+						$arParams["DEFAULT_URL"] = $ar_lang["DIR"];
+						break;
+					endif;
+				endforeach;
+				$arParams["DEFAULT_URL"] .= COption::GetOptionString("forum", "REL_FPATH", "").
+					"forum/read.php?FID=#FID#&TID=#TID#&MID=#MID##message#MID#";
+
+				$arSearchInd["URL"] = CForumNew::PreparePath2Message($arParams["DEFAULT_URL"], $urlPatterns);
+			}
+			/***************** Events onMessageIsIndexed ***********************/
+			$index = true;
+			foreach(GetModuleEvents("forum", "onMessageIsIndexed", true) as $arEvent)
+			{
+				if (ExecuteModuleEventEx($arEvent, array($ID, $arMessage, &$arSearchInd)) === false)
+				{
+					$index = false;
+					break;
+				}
+			}
+			/***************** /Events *****************************************/
+			if ($index == true)
+				CSearch::Index("forum", $ID, $arSearchInd, true);
 		}
 		return $ID;
 	}

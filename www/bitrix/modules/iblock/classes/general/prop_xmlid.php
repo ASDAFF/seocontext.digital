@@ -1,4 +1,6 @@
 <?
+use Bitrix\Iblock;
+
 IncludeModuleLangFile(__FILE__);
 
 class CIBlockPropertyXmlID
@@ -108,8 +110,11 @@ class CIBlockPropertyXmlID
 		if(!$ar_res)
 			$ar_res = array("NAME" => "");
 
-		return  '<input name="'.htmlspecialcharsbx($strHTMLControlName["VALUE"]).'" id="'.htmlspecialcharsbx($strHTMLControlName["VALUE"]).'" value="'.htmlspecialcharsex($value["VALUE"]).'" size="20" type="text">'.
-			'<input type="button" value="..." onClick="jsUtils.OpenWindow(\''.CUtil::JSEscape('/bitrix/admin/iblock_element_search.php?lang='.LANG.'&n='.urlencode($strHTMLControlName["VALUE"]).'&get_xml_id=Y&a=b').'\', 600, 500);">'.
+		$fixIBlock = $arProperty["LINK_IBLOCK_ID"] > 0;
+		$windowTableId = 'iblockprop-'.Iblock\PropertyTable::TYPE_ELEMENT.'-'.$arProperty['ID'].'-'.$arProperty['LINK_IBLOCK_ID'];
+
+		return  '<input name="'.htmlspecialcharsbx($strHTMLControlName["VALUE"]).'" id="'.htmlspecialcharsbx($strHTMLControlName["VALUE"]).'" value="'.htmlspecialcharsEx($value["VALUE"]).'" size="20" type="text">'.
+			'<input type="button" value="..." onClick="jsUtils.OpenWindow(\''.CUtil::JSEscape('/bitrix/admin/iblock_element_search.php?lang='.LANGUAGE_ID.'&n='.urlencode($strHTMLControlName["VALUE"]).'&get_xml_id=Y&a=b'.($fixIBlock ? '&iblockfix=y' : '').'&tableId='.$windowTableId).'\', 900, 700);">'.
 			'&nbsp;<span id="sp_'.htmlspecialcharsbx($strHTMLControlName["VALUE"]).'" >'.$ar_res['NAME'].'</span>';
 	}
 
@@ -121,4 +126,3 @@ class CIBlockPropertyXmlID
 		return '';
 	}
 }
-?>

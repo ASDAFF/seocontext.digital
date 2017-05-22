@@ -4,6 +4,10 @@ body{
 	padding: 8px 8px 8px 18px !important;
 	font-family: Arial,sans-serif;
 }
+
+html body.fullscreen{
+	padding: 8px 8px 8px 18px !important;
+}
 /*body{min-height: 97%;} */
 ._bx-editor-temp {display: none;}
 body.placeholder {color: #a9a9a9 !important;}
@@ -17,9 +21,9 @@ img:-moz-broken{ -moz-force-broken-image-icon: 1; height: 24px; width: 24px;}
 .bxhtmled-surrogate .bxhtmled-right-side-item-icon
 {
 	animation : none;
-	animation-delay : 0;
+	animation-delay : default;
 	animation-direction : normal;
-	animation-duration : 0;
+	animation-duration : default;
 	animation-fill-mode : none;
 	animation-iteration-count : 1;
 	animation-name : none;
@@ -79,7 +83,7 @@ img:-moz-broken{ -moz-force-broken-image-icon: 1; height: 24px; width: 24px;}
 	column-rule : medium none currentColor;
 	column-rule-color : currentColor;
 	column-rule-style : none;
-	column-rule-width : none;
+	column-rule-width : unset;
 	column-span : 1;
 	column-width : auto;
 	content : normal;
@@ -254,7 +258,6 @@ table[data-bx-no-border="Y"] th
 	position: relative !important;
 	z-index: 2 !important;
 }
-
 
 .bxhtmled-surrogate-green {
 	border: 2px solid #a3b79d !important;

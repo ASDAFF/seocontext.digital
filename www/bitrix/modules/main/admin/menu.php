@@ -34,7 +34,7 @@ if($USER->CanDoOperation('view_all_users') || $USER->CanDoOperation('view_subord
 	);
 }
 
-if($USER->CanDoOperation('view_all_users') || $USER->CanDoOperation('view_subordinate_users') || $USER->CanDoOperation('edit_subordinate_users') || $USER->CanDoOperation('edit_all_users') || $USER->CanDoOperation('view_groups') || $USER->CanDoOperation('view_tasks'))
+if($USER->CanDoOperation('edit_php') || $USER->CanDoOperation('view_all_users') || $USER->CanDoOperation('view_subordinate_users') || $USER->CanDoOperation('edit_subordinate_users') || $USER->CanDoOperation('edit_all_users') || $USER->CanDoOperation('view_groups') || $USER->CanDoOperation('view_tasks'))
 {
 	$array_user_items = array();
 	if ($USER->CanDoOperation('view_all_users') || $USER->CanDoOperation('view_subordinate_users') || $USER->CanDoOperation('edit_subordinate_users') || $USER->CanDoOperation('edit_all_users'))
@@ -67,7 +67,7 @@ if($USER->CanDoOperation('view_all_users') || $USER->CanDoOperation('view_subord
 		);
 	}
 
-	if ($USER->CanDoOperation('edit_all_users'))
+	if ($USER->CanDoOperation('edit_php'))
 	{
 		$array_user_items[] = array(
 			"text" => GetMessage("MAIN_MENU_USER_IMPORT"),
@@ -105,7 +105,7 @@ if($USER->CanDoOperation('edit_own_profile')  && !($USER->CanDoOperation('view_a
 }
 
 //settings menu
-if($USER->CanDoOperation('view_other_settings') || $USER->CanDoOperation('manage_short_uri') || $USER->CanDoOperation('lpa_template_edit') || $USER->CanDoOperation('edit_own_profile'))
+if($USER->CanDoOperation('view_other_settings') || $USER->CanDoOperation('manage_short_uri') || $USER->CanDoOperation('lpa_template_edit') || $USER->CanDoOperation('edit_own_profile') || $USER->CanDoOperation('cache_control'))
 {
 	$settingsItems = array();
 	$urlItems = array();
@@ -251,14 +251,20 @@ if($USER->CanDoOperation('view_other_settings') || $USER->CanDoOperation('manage
 			"items_id"=>"menu_module_settings",
 			"items"=>$aModuleItems,
 		);
+	}
 
+	if($USER->CanDoOperation('view_other_settings') || $USER->CanDoOperation('cache_control'))
+	{
 		$settingsItems[] = array(
 			"text" => GetMessage("MAIN_MENU_CACHE"),
 			"url" => "cache.php?lang=".LANGUAGE_ID,
 			"more_url" => array(),
 			"title" => GetMessage("MAIN_MENU_CACHE_ALT"),
 		);
+	}
 
+	if($USER->CanDoOperation('view_other_settings'))
+	{
 		$settingsItems[] = array(
 			"text" => GetMessage("MAIN_MENU_COMPOSITE"),
 			"url" => "composite.php?lang=".LANGUAGE_ID,
@@ -317,7 +323,12 @@ if($USER->CanDoOperation('view_other_settings') || $USER->CanDoOperation('manage
 			"more_url" => array("agent_list.php", "agent_edit.php"),
 			"title" => GetMessage("MAIN_MENU_AGENT_ALT"),
 		);
-
+		$settingsItems[] = array(
+			"text" => GetMessage('MAIN_MENU_GEOIP_HANDLERS'),
+			"url" => "geoip_handlers_list.php?lang=".LANGUAGE_ID,
+			"more_url" => array("geoip_handler_edit.php"),
+			"title" => GetMessage('MAIN_MENU_GEOIP_HANDLERS'),
+		);
 	}
 
 	if($USER->CanDoOperation('view_other_settings') || $USER->CanDoOperation('edit_own_profile'))
@@ -515,7 +526,6 @@ if($USER->CanDoOperation('install_updates'))
 						$objXML = new CDataXML();
 						$objXML->LoadString($res);
 						$arResult = $objXML->GetArray();
-
 						if(!empty($arResult) && is_array($arResult))
 						{
 							if(!empty($arResult["categories"]["#"]["category"]))
@@ -528,11 +538,28 @@ if($USER->CanDoOperation('install_updates'))
 									{
 										foreach($category["#"]["items"][0]["#"]["item"] as $catIn)
 										{
+											$arCategory2 = array();
+											if (!empty($catIn["#"]["items"][0]["#"]["item"]))
+											{
+												foreach($catIn["#"]["items"][0]["#"]["item"] as $catIn2)
+												{
+													$url = "update_system_market.php?category=".$catIn2["#"]["id"][0]["#"];
+													$arCategory2[] = Array(
+														"text" => $catIn2["#"]["name"][0]["#"]." (".$catIn2["#"]["count"][0]["#"].")",
+														"title" => GetMessage("MAIN_MENU_MP_CATEGORY")." ".$catIn2["#"]["name"][0]["#"],
+														"url" => $url."&lang=".LANGUAGE_ID,
+													);
+													$arUrls[] = $url;
+												}
+											}
+
 											$url = "update_system_market.php?category=".$catIn["#"]["id"][0]["#"];
 											$arCategory[] = Array(
 													"text" => $catIn["#"]["name"][0]["#"]." (".$catIn["#"]["count"][0]["#"].")",
 													"title" => GetMessage("MAIN_MENU_MP_CATEGORY")." ".$catIn["#"]["name"][0]["#"],
 													"url" => $url."&lang=".LANGUAGE_ID,
+													"items" => $arCategory2,
+													"items_id" => "menu_update_section_sub_".count($arCategory),
 												);
 											$arUrls[] = $url;
 										}
@@ -681,6 +708,23 @@ if($USER->CanDoOperation('edit_ratings'))
 				"url" => "rating_settings.php?lang=".LANGUAGE_ID,
 			),
 		),
+	);
+}
+
+if($USER->CanDoOperation('view_other_settings'))
+{
+	$aMenu[] = array(
+		"parent_menu" => "global_menu_settings",
+		"section" => "promo_https",
+		"sort" => 250,
+		"text" => GetMessage("MAIN_MENU_HTTPS"),
+		"title" => GetMessage("MAIN_MENU_SETTINGS_TITLE"),
+		"icon" => "promo_https_menu_icon",
+		"page_icon" => "",
+		"items_id" => "menu_promo_https",
+		"url" => "promo_https.php?lang=" . LANGUAGE_ID,
+		"more_url" => array("promo_https.php"),
+		"items" => array(),
 	);
 }
 

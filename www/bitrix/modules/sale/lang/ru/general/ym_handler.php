@@ -51,4 +51,10 @@ $MESS["SALE_YMH_NAME"] = "Покупки на Яндекс-Маркете";
 $MESS["SALE_YMH_DESCRIPTION"] = "Интеграция магазина с программой Яндекса \"Покупка на Маркете\"";
 $MESS["SALE_YMH_SHT"] = "шт.";
 $MESS["SALE_YMH_ADMIN_NOTIFY_SEND_STATUS_ERROR_403"] = "Ошибки авторизации при обмене с Яндекс-Маркетом. Подробности обмена можно посмотреть в <a href='/bitrix/admin/event_log.php?lang=##LANGUAGE_ID##'>журнале событий</a>.<br>Наиболее вероятная причина - неверный авторизационный токен для запросов магазина к Яндекс-Маркету. Возможно, Вам необходимо получить новый токен и указать его в <a href='/bitrix/admin/sale_ymarket.php?lang=##LANGUAGE_ID##'>настройках</a>.";
+$MESS["SALE_YMH_LOG_TYPE_ORDER_CREATE_ERROR"] = "Ошибка создания заказа";
+$MESS["SALE_YMARKET_ORDER_PRICE_CHANGED"] = 'Внимание! Цена на заказ изменилась пока клиент оформлял заказ';
+$MESS["SALE_YMH_SUBSTATUS_PROCESSING_EXPIRED"] = "Mагазин не обработал заказ вовремя";
+$MESS["SALE_YMH_SUBSTATUS_RESERVATION_EXPIRED"] = "Покупатель не завершил оформление зарезервированного заказа вовремя";
+$MESS["SALE_YMH_SUBSTATUS_USER_NOT_PAID"] = "Покупатель не оплатил заказ (для типа оплаты PREPAID)";
+$MESS["SALE_YMH_SUBSTATUS_USER_REFUSED_QUALITY"] = "Покупателя не устраивает качество товара";
 ?>

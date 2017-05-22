@@ -9,7 +9,11 @@ $MESS["COMMAND_DEF_QUOTE_PARAMS"] = "текст";
 $MESS["COMMAND_DEF_RENAME_TITLE"] = "Изменение заголовка чата";
 $MESS["COMMAND_DEF_RENAME_PARAMS"] = "новый заголовок";
 $MESS["COMMAND_DEF_WD_TITLE"] = "Включение режима отладки видео-звонков";
+$MESS["COMMAND_DEF_STTS_TITLE"] = "Включение режима отслеживания статуса \"Онлайн\"";
+$MESS["COMMAND_DEF_SPTS_TITLE"] = "Отключение режима отслеживания статуса \"Онлайн\"";
 $MESS["COMMAND_DEF_CATEGORY_CHAT"] = "Чаты";
 $MESS["COMMAND_DEF_CATEGORY_DEBUG"] = "Отладка";
+$MESS["COMMAND_DEF_CATEGORY_DIALOG"] = "Диалог";
 $MESS["COMMAND_BOT_ANSWER"] = "Чат-бот #BOT_NAME#";
 $MESS["COMMAND_SYSTEM_ANSWER"] = "Ответ на команду #COMMAND#";
+?>

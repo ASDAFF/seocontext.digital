@@ -187,6 +187,10 @@ if($ebay->isActive())
 		<td width="40%"><?=Loc::getMessage("SALE_EBAY_EMAIL_ERRORS")?>:</td>
 		<td width="60%"><input type="text" name="EBAY_SETTINGS[EMAIL_ERRORS]" size="45" maxlength="255" value="<?=isset($siteSettings["EMAIL_ERRORS"]) ? htmlspecialcharsbx($siteSettings["EMAIL_ERRORS"]) : ""?>"></td>
 	</tr>
+	<tr>
+		<td width="40%"><?=Loc::getMessage("SALE_EBAY_MAX_PRODUCT_QUANTITY")?>:</td>
+		<td width="60%"><input type="text" name="EBAY_SETTINGS[MAX_PRODUCT_QUANTITY]" size="10" maxlength="10" value="<?=isset($siteSettings["MAX_PRODUCT_QUANTITY"]) ? intval($siteSettings["MAX_PRODUCT_QUANTITY"]) : "0"?>"></td>
+	</tr>
 	<tr class="heading"><td colspan="2"><?=Loc::getMessage("SALE_EBAY_IBLOCK");?></td></tr>
 	<tr>
 		<td width="40%">&nbsp;</td>
@@ -284,13 +288,13 @@ if($ebay->isActive())
 	<tr>
 		<td width="40%"><span class="adm-required-field"><?=Loc::getMessage("SALE_EBAY_API_AUTH_TOKEN")?>:</span></td>
 		<td width="60%">
-			<textarea id="SALE_EBAY_SETTINGS_API_TOKEN" name="EBAY_SETTINGS[API][AUTH_TOKEN]" cols="45" rows="7"><?=isset($siteSettings["API"]["AUTH_TOKEN"]) ? $siteSettings["API"]["AUTH_TOKEN"] : ""?></textarea>
+			<textarea id="SALE_EBAY_SETTINGS_API_TOKEN" name="EBAY_SETTINGS[API][AUTH_TOKEN]" cols="45" rows="7"><?=isset($siteSettings["API"]["AUTH_TOKEN"]) ? htmlspecialcharsbx($siteSettings["API"]["AUTH_TOKEN"]) : ""?></textarea>
 		</td>
 	</tr>
 	<tr>
 		<td width="40%"><span><?=Loc::getMessage("SALE_EBAY_API_AUTH_TOKEN_EXP")?>:</span></td>
 		<td width="60%">
-			<input id="SALE_EBAY_SETTINGS_API_TOKEN_EXP" type="text" name="EBAY_SETTINGS[API][AUTH_TOKEN_EXP]" size="20" value="<?=isset($siteSettings["API"]["AUTH_TOKEN_EXP"]) ? $siteSettings["API"]["AUTH_TOKEN_EXP"] : ""?>" disabled>
+			<input id="SALE_EBAY_SETTINGS_API_TOKEN_EXP" type="text" name="EBAY_SETTINGS[API][AUTH_TOKEN_EXP]" size="20" value="<?=isset($siteSettings["API"]["AUTH_TOKEN_EXP"]) ? htmlspecialcharsbx($siteSettings["API"]["AUTH_TOKEN_EXP"]) : ""?>" disabled>
 			<input type="hidden" name="EBAY_SETTINGS[API][SITE_ID]" value="215">
 		</td>
 	</tr>
@@ -392,25 +396,29 @@ if($ebay->isActive())
 	<table border="0" cellpadding="0" cellspacing="0" class="internal" style="width:80%;">
 	<tr class="heading"><td><?=Loc::getMessage("SALE_EBAY_CAT_BITRIX_NAME")?></td><td><?=Loc::getMessage("SALE_EBAY_CAT_EBAY_NAME")?></td></tr>
 	<?
-
-	foreach($maps as $map)
+	if(!empty($maps))
 	{
-		?><tr>
-		<td>
-			<a
-				href="/bitrix/admin/cat_section_edit.php?IBLOCK_ID=<?=$map["IBLOCK_ID"]?>&type=catalog&ID=<?=$map["VALUE_INTERNAL"]?>&lang=<?=LANGUAGE_ID?>&find_section_section=0&form_section_2_active_tab=SALE_TRADING_PLATFORM_edit_trading_platforms"
-				title="<?=Loc::getMessage("SALE_EBAY_CAT_SETT_EDIT")?>"
-			>
-				<?=$map["CATEGORY_BITRIX_NAME"]?></a> [<?=$map["VALUE_INTERNAL"]?>]
-		</td>
-		<td>
-			<?=$map["CATEGORY_EBAY_NAME"]?> [<?=$map["VALUE_EXTERNAL"]?>]
-		</td>
-		</tr><?
+		foreach($maps as $map)
+		{
+			?><tr>
+			<td>
+				<a
+					href="/bitrix/admin/cat_section_edit.php?IBLOCK_ID=<?=$map["IBLOCK_ID"]?>&type=catalog&ID=<?=$map["VALUE_INTERNAL"]?>&lang=<?=LANGUAGE_ID?>&find_section_section=0&form_section_2_active_tab=SALE_TRADING_PLATFORM_edit_trading_platforms"
+					title="<?=Loc::getMessage("SALE_EBAY_CAT_SETT_EDIT")?>"
+				>
+					<?=$map["CATEGORY_BITRIX_NAME"]?></a> [<?=$map["VALUE_INTERNAL"]?>]
+			</td>
+			<td>
+				<?=$map["CATEGORY_EBAY_NAME"]?> [<?=$map["VALUE_EXTERNAL"]?>]
+			</td>
+			</tr><?
+		}
 	}
-
+	else
+	{
+		?><tr><td colspan="2"><?=Loc::getMessage("SALE_EBAY_CAT_MAP_EMPTY")?></td></tr><?
+	}
 	?>
-		<!--<tr><td colspan="2"><a href=""><?=Loc::getMessage("SALE_EBAY_CAT_MAP_ADD")?></a></td></tr>-->
 	</table>
 	</td></tr>
 

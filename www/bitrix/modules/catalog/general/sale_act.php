@@ -6,6 +6,13 @@ Loc::loadMessages(__FILE__);
 
 class CCatalogActionCtrlBasketProductFields extends CGlobalCondCtrlComplex
 {
+	public static function GetControlDescr()
+	{
+		$description = parent::GetControlDescr();
+		$description['SORT'] = 200;
+		return $description;
+	}
+
 	public static function GetControlShow($arParams)
 	{
 		$arControls = static::GetControls();
@@ -201,6 +208,24 @@ class CCatalogActionCtrlBasketProductFields extends CGlobalCondCtrlComplex
 			$vatList[$vat['ID']] = $vat['NAME'];
 		}
 		unset($vat, $vatIterator);
+
+		$priceTypeList = array();
+		$priceTypeIterator = Catalog\GroupTable::getList(array(
+			'select' => array('ID', 'NAME', 'SORT', 'LANG_NAME' => 'CURRENT_LANG.NAME'),
+			'order' => array('SORT' => 'ASC', 'ID' => 'ASC')
+		));
+		while ($priceType = $priceTypeIterator->fetch())
+		{
+			$priceType['ID'] = (int)$priceType['ID'];
+			$priceType['LANG_NAME'] = (string)$priceType['LANG_NAME'];
+			$priceTypeList[$priceType['ID']] = $priceType['NAME'].($priceType['LANG_NAME'] != '' ? ' ('.$priceType['LANG_NAME'].')' : '');
+		}
+		unset($priceType, $priceTypeIterator);
+
+		$priceTypeLogic = array(
+			BT_COND_LOGIC_EQ => Loc::getMessage('BT_MOD_CATALOG_COND_CATALOG_PRICE_TYPE_LOGIC_EQ_LABEL'),
+			BT_COND_LOGIC_NOT_EQ => Loc::getMessage('BT_MOD_CATALOG_COND_CATALOG_PRICE_TYPE_LOGIC_NOT_EQ_LABEL'),
+		);
 
 		$arControlList = array(
 			'CondIBElement' => array(
@@ -507,6 +532,32 @@ class CCatalogActionCtrlBasketProductFields extends CGlobalCondCtrlComplex
 				'PHP_VALUE' => array(
 					'VALIDATE' => 'list'
 				)
+			),
+			'CondCatalogPriceType' => array(
+				'ID' => 'CondCatalogPriceType',
+				'PARENT' => false,
+				'EXECUTE_MODULE' => 'catalog',
+				'EXIST_HANDLER' => 'Y',
+				'MODULE_ID' => 'catalog',
+				'MODULE_ENTITY' => 'catalog',
+				'ENTITY' => 'PRICE',
+				'FIELD' => 'CATALOG_GROUP_ID',
+				'FIELD_TABLE' => 'CATALOG_GROUP_ID',
+				'FIELD_TYPE' => 'int',
+				'MULTIPLE' => 'N',
+				'GROUP' => 'N',
+				'LABEL' => Loc::getMessage('BT_MOD_CATALOG_COND_CATALOG_PRICE_TYPE_LABEL'),
+				'PREFIX' => Loc::getMessage('BT_MOD_CATALOG_COND_CATALOG_PRICE_TYPE_PREFIX'),
+				'LOGIC' => static::GetLogicEx(array_keys($priceTypeLogic), $priceTypeLogic),
+				'JS_VALUE' => array(
+					'type' => 'select',
+					'values' => $priceTypeList,
+					'multiple' => 'Y',
+					'show_value' => 'Y',
+				),
+				'PHP_VALUE' => array(
+					'VALIDATE' => 'list'
+				)
 			)
 		);
 		if (empty($vatList))
@@ -549,6 +600,13 @@ class CCatalogActionCtrlBasketProductFields extends CGlobalCondCtrlComplex
 
 class CCatalogActionCtrlBasketProductProps extends CGlobalCondCtrlComplex
 {
+	public static function GetControlDescr()
+	{
+		$description = parent::GetControlDescr();
+		$description['SORT'] = 300;
+		return $description;
+	}
+
 	public static function GetControlShow($arParams)
 	{
 		$arControls = static::GetControls();
@@ -739,16 +797,7 @@ class CCatalogActionCtrlBasketProductProps extends CGlobalCondCtrlComplex
 						if ('CML2_LINK' == $arProp['XML_ID'] || 'F' == $arProp['PROPERTY_TYPE'])
 							continue;
 						if ('L' == $arProp['PROPERTY_TYPE'])
-						{
 							$arProp['VALUES'] = array();
-							$rsPropEnums = CIBlockPropertyEnum::GetList(array('DEF' => 'DESC', 'SORT' => 'ASC'), array('PROPERTY_ID' => $arProp['ID']));
-							while ($arPropEnum = $rsPropEnums->Fetch())
-							{
-								$arProp['VALUES'][] = $arPropEnum;
-							}
-							if (empty($arProp['VALUES']))
-								continue;
-						}
 
 						$strFieldType = '';
 						$arLogic = array();
@@ -778,6 +827,19 @@ class CCatalogActionCtrlBasketProductProps extends CGlobalCondCtrlComplex
 									);
 									$boolUserType = true;
 									break;
+								case 'directory':
+									$strFieldType = 'text';
+									$arLogic = static::GetLogic(array(BT_COND_LOGIC_EQ, BT_COND_LOGIC_NOT_EQ));
+									$arValue = array(
+										'type' => 'lazySelect',
+										'load_url' => '/bitrix/tools/catalog/get_property_values.php',
+										'load_params' => array(
+											'lang' => LANGUAGE_ID,
+											'propertyId' => $arProp['ID']
+										)
+									);
+									$boolUserType = true;
+									break;
 								default:
 									$boolUserType = false;
 									break;
@@ -802,16 +864,14 @@ class CCatalogActionCtrlBasketProductProps extends CGlobalCondCtrlComplex
 									$strFieldType = 'int';
 									$arLogic = static::GetLogic(array(BT_COND_LOGIC_EQ, BT_COND_LOGIC_NOT_EQ));
 									$arValue = array(
-										'type' => 'select',
-										'values' => array(),
+										'type' => 'lazySelect',
+										'load_url' => '/bitrix/tools/catalog/get_property_values.php',
+										'load_params' => array(
+											'lang' => LANGUAGE_ID,
+											'propertyId' => $arProp['ID']
+										)
 									);
-									foreach ($arProp['VALUES'] as &$arOnePropValue)
-									{
-										$arValue['values'][$arOnePropValue['ID']] = $arOnePropValue['VALUE'];
-									}
-									if (isset($arOnePropValue))
-										unset($arOnePropValue);
-									$arPhpValue = array('VALIDATE' => 'list');
+									$arPhpValue = array('VALIDATE' => 'enumValue');
 									break;
 								case 'E':
 									$strFieldType = 'int';
@@ -853,6 +913,7 @@ class CCatalogActionCtrlBasketProductProps extends CGlobalCondCtrlComplex
 							'MODULE_ENTITY' => 'iblock',
 							'ENTITY' => 'ELEMENT_PROPERTY',
 							'IBLOCK_ID' => $intIBlockID,
+							'PROPERTY_ID' => $arProp['ID'],
 							'FIELD' => 'PROPERTY_'.$arProp['ID'].'_VALUE',
 							'FIELD_TABLE' => $intIBlockID.':'.$arProp['ID'],
 							'FIELD_TYPE' => $strFieldType,
@@ -1106,7 +1167,7 @@ class CCatalogGifterProduct extends CGlobalCondCtrlAtoms
 				case 'GifterCondIBElement':
 					$right =
 						(
-							(isset($row['CATALOG']['PARENT_ID']) && isset($gifts[$row['CATALOG']['PARENT_ID']])) ||
+							(isset($row['CATALOG']['PARENT_ID']) && array_intersect($gifts, (array)$row['CATALOG']['PARENT_ID'])) ||
 							(isset($row['CATALOG']['ID']) && isset($gifts[$row['CATALOG']['ID']]))
 						) &&
 						isset($row['QUANTITY']) && $row['QUANTITY'] == 1

@@ -2,6 +2,7 @@
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
 
 $currencyList = array();
+$baseCurrencyCode = "";
 
 if (CModule::IncludeModule("currency"))
 {
@@ -24,6 +25,7 @@ if (Bitrix\Main\Loader::includeModule('sale'))
 	{
 		$personTypes[$personTypeElement["ID"]] = $personTypeElement['NAME'];
 	}
+	$baseCurrencyCode = Bitrix\Sale\Internals\SiteCurrencyTable::getSiteCurrency($siteId);
 }
 
 $arComponentParameters = array(
@@ -51,6 +53,7 @@ $arComponentParameters = array(
 			"VALUES" => $currencyList,
 			"COLS"=>25,
 			"ADDITIONAL_VALUES"=>"N",
+			"DEFAULT"=>$baseCurrencyCode
 		),
 	)
 );

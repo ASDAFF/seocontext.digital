@@ -412,7 +412,7 @@ class CPushManager
 
 		if ($imInclude)
 		{
-			$query->registerRuntimeField('', new \Bitrix\Main\Entity\ReferenceField('im', 'Bitrix\Im\StatusTable', array('=this.ID' => 'ref.USER_ID')));
+			$query->registerRuntimeField('', new \Bitrix\Main\Entity\ReferenceField('im', 'Bitrix\Im\Model\StatusTable', array('=this.ID' => 'ref.USER_ID')));
 			$query->addSelect('im.IDLE', 'IDLE')->addSelect('im.MOBILE_LAST_DATE', 'MOBILE_LAST_DATE');
 		}
 
@@ -586,11 +586,14 @@ class CPushManager
 		{
 			return false;
 		}
-		$batch = "";
+
+		$batches = array();
 
 		/**
 		 * @var CPushService $obPush
 		 */
+		$batchMessageCount = CPullOptions::GetPushMessagePerHit();
+		$useChunks = ($batchMessageCount > 0);
 		foreach ($arServicesIDs as $serviceID)
 		{
 			if ($arPushMessages[$serviceID])
@@ -600,12 +603,39 @@ class CPushManager
 					$obPush = new self::$pushServices[$serviceID]["CLASS"];
 					if (method_exists($obPush, "getBatch"))
 					{
-						$batch .= $obPush->getBatch($arPushMessages[$serviceID]);
+						if(!$useChunks)
+						{
+							if(count($batches) > 0)
+							{
+								$batches[0] .= $obPush->getBatch($arPushMessages[$serviceID]);
+							}
+							else
+							{
+								$batches[] = $obPush->getBatch($arPushMessages[$serviceID]);
+							}
+						}
+						else
+						{
+							$offset = 0;
+							$counter = 1;
+							$messages = null;
+							while($messages = array_slice($arPushMessages[$serviceID],$offset, $batchMessageCount))
+							{
+								$batches[] = $obPush->getBatch($messages);
+								$offset += count($messages);
+								$counter++;
+							}
+						}
+
 					}
 				}
 			}
 		}
-		$this->sendBatch($batch);
+
+		foreach ($batches as $chunkBatch)
+		{
+			$this->sendBatch($chunkBatch);
+		}
 
 		return true;
 	}
@@ -664,7 +694,7 @@ class CPushManager
 
 		$count = 0;
 		$maxId = 0;
-		$pushLimit = 70;
+		$pushLimit = 10;
 		$arPush = Array();
 
 		$sqlDate = "";
@@ -697,7 +727,14 @@ class CPushManager
 				unset($arRes['BADGE']);
 			}
 
-			$arRes['PARAMS'] = $arRes['PARAMS'] ? Bitrix\Main\Web\Json::decode($arRes['PARAMS']) : "";
+			try
+			{
+				$arRes['PARAMS'] = $arRes['PARAMS'] ? Bitrix\Main\Web\Json::decode($arRes['PARAMS']) : "";
+			}
+			catch (Exception $e)
+			{
+				$arRes['PARAMS'] = "";
+			}
 			if (is_array($arRes['PARAMS']))
 			{
 				if (isset($arRes['PARAMS']['CATEGORY']))
@@ -707,7 +744,14 @@ class CPushManager
 				}
 				$arRes['PARAMS'] = Bitrix\Main\Web\Json::encode($arRes['PARAMS']);
 			}
-			$arRes['ADVANCED_PARAMS'] = strlen($arRes['ADVANCED_PARAMS']) > 0 ? Bitrix\Main\Web\Json::decode($arRes['ADVANCED_PARAMS']) : Array();
+			try
+			{
+				$arRes['ADVANCED_PARAMS'] = strlen($arRes['ADVANCED_PARAMS']) > 0 ? Bitrix\Main\Web\Json::decode($arRes['ADVANCED_PARAMS']) : Array();
+			}
+			catch (Exception $e)
+			{
+				$arRes['ADVANCED_PARAMS'] = Array();
+			}
 
 			$arPush[$count][] = $arRes;
 			if ($pushLimit <= count($arPush[$count]))
@@ -755,6 +799,11 @@ class CPushManager
 
 	static function _MakeJson($arData, $bWS, $bSkipTilda)
 	{
+		if ((version_compare(PHP_VERSION, '5.4', ">=")))
+		{
+			return json_encode($arData,JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_UNESCAPED_UNICODE);
+		}
+
 		static $aSearch = array("\r", "\n");
 
 		if (is_array($arData))

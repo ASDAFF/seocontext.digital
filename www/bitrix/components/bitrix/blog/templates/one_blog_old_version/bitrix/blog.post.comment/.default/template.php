@@ -314,7 +314,7 @@ else
 							}
 							?>
 							<td align="right">
-								<a href="javascript:if(confirm('<?=GetMessage("BPC_MES_DELETE_POST_CONFIRM")?>')) window.location='<?=$comment["urlToDelete"]."&".bitrix_sessid_get()?>'" class="blog-post-delete"></a>
+								<a href="javascript:if(confirm('<?=GetMessage("BPC_MES_DELETE_POST_CONFIRM")?>')) window.location='<?=urlencode($comment["urlToDelete"])."&".bitrix_sessid_get()?>'" class="blog-post-delete"></a>
 							</td>
 							<?
 						}

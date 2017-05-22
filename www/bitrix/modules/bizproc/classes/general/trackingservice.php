@@ -5,6 +5,7 @@ class CBPAllTrackingService
 	extends CBPRuntimeService
 {
 	protected $skipTypes = array();
+	protected $forcedModeWorkflows = array();
 	protected static $userGroupsCache = array();
 
 	public function Start(CBPRuntime $runtime = null)
@@ -168,6 +169,17 @@ class CBPAllTrackingService
 		}
 		return $result;
 	}
+
+	public function setForcedMode($workflowId)
+	{
+		$this->forcedModeWorkflows[] = $workflowId;
+		return $this;
+	}
+
+	public function canWrite($type, $workflowId)
+	{
+		return (in_array($workflowId, $this->forcedModeWorkflows) || !in_array($type, $this->skipTypes));
+	}
 }
 
 class CBPTrackingType
@@ -179,5 +191,7 @@ class CBPTrackingType
 	const FaultActivity = 4;
 	const Custom = 5;
 	const Report = 6;
+	const AttachedEntity = 7;
+	const Trigger = 8;
+	const Error = 9;
 }
-?>

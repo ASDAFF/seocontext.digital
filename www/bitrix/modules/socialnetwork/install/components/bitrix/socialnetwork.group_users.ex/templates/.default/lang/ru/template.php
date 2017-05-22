@@ -1,7 +1,9 @@
 <?
 $MESS["SONET_GUE_T_MODS_SUBTITLE"] = "Модераторы";
 $MESS["SONET_GUE_T_USERS_SUBTITLE"] = "Кто в группе";
+$MESS["SONET_GUE_T_USERS_AUTO_SUBTITLE"] = "Подключенные пользователи";
 $MESS["SONET_GUE_T_BAN_SUBTITLE"] = "Заблокированные пользователи";
+$MESS["SONET_GUE_T_DEPARTMENTS_SUBTITLE"] = "Подразделения";
 $MESS["SONET_GUE_T_ACTIONS_TITLE"] = "Действия";
 $MESS["SONET_GUE_T_OWNER"] = "владелец";
 $MESS["SONET_GUE_T_ACTION_ADDTOUSERS"] = "Пригласить пользователей";
@@ -13,9 +15,12 @@ $MESS["SONET_GUE_T_ACTION_EXCLUDEFROMMODERATORS"] = "Исключить из м�
 $MESS["SONET_GUE_T_ACTION_UNBANFROMGROUP"] = "Разблокировать";
 $MESS["SONET_GUE_T_ACTION_SETGROUPOWNER"] = "Сменить владельца";
 $MESS["SONET_GUE_T_ACTION_SETGROUPOWNER_CONFIRM"] = "Вы действительно хотите сменить владельца группы?";
+$MESS["SONET_GUE_T_ACTION_UNCONNECT_DEPT"] = "Удалить привязку";
 $MESS["SONET_GUE_T_USER_ID_NOT_DEFINED"] = "Не выбран ни один пользователь.";
+$MESS["SONET_GUE_T_DEPARTMENT_ID_NOT_DEFINED"] = "Не выбрано ни одно подразделение.";
 $MESS["SONET_GUE_T_USER_ID_INCORRECT"] = "Выберите одного пользователя.";
 $MESS["SONET_GUE_T_OWNER_CANT_EXCLUDE_HIMSELF"] = "Владелец не может исключить себя из группы.";
+$MESS["SONET_GUE_T_CANT_EXCLUDE_AUTO_MEMBER"] = "Нельзя исключить из группы подключенного пользователя.";
 $MESS["SONET_GUE_T_GROUP_ID_NOT_DEFINED"] = "Группа не найдена.";
 $MESS["SONET_GUE_T_NOT_ATHORIZED"] = "Вы не авторизованы.";
 $MESS["SONET_GUE_T_MODULE_NOT_INSTALLED"] = "Модуль социальной сети не установлен.";

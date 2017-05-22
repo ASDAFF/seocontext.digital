@@ -148,6 +148,7 @@ class Location extends ExternalLocationMap
 			"streamTimeout" => 30,
 			"redirect" => true,
 			"redirectMax" => 5,
+			"disableSslVerification" => true
 		));
 
 		$jsnData = $http->get("http://www.pecom.ru/ru/calc/towns.php");

@@ -312,10 +312,10 @@ class RusPostSingle
 	 */
 	protected function extractStatus(array $lastOperation)
 	{
-		if(empty($lastOperation['#']['OperationParameters']['0']['#']['OperType']['0']['#']['Id']['0']['#']))
+		if(!isset($lastOperation['#']['OperationParameters']['0']['#']['OperType']['0']['#']['Id']['0']['#']))
 			return Statuses::UNKNOWN;
 
-		if(empty($lastOperation['#']['OperationParameters'][0]['#']['OperAttr'][0]['#']['Id'][0]['#']))
+		if(!isset($lastOperation['#']['OperationParameters'][0]['#']['OperAttr'][0]['#']['Id'][0]['#']))
 			return Statuses::UNKNOWN;
 
 		$oper = $lastOperation['#']['OperationParameters'][0]['#']['OperType'][0]['#']['Id'][0]['#'];
@@ -395,7 +395,36 @@ class RusPostSingle
 			9 => Statuses::ON_THE_WAY,
 			10 => Statuses::ON_THE_WAY,
 			11 => Statuses::ON_THE_WAY,
-			12 => Statuses::PROBLEM,
+			12 => array(
+				1 => Statuses::ARRIVED,
+				2 => Statuses::ARRIVED,
+				3 => Statuses::PROBLEM,
+				4 => Statuses::PROBLEM,
+				5 => Statuses::PROBLEM,
+				6 => Statuses::PROBLEM,
+				7 => Statuses::PROBLEM,
+				8 => Statuses::PROBLEM,
+				9 => Statuses::ARRIVED,
+				10 => Statuses::PROBLEM,
+				11 => Statuses::ARRIVED,
+				12 => Statuses::PROBLEM,
+				13 => Statuses::PROBLEM,
+				14 => Statuses::PROBLEM,
+				15 => Statuses::ARRIVED,
+				16 => Statuses::PROBLEM,
+				17 => Statuses::ARRIVED,
+				18 => Statuses::ARRIVED,
+				19 => Statuses::PROBLEM,
+				20 => Statuses::PROBLEM,
+				21 => Statuses::PROBLEM,
+				22 => Statuses::ARRIVED,
+				23 => Statuses::PROBLEM,
+				24 => Statuses::PROBLEM,
+				25 => Statuses::ARRIVED,
+				26 => Statuses::PROBLEM,
+				27 => Statuses::ARRIVED,
+				28 => Statuses::PROBLEM,
+			),
 			13 => Statuses::ON_THE_WAY,
 			14 => Statuses::ON_THE_WAY,
 			15 => Statuses::ARRIVED,
@@ -408,7 +437,7 @@ class RusPostSingle
 			22 => Statuses::PROBLEM
 		);
 
-		if(empty($rusPostStatuses[$oper]))
+		if(!isset($rusPostStatuses[$oper]))
 			return Statuses::UNKNOWN;
 
 		if(!is_array($rusPostStatuses[$oper]))
@@ -417,7 +446,7 @@ class RusPostSingle
 		if(strlen($attr) <= 0)
 			return Statuses::UNKNOWN;
 
-		if(empty($rusPostStatuses[$oper][$attr]))
+		if(!isset($rusPostStatuses[$oper][$attr]))
 			return Statuses::UNKNOWN;
 
 		return $rusPostStatuses[$oper][$attr];

@@ -470,6 +470,11 @@ class Tax
 	{
 		$this->list = array();
 	}
+
+	public function resetAvailableTaxList()
+	{
+		$this->availableList = null;
+	}
 	/**
 	 *
 	 */
@@ -477,6 +482,7 @@ class Tax
 	{
 		$result = new Result();
 		$this->resetTaxList();
+		$this->resetAvailableTaxList();
 
 		/** @var Result $r */
 		$r = $this->calculate();

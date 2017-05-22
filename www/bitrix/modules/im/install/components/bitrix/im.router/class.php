@@ -22,27 +22,25 @@ class ImRouterComponent extends \CBitrixComponent
 		$this->includeComponentTemplate();
 	}
 
+	private function showBlankPage()
+	{
+		define('SKIP_TEMPLATE_AUTH_ERROR', true);
+
+		$this->setTemplateName("blank");
+		$this->includeComponentTemplate();
+
+		return true;
+	}
+
 	private function showLiveChat()
 	{
 		define('SKIP_TEMPLATE_AUTH_ERROR', true);
-		$this->arResult['REQUEST'] = '<pre>'.print_r($_GET, 1).'</pre>';
-		$this->arResult['REQUEST'] .= '<pre>'.print_r($this->aliasData, 1).'</pre>';
 
-		if ($this->request->get('iframe') == 'Y')
-		{
-			global $APPLICATION;
-			$APPLICATION->restartBuffer();
+		$this->arResult['CONTEXT'] = $this->request->get('iframe') == 'Y'? 'IFRAME': 'NORMAL';
+		$this->arResult['CONFIG_ID'] = $this->aliasData['ENTITY_ID'];
 
-			$this->setTemplateName("livechat.iframe");
-			$this->includeComponentTemplate();
-			\CMain::finalActions();
-			die();
-		}
-		else
-		{
-			$this->setTemplateName("livechat");
-			$this->includeComponentTemplate();
-		}
+		$this->setTemplateName("livechat");
+		$this->includeComponentTemplate();
 
 		return true;
 	}
@@ -60,9 +58,13 @@ class ImRouterComponent extends \CBitrixComponent
 		if ($this->request->get('alias'))
 		{
 			$this->aliasData = \Bitrix\Im\Alias::get($this->request->get('alias'));
-			if ($this->aliasData['ENTITY_TYPE'] == \Bitrix\Im\Alias::ENTITY_TYPE_OPEN_LINE)
+			if ($this->aliasData['ENTITY_TYPE'] == \Bitrix\Im\Alias::ENTITY_TYPE_OPEN_LINE && IsModuleInstalled('imopenlines'))
 			{
 				$this->showLiveChat();
+			}
+			else if ($this->request->get('iframe') == 'Y')
+			{
+				$this->showBlankPage();
 			}
 			else
 			{
@@ -72,7 +74,7 @@ class ImRouterComponent extends \CBitrixComponent
 		else
 		{
 			global $USER;
-			if ($USER->IsAuthorized())
+			if ($USER->IsAuthorized() && !\Bitrix\Im\User::getInstance()->isConnector())
 			{
 				$this->showFullscreenChat();
 			}

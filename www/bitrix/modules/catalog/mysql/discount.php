@@ -7,13 +7,9 @@ class CCatalogDiscount extends CAllCatalogDiscount
 	public function _Add(&$arFields)
 	{
 		global $DB;
-		/** @global CStackCacheManager $stackCacheManager */
-		global $stackCacheManager;
 
 		if (!CCatalogDiscount::CheckFields("ADD", $arFields, 0))
 			return false;
-
-		$stackCacheManager->Clear("catalog_discount");
 
 		$arInsert = $DB->PrepareInsert("b_catalog_discount", $arFields);
 
@@ -31,11 +27,9 @@ class CCatalogDiscount extends CAllCatalogDiscount
 	public function _Update($ID, &$arFields)
 	{
 		global $DB;
-		/** @global CStackCacheManager $stackCacheManager */
-		global $stackCacheManager;
 		global $APPLICATION;
 
-		$ID = intval($ID);
+		$ID = (int)$ID;
 		if ($ID <= 0)
 			return false;
 
@@ -64,8 +58,6 @@ class CCatalogDiscount extends CAllCatalogDiscount
 			}
 		}
 
-		$stackCacheManager->Clear("catalog_discount");
-
 		$strUpdate = $DB->PrepareUpdate("b_catalog_discount", $arFields);
 		if (!empty($strUpdate))
 		{
@@ -82,11 +74,9 @@ class CCatalogDiscount extends CAllCatalogDiscount
 	public function Delete($ID)
 	{
 		global $DB;
-		/** @global CStackCacheManager $stackCacheManager */
-		global $stackCacheManager;
 
-		$ID = intval($ID);
-		if (0 >= $ID)
+		$ID = (int)$ID;
+		if ($ID <= 0)
 			return false;
 
 		foreach (GetModuleEvents("catalog", "OnBeforeDiscountDelete", true) as $arEvent)
@@ -94,8 +84,6 @@ class CCatalogDiscount extends CAllCatalogDiscount
 			if (false === ExecuteModuleEventEx($arEvent, array($ID)))
 				return false;
 		}
-
-		$stackCacheManager->Clear("catalog_discount");
 
 		$DB->Query("delete from b_catalog_discount_module where DISCOUNT_ID = ".$ID);
 		$DB->Query("delete from b_catalog_discount_cond where DISCOUNT_ID = ".$ID);
@@ -122,7 +110,7 @@ class CCatalogDiscount extends CAllCatalogDiscount
 	{
 		global $DB;
 
-		$ID = intval($ID);
+		$ID = (int)$ID;
 		if ($ID <= 0)
 			return false;
 
@@ -154,9 +142,9 @@ class CCatalogDiscount extends CAllCatalogDiscount
 	 * @param array $arFilter
 	 * @return bool|string
 	 */
-	public static function PrepareSection4Where($val, $key, $operation, $negative, $field, &$arField, &$arFilter)
+	public static function PrepareSection4Where($val, $key, $operation, $negative, $field, $arField, $arFilter)
 	{
-		$val = intval($val);
+		$val = (int)$val;
 		if ($val <= 0)
 			return false;
 

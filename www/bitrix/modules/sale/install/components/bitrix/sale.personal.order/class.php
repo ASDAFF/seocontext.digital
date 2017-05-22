@@ -9,8 +9,8 @@ class PersonalOrder extends CBitrixComponent
 
 		$defaultUrlTemplates404 = array(
 			"list" => "index.php",
-			"detail" => "order_detail.php?ID=#ID#",
-			"cancel" => "order_cancel.php?ID=#ID#",
+			"detail" => "detail/#ID#",
+			"cancel" => "cancel/#ID#",
 		);
 
 		$componentVariables = array("CANCEL", "COPY_ORDER", "ID");
@@ -81,6 +81,9 @@ class PersonalOrder extends CBitrixComponent
 				"ALIASES" => $variableAliases
 			);
 		}
+
+		if ($componentPage == "index" && $this->getTemplateName() !== "")
+			$componentPage = "template";
 
 		$this->includeComponentTemplate($componentPage);
 	}

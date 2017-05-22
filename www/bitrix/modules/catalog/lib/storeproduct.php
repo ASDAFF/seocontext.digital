@@ -59,13 +59,13 @@ class StoreProductTable extends Main\Entity\DataManager
 			)),
 			'STORE' => new Main\Entity\ReferenceField(
 				'STORE',
-				'Bitrix\Catalog\Store',
+				'\Bitrix\Catalog\Store',
 				array('=this.STORE_ID' => 'ref.ID'),
 				array('join_type' => 'LEFT')
 			),
 			'PRODUCT' => new Main\Entity\ReferenceField(
 				'PRODUCT',
-				'Bitrix\Catalog\Product',
+				'\Bitrix\Catalog\Product',
 				array('=this.PRODUCT_ID' => 'ref.ID'),
 				array('join_type' => 'LEFT')
 			)

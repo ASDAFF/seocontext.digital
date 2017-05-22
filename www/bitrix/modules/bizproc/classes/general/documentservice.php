@@ -236,7 +236,7 @@ class CBPDocumentService
 							$ar[$key]["Type"] = 'int';
 						if (in_array($ar[$key]["Type"], array("int", "double", "date", "datetime", "user", "string", "bool", "file", "text", "select")))
 							$ar[$key]["BaseType"] = $ar[$key]["Type"];
-						else
+						elseif (!(isset($ar[$key]["BaseType"]) && $ar[$key]["BaseType"] !== ""))
 							$ar[$key]["BaseType"] = "string";
 					}
 				}
@@ -336,6 +336,18 @@ class CBPDocumentService
 			else
 			{
 				$documentFieldsString .= "''";
+			}
+
+			if (isset($arFieldValue["Options"]) && CBPHelper::IsAssociativeArray($arFieldValue["Options"]))
+			{
+				$documentFieldsString .= ", 'OptionsSort':";
+				$documentFieldsString .= CUtil::PhpToJSObject(array_keys($arFieldValue["Options"]));
+			}
+
+			if(isset($arFieldValue["Settings"]) && is_array($arFieldValue["Settings"]))
+			{
+				$documentFieldsString .= ", 'Settings':";
+				$documentFieldsString .= CUtil::PhpToJSObject($arFieldValue["Settings"]);
 			}
 
 			$documentFieldsString .= "}";

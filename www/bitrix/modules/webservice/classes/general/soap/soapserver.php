@@ -143,7 +143,7 @@ class CWSSOAPResponser extends CSOAPServerResponser
 				or (isset($param["strict"]) and $param["strict"] == "strict"))
 			)
 			{
-				CSOAPServer::ShowSOAPFault("Request has no enought params of strict type to be decoded. ");
+				CSOAPServer::ShowSOAPFault("Request has not enough params of strict type to be decoded. ");
 				return true;
 			}
 			$params[] = $decoded;

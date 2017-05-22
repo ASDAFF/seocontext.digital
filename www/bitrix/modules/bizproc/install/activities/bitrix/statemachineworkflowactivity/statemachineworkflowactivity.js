@@ -15,7 +15,7 @@ StateMachineWorkflowActivity = function()
 		if(ob.childActivities.length>0)
 			ob.Properties['InitialStateName'] = ob.childActivities[0]['Name'];
 		return ob.SerializeStateMachineWorkflowActivity();
-	}
+	};
 
 	ob.LineMouseOver = function (e)
 	{
@@ -27,7 +27,7 @@ StateMachineWorkflowActivity = function()
 			el.style.backgroundColor = '#ee0000';
 			el.style.zIndex = parseInt(el.style.zIndex) + 1000;
 		}
-	}
+	};
 
 	ob.LineMouseOut = function (e)
 	{
@@ -39,7 +39,7 @@ StateMachineWorkflowActivity = function()
 			el.style.backgroundColor = '#afb8d2';
 			el.style.zIndex = parseInt(el.style.zIndex) - 1000;
 		}
-	}
+	};
 
 	ob.DrawLines = function ()
 	{
@@ -173,7 +173,7 @@ StateMachineWorkflowActivity = function()
 
 			ob.__l.push([d0, d1, d2, d3, d4]);
 		}
-	}
+	};
 
 	ob.FindSetState = function (f, act)
 	{
@@ -191,7 +191,7 @@ StateMachineWorkflowActivity = function()
 				ob.FindSetState(f, act.childActivities[i]);
 			}
 		}
-	}
+	};
 
 	ob.Draw = function (div)
 	{
@@ -199,7 +199,7 @@ StateMachineWorkflowActivity = function()
 		ob.Table = div.appendChild(_crt(ob.childActivities.length + 1, 3));
 		ob.Table.onresize = function (){/*alert('1');*/};
 
-		var i, j;
+		var i;
 		for(i=0; i<ob.childActivities.length; i++)
 		{
 			ob.Table.rows[i].cells[0].align = 'right';
@@ -220,7 +220,7 @@ StateMachineWorkflowActivity = function()
 		but.onclick = ob.AddStatus;
 
 		ob.ReCheckPosition(true);
-	}
+	};
 
 	ob.AddStatus = function (e)
 	{
@@ -242,7 +242,7 @@ StateMachineWorkflowActivity = function()
 		ob.Table.rows[cnt].cells[cnt%2*2].appendChild(this);
 
 		act.Settings();
-	}
+	};
 
 	ob.RemoveChildStateMachine = ob.RemoveChild;
 	ob.RemoveChild = function (act)
@@ -250,7 +250,7 @@ StateMachineWorkflowActivity = function()
 		ob.RemoveChildStateMachine(act);
 		ob.Table.parentNode.removeChild(ob.Table);
 		ob.Draw(ob.statediv);
-	}
+	};
 
 	ob.RemoveResourcesActivity = ob.RemoveResources;
 	ob.RemoveResources = function ()
@@ -261,7 +261,7 @@ StateMachineWorkflowActivity = function()
 			ob.Table.parentNode.removeChild(ob.Table);
 			ob.Table = null;
 		}
-	}
+	};
 
 	ob.ReCheckPosition = function (m)
 	{
@@ -275,7 +275,7 @@ StateMachineWorkflowActivity = function()
 			ob.DrawLines();
 		}
 		setTimeout(function () {ob.ReCheckPosition.call(ob);}, 1000);
-	}
+	};
 
 	return ob;
-}
+};

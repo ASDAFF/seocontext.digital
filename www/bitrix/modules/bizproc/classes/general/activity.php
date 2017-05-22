@@ -52,6 +52,7 @@ abstract class CBPActivity
 		$rootActivity = $this->GetRootActivity();
 		if (!is_array($rootActivity->documentType) || count($rootActivity->documentType) <= 0)
 		{
+			/** @var CBPDocumentService $documentService */
 			$documentService = $this->workflow->GetService("DocumentService");
 			$rootActivity->documentType = $documentService->GetDocumentType($rootActivity->documentId);
 		}
@@ -102,14 +103,17 @@ abstract class CBPActivity
 			{
 				if ($rootActivity->arFieldTypes[$value["Type"]]["BaseType"] == "file")
 				{
-					if (is_array($rootActivity->arProperties[$key]))
+					foreach ((array) $rootActivity->arProperties[$key] as $v)
 					{
-						foreach ($rootActivity->arProperties[$key] as $v)
-							CFile::Delete($v);
-					}
-					else
-					{
-						CFile::Delete($rootActivity->arProperties[$key]);
+						if (intval($v) > 0)
+						{
+							$iterator = \CFile::getByID($v);
+							if ($file = $iterator->fetch())
+							{
+								if ($file['MODULE_ID'] === 'bizproc')
+									CFile::Delete($v);
+							}
+						}
 					}
 				}
 				if ($fieldTypeObject = $documentService->getFieldTypeObject($documentType, $value))
@@ -820,6 +824,10 @@ abstract class CBPActivity
 	{
 	}
 
+	public function Finalize()
+	{
+	}
+
 	public function Execute()
 	{
 		return CBPActivityExecutionStatus::Closed;
@@ -1055,9 +1063,9 @@ abstract class CBPActivity
 					}
 				}
 
+				/** @var CBPTrackingService $trackingService */
 				$trackingService = $this->workflow->GetService("TrackingService");
 				$trackingService->Write($this->GetWorkflowInstanceId(), CBPTrackingType::CloseActivity, $this->name, $this->executionStatus, $this->executionResult, ($this->IsPropertyExists("Title") ? $this->Title : ""));
-
 				$this->SetStatus(CBPActivityExecutionStatus::Closed, $arEventParameters);
 
 				//if ($this->parent)
@@ -1105,4 +1113,3 @@ abstract class CBPActivity
 		return false;
 	}
 }
-?>

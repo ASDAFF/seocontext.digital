@@ -3,14 +3,40 @@
 $pageId = "group_tasks";
 include("util_group_menu.php");
 include("util_group_profile.php");
-?>
-<?
+
 if (CSocNetFeatures::IsActiveFeature(SONET_ENTITY_GROUP, $arResult["VARIABLES"]["group_id"], "tasks"))
 {
+	if(class_exists('Bitrix\Tasks\Ui\Filter\Task'))
+	{
+		\Bitrix\Tasks\Ui\Filter\Task::setGroupId($arResult[ "VARIABLES" ][ "group_id" ]);
+		$state = \Bitrix\Tasks\Ui\Filter\Task::listStateInit()->getState();
+
+		switch ($state[ 'VIEW_SELECTED' ][ 'CODENAME' ])
+		{
+			case 'VIEW_MODE_GANTT':
+				$componentName = 'bitrix:tasks.task.gantt';
+				break;
+			case 'VIEW_MODE_KANBAN':
+				$componentName = 'bitrix:tasks.kanban';
+				break;
+			case 'VIEW_MODE_TIMELINE':
+				$componentName = 'bitrix:tasks.timeline';
+				break;
+			default:
+				$componentName = 'bitrix:tasks.task.list';
+				break;
+		}
+	}
+	else
+	{
+		$componentName = 'bitrix:tasks.list';
+	}
+
 	$APPLICATION->IncludeComponent(
-		"bitrix:tasks.list",
+		$componentName,
 		".default",
 		Array(
+			"INCLUDE_INTERFACE_HEADER" => "Y",
 			"GROUP_ID" => $arResult["VARIABLES"]["group_id"],
 			"ITEMS_COUNT" => "50",
 			"PAGE_VAR" => $arResult["ALIASES"]["page"],
@@ -28,7 +54,6 @@ if (CSocNetFeatures::IsActiveFeature(SONET_ENTITY_GROUP, $arResult["VARIABLES"][
 			"PATH_TO_MESSAGES_CHAT" => $arParams["PATH_TO_MESSAGES_CHAT"],
 			"PATH_TO_VIDEO_CALL" => $arParams["PATH_TO_VIDEO_CALL"],
 			"PATH_TO_CONPANY_DEPARTMENT" => $arParams["PATH_TO_CONPANY_DEPARTMENT"],
-			"TASKS_FIELDS_SHOW" => $arParams["TASKS_FIELDS_SHOW"],
 			"SET_NAV_CHAIN" => $arResult["SET_NAV_CHAIN"],
 			"SET_TITLE" => $arResult["SET_TITLE"],
 			"FORUM_ID" => $arParams["TASK_FORUM_ID"],

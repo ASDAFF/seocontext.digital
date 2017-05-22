@@ -41,4 +41,8 @@ $MESS["SPOL_TPL_LOADED"] = "Shipped";
 $MESS["SPOL_TPL_NOTLOADED"] = "Not shipped";
 $MESS["SPOL_CANCEL_PAYMENT"] = "back";
 $MESS["SPOL_ORDER_SHIPMENT_STATUS"] = "Shipment status";
+$MESS["SPOL_TPL_RESTRICTED_PAID"] = "Under review";
+$MESS["SOPL_TPL_RESTRICTED_PAID_MESSAGE"] = "<b>Notice:</b> the order can be paid after it has been verified by a sales representative";
+$MESS["SPOL_CHECK_TITLE"] = "Account";
+$MESS["SPOL_CHECK_NUM"] = "Account ##CHECK_NUMBER#";
 ?>

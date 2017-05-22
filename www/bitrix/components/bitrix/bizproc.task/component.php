@@ -231,7 +231,9 @@ if ($arResult["ShowMode"] != "Success")
 
 		// new style
 		$arResult['TaskControls'] = CBPDocument::getTaskControls($arResult["TASK"]);
-		$arResult['TypesMap'] = $documentService->getTypesMap($documentType);
+
+		if ($documentType)
+			$arResult['TypesMap'] = $documentService->getTypesMap($documentType);
 	}
 	catch (Exception $e)
 	{

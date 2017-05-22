@@ -116,6 +116,7 @@ if ($filter_important === 'Y')
 	$arFilterHistory['@TYPE'] = \Bitrix\Sale\OrderHistory::getManagerLogItems();
 }
 
+CTimeZone::Disable();
 
 // new order history data
 $dbOrderChange = CSaleOrderChange::GetList(
@@ -128,6 +129,8 @@ $dbOrderChange = CSaleOrderChange::GetList(
 
 while ($arChangeRecord = $dbOrderChange->Fetch())
 	$arHistoryData[] = $arChangeRecord;
+
+CTimeZone::Enable();
 
 // advancing sorting is necessary if old history results are mixed with new order changes
 if ($bUseOldHistory)

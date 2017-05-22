@@ -27,6 +27,12 @@
 	margin-right: 13px;
 	float: left;
 	background: #fff;
+	display: block;
+}
+.bp-bx-application-title-wrapper {
+	display: block;
+	width: calc(100% - 85px);
+	float: left;
 }
 .bp-bx-application-icon img {
 	position: absolute;
@@ -41,14 +47,14 @@
 	font-weight: bold;
 	line-height: 36px;
 	overflow: hidden;
-	display: table;
 	height: 36px;
+	display: block;
 }
 .bp-bx-application-title .bx-lists-application-link {
 	line-height: 18px;
 	vertical-align: middle;
 	color: #000;
-	display: table-cell;
+	display: block;
 }
 
 .bp-bx-application-check {
@@ -133,6 +139,5 @@
 	max-height: 36px;
 	overflow: hidden;
 	position: relative;
-	display: inline-block;
-	width: 150px;
+	display: block;
 }

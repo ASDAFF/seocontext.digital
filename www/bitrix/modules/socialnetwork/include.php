@@ -1,4 +1,7 @@
 <?
+use Bitrix\Main\ModuleManager;
+use Bitrix\Socialnetwork\Integration;
+
 global $DBType;
 
 IncludeModuleLangFile(__FILE__);
@@ -185,6 +188,7 @@ if (
 {
 	CModule::IncludeModule('intranet');
 	IncludeModuleLangFile($_SERVER["DOCUMENT_ROOT"].'/bitrix/modules/socialnetwork/install/js/log_destination.php');
+
 	CJSCore::RegisterExt('socnetlogdest', array(
 		'js' => '/bitrix/js/socialnetwork/log-destination.js',
 		'css' => '/bitrix/js/main/core/css/core_finder.css',
@@ -216,11 +220,42 @@ if (
 			'LM_INVITE_EMAIL_USER_TITLE' => GetMessage("LM_INVITE_EMAIL_USER_TITLE"),
 			'LM_INVITE_EMAIL_USER_PLACEHOLDER_NAME' => GetMessage("LM_INVITE_EMAIL_USER_PLACEHOLDER_NAME"),
 			'LM_INVITE_EMAIL_USER_PLACEHOLDER_LAST_NAME' => GetMessage("LM_INVITE_EMAIL_USER_PLACEHOLDER_LAST_NAME"),
-			'LM_POPUP_WAITER_TEXT' => GetMessage("LM_POPUP_WAITER_TEXT")
+			'LM_INVITE_EMAIL_CRM_CREATE_CONTACT' => GetMessage("LM_INVITE_EMAIL_CRM_CREATE_CONTACT"),
+			'LM_POPUP_WAITER_TEXT' => GetMessage("LM_POPUP_WAITER_TEXT"),
+			'LM_POPUP_SEARCH_NETWORK' => GetMessage("LM_POPUP_SEARCH_NETWORK"),
 		),
 		'rel' => array('core', 'popup', 'json', 'finder')
 	));
 }
+
+IncludeModuleLangFile($_SERVER["DOCUMENT_ROOT"].'/bitrix/modules/socialnetwork/install/js/comment_aux.php');
+CJSCore::RegisterExt('comment_aux', array(
+	'js' => '/bitrix/js/socialnetwork/comment_aux.js',
+	'lang_additional' => array(
+		'SONET_COMMENTAUX_JS_SHARE_TEXT' => GetMessage("SONET_COMMENTAUX_JS_SHARE_TEXT"),
+		'SONET_COMMENTAUX_JS_SHARE_TEXT_1' => GetMessage("SONET_COMMENTAUX_JS_SHARE_TEXT_1"),
+		'SONET_COMMENTAUX_JS_CREATETASK_BLOG_POST' => GetMessage("SONET_COMMENTAUX_JS_CREATETASK_BLOG_POST"),
+		'SONET_COMMENTAUX_JS_CREATETASK_BLOG_COMMENT' => GetMessage("SONET_COMMENTAUX_JS_CREATETASK_BLOG_COMMENT"),
+		'SONET_COMMENTAUX_JS_CREATETASK_BLOG_COMMENT_LINK' => GetMessage("SONET_COMMENTAUX_JS_CREATETASK_BLOG_COMMENT_LINK"),
+		'SONET_COMMENTAUX_JS_FILEVERSION_TEXT' => GetMessage("SONET_COMMENTAUX_JS_FILEVERSION_TEXT"),
+		'SONET_COMMENTAUX_JS_FILEVERSION_TEXT_M' => GetMessage("SONET_COMMENTAUX_JS_FILEVERSION_TEXT_M"),
+		'SONET_COMMENTAUX_JS_FILEVERSION_TEXT_F' => GetMessage("SONET_COMMENTAUX_JS_FILEVERSION_TEXT_F"),
+		'SONET_COMMENTAUX_JS_HEAD_FILEVERSION_TEXT' => GetMessage("SONET_COMMENTAUX_JS_HEAD_FILEVERSION_TEXT"),
+		'SONET_COMMENTAUX_JS_HEAD_FILEVERSION_TEXT_M' => GetMessage("SONET_COMMENTAUX_JS_HEAD_FILEVERSION_TEXT_M"),
+		'SONET_COMMENTAUX_JS_HEAD_FILEVERSION_TEXT_F' => GetMessage("SONET_COMMENTAUX_JS_HEAD_FILEVERSION_TEXT_F")
+	),
+	'rel' => array('render_parts')
+));
+
+IncludeModuleLangFile($_SERVER["DOCUMENT_ROOT"].'/bitrix/modules/socialnetwork/install/js/render_parts.php');
+CJSCore::RegisterExt('render_parts', array(
+	'js' => '/bitrix/js/socialnetwork/render_parts.js',
+	'lang_additional' => array(
+		'SONET_RENDERPARTS_JS_DESTINATION_ALL' => GetMessage(IsModuleInstalled('intranet') ? "SONET_RENDERPARTS_JS_DESTINATION_ALL" : GetMessage("SONET_RENDERPARTS_JS_DESTINATION_ALL_BUS")),
+		'SONET_RENDERPARTS_JS_HIDDEN' => GetMessage("SONET_RENDERPARTS_JS_HIDDEN")
+	),
+	'rel' => array()
+));
 
 // forum
 $arFeatureTmp = array(
@@ -419,20 +454,7 @@ if ($bIntranet)
 		"minoperation" => array("view_all", "view")
 	);
 
-	$use_tasks_2_0 = COption::GetOptionString("intranet", "use_tasks_2_0", "N");
-	if ($use_tasks_2_0 != "Y")
-	{
-		$arFeatureTmp["subscribe_events"] = array(
-			"tasks" =>  array(
-				"ENTITIES" => array(),
-				"OPERATION" => "view_all",
-				"CLASS_FORMAT" => "CSocNetLogTools",
-				"METHOD_FORMAT" => "FormatEvent_Task",
-				"HAS_CB" => "Y",
-			)
-		);
-	}
-	else
+	if (IsModuleInstalled('tasks'))
 	{
 		$arFeatureTmp["subscribe_events"] = array(
 			"tasks" =>  array(
@@ -715,7 +737,21 @@ if (
 		$arFeatureTmp["operations"]["view"][SONET_ENTITY_GROUP] = COption::GetOptionString("socialnetwork", "default_search_operation_view_group", SONET_ROLES_USER);
 	}
 
-	CSocNetAllowed::AddAllowedFeature("search", $arFeatureTmp);
+	CSocNetAllowed::addAllowedFeature("search", $arFeatureTmp);
+}
+
+if (
+	ModuleManager::isModuleInstalled('im')
+	&& (COption::GetOptionString('socialnetwork', 'use_workgroup_chat', "Y") == "Y")
+)
+{
+	$arFeatureTmp = array(
+		"allowed" => array(SONET_ENTITY_GROUP),
+		"operations" => array(),
+		"minoperation" => array(),
+	);
+
+	CSocNetAllowed::addAllowedFeature("chat", $arFeatureTmp);
 }
 
 $arLogEvents = array(

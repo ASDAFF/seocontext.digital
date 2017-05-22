@@ -38,6 +38,7 @@ class OrderBasketShipment extends OrderBasket
 
 		$this->shipment = $shipment;
 		$this->data = array();
+		$this->mode = self::VIEW_MODE;
 	}
 
 	public function getEdit($defTails = false)
@@ -202,7 +203,7 @@ class OrderBasketShipment extends OrderBasket
 		$shipmentCollection = $this->shipment->getCollection();
 		$shipmentItemCollection = $this->shipment->getShipmentItemCollection();
 		$result = $this->getProductsInfo($shipmentItemCollection);
-		$result = self::getOffersSkuParams($result);
+		$result = $this->getOffersSkuParams($result);
 		$result['UNSHIPPED_PRODUCTS'] = array();
 
 		if ($this->shipment->getId() > 0)
@@ -212,7 +213,7 @@ class OrderBasketShipment extends OrderBasket
 			$systemItemsCollection = $systemShipment->getShipmentItemCollection();
 
 			$systemCollectionProduct = $this->getProductsInfo($systemItemsCollection);
-			$systemCollectionProduct = self::getOffersSkuParams($systemCollectionProduct);
+			$systemCollectionProduct = $this->getOffersSkuParams($systemCollectionProduct);
 			$result['UNSHIPPED_PRODUCTS'] = array_diff_key($systemCollectionProduct['ITEMS'], $result['ITEMS']);
 		}
 
@@ -244,6 +245,20 @@ class OrderBasketShipment extends OrderBasket
 
 		$items = array();
 
+		$catalogProductsIds = array();
+
+		/** @var \Bitrix\Sale\ShipmentItem $item */
+		foreach($shipmentItemCollection as $item)
+		{
+			$basketItem = $item->getBasketItem();
+
+			if ($basketItem && $basketItem->getField("MODULE") == "catalog")
+				$catalogProductsIds[] = $basketItem->getProductId();
+		}
+
+		if(!empty($catalogProductsIds))
+			$catalogProductsFields = self::getProductsData($catalogProductsIds, $this->order->getSiteId(), $this->visibleColumns, $this->order->getUserId());
+
 		/** @var \Bitrix\Sale\ShipmentItem $item */
 		foreach($shipmentItemCollection as $item)
 		{
@@ -260,8 +275,8 @@ class OrderBasketShipment extends OrderBasket
 
 				$productId = $basketItem->getProductId();
 
-				if ($basketItem->getField("MODULE") == "catalog")
-					$params = self::getProductDetails($productId, $item->getQuantity(), $this->order->getUserId(), $this->order->getSiteId(), $this->visibleColumns);
+				if ($basketItem->getField("MODULE") == "catalog" && !empty($catalogProductsFields[$productId]))
+					$params = $catalogProductsFields[$productId];
 
 				if (intval($basketItem->getField("MEASURE_CODE")) > 0)
 					$params["MEASURE_CODE"] = intval($basketItem->getField("MEASURE_CODE"));
@@ -274,7 +289,15 @@ class OrderBasketShipment extends OrderBasket
 					$params["MEASURE_TEXT"] = "";
 
 				if ($basketItem->isBundleParent())
+				{
 					$params["BASE_ELEMENTS_QUANTITY"] = $basketItem->getBundleBaseQuantity();
+					if (!isset($params['IS_SET_ITEM']))
+						$params['IS_SET_ITEM'] = 'N';
+					if (!isset($params['IS_SET_PARENT']))
+						$params['IS_SET_PARENT'] = 'Y';
+					if (!isset($params['OLD_PARENT_ID']))
+						$params['OLD_PARENT_ID'] = '';
+				}
 				$params["BASKET_ID"] = $basketItem->getId();
 				$params["PRODUCT_PROVIDER_CLASS"] = $basketItem->getProvider();
 				$params["NAME"] = $basketItem->getField("NAME");
@@ -329,6 +352,13 @@ class OrderBasketShipment extends OrderBasket
 
 				if ($basketItem->isBundleChild())
 					$params["PARENT_BASKET_ID"] = $basketItem->getParentBasketItem()->getId();
+
+				//If product became bundle, but in saved order it is a simple product.
+				if ($basketItem->getBasketCode() == intval($basketItem->getBasketCode()) && !$basketItem->isBundleParent() && !empty($params['SET_ITEMS']))
+				{
+					unset($params['SET_ITEMS'], $params['OLD_PARENT_ID']);
+					$params['IS_SET_PARENT'] = 'N';
+				}
 			}
 			else
 			{
@@ -603,6 +633,8 @@ class OrderBasketShipment extends OrderBasket
 			// PREPARE DATA FOR SET_FIELDS
 			foreach ($shipmentBasket as $items)
 			{
+				$items['QUANTITY'] = floatval(str_replace(',', '.', $items['QUANTITY']));
+				$items['AMOUNT'] = floatval(str_replace(',', '.', $items['AMOUNT']));
 				if (isset($items['BASKET_ID']) && $items['BASKET_ID'] > 0)
 				{
 					if (!$basketItem = $basket->getItemById($items['BASKET_ID']))

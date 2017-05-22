@@ -249,7 +249,7 @@ class BasketPropertyItem
 								$propertyName = substr($propertyName, 0, 50)."...";
 							}
 
-							$result->addError(new ResultWarning(Loc::getMessage("SALE_BASKET_ITEM_PROPERTY_MAX_LENGTH_ERROR", array("#PROPERTY_NAME#" => $propertyName, "#FIELD_TITLE#" => $fieldName, "#MAX_LENGTH#" => $value->getSize()))));
+							$result->addError(new ResultWarning(Loc::getMessage("SALE_BASKET_ITEM_PROPERTY_MAX_LENGTH_ERROR", array("#PROPERTY_NAME#" => $propertyName, "#FIELD_TITLE#" => $fieldName, "#MAX_LENGTH#" => $value->getSize())), 'SALE_BASKET_ITEM_PROPERTY_MAX_LENGTH_ERROR'));
 						}
 					}
 

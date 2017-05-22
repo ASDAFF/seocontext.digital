@@ -177,7 +177,7 @@ if ($ID > 0)
 	<td><select name="CURRENCY"><?
 		foreach ($currencyList as $currency => $title)
 		{
-			?><option value="<?=$currency; ?>"<?=($currency == $currencyRate['CURRENCY'] ? ' selected' : ''); ?>><?=htmlspecialcharsbx($title); ?></option><?
+			?><option value="<?=htmlspecialcharsbx($currency); ?>"<?=($currency == $currencyRate['CURRENCY'] ? ' selected' : ''); ?>><?=htmlspecialcharsbx($title); ?></option><?
 		}
 		unset($currency, $title);
 	?></select></td>
@@ -195,17 +195,17 @@ if ($ID > 0)
 </tr>
 <tr class="adm-detail-required-field">
 	<td><?echo GetMessage("curr_rates_rate_cnt")?>: <span class="required" style="vertical-align: super; font-size: smaller;">1</span></td>
-	<td><input type="text" id="RATE_CNT" name="RATE_CNT" value="<? echo $currencyRate['RATE_CNT']; ?>" size="5"></td>
+	<td><input type="text" id="RATE_CNT" name="RATE_CNT" value="<?=(int)$currencyRate['RATE_CNT']; ?>" size="5"></td>
 </tr>
 <tr class="adm-detail-required-field">
 	<td><?echo GetMessage("curr_rates_rate")?>: <span class="required" style="vertical-align: super; font-size: smaller;">1</span></td>
 	<td>
-		<input type="text" id="RATE" name="RATE" value="<? echo $currencyRate['RATE']; ?>" size="12"><?
+		<input type="text" id="RATE" name="RATE" value="<?=htmlspecialcharsbx($currencyRate['RATE']); ?>" size="12"><?
 if ($showGetRate)
 {
 ?>
-		&nbsp;<input id="get_btn" type="button" title="<?echo GetMessage("curr_rates_query_ex")?>" value="<?echo GetMessage("curr_rates_query")?>">
-		<div id="cyrrency_query_error_div"></div><?
+		&nbsp;<input id="get_btn" type="button" title="<?=htmlspecialcharsbx(GetMessage("curr_rates_query_ex")); ?>" value="<?=htmlspecialcharsbx(GetMessage("curr_rates_query")); ?>">
+		<div id="currency_query_error_div"></div><?
 }
 ?>
 	</td>
@@ -227,7 +227,7 @@ echo EndNote();
 ?><script type="text/javascript">
 function getCurrencyRate()
 {
-	BX('cyrrency_query_error_div').innerHTML = '';
+	BX('currency_query_error_div').innerHTML = '';
 	var date = document.forms['rate_edit'].elements['DATE_RATE'].value,
 		curr = document.forms['rate_edit'].elements['CURRENCY'].value,
 		baseCurrency = document.forms['rate_edit'].elements['BASE_CURRENCY'].value,
@@ -271,15 +271,15 @@ function getCurrencyRate()
 function resultCurrencyRate(result)
 {
 	BX.closeWait();
-	if (typeof result !== 'object' || !result.STATUS)
+	if (!BX.type.isPlainObject(result) || !BX.type.isNotEmptyString(result.STATUS))
 	{
-		BX('cyrrency_query_error_div').innerHTML = '<? echo GetMessageJS('BX_CURRENCY_GET_RATE_ERR_UNKNOWN'); ?>';
+		BX('currency_query_error_div').innerHTML = '<? echo GetMessageJS('BX_CURRENCY_GET_RATE_ERR_UNKNOWN'); ?>';
 	}
 	else
 	{
 		if (result.STATUS === 'ERROR')
 		{
-			BX('cyrrency_query_error_div').innerHTML = result.MESSAGE;
+			BX('currency_query_error_div').innerHTML = result.MESSAGE;
 		}
 		else
 		{

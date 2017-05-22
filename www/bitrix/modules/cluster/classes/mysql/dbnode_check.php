@@ -1,4 +1,4 @@
-<?
+<?php
 IncludeModuleLangFile(__FILE__);
 
 class CClusterDBNodeCheck extends CAllClusterDBNodeCheck
@@ -793,7 +793,7 @@ class CClusterDBNodeCheck extends CAllClusterDBNodeCheck
 		return $result;
 	}
 
-	function GetServerVariables($DB, $arVariables, $db_mask)
+	public static function GetServerVariables($DB, $arVariables, $db_mask)
 	{
 		if($db_mask)
 			$where = " like '".$DB->ForSQL($db_mask)."'";
@@ -817,4 +817,3 @@ class CClusterDBNodeCheck extends CAllClusterDBNodeCheck
 	}
 
 }
-?>

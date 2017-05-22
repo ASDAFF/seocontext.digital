@@ -2,10 +2,10 @@
 class CCalendarSceleton
 {
 	// Show html
-	public static function Build($Params)
+	public static function Build($params)
 	{
 		global $APPLICATION;
-		$id = $Params['id'];
+		$id = $params['id'];
 
 		$Tabs = array(
 			array('name' => GetMessage('EC_TAB_MONTH'), 'title' => GetMessage('EC_TAB_MONTH_TITLE'), 'id' => $id."_tab_month"),
@@ -13,7 +13,7 @@ class CCalendarSceleton
 			array('name' => GetMessage('EC_TAB_DAY'), 'title' => GetMessage('EC_TAB_DAY_TITLE'), 'id' => $id."_tab_day")
 		);
 
-		$bCalDAV = CCalendar::IsCalDAVEnabled() && $Params['type'] == 'user';
+		$bCalDAV = CCalendar::IsCalDAVEnabled() && $params['type'] == 'user';
 
 		// Here can be added user's dialogs, scripts, html
 		foreach(GetModuleEvents("calendar", "OnBeforeBuildSceleton", true) as $arEvent)
@@ -25,10 +25,10 @@ class CCalendarSceleton
 /* Event handler for user control*/
 function bxcUserSelectorOnchange(arUsers){BX.onCustomEvent(window, 'onUserSelectorOnChange', [arUsers]);}
 </script>
-		<?if ($Params['bShowSections'] || $Params['bShowSuperpose']):?>
+		<?if ($params['bShowSections'] || $params['bShowSuperpose']):?>
 <div class="bxec-sect-cont" id="<?=$id?>_sect_cont">
 	<b class="r2"></b><b class="r1"></b><b class="r0"></b>
-		<?if ($Params['bShowSections']):?>
+		<?if ($params['bShowSections']):?>
 		<span class="bxec-sect-cont-wrap" id="<?=$id?>sections">
 			<b class="r-2"></b><b class="r-1"></b><b class="r-0"></b>
 			<div class="bxec-sect-cont-inner">
@@ -37,7 +37,7 @@ function bxcUserSelectorOnchange(arUsers){BX.onCustomEvent(window, 'onUserSelect
 				</div>
 				<div class="bxec-sect-cont-white">
 					<div id="<?=$id?>sections-cont"></div>
-					<?if($Params['bShowTasks']):?>
+					<?if($params['bShowTasks']):?>
 					<div id="<?=$id?>tasks-sections-cont"></div>
 					<?endif;?>
 					<div id="<?=$id?>caldav-sections-cont"></div>
@@ -47,7 +47,7 @@ function bxcUserSelectorOnchange(arUsers){BX.onCustomEvent(window, 'onUserSelect
 		</span>
 		<?endif; /*bShowSections*/ ?>
 
-		<?if ($Params['bShowSuperpose']):?>
+		<?if ($params['bShowSuperpose']):?>
 		<span class="bxec-sect-cont-wrap" id="<?=$id?>sp-sections">
 			<b class="r-2"></b><b class="r-1"></b><b class="r-0"></b>
 			<div class="bxec-sect-cont-inner bxec-sect-superpose">
@@ -59,7 +59,7 @@ function bxcUserSelectorOnchange(arUsers){BX.onCustomEvent(window, 'onUserSelect
 			<i class="r-0"></i><i class="r-1"></i><i class="r-2"></i>
 		</span>
 		<?endif; /*bShowSuperpose*/ ?>
-		<?if ($Params['syncPannel']):?>
+		<?if ($params['syncPannel']):?>
 		<div class="bxec-sect-cont-inner">
 			<div class="bxec-sect-title">
 				<span class="bxec-sect-title-text"><?= GetMessage('EC_CAL_SYNC_TITLE')?></span>
@@ -128,9 +128,9 @@ function bxcUserSelectorOnchange(arUsers){BX.onCustomEvent(window, 'onUserSelect
 </div>
 </div>
 <?
-		self::BuildDialogs($Params);
+		self::BuildDialogs($params);
 
-		if($Params['bShowTasks'])
+		if($params['bShowTasks'])
 		{
 		?>
 <script>
@@ -147,7 +147,7 @@ function onPopupTaskDeleted(taskId){BX.onCustomEvent(window, 'onCalendarPopupTas
 					"ON_TASK_ADDED" => "onPopupTaskAdded",
 					"ON_TASK_CHANGED" => "onPopupTaskChanged",
 					"ON_TASK_DELETED" => "onPopupTaskDeleted",
-					"TASKS_LIST" => $Params['arTaskIds']
+					"TASKS_LIST" => $params['arTaskIds']
 				),
 				null,
 				array("HIDE_ICONS" => "Y")
@@ -162,7 +162,12 @@ function onPopupTaskDeleted(taskId){BX.onCustomEvent(window, 'onCalendarPopupTas
 	public static function InitJS($JSConfig)
 	{
 		global $APPLICATION;
-		CUtil::InitJSCore(array('ajax', 'window', 'popup', 'access', 'date', 'viewer', 'socnetlogdest'));
+		CJSCore::Init(array('ajax', 'window', 'popup', 'access', 'date', 'viewer', 'socnetlogdest'));
+
+		if(\Bitrix\Main\Loader::includeModule('webservice'))
+		{
+			CJSCore::Init(array('stssync'));
+		}
 
 		$JSConfig['days'] = self::GetWeekDays();
 		$JSConfig['month'] = array(GetMessage('EC_JAN'), GetMessage('EC_FEB'), GetMessage('EC_MAR'), GetMessage('EC_APR'), GetMessage('EC_MAY'), GetMessage('EC_JUN'), GetMessage('EC_JUL'), GetMessage('EC_AUG'), GetMessage('EC_SEP'), GetMessage('EC_OCT'), GetMessage('EC_NOV'), GetMessage('EC_DEC'));
@@ -197,23 +202,23 @@ function onPopupTaskDeleted(taskId){BX.onCustomEvent(window, 'onCalendarPopupTas
 		<?
 	}
 
-	private static function BuildDialogs($Params)
+	private static function BuildDialogs($params)
 	{
 		require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/tools/clock.php");
-		$id = $Params['id'];
+		$id = $params['id'];
 		?><div id="<?=$id?>_dialogs_cont" style="display: none;"><?
-		if (!$Params['bReadOnly'])
+		if (!$params['bReadOnly'])
 		{
-			self::DialogAddEventSimple($Params);
-			self::DialogEditSection($Params);
-			self::DialogExternalCalendars($Params);
+			self::DialogAddEventSimple($params);
+			self::DialogEditSection($params);
+			self::DialogExternalCalendars($params);
 		}
-		self::DialogSettings($Params);
-		self::DialogExportCalendar($Params);
-		self::DialogMobileCon($Params);
+		self::DialogSettings($params);
+		self::DialogExportCalendar($params);
+		self::DialogMobileCon($params);
 
-		if ($Params['bShowSuperpose'])
-			self::DialogSuperpose($Params);
+		if ($params['bShowSuperpose'])
+			self::DialogSuperpose($params);
 		?></div><?
 	}
 
@@ -221,7 +226,7 @@ function onPopupTaskDeleted(taskId){BX.onCustomEvent(window, 'onCalendarPopupTas
 	{
 		$arLangMess = array(
 			'DelMeetingConfirm' => 'EC_JS_DEL_MEETING_CONFIRM',
-			'DelMeetingGuestConfirm' => 'EC_JS_DEL_MEETING_GUEST_CONFIRM',
+			'DeclineConfirm' => 'EC_JS_DEL_MEETING_GUEST_CONFIRM',
 			'DelEventConfirm' => 'EC_JS_DEL_EVENT_CONFIRM',
 			'DelEventError' => 'EC_JS_DEL_EVENT_ERROR',
 			'EventNameError' => 'EC_JS_EV_NAME_ERR',
@@ -413,8 +418,6 @@ function onPopupTaskDeleted(taskId){BX.onCustomEvent(window, 'onCalendarPopupTas
 			'Refresh' => 'EC_CAL_DAV_REFRESH',
 			'acc_status_absent' => 'EC_PRIVATE_ABSENT',
 			'acc_status_busy' => 'EC_ACCESSIBILITY_B',
-			'denyRepeted' => 'EC_DD_DENY_REPEATED',
-			'ddDenyRepeted' => 'EC_DD_DENY_REPEATED',
 			'ddDenyTask' => 'EC_DD_DENY_TASK',
 			'ddDenyEvent' => 'EC_DD_DENY_EVENT',
 			'eventTzHint' => 'EC_EVENT_TZ_HINT',
@@ -446,7 +449,18 @@ function onPopupTaskDeleted(taskId){BX.onCustomEvent(window, 'onCalendarPopupTas
 			'disconnectAndroid' => 'EC_CAL_DISCONNECT_ANDROID',
 			'connectExchange' => 'EC_CAL_CONNECT_EXCHANGE',
 			'disconnectExchange' => 'EC_CAL_DISCONNECT_EXCHANGE',
-			'syncExchangeTitle' => 'EC_BAN_EXCH_SYNC_TITLE'
+			'syncExchangeTitle' => 'EC_BAN_EXCH_SYNC_TITLE',
+			'EC_DEL_REC_EVENT' => 'EC_DEL_REC_EVENT',
+			'EC_EDIT_REC_EVENT' => 'EC_EDIT_REC_EVENT',
+			'EC_REC_EV_ONLY_THIS_EVENT' => 'EC_REC_EV_ONLY_THIS_EVENT',
+			'EC_REC_EV_NEXT' => 'EC_REC_EV_NEXT',
+			'EC_REC_EV_ALL' => 'EC_REC_EV_ALL',
+			'EC_REINVITE' => 'EC_REINVITE',
+			'EC_DECLINE_REC_EVENT' => 'EC_DECLINE_REC_EVENT',
+			'EC_D_REC_EV_ONLY_THIS_EVENT' => 'EC_D_REC_EV_ONLY_THIS_EVENT',
+			'EC_D_REC_EV_NEXT' => 'EC_D_REC_EV_NEXT',
+			'EC_D_REC_EV_ALL' => 'EC_D_REC_EV_ALL',
+			'EC_BUSY_ALERT' => 'EC_BUSY_ALERT'
 		);
 ?>
 var EC_MESS = {
@@ -458,33 +472,36 @@ var EC_MESS = {
 	?>};<?
 	}
 
-	private static function DialogAddEventSimple($Params)
+	private static function DialogAddEventSimple($params)
 	{
-		global $APPLICATION;
-		$APPLICATION->IncludeComponent("bitrix:calendar.event.simple.add", "", $Params);
-	}
-
-	public static function DialogEditEvent($Params)
-	{
-		if (CCalendarSceleton::CheckBitrix24Limits($Params))
+		if (CCalendarSceleton::CheckBitrix24Limits($params))
 		{
 			global $APPLICATION;
-			$APPLICATION->IncludeComponent("bitrix:calendar.event.edit", "", $Params);
+			$APPLICATION->IncludeComponent("bitrix:calendar.event.simple.add", "", $params);
 		}
 	}
 
-	public static function DialogViewEvent($Params)
+	public static function DialogEditEvent($params)
 	{
-		if (CCalendarSceleton::CheckBitrix24Limits($Params))
+		if (CCalendarSceleton::CheckBitrix24Limits($params))
 		{
 			global $APPLICATION;
-			$APPLICATION->IncludeComponent("bitrix:calendar.event.view", "", $Params);
+			$APPLICATION->IncludeComponent("bitrix:calendar.event.edit", "", $params);
 		}
 	}
 
-	public static function DialogEditSection($Params)
+	public static function DialogViewEvent($params)
 	{
-		$id = $Params['id'];
+		if (CCalendarSceleton::CheckBitrix24Limits($params))
+		{
+			global $APPLICATION;
+			$APPLICATION->IncludeComponent("bitrix:calendar.event.view", "", $params);
+		}
+	}
+
+	public static function DialogEditSection($params)
+	{
+		$id = $params['id'];
 		$arTabs = array(
 			array('name' => GetMessage('EC_SECT_BASE_TAB'), 'id' => $id."sect-tab-0", 'active' => true),
 			array('name' => GetMessage('EC_SECT_ACCESS_TAB'), 'id' => $id."sect-tab-1")
@@ -517,7 +534,7 @@ var EC_MESS = {
 	<div class="bxec-popup-row">
 		<span class="bxec-field-label-2"><label for="<?=$id?>-sect-color-inp"><?=GetMessage('EC_T_COLOR')?>:</label></span>
 		<span  class="bxec-field-val-2" style="width: 360px;">
-		<?CCalendarSceleton::DisplayColorSelector($id, 'sect', $Params['colors']);?>
+		<?CCalendarSceleton::DisplayColorSelector($id, 'sect', $params['colors']);?>
 		</span>
 	</div>
 
@@ -533,13 +550,13 @@ var EC_MESS = {
 		</div>
 	</div>
 
-	<?if ($Params['bExchangeConnected'] && CCalendar::IsExchangeEnabled() && $Params['type'] == 'user' && $Params['inPersonalCalendar']):?>
+	<?if ($params['bExchangeConnected'] && CCalendar::IsExchangeEnabled() && $params['type'] == 'user' && $params['inPersonalCalendar']):?>
 	<div class="bxec-popup-row">
 		<input id="<?=$id?>_bxec_cal_exch" type="checkbox" value="Y" checked="checked"><label for="<?=$id?>_bxec_cal_exch"><?=GetMessage('EC_CALENDAR_TO_EXCH')?></label>
 	</div>
 	<?endif;?>
 
-	<?if($Params['bShowSuperpose'] && $Params['inPersonalCalendar']):?>
+	<?if($params['bShowSuperpose'] && $params['inPersonalCalendar']):?>
 	<div class="bxec-popup-row" id="<?=$id?>_bxec_cal_add2sp_cont">
 		<input id="<?=$id?>_bxec_cal_add2sp" type="checkbox" value="Y"><label for="<?=$id?>_bxec_cal_add2sp"><?=GetMessage('EC_T_ADD_TO_SP')?></label>
 	</div>
@@ -563,9 +580,9 @@ var EC_MESS = {
 <?
 	}
 
-	public static function DialogExportCalendar($Params)
+	public static function DialogExportCalendar($params)
 	{
-		$id = $Params['id'];
+		$id = $params['id'];
 ?>
 <div id="bxec_excal_<?=$id?>" class="bxec-popup">
 	<span id="<?=$id?>_excal_text"></span><br />
@@ -581,10 +598,10 @@ var EC_MESS = {
 <?
 	}
 
-	public static function DialogSuperpose($Params)
+	public static function DialogSuperpose($params)
 	{
 		global $APPLICATION;
-		$id = $Params['id'];
+		$id = $params['id'];
 
 		$arTypes = array(
 			array("TITLE" => "EC_SUPERPOSE_GR_USER", "ID" => "user")
@@ -601,8 +618,8 @@ var EC_MESS = {
 		<?
 		$isExtranetGroup = false;
 
-		if ($Params["bSocNet"] && $Params["type"] == "group" && intval($Params["ownerId"]) > 0 && CModule::IncludeModule("extranet"))
-			$isExtranetGroup = CExtranet::IsExtranetSocNetGroup($Params["ownerId"]);
+		if ($params["bSocNet"] && $params["type"] == "group" && intval($params["ownerId"]) > 0 && \Bitrix\Main\Loader::includeModule("extranet"))
+			$isExtranetGroup = CExtranet::IsExtranetSocNetGroup($params["ownerId"]);
 
 		$APPLICATION->IncludeComponent(
 			"bitrix:intranet.user.selector.new", "", array(
@@ -614,7 +631,7 @@ var EC_MESS = {
 				"NAME_TEMPLATE" => CCalendar::GetUserNameTemplate(),
 				"SITE_ID" => SITE_ID,
 				"SHOW_EXTRANET_USERS" => $isExtranetGroup ? "FROM_EXACT_GROUP" : "NONE",
-				"EX_GROUP" => $isExtranetGroup ? $Params["ownerId"] : ""
+				"EX_GROUP" => $isExtranetGroup ? $params["ownerId"] : ""
 			), null, array("HIDE_ICONS" => "Y")
 		);
 		?>
@@ -633,13 +650,13 @@ var EC_MESS = {
 <?
 	}
 
-	public static function DialogSettings($Params)
+	public static function DialogSettings($params)
 	{
-		$id = $Params['id'];
+		$id = $params['id'];
 		$arTabs = array(
 			array('name' => GetMessage('EC_SET_TAB_PERSONAL'), 'title' => GetMessage('EC_SET_TAB_PERSONAL_TITLE'), 'id' => $id."set-tab-0"),
-			array('name' => GetMessage('EC_SET_TAB_BASE'), 'title' => GetMessage('EC_SET_TAB_BASE_TITLE'), 'id' => $id."set-tab-1", 'show' => CCalendarType::CanDo('calendar_type_edit_access', $Params['type'])),
-			array('name' => GetMessage('EC_SECT_ACCESS_TAB'), 'title' => GetMessage('EC_SECT_ACCESS_TAB'), 'id' => $id."set-tab-2", 'show' => CCalendarType::CanDo('calendar_type_edit_access', $Params['type']))
+			array('name' => GetMessage('EC_SET_TAB_BASE'), 'title' => GetMessage('EC_SET_TAB_BASE_TITLE'), 'id' => $id."set-tab-1", 'show' => CCalendarType::CanDo('calendar_type_edit_access', $params['type'])),
+			array('name' => GetMessage('EC_SECT_ACCESS_TAB'), 'title' => GetMessage('EC_SECT_ACCESS_TAB'), 'id' => $id."set-tab-2", 'show' => CCalendarType::CanDo('calendar_type_edit_access', $params['type']))
 		);
 
 		$arDays = self::GetWeekDays();
@@ -651,7 +668,7 @@ var EC_MESS = {
 		}
 
 		$timezoneList = CCalendar::GetTimezoneList();
-		$bInPersonal = $Params['inPersonalCalendar'];
+		$bInPersonal = $params['inPersonalCalendar'];
 ?>
 <div id="bxec_uset_<?=$id?>" class="bxec-popup">
 	<div style="width: 500px; height: 1px;"></div>
@@ -703,7 +720,6 @@ var EC_MESS = {
 	</div>
 	<?endif;/*if($bInPersonal)*/?>
 
-	<!-- show declined -->
 	<div class="bxec-popup-row">
 		<span class="bxec-field-label-1"><input id="<?=$id?>_show_muted" type="checkbox" /></span>
 		<span  class="bxec-field-val-2">
@@ -711,13 +727,20 @@ var EC_MESS = {
 		</span>
 	</div>
 
-	<?if($Params['bShowSuperpose']):?>
+	<div class="bxec-popup-row">
+		<span class="bxec-field-label-1"><input id="<?=$id?>_deny_busy_invitation" type="checkbox" /></span>
+		<span  class="bxec-field-val-2">
+			<label for="<?=$id?>_deny_busy_invitation"><?=GetMessage('EC_DENY_BUSY_INVITATION')?></label>
+		</span>
+	</div>
+
+	<?if($params['bShowSuperpose']):?>
 	<div class="bxec-popup-row">
 		<a id="<?=$id?>-set-manage-sp" href="javascript:void(0);" title="<?=GetMessage('EC_MANAGE_SP_CALENDARS_TITLE')?>"><?= GetMessage('EC_MANAGE_SP_CALENDARS')?></a>
 	</div>
 	<?endif;?>
 
-	<?if($Params['bCalDAV'] && $bInPersonal):?>
+	<?if($params['bCalDAV'] && $bInPersonal):?>
 	<div class="bxec-popup-row">
 		<a id="<?=$id?>_manage_caldav" href="javascript:void(0);" title="<?=GetMessage('EC_MANAGE_CALDAV_TITLE')?>"><?= GetMessage('EC_MANAGE_CALDAV')?></a>
 	</div>
@@ -814,9 +837,9 @@ var EC_MESS = {
 <?
 	}
 
-	public static function DialogExternalCalendars($Params)
+	public static function DialogExternalCalendars($params)
 	{
-		$id = $Params['id'];
+		$id = $params['id'];
 ?>
 <div id="bxec_cdav_<?=$id?>" class="bxec-popup">
 	<div class="bxec-dav-list" id="<?=$id?>_bxec_dav_list"></div>
@@ -853,9 +876,9 @@ var EC_MESS = {
 <?
 	}
 
-	public static function DialogMobileCon($Params)
+	public static function DialogMobileCon($params)
 	{
-		$id = $Params['id'];
+		$id = $params['id'];
 ?>
 <div id="bxec_mobile_<?=$id?>" class="bxec-popup" style="width: 560px;">
 	<div class="bxec-mobile-cont">
@@ -1129,14 +1152,13 @@ var EC_MESS = {
 		<?
 	}
 
-	public static function CheckBitrix24Limits($Params)
+	public static function CheckBitrix24Limits($params)
 	{
 		global $APPLICATION;
 		$result = !CCalendar::IsBitrix24() || CBitrix24BusinessTools::isToolAvailable(CCalendar::GetCurUserId(), "calendar");
 		if (!$result)
 		{
-			$id = $Params['id'];
-			?><div id="<?=$id?>-bitrix24-limit" class="bxec-b24-limit-wrap"><?
+			?><div id="<?=$params['id']?>-bitrix24-limit" class="bxec-b24-limit-wrap"><?
 			$APPLICATION->IncludeComponent("bitrix:bitrix24.business.tools.info", "", array("SHOW_TITLE" => "Y"));
 			?></div><?
 		}

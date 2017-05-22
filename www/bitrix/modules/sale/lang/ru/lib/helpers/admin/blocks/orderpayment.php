@@ -11,6 +11,9 @@ $MESS["SALE_ORDER_PAYMENT_PAYABLE_DISCOUNT_SUM"] = "Сумма к оплате �
 $MESS["SALE_ORDER_PAYMENT_PAYABLE_SUM"] = "Сумма к оплате";
 $MESS["SALE_ORDER_PAYMENT_PAYABLE_PRICE_COD"] = "Сумма наложенного платежа";
 $MESS["SALE_ORDER_PAYMENT_PAY_VOUCHER_NUM"] = "Номер документа прихода";
+$MESS["SALE_ORDER_PAYMENT_CHECK_LINK_TITLE"] = "Список чеков";
+$MESS["SALE_ORDER_PAYMENT_CHECK_ADD"] = "Добавить чек";
+$MESS["SALE_ORDER_PAYMENT_CHECK_LINK"] = "Чек №#CHECK_ID#";
 $MESS["SALE_ORDER_PAYMENT_PAY_VOUCHER_DATE"] = "Дата прихода";
 $MESS["SALE_ORDER_PAYMENT_PAY_RETURN_NUM"] = "Номер документа возврата";
 $MESS["SALE_ORDER_PAYMENT_PAY_RETURN_DATE"] = "Дата возврата";
@@ -47,7 +50,7 @@ $MESS["SALE_ORDER_PAYMENT_RETURN_ACCOUNT"] = "Внутренний счет";
 $MESS["SALE_ORDER_PAYMENT_CHOOSE_DATE"] = "Нажмите для выбора даты";
 $MESS["SALE_ORDER_PAYMENT_RETURN_ALERT"] = "Внимание! Деньги будут возвращены на внутренний счет покупателя";
 $MESS["SALE_ORDER_PAYMENT_RETURN_TO"] = "Вернуть на";
-$MESS["SALE_ORDER_PAYMENT_BLOCK_NEW_PAYMENT_TITLE"] = "Новая оплата №";
+$MESS["SALE_ORDER_PAYMENT_BLOCK_NEW_PAYMENT_TITLE"] = "Новая оплата";
 $MESS["SALE_ORDER_PAYMENT_BLOCK_EDIT_PAYMENT_TITLE"] = "Оплата №#ID# от #DATE_BILL#";
 $MESS["SALE_ORDER_PAYMENT_ERROR_PAYSYSTEM"] = "Платежная система не выбрана или не существует";
 $MESS["SALE_ORDER_PAYMENT_ERROR_ORDER_NOT_FOUND"] = 'Заказ с ID=#ORDER_ID# не существует';
@@ -64,3 +67,5 @@ $MESS["SALE_ORDER_PAYMENT_CONFIRM_DELETE"] = 'Вы уверены, что хот
 $MESS["SALE_ORDER_PAYMENT_ADD_COMPANY"] = 'Список активных компаний пуст. <a href="#URL#" target="_blank">Добавить</a>';
 $MESS["SALE_ORDER_PAYMENT_NO_COMPANY"] = 'Не выбрано';
 $MESS["SALE_ORDER_PAYMENT_PAY_SYSTEM_CHECK"] = 'Получить';
+$MESS['SALE_ORDER_PAYMENT_HIDDEN'] = "[Скрыто]";
+$MESS['PAYMENT_CASHBOX_CHECK_ADD_WINDOW_TITLE'] = "Добавление нового чека";

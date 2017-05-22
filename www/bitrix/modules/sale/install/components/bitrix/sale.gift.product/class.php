@@ -6,6 +6,11 @@ if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true) die();
 
 CBitrixComponent::includeComponentClass("bitrix:catalog.viewed.products");
 
+/**
+ * Class CSaleGiftProductComponent
+ * @deprecated No longer used by internal code and not recommended.
+ * Use "sale.products.gift" instead.
+ */
 class CSaleGiftProductComponent extends CCatalogViewedProductsComponent
 {
 	/** @var \Bitrix\Sale\Discount\Gift\Manager */
@@ -333,6 +338,21 @@ class CSaleGiftProductComponent extends CCatalogViewedProductsComponent
 		if($isEnabledCalculationDiscounts)
 		{
 			CIBlockPriceTools::enableCalculationDiscounts();
+		}
+	}
+
+	protected function setItemsPrices()
+	{
+		parent::setItemsPrices();
+
+		foreach ($this->items as &$item)
+		{
+			if (!empty($item['OFFERS']))
+			{
+				continue;
+			}
+
+			$this->setGiftDiscountToMinPrice($item);
 		}
 	}
 

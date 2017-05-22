@@ -82,7 +82,7 @@ class SqlExpression
 
 			$parts = str_replace('\\?', '?', $parts);
 
-			return implode('\\', $parts);
+			return implode('\\\\', $parts);
 		}
 	}
 

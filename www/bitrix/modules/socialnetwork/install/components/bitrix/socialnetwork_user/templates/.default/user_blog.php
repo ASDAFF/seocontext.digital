@@ -1,6 +1,13 @@
-<?if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();?>
-<div class="feed-blog-post-list">
-<?
+<?if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
+/** @var CBitrixComponentTemplate $this */
+/** @var array $arParams */
+/** @var array $arResult */
+/** @global CDatabase $DB */
+/** @global CUser $USER */
+/** @global CMain $APPLICATION */
+
+?><div class="feed-blog-post-list"><?
+
 $pageId = "user_blog";
 include("util_menu.php");
 include("util_profile.php");
@@ -13,6 +20,7 @@ $APPLICATION->IncludeComponent(
 		"PATH_TO_POST_EDIT" => $arResult["PATH_TO_USER_BLOG_POST_EDIT"],
 		"PATH_TO_MODERATION" => $arResult["PATH_TO_USER_BLOG_MODERATION"],
 		"PATH_TO_DRAFT" => $arResult["PATH_TO_USER_BLOG_DRAFT"],
+		"PATH_TO_TAGS" => $arResult["PATH_TO_USER_BLOG_TAGS"],
 		"USER_ID" => $arResult["VARIABLES"]["user_id"],
 		"USER_VAR" => $arResult["ALIASES"]["user_id"],
 		"PAGE_VAR" => $arResult["ALIASES"]["blog_page"],
@@ -27,10 +35,10 @@ $APPLICATION->IncludeComponent(
 		"CURRENT_PAGE" => "blog",
 		'HIDE_OWNER_IN_TITLE' => $arParams['HIDE_OWNER_IN_TITLE']
 	),
-	$component
+	$this->getComponent()
 );
 
-if(COption::GetOptionString("blog", "socNetNewPerms", "N") == "N" && $USER->IsAdmin() &&  !file_exists($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/bitrix24"))
+if(COption::GetOptionString("blog", "socNetNewPerms", "N") == "N" && $USER->IsAdmin() && !file_exists($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/bitrix24"))
 {
 	?>
 	<div class="feed-add-error">
@@ -97,6 +105,7 @@ $arLogParams = Array(
 			"CURRENT_USER_ID" => $arResult["VARIABLES"]["user_id"],
 			"CACHE_TYPE" => $arParams["CACHE_TYPE"],
 			"CACHE_TIME" => $arParams["CACHE_TIME"],
+			"CHECK_COMMENTS_PERMS" => (isset($arParams["CHECK_COMMENTS_PERMS"]) && $arParams["CHECK_COMMENTS_PERMS"] == "Y" ? "Y" : "N")
 		);
 if($bType == "all")
 {
@@ -119,7 +128,7 @@ $APPLICATION->IncludeComponent(
 	"bitrix:socialnetwork.log.ex",
 	"",
 	$arLogParams,
-	$component,
+	$this->getComponent(),
 	array("HIDE_ICONS"=>"Y")
 );
 ?>

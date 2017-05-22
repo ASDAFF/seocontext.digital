@@ -85,7 +85,7 @@ class ListsElementEditAjaxController extends Controller
 	protected function processActionIsConstantsTuned()
 	{
 		$this->checkRequiredPostParams(array('iblockId', 'iblockTypeId', 'socnetGroupId', 'sectionId'));
-		if(!Loader::includeModule('bizproc'))
+		if(!Loader::includeModule('bizproc') || !CBPRuntime::isFeatureEnabled())
 		{
 			$this->errorCollection->add(
 				array(new Error(Loc::getMessage('LISTS_CONNECTION_MODULE_BIZPROC')))
@@ -141,7 +141,7 @@ class ListsElementEditAjaxController extends Controller
 
 	protected function getTemplatesIdList()
 	{
-		if(!Loader::includeModule('bizproc') || empty($this->iblockTypeId) || empty($this->iblockId))
+		if(!Loader::includeModule('bizproc') || !CBPRuntime::isFeatureEnabled() || empty($this->iblockTypeId) || empty($this->iblockId))
 		{
 			return array();
 		}
@@ -163,7 +163,7 @@ class ListsElementEditAjaxController extends Controller
 	protected function processActionFillConstants()
 	{
 		$this->checkRequiredPostParams(array('iblockId', 'listTemplateId'));
-		if(!Loader::includeModule('bizproc'))
+		if(!Loader::includeModule('bizproc') || !CBPRuntime::isFeatureEnabled())
 		{
 			$this->errorCollection->add(
 				array(new Error(Loc::getMessage('LISTS_CONNECTION_MODULE_BIZPROC')))

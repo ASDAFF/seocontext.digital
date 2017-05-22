@@ -298,7 +298,7 @@ $MESS["SUP_WARNING"] = "Attention:";
 $MESS["SUP_ACT_TAB"] = "Activation";
 $MESS["SUP_ACT_TAB_TITLE"] = "License key activation";
 $MESS["SUP_UPDATES_TITLE"] = "How to renew subscription for updates";
-$MESS["SUP_UPDATES"] = "Your period of acquisition of updates and technical support is expired. You can now <a href=\"http://www.bitrixsoft.com/buy/cms/index.php#tab-renewal-link\">renew your subscription for updates and technical support</a>.";
+$MESS["SUP_UPDATES"] = "Your period of acquisition of updates and technical support is expired. You can now <a href=\"https://store.bitrix24.com/\">renew your subscription for updates and technical support</a>.";
 $MESS["SUPZ_NO_QSTRING"] = "A query string was not defined";
 $MESS["SUPZ_EMPTY_ANSWER"] = "The update server returned an empty response";
 $MESS["SUPZC_NO_CONNECT"] = "Cannot connect the update server";

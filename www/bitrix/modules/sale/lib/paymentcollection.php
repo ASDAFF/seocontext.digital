@@ -396,6 +396,12 @@ class PaymentCollection
 					"PAY_SYSTEM_NAME" => $v["PAY_SYSTEM_NAME"],
 					"PAY_SYSTEM_ID" => $v["PAY_SYSTEM_ID"],
 				));
+
+				EntityMarker::deleteByFilter(array(
+					 '=ORDER_ID' => $order->getId(),
+					 '=ENTITY_TYPE' => EntityMarker::ENTITY_TYPE_PAYMENT,
+					 '=ENTITY_ID' => $k,
+				 ));
 			}
 
 		}
@@ -468,6 +474,7 @@ class PaymentCollection
 
 	/**
 	 * @return Result
+	 * @throws Main\ObjectNotFoundException
 	 */
 	public function verify()
 	{
@@ -480,6 +487,15 @@ class PaymentCollection
 			if (!$r->isSuccess())
 			{
 				$result->addErrors($r->getErrors());
+				
+				/** @var Order $order */
+				if (!$order = $this->getOrder())
+				{
+					throw new Main\ObjectNotFoundException('Entity "Order" not found');
+				}
+
+				EntityMarker::addMarker($order, $payment, $r);
+				$order->setField('MARKED', 'Y');
 			}
 		}
 		return $result;
@@ -529,6 +545,26 @@ class PaymentCollection
 		}
 
 		return $paymentCollectionClone;
+	}
+
+	/**
+	 * Is the entire collection of marked
+	 *
+	 * @return bool
+	 */
+	public function isMarked()
+	{
+		if (!empty($this->collection) && is_array($this->collection))
+		{
+			/** @var Payment $payment */
+			foreach ($this->collection as $payment)
+			{
+				if ($payment->isMarked())
+					return true;
+			}
+		}
+
+		return false;
 	}
 
 }

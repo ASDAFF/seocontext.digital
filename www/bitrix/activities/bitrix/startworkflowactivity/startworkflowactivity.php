@@ -131,12 +131,21 @@ class CBPStartWorkflowActivity
 			{
 				if ($parameter['Type'] == FieldType::USER && !empty($parameters[$key]))
 				{
-					$parameters[$key] = CBPHelper::ExtractUsers($parameters[$key], $rootDocumentId);
+					$userIds = CBPHelper::ExtractUsers($parameters[$key], $rootDocumentId);
+					if (is_array($userIds))
+					{
+						foreach ($userIds as $i => $uid)
+							$userIds[$i] = 'user_'.$uid;
+					}
+					$parameters[$key] = $userIds;
 				}
 			}
 		}
 
 		$parameters[CBPDocument::PARAM_TAGRET_USER] = $this->GetRootActivity()->{CBPDocument::PARAM_TAGRET_USER};
+
+		if ($this->UseSubscription == 'Y')
+			$this->Subscribe($this);
 
 		$this->wfId = CBPDocument::StartWorkflow(
 			$template['ID'],
@@ -149,7 +158,10 @@ class CBPStartWorkflowActivity
 		if ($errors)
 		{
 			if ($this->UseSubscription == 'Y')
+			{
+				$this->Unsubscribe($this);
 				throw new Exception($errors[0]['message']);
+			}
 			else
 				$this->WriteToTrackingService(GetMessage("BPSWFA_START_ERROR", array('#MESSAGE#' => $errors[0]['message'])));
 
@@ -159,7 +171,6 @@ class CBPStartWorkflowActivity
 		if ($this->UseSubscription != 'Y')
 			return CBPActivityExecutionStatus::Closed;
 
-		$this->Subscribe($this);
 		return CBPActivityExecutionStatus::Executing;
 	}
 
@@ -206,12 +217,15 @@ class CBPStartWorkflowActivity
 		if (!empty($currentValues['template_id']))
 		{
 			$template = self::getTemplate($currentValues['template_id']);
-			$currentEntity = implode('@', array($template['MODULE_ID'], $template['ENTITY']));
-			$currentType = implode('@', $template['DOCUMENT_TYPE']);
-			$currentTemplateId = $template['ID'];
+			if ($template)
+			{
+				$currentEntity = implode('@', array($template['MODULE_ID'], $template['ENTITY']));
+				$currentType = implode('@', $template['DOCUMENT_TYPE']);
+				$currentTemplateId = $template['ID'];
 
-			if (!is_array($currentValues['template']))
-				$currentValues['template'] = array();
+				if (!is_array($currentValues['template']))
+					$currentValues['template'] = array();
+			}
 		}
 
 		if ($currentEntity)
@@ -384,7 +398,10 @@ class CBPStartWorkflowActivity
 
 		$iterator = CBPWorkflowTemplateLoader::GetList(
 			array('NAME' => 'ASC'),
-			array('DOCUMENT_TYPE' => explode('@', $document)),
+			array(
+				'DOCUMENT_TYPE' => explode('@', $document),
+				'!AUTO_EXECUTE' => CBPDocumentEventType::Automation
+			),
 			false,
 			false,
 			array('ID', 'NAME')
@@ -424,7 +441,7 @@ class CBPStartWorkflowActivity
 				$result[$key] = $documentService->GetFieldInputValue(
 					$dt,
 					$parameter,
-					'template_'.$key,
+					'bpswfatemplate_'.$key,
 					$request,
 					$errors
 				);
@@ -449,7 +466,7 @@ class CBPStartWorkflowActivity
 				$result .= '<tr><td colspan="2" align="center">'.GetMessage('BPSWFA_TEMPLATE_PARAMETERS').':</td></tr>';
 				foreach ($template['PARAMETERS'] as $key => $parameter)
 				{
-					$parameterKeyExt = 'template_'.$key;
+					$parameterKeyExt = 'bpswfatemplate_'.$key;
 					$parameterValue = isset($currentValues[$key]) ? $currentValues[$key] : $parameter['Default'];
 					$dt = $parameter['Type'] == FieldType::USER ? $documentType : $template['DOCUMENT_TYPE'];
 

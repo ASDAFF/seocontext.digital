@@ -7,6 +7,8 @@ use Bitrix\Main;
 class Helper
 {
 
+	const SYNC_TIMEOUT = 300;
+
 	public static function syncMailboxAgent($id)
 	{
 		$result = self::syncMailbox($id, $error);
@@ -15,6 +17,25 @@ class Helper
 			return '';
 
 		return sprintf('Bitrix\Mail\Helper::syncMailboxAgent(%u);', $id);
+	}
+
+	public static function resyncDomainUsersAgent()
+	{
+		$res = MailServicesTable::getList(array(
+			'filter' => array(
+				'=ACTIVE'       => 'Y',
+				'@SERVICE_TYPE' => array('domain', 'crdomain'),
+			)
+		));
+		while ($item = $res->fetch())
+		{
+			if ($item['SERVICE_TYPE'] == 'domain')
+				\CMailDomain2::getDomainUsers($item['TOKEN'], $item['SERVER'], $error, true);
+			if ($item['SERVICE_TYPE'] == 'crdomain')
+				\CControllerClient::executeEvent('OnMailControllerResyncMemberUsers', array('DOMAIN' => $item['SERVER']));
+		}
+
+		return 'Bitrix\Mail\Helper::resyncDomainUsersAgent();';
 	}
 
 	public static function syncMailbox($id, &$error)
@@ -42,11 +63,11 @@ class Helper
 			return false;
 		}
 
-		if ($mailbox['USER_ID'])
-			\CUserOptions::setOption('global', 'last_mail_sync_'.$mailbox['LID'], time(), false, $mailbox['USER_ID']);
-
-		if ($mailbox['SYNC_LOCK'] > time()-600)
+		if ($mailbox['SYNC_LOCK'] > time()-Helper::SYNC_TIMEOUT)
 			return;
+
+		if ($mailbox['USER_ID'] > 0)
+			\CUserOptions::setOption('global', 'last_mail_sync_'.$mailbox['LID'], time(), false, $mailbox['USER_ID']);
 
 		if (in_array($mailbox['SERVER_TYPE'], array('controller', 'crdomain')))
 		{
@@ -66,11 +87,34 @@ class Helper
 			$mailbox['USE_TLS'] = $result['secure'];
 		}
 
-		$DB->query(sprintf('UPDATE b_mail_mailbox SET SYNC_LOCK = %u WHERE ID = %u', time(), $id));
+		$mailbox['SYNC_LOCK'] = time();
+		$res = $DB->query(sprintf(
+			'UPDATE b_mail_mailbox SET SYNC_LOCK = %u WHERE ID = %u AND (SYNC_LOCK IS NULL OR SYNC_LOCK < %u)',
+			$mailbox['SYNC_LOCK'], $id, $mailbox['SYNC_LOCK']-Helper::SYNC_TIMEOUT
+		));
+
+		if (!$res->affectedRowsCount())
+			return;
 
 		$result = static::syncImapMailbox($mailbox, $error);
 
-		$DB->query(sprintf('UPDATE b_mail_mailbox SET SYNC_LOCK = 0 WHERE ID = %u', $id));
+		$DB->query(sprintf(
+			'UPDATE b_mail_mailbox SET SYNC_LOCK = 0 WHERE ID = %u AND SYNC_LOCK = %u',
+			$id, $mailbox['SYNC_LOCK']
+		));
+
+		if ($mailbox['USER_ID'] > 0)
+		{
+			\CUserOptions::setOption('global', 'last_mail_check_'.$mailbox['LID'], time(), false, $mailbox['USER_ID']);
+			\CUserOptions::setOption('global', 'last_mail_sync_'.$mailbox['LID'], time(), false, $mailbox['USER_ID']);
+			\CUserOptions::setOption('global', 'last_mail_check_success_'.$mailbox['LID'], (bool) $result, false, $mailbox['USER_ID']);
+		}
+		else
+		{
+			\Bitrix\Main\Config\Option::set('mail', 'last_mail_check', time(), $mailbox['LID']);
+			\Bitrix\Main\Config\Option::set('mail', 'last_mail_sync', time(), $mailbox['LID']);
+			\Bitrix\Main\Config\Option::set('mail', 'last_mail_check_success', $result ? 'Y' : 'N', $mailbox['LID']);
+		}
 
 		return $result;
 	}
@@ -95,7 +139,7 @@ class Helper
 		);
 
 		if (!$client->singin($error))
-			return $client->getState() ? false : null;
+			return;
 
 		$localList = array();
 		$localSeen = array();
@@ -112,17 +156,32 @@ class Helper
 		$obsoleteList = $localList;
 		$modifiedList = array();
 
-		// @TODO: blacklist entity
 		$blacklist = array(
 			'domain' => array(),
 			'email'  => array(),
 		);
-		foreach ((array) $mailbox['OPTIONS']['blacklist'] as $item)
+
+		$res = BlacklistTable::getList(array(
+			'select' => array('ITEM_TYPE', 'ITEM_VALUE'),
+			'filter' => array(
+				array(
+					'LOGIC' => 'OR',
+					array(
+						'MAILBOX_ID' => $mailbox['ID'],
+					),
+					array(
+						'MAILBOX_ID' => 0,
+						'SITE_ID'    => $mailbox['SITE_ID'],
+					)
+				),
+			),
+		));
+		while ($item = $res->fetch())
 		{
-			if (strpos($item, '@') === 0)
-				$blacklist['domain'][] = $item;
+			if (Blacklist\ItemType::DOMAIN == $item['ITEM_TYPE'])
+				$blacklist['domain'][] = $item['ITEM_VALUE'];
 			else
-				$blacklist['email'][] = $item;
+				$blacklist['email'][] = $item['ITEM_VALUE'];
 		}
 
 		$domains = array();
@@ -136,9 +195,12 @@ class Helper
 				$domains[$site['LID']] = $matches['domain'];
 		}
 
-		$res = UserRelationsTable::getList(array('filter' => array('=USER_ID' => $mailbox['USER_ID'], '=ENTITY_ID' => null)));
-		while ($relation = $res->fetch())
-			$blacklist['email'][] = sprintf('fwd%s@%s', $relation['TOKEN'], $domains[$relation['SITE_ID']]);
+		if ($mailbox['USER_ID'] > 0)
+		{
+			$res = UserRelationsTable::getList(array('filter' => array('=USER_ID' => $mailbox['USER_ID'], '=ENTITY_ID' => null)));
+			while ($relation = $res->fetch())
+				$blacklist['email'][] = sprintf('fwd%s@%s', $relation['TOKEN'], $domains[$relation['SITE_ID']]);
+		}
 
 		$blacklist['domain'] = array_map('strtolower', $blacklist['domain']);
 		$blacklist['email']  = array_map('strtolower', $blacklist['email']);
@@ -241,6 +303,15 @@ class Helper
 					continue;
 				}
 
+				if (\CMail::option('attachment_failure'))
+				{
+					if ($item['size'] > 200000)
+						continue;
+				}
+
+				if ($mailbox['SYNC_LOCK'] < time()-Helper::SYNC_TIMEOUT*0.9)
+					return true;
+
 				MailMessageUidTable::add(array(
 					'ID'          => $item['uid'],
 					'MAILBOX_ID'  => $mailbox['ID'],
@@ -251,6 +322,13 @@ class Helper
 					'MESSAGE_ID'  => 0,
 				));
 				$localList[$item['uid']] = $item['hash'];
+
+				if (!empty($mailbox['OPTIONS']['sync_from']))
+				{
+					$syncFrom = (int) $mailbox['OPTIONS']['sync_from'];
+					if (strtotime($item['date']) < $syncFrom)
+						continue;
+				}
 
 				$item['outcome'] = in_array($name, $imapOptions['outcome']);
 
@@ -305,35 +383,36 @@ class Helper
 						continue;
 				}
 
-				if (!empty($mailbox['OPTIONS']['sync_from']))
-				{
-					$syncFrom = (int) $mailbox['OPTIONS']['sync_from'];
-					if (strtotime($item['date']) < $syncFrom)
-						continue;
-				}
+				$messageId = 0;
 
 				$body = $client->getMessage($name, $item['id'], null, $error);
+				if ($body !== false)
+				{
+					if (!preg_match('/\r\n$/', $body))
+						$body .= "\r\n";
 
-				if ($body === false) // an error occurred
-					continue;
+					$messageId = \CMailMessage::addMessage(
+						$mailbox['ID'], $body,
+						$mailbox['CHARSET'] ?: $mailbox['LANG_CHARSET'],
+						array(
+							'outcome' => $item['outcome'],
+							'seen'    => $item['seen'],
+							'hash'    => $item['hash'],
+						)
+					);
+				}
 
-				if (!preg_match('/\r\n$/', $body))
-					$body .= "\r\n";
-
-				$messageId = \CMailMessage::addMessage(
-					$mailbox['ID'], $body,
-					$mailbox['CHARSET'] ?: $mailbox['LANG_CHARSET'],
-					array(
-						'outcome' => $item['outcome'],
-						'seen'    => $item['seen'],
-						'hash'    => $item['hash'],
-					)
-				);
 				if ($messageId > 0)
 				{
 					MailMessageUidTable::update(
 						array('ID' => $item['uid'], 'MAILBOX_ID' => $mailbox['ID']),
 						array('MESSAGE_ID' => $messageId)
+					);
+				}
+				else
+				{
+					MailMessageUidTable::delete(
+						array('ID' => $item['uid'], 'MAILBOX_ID' => $mailbox['ID'])
 					);
 				}
 			}
@@ -388,9 +467,10 @@ class Helper
 		return true;
 	}
 
-	public static function listImapDirs($mailbox, &$error)
+	public static function listImapDirs($mailbox, &$error, &$errors = null)
 	{
-		$error = null;
+		$error  = null;
+		$errors = null;
 
 		$client = new Imap(
 			$mailbox['SERVER'], $mailbox['PORT'],
@@ -400,7 +480,8 @@ class Helper
 			$mailbox['LANG_CHARSET'] ?: $mailbox['CHARSET']
 		);
 
-		$list = $client->listMailboxes('*', $error);
+		$list   = $client->listMailboxes('*', $error);
+		$errors = $client->getErrors();
 
 		if ($list === false)
 			return false;
@@ -448,9 +529,10 @@ class Helper
 		return $flat($list);
 	}
 
-	public static function getImapUnseen($mailbox, $dir = 'inbox', &$error)
+	public static function getImapUnseen($mailbox, $dir = 'inbox', &$error, &$errors = null)
 	{
-		$error = null;
+		$error  = null;
+		$errors = null;
 
 		$client = new Imap(
 			$mailbox['SERVER'], $mailbox['PORT'],
@@ -460,7 +542,10 @@ class Helper
 			$mailbox['LANG_CHARSET'] ?: $mailbox['CHARSET']
 		);
 
-		return $client->getUnseen($dir, $error);
+		$result = $client->getUnseen($dir, $error);
+		$errors = $client->getErrors();
+
+		return $result;
 	}
 
 	public static function addImapMessage($id, $data, &$error)
@@ -517,20 +602,23 @@ class Helper
 	{
 		$error = null;
 
-		$msgUid = MailMessageUidTable::getList(array(
+		$res = MailMessageUidTable::getList(array(
 			'select' => array('ID', 'MAILBOX_ID', 'IS_SEEN'),
 			'filter' => array(
-				'HEADER_MD5'      => $hash,
-				'MAILBOX.USER_ID' => $userId
+				'=HEADER_MD5'     => $hash,
+				'MAILBOX.USER_ID' => array($userId, 0),
 			),
-		))->fetch();
+		));
 
-		if ($msgUid && in_array($msgUid['IS_SEEN'], array('Y', 'S')) != $data['seen'])
+		while ($msgUid = $res->fetch())
 		{
-			MailMessageUidTable::update(
-				array('ID' => $msgUid['ID'], 'MAILBOX_ID' => $msgUid['MAILBOX_ID']),
-				array('IS_SEEN' => $data['seen'] ? 'S' : 'U')
-			);
+			if (in_array($msgUid['IS_SEEN'], array('Y', 'S')) != $data['seen'])
+			{
+				MailMessageUidTable::update(
+					array('ID' => $msgUid['ID'], 'MAILBOX_ID' => $msgUid['MAILBOX_ID']),
+					array('IS_SEEN' => $data['seen'] ? 'S' : 'U')
+				);
+			}
 		}
 	}
 

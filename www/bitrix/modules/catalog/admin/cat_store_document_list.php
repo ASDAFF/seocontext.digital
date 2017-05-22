@@ -599,13 +599,13 @@ require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_aft
 			<td><?= GetMessage("CAT_DOC_TYPE") ?>:</td>
 			<td>
 				<select name="filter_doc_type">
-					<option value=""><?= htmlspecialcharsex("(".GetMessage("CAT_DOC_TYPE").")") ?></option>
+					<option value=""><?=htmlspecialcharsbx("(".GetMessage("CAT_DOC_TYPE").")") ?></option>
 
 					<?
 					foreach($documentTypes as $type => $class)
 					{
 						?>
-						<option value="<?=$type?>"<?if($_REQUEST["filter_doc_type"] == $type) echo " selected"?>><?= htmlspecialcharsex(GetMessage("CAT_DOC_".$type)) ?></option>
+						<option value="<?=$type?>"<?if($_REQUEST["filter_doc_type"] == $type) echo " selected"?>><?=htmlspecialcharsbx(GetMessage("CAT_DOC_".$type)) ?></option>
 					<?
 					}
 					?>
@@ -622,7 +622,7 @@ require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_aft
 			<td><?= GetMessage("CAT_DOC_CONTRACTOR") ?>:</td>
 			<td>
 				<select name="filter_contractor_id">
-					<option value=""><?= htmlspecialcharsex("(".GetMessage("CAT_DOC_CONTRACTOR").")") ?></option>
+					<option value=""><?=htmlspecialcharsbx("(".GetMessage("CAT_DOC_CONTRACTOR").")") ?></option>
 
 					<?
 					foreach($arContractors as $arContractor)
@@ -639,9 +639,9 @@ require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_aft
 			<td><?= GetMessage("CAT_DOC_STATUS") ?>:</td>
 			<td>
 				<select name="filter_status">
-					<option value=""><?= htmlspecialcharsex("(".GetMessage("CAT_DOC_STATUS").")") ?></option>
-					<option value="Y"<?if($filter_status == "Y") echo " selected"?>><?= htmlspecialcharsex(GetMessage("CAT_DOC_EXECUTION_Y")) ?></option>
-					<option value="N"<?if($filter_status == "N") echo " selected"?>><?= htmlspecialcharsex(GetMessage("CAT_DOC_EXECUTION_N")) ?></option>
+					<option value=""><?=htmlspecialcharsbx("(".GetMessage("CAT_DOC_STATUS").")") ?></option>
+					<option value="Y"<?if($filter_status == "Y") echo " selected"?>><?=htmlspecialcharsbx(GetMessage("CAT_DOC_EXECUTION_Y")) ?></option>
+					<option value="N"<?if($filter_status == "N") echo " selected"?>><?=htmlspecialcharsbx(GetMessage("CAT_DOC_EXECUTION_N")) ?></option>
 				</select>
 			</td>
 		</tr>

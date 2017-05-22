@@ -124,4 +124,7 @@ $MESS["main_menu_diag"] = "System Administration";
 $MESS["main_menu_diag_title"] = "Administrator's tools";
 $MESS["MAIN_MENU_COMPOSITE"] = "Composite Website";
 $MESS["MAIN_MENU_COMPOSITE_ALT"] = "Manage composite mode";
+$MESS["MAIN_MENU_HTTPS"] = "HTTPS Configuration";
+$MESS["MAIN_MENU_HTTPS_ALT"] = "Website HTTPS Configuration";
+$MESS["MAIN_MENU_GEOIP_HANDLERS"] = "Geolocation";
 ?>

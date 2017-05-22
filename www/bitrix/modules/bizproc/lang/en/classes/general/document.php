@@ -5,7 +5,7 @@ $MESS["BPCGDOC_AUTO_EXECUTE_CREATE"] = "Create";
 $MESS["BPCGDOC_AUTO_EXECUTE_DELETE"] = "Delete";
 $MESS["BPCGDOC_AUTO_EXECUTE_NONE"] = "No";
 $MESS["BPCGDOC_NO"] = "No";
-$MESS["BPCGDOC_INVALID_WF"] = "No working business process for this document can be found.";
+$MESS["BPCGDOC_INVALID_WF"] = "No working business process for this element can be found.";
 $MESS["BPCGDOC_EMPTY_WD_ID"] = "The business process template ID is missing.";
 $MESS["BPCGDOC_INVALID_TYPE"] = "The parameter type is undefined.";
 $MESS["BPCGDOC_AUTO_EXECUTE_EDIT"] = "Update";
@@ -19,4 +19,5 @@ $MESS["BPCGDOC_WI_LOCKED_NOTICE_MESSAGE"] = "Some of the workflows you have star
 [URL=#PATH#]View these workflows[/URL].";
 $MESS["BPCGDOC_DELEGATE_LOG_TITLE"] = "Delegated";
 $MESS["BPCGDOC_DELEGATE_LOG"] = "User #FROM# delegated task \"#NAME#\" to #TO#";
+$MESS["BPCGDOC_WI_B24_LIMITS_MESSAGE"] = "Some of the entities on your portal run more than two simultaneous workflows. A restriction of maximum two simultaneous workflows per entity will soon be introduced. It is recommended that you alter the logic of your workflows. [URL=https://helpdesk.bitrix24.com/open/4838471/]Learn more[/URL]";
 ?>

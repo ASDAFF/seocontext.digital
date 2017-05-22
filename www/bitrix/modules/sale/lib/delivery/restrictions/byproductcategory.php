@@ -2,7 +2,8 @@
 namespace Bitrix\Sale\Delivery\Restrictions;
 
 use Bitrix\Main\Localization\Loc;
-use Bitrix\Sale\Internals\CollectableEntity;
+use Bitrix\Sale\Internals\Entity;
+use Bitrix\Sale\Shipment;
 
 Loc::loadMessages(__FILE__);
 
@@ -60,8 +61,13 @@ class ByProductCategory extends Base
 		return $result;
 	}
 
-	public static function extractParams(CollectableEntity $shipment)
+	public static function extractParams(Entity $entity)
 	{
+		if (!$entity instanceof Shipment)
+		{
+			return array();
+		}
+
 		if(!\Bitrix\Main\Loader::includeModule('iblock'))
 			return array();
 
@@ -71,7 +77,7 @@ class ByProductCategory extends Base
 		$productIds = array();
 
 		/** @var \Bitrix\Sale\ShipmentItem $shipmentItem */
-		foreach($shipment->getShipmentItemCollection() as $shipmentItem)
+		foreach($entity->getShipmentItemCollection() as $shipmentItem)
 		{
 			/** @var \Bitrix\Sale\BasketItem $basketItem */
 			$basketItem = $shipmentItem->getBasketItem();

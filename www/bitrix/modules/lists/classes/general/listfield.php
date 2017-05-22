@@ -257,6 +257,7 @@ class CListElementField extends CListField
 	public function GetArray()
 	{
 		return array(
+			"FIELD_ID" => $this->_field_id,
 			"SORT" => $this->_sort,
 			"NAME" => $this->_label,
 			"IS_REQUIRED" => $this->_iblock_field["IS_REQUIRED"],
@@ -416,6 +417,7 @@ class CListPropertyField extends CListField
 		if(is_array($this->_property))
 		{
 			return array(
+				"FIELD_ID" => $this->_field_id,
 				"SORT" => $this->_sort,
 				"NAME" => $this->_property["NAME"],
 				"IS_REQUIRED" => $this->_property["IS_REQUIRED"],

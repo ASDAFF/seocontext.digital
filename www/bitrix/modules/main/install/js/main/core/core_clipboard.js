@@ -141,7 +141,11 @@
 				return null;
 			}
 
-			if(BX.type.isString(mixed))
+			if(BX.type.isFunction(mixed))
+			{
+				return mixed.apply(this, []);
+			}
+			else if(BX.type.isString(mixed))
 			{
 				return mixed;
 			}
@@ -180,13 +184,14 @@
 				content: isCopied ? BX.message('CORE_CLIPBOARD_COPY_SUCCESS') : BX.message('CORE_CLIPBOARD_COPY_FAILURE'),
 				darkMode: true,
 				autoHide: true,
+				zIndex: 1000,
 				angle: true,
 				offsetLeft: 5,
 				bindOptions: {
 					position: 'top'
 				}
 			});
-			var popup = BX.PopupWindowManager.create(
+			var popup = new BX.PopupWindow(
 				'clipboard_copy_status_' + popupId,
 				nodeButton,
 				popupParams

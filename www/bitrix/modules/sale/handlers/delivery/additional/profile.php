@@ -1,6 +1,7 @@
 <?
 namespace Sale\Handlers\Delivery;
 
+use Bitrix\Main\Error;
 use Bitrix\Main\SystemException;
 use Bitrix\Sale\Shipment;
 use Bitrix\Main\Localization\Loc;
@@ -17,6 +18,8 @@ class AdditionalProfile extends \Bitrix\Sale\Delivery\Services\Base
 	protected $additionalHandler = null;
 	/** @var string Service type */
 	protected $profileType = "";
+	protected $trackingTitle = "";
+	protected $trackingDescription = "";
 
 	protected static $whetherAdminExtraServicesShow = true;
 	/** @var bool This handler is profile */
@@ -47,7 +50,7 @@ class AdditionalProfile extends \Bitrix\Sale\Delivery\Services\Base
 		{
 			$profileParams = $this->getProfileParams();
 
-			if(!empty($profileParams))
+			if(!empty($profileParams) && $this->id <= 0)
 			{
 				$this->name = $profileParams['NAME'];
 				$this->description = $profileParams['DESCRIPTION'];
@@ -102,6 +105,8 @@ class AdditionalProfile extends \Bitrix\Sale\Delivery\Services\Base
 		if(strlen($this->description) <= 0) $this->description = $this->additionalHandler->getDescription();
 		if(empty($this->trackingParams)) $this->trackingParams = $this->additionalHandler->getTrackingParams();
 		if(strlen($this->trackingClass) <= 0) $this->trackingClass = $this->additionalHandler->getTrackingClass();
+		if(strlen($this->trackingTitle) <= 0) $this->trackingTitle = $this->additionalHandler->getTrackingClassTitle();
+		if(strlen($this->trackingDescription) <= 0) $this->trackingDescription = $this->additionalHandler->getTrackingClassDescription();
 
 		$parentES = \Bitrix\Sale\Delivery\ExtraServices\Manager::getExtraServicesList($this->parentId);
 
@@ -130,20 +135,31 @@ class AdditionalProfile extends \Bitrix\Sale\Delivery\Services\Base
 	{
 		$client = new \Sale\Handlers\Delivery\Additional\RestClient();
 
-		return $client->getDeliveryPrice(
-			$this->additionalHandler->getServiceType(),
-			$this->profileType,
-			self::extractConfigValues($this->additionalHandler->getConfig()),
-			self::extractConfigValues($this->getConfig()),
-			$shipment
-		);
+		try
+		{
+			$result =  $client->getDeliveryPrice(
+				$this->additionalHandler->getServiceType(),
+				$this->profileType,
+				self::extractConfigValues($this->additionalHandler->getConfig()),
+				self::extractConfigValues($this->getConfig()),
+				$shipment
+			);
+		}
+		catch(SystemException $e)
+		{
+			$result = new CalculationResult();
+			$result->addError(new Error($e->getMessage()));
+		}
+
+		return $result;
 	}
+
 
 	/**
 	 * @param array $config
 	 * @return array
 	 */
-	protected static function extractConfigValues(array $config)
+	public static function extractConfigValues(array $config)
 	{
 		if(!is_array($config) || empty($config))
 			return array();
@@ -195,7 +211,7 @@ class AdditionalProfile extends \Bitrix\Sale\Delivery\Services\Base
 		);
 
 		if(!$res->isSuccess())
-			throw new SystemException(Loc::getMessage('SALE_DLVRS_ADD_PCONFIG_RECEIVE_ERROR'));
+			array();
 
 		return $res->getData();
 	}
@@ -271,12 +287,26 @@ class AdditionalProfile extends \Bitrix\Sale\Delivery\Services\Base
 		{
 			$result = array();
 			$client = new RestClient();
-			$res = $client->getProfileExtraServices($this->additionalHandler->getServiceType(), $this->profileType);
+			$res = $client->getProfileExtraServices(
+				$this->additionalHandler->getServiceType(),
+				$this->profileType,
+				self::extractConfigValues($this->getConfig())
+			);
 
 			if($res->isSuccess())
 				$result = $res->getData();
 		}
 
 		return $result;
+	}
+
+	public function getTrackingClassTitle()
+	{
+		return !empty($this->config['MAIN']['TRACKING_TITLE']) ? $this->config['MAIN']['TRACKING_TITLE'] : '';
+	}
+
+	public function getTrackingClassDescription()
+	{
+		return !empty($this->config['MAIN']['TRACKING_DESCRIPTION']) ? $this->config['MAIN']['TRACKING_DESCRIPTION'] : '';
 	}
 }

@@ -26,6 +26,53 @@ class RelationHandler extends \Bitrix\Replica\Client\BaseHandler
 	);
 
 	/**
+	 * Method will be invoked before new database record inserted.
+	 * When an array returned the insert will be cancelled and map for
+	 * returned record will be added.
+	 *
+	 * @param array &$newRecord All fields of inserted record.
+	 *
+	 * @return null|array
+	 */
+	public function beforeInsertTrigger(array &$newRecord)
+	{
+		if (
+			isset($newRecord["MESSAGE_TYPE"])
+			&& $newRecord["MESSAGE_TYPE"] === "S"
+		)
+		{
+			$chatList = \Bitrix\Im\Model\RelationTable::getList(array(
+				"filter" => array(
+					"=USER_ID" => $newRecord["USER_ID"],
+					"=CHAT_ID" => $newRecord["CHAT_ID"],
+					"=MESSAGE_TYPE" => "S",
+				),
+			));
+			$oldRecord = $chatList->fetch();
+			if ($oldRecord)
+			{
+				return $oldRecord;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Called before update operation log write. You may return false and not log write will take place.
+	 *
+	 * @param array $record Database record.
+	 *
+	 * @return boolean
+	 */
+	public function beforeLogUpdate(array $record)
+	{
+		if ($record["MESSAGE_TYPE"] === "S")
+			return false;
+		else
+			return true;
+	}
+
+	/**
 	 * Called before log write. You may return false and not log write will take place.
 	 *
 	 * @param array $record Database record.
@@ -76,6 +123,7 @@ class RelationHandler extends \Bitrix\Replica\Client\BaseHandler
 						\CPullStack::AddByUser($relation['USER_ID'], Array(
 							'module_id' => 'im',
 							'command' => 'readMessageApponent',
+							'expiry' => 3600,
 							'params' => Array(
 								'chatId' => intval($newRecord['CHAT_ID']),
 								'userId' => intval($newRecord['USER_ID']),

@@ -190,13 +190,18 @@ else
 						);
 						echo "<br />";
 					}
-					echo "<br><a href='".htmlspecialcharsbx($APPLICATION->GetCurPageParam("admin_mode=N", array("admin_mode")))."'>".GetMessage("BPABL_RES2SIMPLEMODE")."</a>";
+					echo "<br><a href=\"".htmlspecialcharsbx($APPLICATION->GetCurPageParam("admin_mode=N", array("admin_mode")))."\">".GetMessage("BPABL_RES2SIMPLEMODE")."</a>";
 				}
 				else
 				{
 					$dbResult = CBPTrackingService::GetList(
 						array("ID" => "ASC"),
-						array("WORKFLOW_ID" => $ID, "TYPE" => array(CBPTrackingType::Report, CBPTrackingType::Custom, CBPTrackingType::FaultActivity)),
+						array("WORKFLOW_ID" => $ID, "TYPE" => array(
+							CBPTrackingType::Report,
+							CBPTrackingType::Custom,
+							CBPTrackingType::FaultActivity,
+							CBPTrackingType::Error
+						)),
 						false,
 						false,
 						array("ID", "MODIFIED", "ACTION_NOTE")
@@ -204,7 +209,7 @@ else
 					while ($arResult = $dbResult->GetNext())
 						echo "<i>".$arResult["MODIFIED"]."</i><br>".CBPTrackingService::parseStringParameter($arResult["ACTION_NOTE"])."<br><br>";
 
-					echo "<a href='".htmlspecialcharsbx($APPLICATION->GetCurPageParam("admin_mode=Y", array("admin_mode")))."'>".GetMessage("BPABL_RES2ADMINMODE")."</a>";
+					echo "<a href=\"".htmlspecialcharsbx($APPLICATION->GetCurPageParam("admin_mode=Y", array("admin_mode")))."\">".GetMessage("BPABL_RES2ADMINMODE")."</a>";
 				}
 				?>
 			</td>

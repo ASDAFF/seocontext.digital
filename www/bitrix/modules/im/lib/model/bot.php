@@ -67,6 +67,12 @@ class BotTable extends Main\Entity\DataManager
 				'validation' => array(__CLASS__, 'validateToClass'),
 				'title' => Loc::getMessage('BOT_ENTITY_TO_CLASS_FIELD'),
 			),
+			'LANG' => array(
+				'data_type' => 'string',
+				'validation' => array(__CLASS__, 'validateLanguage'),
+				'title' => Loc::getMessage('BOT_ENTITY_LANGUAGE_FIELD'),
+				'default_value' => '',
+			),
 			'METHOD_BOT_DELETE' => array(
 				'data_type' => 'string',
 				'validation' => array(__CLASS__, 'validateToMethod'),
@@ -77,10 +83,28 @@ class BotTable extends Main\Entity\DataManager
 				'validation' => array(__CLASS__, 'validateToMethod'),
 				'title' => Loc::getMessage('BOT_ENTITY_METHOD_MESSAGE_ADD_FIELD'),
 			),
+			'METHOD_MESSAGE_UPDATE' => array(
+				'data_type' => 'string',
+				'validation' => array(__CLASS__, 'validateToMethod'),
+				'title' => Loc::getMessage('BOT_ENTITY_METHOD_MESSAGE_UPDATE_FIELD'),
+			),
+			'METHOD_MESSAGE_DELETE' => array(
+				'data_type' => 'string',
+				'validation' => array(__CLASS__, 'validateToMethod'),
+				'title' => Loc::getMessage('BOT_ENTITY_METHOD_MESSAGE_DELETE_FIELD'),
+			),
 			'METHOD_WELCOME_MESSAGE' => array(
 				'data_type' => 'string',
 				'validation' => array(__CLASS__, 'validateToMethod'),
 				'title' => Loc::getMessage('BOT_ENTITY_METHOD_WELCOME_MESSAGE_FIELD'),
+			),
+			'TEXT_PRIVATE_WELCOME_MESSAGE' => array(
+				'data_type' => 'text',
+				'title' => Loc::getMessage('BOT_ENTITY_TEXT_CHAT_WELCOME_MESSAGE_FIELD'),
+			),
+			'TEXT_CHAT_WELCOME_MESSAGE' => array(
+				'data_type' => 'text',
+				'title' => Loc::getMessage('BOT_ENTITY_TEXT_CHAT_WELCOME_MESSAGE_FIELD'),
 			),
 			'COUNT_MESSAGE' => array(
 				'data_type' => 'integer',
@@ -103,6 +127,18 @@ class BotTable extends Main\Entity\DataManager
 				'validation' => array(__CLASS__, 'validateAppId'),
 				'title' => Loc::getMessage('BOT_ENTITY_APP_ID_FIELD'),
 				'default_value' => '',
+			),
+			'VERIFIED' => array(
+				'data_type' => 'boolean',
+				'values' => array('N', 'Y'),
+				'title' => Loc::getMessage('BOT_ENTITY_VERIFIED_FIELD'),
+				'default_value' => 'N',
+			),
+			'OPENLINE' => array(
+				'data_type' => 'boolean',
+				'values' => array('N', 'Y'),
+				'title' => Loc::getMessage('BOT_ENTITY_OPENLINE_FIELD'),
+				'default_value' => 'N',
 			),
 		);
 	}
@@ -163,4 +199,17 @@ class BotTable extends Main\Entity\DataManager
 			new  Main\Entity\Validator\Length(null, 1),
 		);
 	}
+	/**
+	 * Returns validators for TYPE field.
+	 *
+	 * @return array
+	 */
+	public static function validateLanguage()
+	{
+		return array(
+			new  Main\Entity\Validator\Length(null, 50),
+		);
+	}
 }
+
+class_alias("Bitrix\\Im\\Model\\BotTable", "Bitrix\\Im\\BotTable", false);

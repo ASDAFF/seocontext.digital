@@ -206,7 +206,7 @@ if ($message)
 		<td width="40%"><?=GetMessage("MAIL_MBOX_EDT_SERVICE"); ?> </td>
 		<td width="60%">
 			<? if ($str_SERVER_TYPE != 'imap' && $ID > 0) { ?>
-			[<?=$str_SERVICE_ID; ?>] <?=$mailServices[$str_LID][$str_SERVICE_ID]['NAME']; ?>
+			[<?=$str_SERVICE_ID; ?>] <?=htmlspecialcharsbx($mailServices[$str_LID][$str_SERVICE_ID]['NAME']) ?>
 			<? } else { ?>
 			<select id="mailbox_service_id" name="SERVICE_ID" onchange="changeFields();">
 			<?
@@ -215,7 +215,7 @@ if ($message)
 					<? if ($service['SERVICE_TYPE'] != 'imap') continue; ?>
 					<option value="<?=$service['ID']; ?>"
 						<? if ($str_SERVICE_ID == $service['ID']) { ?> selected="selected"<? } ?>>
-						[<?=$service['ID']; ?>] <?=$service['NAME']; ?>
+						[<?=$service['ID']; ?>] <?=htmlspecialcharsbx($service['NAME']) ?>
 					</option>
 			<?
 				}
@@ -495,9 +495,9 @@ if ($message)
 		<? foreach ($mailServices as $site => $services) { ?>
 		<? foreach ($services as $service => $settings) { ?>
 		'<?=$service; ?>': {
-			'name': '<?=$settings['NAME']; ?>',
-			'link': '<?=$settings['LINK']; ?>',
-			'server': '<?=$settings['SERVER']; ?>',
+			'name': '<?=CUtil::jsEscape($settings['NAME']) ?>',
+			'link': '<?=CUtil::jsEscape($settings['LINK']) ?>',
+			'server': '<?=CUtil::jsEscape($settings['SERVER']) ?>',
 			'port': '<?=$settings['PORT']; ?>',
 			'encryption': '<?=$settings['ENCRYPTION']; ?>',
 			'type': '<?=$settings['SERVICE_TYPE']; ?>'

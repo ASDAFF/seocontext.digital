@@ -26,15 +26,49 @@ require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/sale/lib/helpers/admin/o
 
 $allowedStatusesView = array();
 
+$isAllowView = false;
+$isAllowUpdate = false;
+$isAllowDelete = false;
+
 //load order
 if(!empty($_REQUEST["ID"]) && intval($_REQUEST["ID"]) > 0)
 	$saleOrder = Bitrix\Sale\Order::load($_REQUEST["ID"]);
 
 if($saleOrder)
+{
 	$allowedStatusesView = \Bitrix\Sale\OrderStatus::getStatusesUserCanDoOperations($USER->GetID(), array('view'));
+	$allowedStatusesUpdate = \Bitrix\Sale\OrderStatus::getStatusesUserCanDoOperations($USER->GetID(), array('update'));
+	$allowedStatusesDelete = \Bitrix\Sale\OrderStatus::getStatusesUserCanDoOperations($USER->GetID(), array('delete'));
+	$isAllowView = in_array($saleOrder->getField("STATUS_ID"), $allowedStatusesView);
+	$isAllowUpdate = in_array($saleOrder->getField("STATUS_ID"), $allowedStatusesUpdate);
+	$isAllowDelete = in_array($saleOrder->getField("STATUS_ID"), $allowedStatusesDelete);
+}
 
-if(!$saleOrder || !in_array($saleOrder->getField("STATUS_ID"), $allowedStatusesView))
+if(!$saleOrder || !$isAllowView)
 	LocalRedirect("/bitrix/admin/sale_order.php?lang=".LANGUAGE_ID.GetFilterParams("filter_", false));
+
+$isUserResponsible = false;
+$isAllowCompany = false;
+
+if ($saleModulePermissions == 'P')
+{
+	$userCompanyList = \Bitrix\Sale\Services\Company\Manager::getUserCompanyList($USER->GetID());
+
+	if ($saleOrder->getField('RESPONSIBLE_ID') == $USER->GetID())
+	{
+		$isUserResponsible = true;
+	}
+
+	if (in_array($saleOrder->getField('COMPANY_ID'), $userCompanyList))
+	{
+		$isAllowCompany = true;
+	}
+
+	if (!$isUserResponsible && !$isAllowCompany)
+	{
+		LocalRedirect("/bitrix/admin/sale_order.php?lang=".LANGUAGE_ID.GetFilterParams("filter_", false));
+	}
+}
 
 $ID = intval($_REQUEST["ID"]);
 $boolLocked = \Bitrix\Sale\Order::isLocked($ID);
@@ -120,9 +154,9 @@ if ($boolLocked && $saleModulePermissions >= 'W')
 	);
 }
 
-$allowedStatusesUpdate = \Bitrix\Sale\OrderStatus::getStatusesUserCanDoOperations($USER->GetID(), array('update'));
 
-if(!$boolLocked && in_array($saleOrder->getField("STATUS_ID"), $allowedStatusesUpdate))
+
+if(!$boolLocked && $isAllowUpdate)
 {
 	$aMenu[] = array(
 		"TEXT" => Loc::getMessage("SALE_OVIEW_TO_EDIT"),
@@ -208,14 +242,23 @@ $aMenu[] = array(
 	"MENU" => $arReports
 );
 
-$aMenu[] = array(
-	"TEXT" => Loc::getMessage("SALE_OVIEW_ORDER_COPY"),
-	"TITLE"=> Loc::getMessage("SALE_OVIEW_ORDER_COPY_TITLE"),
-	"LINK" => '/bitrix/admin/sale_order_create.php?lang='.LANGUAGE_ID."&SITE_ID=".$saleOrder->getSiteId()."&ID=".$ID."&".bitrix_sessid_get().GetFilterParams("filter_")
-);
-
-if(CSaleOrder::CanUserDeleteOrder($ID, $arUserGroups, $USER->GetID()))
+if ($isAllowUpdate)
 {
+	$aMenu[] = array(
+		"TEXT" => Loc::getMessage("SALE_OVIEW_ORDER_COPY"),
+		"TITLE"=> Loc::getMessage("SALE_OVIEW_ORDER_COPY_TITLE"),
+		"LINK" => '/bitrix/admin/sale_order_create.php?lang='.LANGUAGE_ID."&SITE_ID=".$saleOrder->getSiteId()."&ID=".$ID."&".bitrix_sessid_get().GetFilterParams("filter_")
+	);
+}
+
+if($isAllowDelete)
+{
+	$aMenu[] = array(
+		"TEXT" => Loc::getMessage("SALE_OVIEW_TO_ARCHIVE"),
+		"TITLE"=> Loc::getMessage("SALE_OVIEW_TO_ARCHIVE_TITLE"),
+		"LINK" => "javascript:if(confirm('".GetMessageJS("SALE_CONFIRM_ARCHIVE_MESSAGE")."')) window.location='sale_order.php?lang=".LANGUAGE_ID."&SITE_ID=".$saleOrder->getSiteId()."&ID=".$ID."&action=archive&".bitrix_sessid_get().urlencode(GetFilterParams("filter_"))."'",
+		"WARNING" => "Y"
+	);
 	if(!$boolLocked)
 	{
 		$aMenu[] = array(
@@ -293,9 +336,12 @@ echo Admin\OrderEdit::getFastNavigationHtml($fastNavItems);
 echo Admin\Blocks\OrderInfo::getView($saleOrder, $orderBasket);
 
 // Problem block
-if($saleOrder->getField("MARKED") == "Y" )
-	echo Admin\OrderEdit::getProblemBlockHtml($saleOrder->getField("REASON_MARKED"), $saleOrder->getId());
-
+?><div id="sale-adm-order-problem-block"><?
+if($saleOrder->getField("MARKED") == "Y")
+{
+	echo Admin\Blocks\OrderMarker::getView($saleOrder->getId());
+}
+?></div><?
 $aTabs = array(
 	array("DIV" => "tab_order", "TAB" => Loc::getMessage("SALE_OVIEW_TAB_ORDER"), "TITLE" => Loc::getMessage("SALE_OVIEW_TAB_ORDER"), "SHOW_WRAP" => "N", "IS_DRAGGABLE" => "Y"),
 	array("DIV" => "tab_history", "TAB" => Loc::getMessage("SALE_OVIEW_TAB_HISTORY"), "TITLE" => Loc::getMessage("SALE_OVIEW_TAB_HISTORY")),
@@ -344,7 +390,11 @@ if (empty($statusOnPaid) && (empty($statusOnAllowDelivery) || empty($statusOnPai
 				case "delivery":
 					\Bitrix\Main\Page\Asset::getInstance()->addJs("/bitrix/js/sale/admin/order_shipment_basket.js");
 					echo '<div id="sale-adm-order-shipments-content"><img src="/bitrix/images/sale/admin-loader.gif"/></div>';
-					echo Admin\Blocks\OrderShipment::createNewShipmentButton();
+
+					if ($isAllowUpdate)
+					{
+						echo Admin\Blocks\OrderShipment::createNewShipmentButton();
+					}
 
 					break;
 				case "financeinfo":
@@ -357,7 +407,11 @@ if (empty($statusOnPaid) && (empty($statusOnAllowDelivery) || empty($statusOnPai
 					foreach ($payments as $payment)
 						echo Admin\Blocks\OrderPayment::getView($payment, $index++);
 
-					echo Admin\Blocks\OrderPayment::createButtonAddPayment('view');
+					if ($isAllowUpdate)
+					{
+						echo Admin\Blocks\OrderPayment::createButtonAddPayment('view');
+					}
+
 					break;
 				case "additional":
 					echo Admin\Blocks\OrderAdditional::getView($saleOrder, $formId."_form");

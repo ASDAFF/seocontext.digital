@@ -104,29 +104,34 @@ if ($USER->CanDoOperation('catalog_price'))
 
 				if(isset($_REQUEST["SUBCAT_BARCODE"]) && ($barcodeMultiply == 'Y'))
 				{
-					$countBarCode = 0;
-					$arBarCodeResult = array();
-					$dbAmount = CCatalogStoreControlUtil::getQuantityInformation($PRODUCT_ID);
-					if(is_object($dbAmount) && ($arAmount = $dbAmount->Fetch()))
+					$row = Catalog\ProductTable::getRowById($PRODUCT_ID);
+					if (!empty($row) && $row['BARCODE_MULTI'] == 'N')
 					{
-						$dbBarCode = CCatalogStoreBarCode::GetList(array(), array("PRODUCT_ID" => $PRODUCT_ID), false, false, array("ID", "BARCODE", "PRODUCT_ID", "STORE_ID"));
-						while($arBarCode = $dbBarCode->Fetch())
+						$countBarCode = 0;
+						$arBarCodeResult = array();
+						$dbAmount = CCatalogStoreControlUtil::getQuantityInformation($PRODUCT_ID);
+						if (is_object($dbAmount) && ($arAmount = $dbAmount->Fetch()))
 						{
-							$arBarCodeResult = $arBarCode;
-							$countBarCode++;
-						}
-						if((!empty($arBarCodeResult)) && ($countBarCode == 1) && (intval($arBarCodeResult["STORE_ID"]) == 0))
-						{
-							if(CCatalogStoreBarCode::Delete($arBarCode["ID"]))
-								$countBarCode--;
-						}
-						if($arAmount["SUM"] != $countBarCode)
-						{
-							$strWarning .= GetMessage("C2IT_ERROR_USE_MULTIBARCODE", array("#COUNT#" => ($arAmount["SUM"] - $countBarCode)));
-							$barcodeMultiply = 'N';
-							unset($_REQUEST["SUBCAT_BARCODE"]);
+							$dbBarCode = CCatalogStoreBarCode::GetList(array(), array("PRODUCT_ID" => $PRODUCT_ID), false, false, array("ID", "BARCODE", "PRODUCT_ID", "STORE_ID"));
+							while ($arBarCode = $dbBarCode->Fetch())
+							{
+								$arBarCodeResult = $arBarCode;
+								$countBarCode++;
+							}
+							if ((!empty($arBarCodeResult)) && ($countBarCode == 1) && (intval($arBarCodeResult["STORE_ID"]) == 0))
+							{
+								if (CCatalogStoreBarCode::Delete($arBarCode["ID"]))
+									$countBarCode--;
+							}
+							if ($arAmount["SUM"] != $countBarCode)
+							{
+								$strWarning .= GetMessage("C2IT_ERROR_USE_MULTIBARCODE", array("#COUNT#" => ($arAmount["SUM"] - $countBarCode)));
+								$barcodeMultiply = 'N';
+								unset($_REQUEST["SUBCAT_BARCODE"]);
+							}
 						}
 					}
+					unset($row);
 				}
 				elseif(isset($_REQUEST["SUBCAT_BARCODE"]) && $barcodeMultiply != 'Y')
 				{
@@ -269,9 +274,14 @@ if ($USER->CanDoOperation('catalog_price'))
 				}
 				unset($currentRatio, $ratioIterator, $ratioFilter);
 				if ($newRatio)
+				{
+					$arMeasureRatio['IS_DEFAULT'] = 'Y';
 					CCatalogMeasureRatio::add($arMeasureRatio);
+				}
 				else
+				{
 					CCatalogMeasureRatio::update($currentRatioID, $arMeasureRatio);
+				}
 				unset($currentRatioID, $newRatio, $arMeasureRatio);
 
 				$intCountBasePrice = count($arCatalogBasePrices);

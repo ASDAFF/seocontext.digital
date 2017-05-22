@@ -119,12 +119,23 @@ if($this->startResultCache(false, ($arParams["CACHE_GROUPS"]==="N"? false: $USER
 		$arResult["SECTION"]["IPROPERTY_VALUES"] = $ipropValues->getValues();
 
 		$arResult["SECTION"]["PATH"] = array();
-		$rsPath = CIBlockSection::GetNavChain($arResult["SECTION"]["IBLOCK_ID"], $arResult["SECTION"]["ID"]);
+		$rsPath = CIBlockSection::GetNavChain(
+			$arResult["SECTION"]["IBLOCK_ID"],
+			$arResult["SECTION"]["ID"],
+			array(
+				"ID", "CODE", "XML_ID", "EXTERNAL_ID", "IBLOCK_ID",
+				"IBLOCK_SECTION_ID", "SORT", "NAME", "ACTIVE",
+				"DEPTH_LEVEL", "SECTION_PAGE_URL"
+			)
+		);
 		$rsPath->SetUrlTemplates("", $arParams["SECTION_URL"]);
 		while($arPath = $rsPath->GetNext())
 		{
-			$ipropValues = new \Bitrix\Iblock\InheritedProperty\SectionValues($arParams["IBLOCK_ID"], $arPath["ID"]);
-			$arPath["IPROPERTY_VALUES"] = $ipropValues->getValues();
+			if ($arParams["ADD_SECTIONS_CHAIN"])
+			{
+				$ipropValues = new \Bitrix\Iblock\InheritedProperty\SectionValues($arParams["IBLOCK_ID"], $arPath["ID"]);
+				$arPath["IPROPERTY_VALUES"] = $ipropValues->getValues();
+			}
 			$arResult["SECTION"]["PATH"][]=$arPath;
 		}
 	}

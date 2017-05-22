@@ -11,6 +11,7 @@ Loc::loadMessages(__FILE__);
 
 class ShipmentItemStore
 	extends Internals\CollectableEntity
+	implements \IEntityMarker
 {
 	/** @var  BasketItem */
 	protected $basketItem;
@@ -601,6 +602,62 @@ class ShipmentItemStore
 		}
 
 		return $shipmentItemStoreClone;
+	}
+
+
+	/**
+	 * @param $value
+	 *
+	 * @return string
+	 */
+	public function getErrorEntity($value)
+	{
+		$className = null;
+		$errorsList = static::getAutoFixErrorsList();
+		if (is_array($errorsList) && in_array($value, $errorsList))
+		{
+			$className = static::getClassName();
+		}
+		return $className;
+	}
+
+	/**
+	 * @param $value
+	 *
+	 * @return bool
+	 */
+	public function canAutoFixError($value)
+	{
+		$errorsList = static::getAutoFixErrorsList();
+		return (is_array($errorsList) && in_array($value, $errorsList));
+	}
+
+	/**
+	 * @return array
+	 */
+	public function getAutoFixErrorsList()
+	{
+		return array();
+	}
+
+	/**
+	 * @param $code
+	 *
+	 * @return Result
+	 */
+	public function tryFixError($code)
+	{
+		return new Result();
+	}
+
+	public function canMarked()
+	{
+		return false;
+	}
+
+	public function getMarkField()
+	{
+		return null;
 	}
 
 }

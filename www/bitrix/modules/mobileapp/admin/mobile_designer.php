@@ -5,6 +5,7 @@
  * @subpackage mobileapp
  * @copyright 2001-2014 Bitrix
  */
+use Bitrix\Main\Web\Json;
 
 /**
  * Bitrix vars
@@ -225,7 +226,7 @@ if (strlen($action) > 0)
 	$data["status"] = ($status !== false) ? "ok" : "fail";
 
 	$APPLICATION->RestartBuffer();
-	echo CUtil::PhpToJSObject($data);
+	echo Json::encode($data);
 	die();
 }
 ?>
@@ -262,7 +263,7 @@ $componentParams = array(
 
 $GLOBALS['APPLICATION']->IncludeComponent('bitrix:mobileapp.designer.file.input', 'drag_n_drop', $componentParams, false);
 $initData = __DSGetInitData();
-$initDataJS = CUtil::PhpToJSObject($initData);
+$initDataJS = Json::encode($initData);
 ?>
 
 
@@ -276,7 +277,7 @@ $initDataJS = CUtil::PhpToJSObject($initData);
 
 		window.designer = new BX.Mobile.Designer({
 			containerId: "designer-wrapper",
-			platforms:<?=CUtil::PhpToJSObject(\Bitrix\MobileApp\Designer\ConfigTable::getSupportedPlatforms())?>
+			platforms:<?=Json::encode(\Bitrix\MobileApp\Designer\ConfigTable::getSupportedPlatforms())?>
 		});
 		window.designer.init();
 	});

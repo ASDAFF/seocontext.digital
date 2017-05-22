@@ -1,20 +1,19 @@
 <?
 /** @global CMain $APPLICATION */
-use Bitrix\Main\Loader;
+use Bitrix\Main,
+	Bitrix\Main\Loader;
 
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/translate/prolog.php");
 $TRANS_RIGHT = $APPLICATION->GetGroupRight("translate");
-if($TRANS_RIGHT=="D") $APPLICATION->AuthForm(GetMessage("ACCESS_DENIED"));
+if ($TRANS_RIGHT=="D")
+	$APPLICATION->AuthForm(GetMessage("ACCESS_DENIED"));
 Loader::includeModule('translate');
 IncludeModuleLangFile(__FILE__);
 
 @set_time_limit(0);
 $sTableID = "tbl_translate_list";
 $lAdmin = new CAdminList($sTableID);
-/***************************************************************************
-								functions
-***************************************************************************/
 
 function GetPhraseCounters($arCommon, $path, $key)
 {
@@ -126,11 +125,11 @@ function GetPhraseCounters($arCommon, $path, $key)
 	}
 }
 
-/*******************************************************************************/
+$request = Main\Context::getCurrent()->getRequest();
 
 $arCSVMessage = false;
 $arSearchParam = false;
-if (check_bitrix_sessid())
+if ($request->isPost() && check_bitrix_sessid())
 {
 	if (array_key_exists('upload_csv', $_POST))
 	{
@@ -172,14 +171,14 @@ if (check_bitrix_sessid())
 }
 
 $SHOW_DIFF_GET = false;
-$AUTO_CALCULATE = COption::GetOptionString('translate', 'AUTO_CALCULATE', 'N') == 'Y';
-if(!$AUTO_CALCULATE && array_key_exists('SHOW_DIFF', $_GET))
+$AUTO_CALCULATE = (string)Main\Config\Option::get('translate', 'AUTO_CALCULATE') == 'Y';
+if (!$AUTO_CALCULATE && isset($_GET['SHOW_DIFF']))
 {
 	$SHOW_DIFF_GET = ($_GET['SHOW_DIFF'] == 'Y');
 	$_SESSION['BX_SHOW_LANG_DIFF'] = $SHOW_DIFF_GET;
 }
 
-$SHOW_LANG_DIFF = $AUTO_CALCULATE || $SHOW_DIFF_GET || (array_key_exists('BX_SHOW_LANG_DIFF', $_SESSION) && $_SESSION['BX_SHOW_LANG_DIFF']);
+$SHOW_LANG_DIFF = $AUTO_CALCULATE || $SHOW_DIFF_GET || (isset($_SESSION['BX_SHOW_LANG_DIFF']) && $_SESSION['BX_SHOW_LANG_DIFF']);
 $GET_SUBFOLRERS = $SHOW_LANG_DIFF || ($arSearchParam && $arSearchParam['bSubFolders']);
 if ($arSearchParam)
 {
@@ -290,7 +289,7 @@ if(!$SHOW_LANG_DIFF || ($SHOW_LANG_DIFF && check_bitrix_sessid()))
 			echo " / ";
 			if (strlen($arrChain[$i]["PATH"])>0):
 				$last_path = $arrChain[$i]["PATH"];
-				?><a href="?lang=<?=LANG?>&path=<?=urlencode($last_path)?>&<?=bitrix_sessid_get()?>"  title="<?=GetMessage("TR_FOLDER_TITLE")?>"><?=htmlspecialcharsbx($arrChain[$i]["NAME"])?></a><?
+				?><a href="?lang=<?=LANGUAGE_ID; ?>&path=<?=urlencode($last_path)?>&<?=bitrix_sessid_get()?>" title="<?=GetMessage("TR_FOLDER_TITLE")?>"><?=htmlspecialcharsbx($arrChain[$i]["NAME"])?></a><?
 			else:
 				?><?=htmlspecialcharsbx($arrChain[$i]["NAME"])?><?
 			endif;
@@ -333,8 +332,6 @@ if (is_array($arLangDirFiles)) :
 
 	if ($IS_LANG_DIR)
 	{
-		//foreach ($arTLangs as $tlang)
-		//	$arPath[] = add_lang_id($path, $tlang, $arTLangs);
 		$arPath[] = add_lang_id($path, LANGUAGE_ID, $arTLangs);
 	}
 	else
@@ -424,30 +421,24 @@ if (is_array($arLangDirFiles)) :
 						$lang_total += intval($fileCounter["TOTAL"]);
 					}
 				}
-
-				//$lang_not_translated = intval($arCommonCounter[$fkey][$vlang]["DIFF"]);
-				//$lang_total = intval($arCommonCounter[$fkey][$vlang]["TOTAL"]);
 				$diff_total = $total_messages - $lang_total;
 				if (intval($lang_not_translated)>0):
 					foreach ($arFilesDiff as $fileName => $counter)
 					{
-						$arFilesDiff[$fileName] = "<a href=\"translate_edit.php?lang=".LANG."&file=".urlencode($fileName)."&show_error=Y\" title=\"".$fileName."\">".$counter."</a>";
+						$arFilesDiff[$fileName] = '<a href="translate_edit.php?lang='.LANGUAGE_ID.'&file='.urlencode($fileName).'&show_error=Y" title="'.$fileName.'">'.$counter.'</a>';
 					}
-					$sStr = "<span class=\"required\">".$lang_not_translated."</span>: ".implode(", ", $arFilesDiff);
+					$sStr = '<span class="required">'.$lang_not_translated.'</span>: '.implode(', ', $arFilesDiff);
 					$arrTOTAL_NOT_TRANSLATED[$vlang] += $lang_not_translated;
-					//$row->AddViewField($vlang, "<span class='required'>".$lang_not_translated."</span>");
 					$row->AddViewField($vlang, $sStr);
 				elseif (intval($diff_total)>0):
-					$sStr = "<span class=\"required\">".$lang_total."</span>: ".implode(", ", $arFilesTotal);
+					$sStr = '<span class="required">'.$lang_total.'</span>: '.implode(', ', $arFilesTotal);
 					$arrTOTAL_NOT_TRANSLATED[$vlang] += $diff_total;
-					//$row->AddViewField($vlang, "<span class='required'>".$diff_total."</span>");
 					$row->AddViewField($vlang, $sStr);
 				else:
 					$row->AddViewField($vlang, "&nbsp;");
 				endif;
 			endforeach;
 			}
-//			$row->AddActions(array(array("TEXT"=>"prepare","ACTION"=>$lAdmin->ActionRedirect("prepare.php?Path=".str_replace("/lang","",$fkey)))));
 		endif;
 	endforeach;
 endif;

@@ -113,15 +113,22 @@ class CatalogProductsSubscribeListComponent extends \CCatalogViewedProductsCompo
 					$parent = CCatalogSKU::getProductList($itemId);
 					if(!empty($parent))
 					{
-						$offerSku = CCatalogSKU::getInfoByOfferIBlock($iblockId);
-						if(!empty($offerSku) && is_array($offerSku))
-						{
-							$this->prepareItemData($parent[$itemId]['ID'], $offerSku, $params, $itemId);
-							$params['SHOW_PRODUCTS'][$parent[$itemId]['IBLOCK_ID']] = true;
-						}
-						if(!in_array($parent[$itemId]['ID'], $this->listProductId))
-							$this->listProductId[] = $parent[$itemId]['ID'];
+						$parentItemId = $parent[$itemId]['ID'];
+						$parentIblockId = $parent[$itemId]['IBLOCK_ID'];
 					}
+					else
+					{
+						$parentItemId = $itemId;
+						$parentIblockId = $iblockId;
+					}
+					$offerSku = CCatalogSKU::getInfoByOfferIBlock($iblockId);
+					if(!empty($offerSku) && is_array($offerSku))
+					{
+						$this->prepareItemData($parentItemId, $offerSku, $params, $itemId);
+						$params['SHOW_PRODUCTS'][$parentIblockId] = true;
+					}
+					if(!in_array($parentItemId, $this->listProductId))
+						$this->listProductId[] = $parentItemId;
 				}
 			}
 

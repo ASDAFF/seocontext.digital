@@ -212,7 +212,7 @@ JCCatTblEditExt.prototype.showDialog = function()
 	if (this.dialog !== null)
 		this.dialog = null;
 	this.dialog = new BX.CAdminDialog({
-		content_url: '/bitrix/admin/cat_product_search_dialog.php?lang='+BX.message('LANGUAGE_ID')+'caller=sets&event='+this.eventId,
+		content_url: '/bitrix/admin/cat_product_search_dialog.php?lang='+BX.message('LANGUAGE_ID')+'&caller=sets&event='+this.eventId,
 		height: Math.max(500, window.innerHeight-400),
 		width: Math.max(800, window.innerWidth-400),
 		draggable: true,

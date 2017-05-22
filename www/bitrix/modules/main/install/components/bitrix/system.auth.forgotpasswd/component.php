@@ -31,5 +31,11 @@ foreach ($arResult as $key => $value)
 
 $arResult["LAST_LOGIN"] = htmlspecialcharsbx($_COOKIE[COption::GetOptionString("main", "cookie_name", "BITRIX_SM")."_LOGIN"]);
 
+$arResult["USE_CAPTCHA"] = (COption::GetOptionString("main", "captcha_restoring_password", "N") == "Y");
+if($arResult["USE_CAPTCHA"])
+{
+	$arResult["CAPTCHA_CODE"] = htmlspecialcharsbx($APPLICATION->CaptchaGetCode());
+}
+
 $this->IncludeComponentTemplate();
 ?>

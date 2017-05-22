@@ -620,4 +620,3 @@ function TR_BACKUP($file)
 	}
 	return $bReturn;
 }
-?>

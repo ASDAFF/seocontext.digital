@@ -127,7 +127,7 @@ if ($strExportErrorMessage == '')
 		$RUR = 'RUR';
 	unset($currency, $currencyIterator);
 
-	$allowedCurrency = array('RUR', 'RUB', 'USD', 'EUR', 'UAH', 'BYR', 'KZT');
+	$allowedCurrency = array('RUR', 'RUB', 'USD', 'EUR', 'UAH', 'BYR', 'BYN', 'KZT');
 	$strTmp = "<currencies>\n";
 	$currencyIterator = Currency\CurrencyTable::getList(array(
 		'select' => array('CURRENCY', 'SORT'),
@@ -349,7 +349,7 @@ if ($strExportErrorMessage == '')
 					yandex_text2xml(TruncateText(
 						($arAcc["PREVIEW_TEXT_TYPE"]=="html"?
 						strip_tags(preg_replace_callback("'&[^;]*;'", "yandex_replace_special", $arAcc["~PREVIEW_TEXT"])) : preg_replace_callback("'&[^;]*;'", "yandex_replace_special", $arAcc["~PREVIEW_TEXT"])),
-						255), true).
+						3000), true).
 					"</description>\n";
 				$strTmpOff.= "</offer>\n";
 				if (100 <= $cnt)

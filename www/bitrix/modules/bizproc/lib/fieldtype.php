@@ -232,6 +232,29 @@ class FieldType
 	}
 
 	/**
+	 * Get field settings.
+	 * Settings contain additional information that may be required for rendering of field.
+	 * @return array
+	 */
+	public function getSettings()
+	{
+		return isset($this->property['Settings']) && is_array($this->property['Settings'])
+			? $this->property['Settings'] : array();
+	}
+
+	/**
+	 * set field settings.
+	 * Settings contain additional information that may be required for rendering of field.
+	 * @param array $settings Settings array.
+	 * @return $this
+	 */
+	public function setSettings(array $settings)
+	{
+		$this->property['Settings'] = $settings;
+		return $this;
+	}
+
+	/**
 	 * @param mixed $value Field value.
 	 * @param string $format Format name.
 	 * @return mixed|null|string
@@ -402,6 +425,14 @@ class FieldType
 					case 'OPTIONS':
 					case '3':
 						$normalized['Options'] = is_array($val) ? $val : (string)$val;
+						break;
+					case 'SETTINGS':
+						{
+							if(is_array($val))
+							{
+								$normalized['Settings'] = $val;
+							}
+						}
 						break;
 				}
 			}

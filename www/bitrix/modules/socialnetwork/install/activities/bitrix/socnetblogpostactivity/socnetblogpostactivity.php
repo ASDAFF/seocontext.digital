@@ -72,6 +72,7 @@ class CBPSocnetBlogPostActivity
 				"HAS_TAGS"         => "N",
 				"HAS_PROPS"        => "N",
 				"HAS_SOCNET_ALL"   => "N",
+				"SEARCH_GROUP_ID"  => $blogGroupID
 			);
 
 			if(!empty($postFields["SOCNET_RIGHTS"]) && count($postFields["SOCNET_RIGHTS"]) == 1 && in_array("UA", $postFields["SOCNET_RIGHTS"]))
@@ -86,9 +87,9 @@ class CBPSocnetBlogPostActivity
 				"allowVideo" => COption::GetOptionString("blog","allow_video", "Y"),
 				"PATH_TO_SMILE" => $pathToSmile,
 				"PATH_TO_POST" => $pathToPost,
-				"SOCNET_GROUP_ID" => $blogGroupID,
 				"user_id" => $ownerId,
 				"NAME_TEMPLATE" => CSite::GetNameFormat(false),
+				"SITE_ID" => $siteId
 			);
 			CBlogPost::Notify($postFields, $blog, $arParamsNotify);
 
@@ -237,7 +238,8 @@ class CBPSocnetBlogPostActivity
 			$arErrors[] = array("code" => "NotExist", "parameter" => "OwnerId", "message" => GetMessage("SNBPA_EMPTY_OWNER"));
 
 		global $USER;
-		if (!$USER->IsAdmin() && !(CModule::IncludeModule("bitrix24") && CBitrix24::IsPortalAdmin($USER->GetID())) && $arTestProperties["OwnerId"] != "user_".$USER->GetID())
+		$isAdmin = ($USER->IsAdmin() || CModule::IncludeModule("bitrix24") && CBitrix24::IsPortalAdmin($USER->GetID()));
+		if (!$isAdmin && $arTestProperties["OwnerId"] != "user_".$USER->GetID())
 			$arErrors[] = array("code" => "NotExist", "parameter" => "OwnerId", "message" => GetMessage("SNBPA_EMPTY_OWNER"));
 
 		if (!array_key_exists("UsersTo", $arTestProperties) || count($arTestProperties["UsersTo"]) <= 0)
@@ -248,51 +250,59 @@ class CBPSocnetBlogPostActivity
 
 	public static function GetPropertiesDialog($documentType, $activityName, $arWorkflowTemplate, $arWorkflowParameters, $arWorkflowVariables, $arCurrentValues = null, $formName = "")
 	{
-		$runtime = CBPRuntime::GetRuntime();
-
-		$arMap = array(
-			"OwnerId" => "owner_id",
-			"UsersTo" => 'users_to',
-			"PostTitle" => "post_title",
-			"PostMessage" => 'post_message',
-			"PostSite" => 'post_site',
-		);
-
-		if (!is_array($arCurrentValues))
+		global $USER;
+		$sites = array();
+		$b = $o = '';
+		$sitesIterator = CSite::GetList($b, $o, Array('ACTIVE' => 'Y'));
+		while ($site = $sitesIterator->fetch())
 		{
-			$arCurrentActivity = &CBPWorkflowTemplateLoader::FindActivityByName($arWorkflowTemplate, $activityName);
-			if (is_array($arCurrentActivity["Properties"]))
-			{
-				foreach ($arMap as $k => $v)
-				{
-					if (array_key_exists($k, $arCurrentActivity["Properties"]))
-					{
-						if ($k == "OwnerId" || $k == "UsersTo")
-							$arCurrentValues[$arMap[$k]] = CBPHelper::UsersArrayToString($arCurrentActivity["Properties"][$k], $arWorkflowTemplate, $documentType);
-						else
-							$arCurrentValues[$arMap[$k]] = $arCurrentActivity["Properties"][$k];
-					}
-					else
-					{
-						$arCurrentValues[$arMap[$k]] = "";
-					}
-				}
-			}
-			else
-			{
-				foreach ($arMap as $k => $v)
-					$arCurrentValues[$arMap[$k]] = "";
-			}
+			$sites[$site['LID']] = $site['NAME'];
 		}
 
-		return $runtime->ExecuteResourceFile(
-			__FILE__,
-			"properties_dialog.php",
-			array(
-				"arCurrentValues" => $arCurrentValues,
-				"formName" => $formName,
+		$dialog = new \Bitrix\Bizproc\Activity\PropertiesDialog(__FILE__, array(
+			'documentType' => $documentType,
+			'activityName' => $activityName,
+			'workflowTemplate' => $arWorkflowTemplate,
+			'workflowParameters' => $arWorkflowParameters,
+			'workflowVariables' => $arWorkflowVariables,
+			'currentValues' => $arCurrentValues
+		));
+
+		$dialog->setMap(array(
+			'OwnerId' => array(
+				'Name' => GetMessage("SNBPA_OWNER_ID"),
+				'FieldName' => 'owner_id',
+				'Type' => 'user',
+				'Required' => true,
+				'Default' => 'user_'.$USER->GetID()
+			),
+			'UsersTo' => array(
+				'Name' => GetMessage("SNBPA_USERS_TO"),
+				'FieldName' => 'users_to',
+				'Type' => 'user',
+				'Required' => true,
+				'Default' => 'author'
+			),
+			'PostTitle' => array(
+				'Name' => GetMessage("SNBPA_POST_TITLE"),
+				'FieldName' => 'post_title',
+				'Type' => 'string'
+			),
+			'PostMessage' => array(
+				'Name' => GetMessage("SNBPA_POST_MESSAGE"),
+				'FieldName' => 'post_message',
+				'Type' => 'text',
+				'Required' => true
+			),
+			'PostSite' => array(
+				'Name' => GetMessage("SNBPA_POST_SITE"),
+				'FieldName' => 'post_site',
+				'Type' => 'select',
+				'Options' => $sites
 			)
-		);
+		));
+
+		return $dialog;
 	}
 
 	public static function GetPropertiesDialogValues($documentType, $activityName, &$arWorkflowTemplate, &$arWorkflowParameters, &$arWorkflowVariables, $arCurrentValues, &$arErrors)
@@ -344,4 +354,3 @@ class CBPSocnetBlogPostActivity
 		return true;
 	}
 }
-?>

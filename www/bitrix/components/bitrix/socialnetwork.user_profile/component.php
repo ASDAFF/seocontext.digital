@@ -145,6 +145,10 @@ $arParams["PATH_TO_USER_PASSWORDS"] = trim($arParams["PATH_TO_USER_PASSWORDS"]);
 if (strlen($arParams["PATH_TO_USER_PASSWORDS"]) <= 0)
 	$arParams["PATH_TO_USER_PASSWORDS"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user_passwords&".$arParams["USER_VAR"]."=#user_id#");
 
+$arParams["PATH_TO_USER_SYNCHRONIZE"] = trim($arParams["PATH_TO_USER_SYNCHRONIZE"]);
+if (strlen($arParams["PATH_TO_USER_SYNCHRONIZE"]) <= 0)
+	$arParams["PATH_TO_USER_SYNCHRONIZE"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user_synchronize&".$arParams["USER_VAR"]."=#user_id#");
+
 $arParams["PATH_TO_USER_CODES"] = trim($arParams["PATH_TO_USER_CODES"]);
 if (strlen($arParams["PATH_TO_USER_CODES"]) <= 0)
 	$arParams["PATH_TO_USER_CODES"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user_codes&".$arParams["USER_VAR"]."=#user_id#");
@@ -376,6 +380,7 @@ else
 
 		$arResult["Urls"]["Security"] = CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_USER_SECURITY"], array("user_id" => $arResult["User"]["ID"]));
 		$arResult["Urls"]["Passwords"] = CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_USER_PASSWORDS"], array("user_id" => $arResult["User"]["ID"]));
+		$arResult["Urls"]["Synchronize"] = CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_USER_SYNCHRONIZE"], array("user_id" => $arResult["User"]["ID"]));
 		$arResult["Urls"]["Codes"] = CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_USER_CODES"], array("user_id" => $arResult["User"]["ID"]));
 
 		$arResult["User"]["TYPE"] = '';
@@ -646,6 +651,8 @@ else
 					if (!array_key_exists($key, $arResult["User"]))
 						$arResult["User"][$key] = $value;
 
+				$userFields = CSocNetUser::GetFields();
+
 				foreach ($arResult["User"] as $userFieldName => $userFieldValue)
 				{
 					if (in_array($userFieldName, $arParams["USER_FIELDS_MAIN"])
@@ -745,8 +752,6 @@ else
 									$strSearch = $arParams["PATH_TO_SEARCH_INNER"].(StrPos($arParams["PATH_TO_SEARCH_INNER"], "?") !== false ? "&" : "?")."flt_".StrToLower($userFieldName)."=".UrlEncode($val);
 								break;
 						}
-
-						$userFields = CSocNetUser::GetFields();
 
 						if (in_array($userFieldName, $arParams["USER_FIELDS_MAIN"]))
 							$arResult["UserFieldsMain"]["DATA"][$userFieldName] = array("NAME" => $userFields[$userFieldName], "VALUE" => $val, "SEARCH" => $strSearch);
@@ -1065,6 +1070,7 @@ else
 		}
 	}
 }
+
 $this->IncludeComponentTemplate();
 
 return array(

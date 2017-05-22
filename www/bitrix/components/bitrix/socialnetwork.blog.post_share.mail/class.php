@@ -20,6 +20,7 @@ class CBitrixSocialnetworkBlogPostShareMailComponent extends CBitrixComponent
 
 	const E_BLOG_MODULE_NOT_INSTALLED 		= 10001;
 	const E_POST_NOT_FOUND 				= 10002;
+	const E_SOCIALNETWORK_MODULE_NOT_INSTALLED 		= 10003;
 
 	/**
 	 * Variable contains posts data
@@ -156,7 +157,7 @@ class CBitrixSocialnetworkBlogPostShareMailComponent extends CBitrixComponent
 
 		if ($this->postId > 0)
 		{
-			$arResult["COMMENTS"] =  ComponentHelper::getBlogCommentListData($this->arParams["POST_ID"], $this->arParams, $this->getLanguageId(), $this->authorIdList);
+			$arResult["COMMENTS"] = ComponentHelper::getBlogCommentListData($this->arParams["POST_ID"], array_merge($this->arParams, array("MAIL" => "Y")), $this->getLanguageId(), $this->authorIdList);
 			$arResult["COMMENTS_ALL_COUNT"] = ComponentHelper::getBlogCommentListCount($this->arParams["POST_ID"]);
 		}
 	}

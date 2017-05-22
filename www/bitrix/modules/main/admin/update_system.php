@@ -4,7 +4,7 @@
 //**    MODIFICATION OF THIS FILE WILL ENTAIL SITE FAILURE            **/
 //**********************************************************************/
 if (!defined("UPDATE_SYSTEM_VERSION"))
-	define("UPDATE_SYSTEM_VERSION", "16.0.12");
+	define("UPDATE_SYSTEM_VERSION", "17.0.5");
 
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
 define("HELP_FILE", "marketplace/sysupdate.php");
@@ -164,28 +164,9 @@ if ($DB->type == "MYSQL")
 		*/
 	}
 }
-
-if ($DB->type == "MSSQL")
+elseif (($DB->type == "MSSQL") || ($DB->type == "ORACLE"))
 {
-	$dbQueryRes = $DB->Query("SELECT @@VERSION as ver", True);
-	if ($arQueryRes = $dbQueryRes->Fetch())
-	{
-		$curMSSqlVer = Trim($arQueryRes["ver"]);
-		preg_match("#[0-9]+\.[0-9]+\.[0-9]+#", $curMSSqlVer, $arr);
-		$arCurMSSqlVer = Explode(".", $arr[0]);
-		if (IntVal($arCurMSSqlVer[0]) < 10
-			|| IntVal($arCurMSSqlVer[0]) == 10 && IntVal($arCurMSSqlVer[1]) < 0
-			|| IntVal($arCurMSSqlVer[0]) == 10 && IntVal($arCurMSSqlVer[1]) == 0 && IntVal($arCurMSSqlVer[2]) < 0)
-		{
-			$errorMessage .= "<br>".GetMessage("SUP_MSSQL_L4111", array("#VERS#" => $curMSSqlVer));
-		}
-	}
-
-	if ((!defined("SM_VERSION") || (defined("SM_VERSION") && CUpdateClient::CompareVersions("16.0.0", SM_VERSION) > 0))
-    	&& (!isset($GLOBALS["DBSQLServerType"]) || ($GLOBALS["DBSQLServerType"] != "NATIVE")))
-	{
-		$errorMessage .= "<br>".GetMessage("SUP_MSSQL_LNATIVE");
-	}
+    $errorMessage .= "<br>".GetMessage("SUP_NO_MS_ORACLE");
 }
 
 $curPhpVer = PhpVersion();
@@ -232,6 +213,11 @@ if ($DB->TableExists('b_sale_order') || $DB->TableExists('B_SALE_ORDER'))
 			&& (CUpdateClient::CompareVersions($arClientModules["sale"], "16.0.0") < 0))
 			$systemMessage .= GetMessage("SUP_SALE_1500_HINT", array("#ADDR#" => "/bitrix/admin/sale_converter.php?lang=".LANG));
 	}
+}
+
+if(COption::GetOptionString("main", "update_devsrv", "") == "Y")
+{
+	$systemMessage .= GetMessage("SUP_DEVSRV_MESS");
 }
 
 if (strlen($errorMessage) > 0)

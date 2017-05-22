@@ -9,7 +9,6 @@ namespace Bitrix\Seo;
 
 use Bitrix\Main\Entity;
 use Bitrix\Main\Text\Converter;
-use Bitrix\Seo\SitemapFile;
 use Bitrix\Main\IO\File;
 use Bitrix\Main\IO\Path;
 
@@ -122,14 +121,102 @@ class SitemapRuntime
 			$this->partFile = $fileName;
 		}
 
-		parent::__construct($this->getPrefix().$fileName, $arSettings);
+//		normalize slashes
+		$fileName = Path::normalize($fileName);
+//		divide directory and path tp correctly add prefix
+		$lastSlashPosition = strrpos($fileName, "/");
+		$fileDirectory = '';
+		if ($lastSlashPosition !== false)
+		{
+			$fileDirectory = substr($fileName, 0, $lastSlashPosition + 1);
+			$fileName = substr($fileName, $lastSlashPosition + 1);
+		}
+		
+		parent::__construct($fileDirectory . $this->getPrefix() . $fileName, $arSettings);
 	}
-
+	
+	/**
+	 * Recreate file with same settings to new part
+	 *
+	 * @param string $fileName
+	 */
 	protected function reInit($fileName)
 	{
 		$this->__construct($this->PID, $fileName, $this->settings);
 	}
+	
+	public static function isFileExists($PID, $fileName, $arSettings)
+	{
+		$f = new self($PID, $fileName, $arSettings);
+		
+		return $f->isExists();
+	}
+	
+	public static function deleteFile($PID, $fileName, $arSettings)
+	{
+		$f = new self($PID, $fileName, $arSettings);
+		
+		return $f->delete();
+	}
+	
+	public function putSitemapContent(SitemapFile $sitemapFile)
+	{
+//		always write in new empty file - tak nado, a to pechalka ((
+		if($this->isExists())
+			$this->delete();
+		
+		if($sitemapFile->isExists())
+		{
+			$this->putContents($sitemapFile->getContents());
+			$this->partChanged = true;
+			$this->footerClosed = true;
+		}
+		else
+		{
+			$this->addHeader();
+		}
+	}
+	
+	/**
+	 * Overwrite parent method to creating temp-files and correctly work with multipart
+	 * Appends new IBlock entry to the existing finished sitemap
+	 *
+	 * @param string $url IBlock entry URL.
+	 * @param string $modifiedDate IBlock entry modify timestamp.
+	 *
+	 * @return void
+	 */
+	public function appendIBlockEntry($url, $modifiedDate, SitemapFile $sitemapFile)
+	{
+		if ($sitemapFile->isExists())
+		{
+//			move sitemapfile to end, find name of last part
+			while ($sitemapFile->isSplitNeeded())
+			{
+				$filename = $sitemapFile->split();
+			}
 
+//			if part was changed - create new runtime part file
+			if (isset($filename) && $filename)
+				$this->reInit($filename);
+			
+			$this->putSitemapContent($sitemapFile);
+			$this->appendEntry(array(
+				'XML_LOC' => $this->settings['PROTOCOL'] . '://' . \CBXPunycode::toASCII($this->settings['DOMAIN'], $e = NULL) . $url,
+				'XML_LASTMOD' => date('c', $modifiedDate - \CTimeZone::getOffset()),
+			));
+		}
+		else
+		{
+			$this->addHeader();
+			$this->addIBlockEntry($url, $modifiedDate);
+			$this->addFooter();
+		}
+	}
+	
+	/**
+	 * Rename runtime file to original name. If runtime have part - rename them all
+	 */
 	public function finish()
 	{
 		foreach($this->partList as $key => $partName)
@@ -141,7 +228,8 @@ class SitemapRuntime
 
 		if($this->isCurrentPartNotEmpty())
 		{
-			$this->addFooter();
+			if (!$this->footerClosed)
+				$this->addFooter();
 			$this->rename(str_replace($this->getPrefix(), '', $this->getPath()));
 		}
 	}
@@ -154,8 +242,8 @@ class SitemapRuntime
 	public static function showProgress($text, $title, $v)
 	{
 		$v = $v >= 0 ? $v : 0;
-
-		if($v < 100)
+		
+		if ($v < 100)
 		{
 			$msg = new \CAdminMessage(array(
 				"TYPE" => "PROGRESS",

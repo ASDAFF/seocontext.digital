@@ -329,15 +329,14 @@ elseif (!empty($arNote["link"]) && !($arParams['AJAX_POST'] == 'Y' && $action ==
 /************** Topic **********************************************/
 foreach ($arResult["TOPIC"] as $key => $val):
 	$arResult["TOPIC"]["~".$key] = $val;
-	$arResult["TOPIC"][$key] = htmlspecialcharsEx($val);
-	if (!is_array($val))
-		$arResult["TOPIC"][$key] = $parser->wrap_long_words($arResult["TOPIC"][$key]);
+	if (is_string($val))
+		$arResult["TOPIC"][$key] = $parser->wrap_long_words(htmlspecialcharsbx($val));
 endforeach;
 $arResult["TOPIC"]["iLAST_TOPIC_MESSAGE"] = "";
 /************** Forum **********************************************/
 foreach ($arResult["FORUM"] as $key => $val):
 	$arResult["FORUM"]["~".$key] = $val;
-	$arResult["FORUM"][$key] = htmlspecialcharsEx($val);
+	$arResult["FORUM"][$key] = htmlspecialcharsbx($val);
 endforeach;
 if ($arParams["SHOW_FIRST_POST"] == "N"):
 	$arParams["SHOW_FIRST_POST"] = ($arResult["FORUM"]["ALLOW_TOPIC_TITLED"] == "Y" ? "Y" : "N");
@@ -361,7 +360,7 @@ if ($USER->IsAuthorized()):
 else:
 	$arResult["USER"]["RIGHTS"]["EDIT_MESSAGE"] = "N";
 endif;
-$arResult["USER"]["RIGHTS"]["EDIT_OWN_POST"] = COption::GetOptionString("forum", "USER_EDIT_OWN_POST", "N");
+$arResult["USER"]["RIGHTS"]["EDIT_OWN_POST"] = COption::GetOptionString("forum", "USER_EDIT_OWN_POST", "Y");
 /************** Edit panels info ***********************************/
 $arResult["PANELS"] = array(
 	"MODERATE" => $arResult["USER"]["RIGHTS"]["MODERATE"],
@@ -396,7 +395,7 @@ $arAllow = forumTextParser::GetFeatures($arResult["FORUM"]);
 
 // LAST MESSAGE
 $arResult["TOPIC"]["iLAST_TOPIC_MESSAGE"] = 0;
-if ($arResult["USER"]["RIGHTS"]["EDIT"] != "Y" && $USER->IsAuthorized() && COption::GetOptionString("forum", "USER_EDIT_OWN_POST", "N") != "Y"):
+if ($arResult["USER"]["RIGHTS"]["EDIT"] != "Y" && $USER->IsAuthorized() && COption::GetOptionString("forum", "USER_EDIT_OWN_POST", "Y") != "Y"):
 	if ($arResult["FORUM"]["MODERATION"] == "Y"):
 		$db_res = CForumMessage::GetList(array("ID" => "DESC"), array("TOPIC_ID" => $arParams["TID"], "APPROVED" => "N",
 			">ID" => $arResult["TOPIC"]["LAST_MESSAGE_ID"]), false, 1);
@@ -772,7 +771,7 @@ if ($arParams["VERSION"] < 1)
 $this->IncludeComponentTemplate();
 
 if ($arParams["SET_TITLE"] != "N")
-	$APPLICATION->SetTitle(htmlspecialcharsEx($arResult["TOPIC"]["~TITLE"]));
+	$APPLICATION->SetTitle(htmlspecialcharsbx($arResult["TOPIC"]["~TITLE"]));
 
 if ($arParams["SET_DESCRIPTION"] != "N")
 {

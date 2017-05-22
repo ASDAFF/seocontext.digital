@@ -12,6 +12,7 @@ BX.Lists.ListsFieldEditClass = (function ()
 		this.maxSort = 0;
 		this.generateCode = Boolean(parameters.generateCode);
 		this.prefixFieldId = 'bx-lists-field-';
+		this.listAction = parameters.listAction;
 		this.init();
 	};
 
@@ -27,14 +28,69 @@ BX.Lists.ListsFieldEditClass = (function ()
 				this.transliterate();
 			}, this);
 		}
+
+		this.setStyleForForm();
+
+		this.actionButton = BX('lists-title-action');
+		this.actionPopupItems = [];
+		this.actionPopupObject = null;
+		this.actionPopupId = 'lists-title-action';
+		BX.bind(this.actionButton, 'click', BX.delegate(this.showListAction, this));
+	};
+
+	ListsFieldEditClass.prototype.showListAction = function ()
+	{
+		if(!this.actionPopupItems.length)
+		{
+			for(var k = 0; k < this.listAction.length; k++)
+			{
+				this.actionPopupItems.push({
+					text : this.listAction[k].text,
+					onclick : this.listAction[k].action
+				});
+			}
+		}
+		if(!BX.PopupMenu.getMenuById(this.actionPopupId))
+		{
+			var buttonRect = this.actionButton.getBoundingClientRect();
+			this.actionPopupObject = BX.PopupMenu.create(
+				this.actionPopupId,
+				this.actionButton,
+				this.actionPopupItems,
+				{
+					closeByEsc : true,
+					angle: true,
+					offsetLeft: buttonRect.width/2,
+					events: {
+						onPopupShow: BX.proxy(function () {
+							BX.addClass(this.actionButton, 'webform-button-active');
+						}, this),
+						onPopupClose: BX.proxy(function () {
+							BX.removeClass(this.actionButton, 'webform-button-active');
+						}, this)
+					}
+				}
+			);
+		}
+		if(this.actionPopupObject) this.actionPopupObject.popupWindow.show();
+	};
+
+	ListsFieldEditClass.prototype.setStyleForForm = function()
+	{
+		var rows = BX('tab1_edit_table').rows;
+
+		[].forEach.call((rows || []), function(row) {
+			if(row.cells[0] && !row.cells[0].className)
+				row.cells[0].className = 'bx-field-name';
+			if(row.cells[1] && !row.cells[1].className)
+				row.cells[1].className = 'bx-field-value';
+		});
 	};
 
 	ListsFieldEditClass.prototype.transliterate = function()
 	{
 		if(!this.generateCode || !BX(this.prefixFieldId+'name') || !BX(this.prefixFieldId+'code'))
-		{
 			return false;
-		}
 
 		var value = BX.translit(BX(this.prefixFieldId+'name').value, { change_case: 'U' });
 		while(true)
@@ -43,7 +99,7 @@ BX.Lists.ListsFieldEditClass = (function ()
 			if(!isNaN(parseInt(firstSymbol))) value = value.substr(1);
 			else break;
 		}
-
+		value = value.replace(/([\'`]+)+/g, '');
 		BX(this.prefixFieldId+'code').value = value;
 	};
 

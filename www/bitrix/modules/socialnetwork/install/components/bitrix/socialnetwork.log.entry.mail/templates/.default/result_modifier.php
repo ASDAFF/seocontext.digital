@@ -119,4 +119,28 @@ if (!empty($arResult["COMMENTS"]))
 		$arResult["COMMENTS"][$comment["EVENT"]["ID"]] = $res;
 	}
 }
+
+$arResult["LOG_ENTRY_URL_COMMENT"] = $arResult["LOG_ENTRY_URL"];
+if (
+	isset($arParams["COMMENT_ID"])
+	&& intval($arParams["COMMENT_ID"]) > 0
+)
+{
+	$uri = new \Bitrix\Main\Web\Uri($arResult["LOG_ENTRY_URL"]);
+
+	$uriScheme = $uri->getScheme();
+	$uriHost = $uri->getHost();
+	$uriPort = $uri->getPort();
+	$uriPath = $uri->getPath();
+	$uriQuery = $uri->getQuery();
+	$uriFragment = $uri->getFragment();
+
+	$arResult["LOG_ENTRY_URL_COMMENT"] = $uriScheme."://".
+		$uriHost.
+		(!empty($uriPort) && $uriPort != 80 ? ':'.$uriPort : '').
+		$uriPath.
+		(!empty($uriQuery) ? '?'.$uriQuery.'&' : '?').
+		'commentId='.intval($arParams["COMMENT_ID"]).
+		(!empty($uriFragment) ? '#'.$uriFragment : '');
+}
 ?>

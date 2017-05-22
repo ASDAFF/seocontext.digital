@@ -227,6 +227,7 @@ else
 		}
 
 		$arPICTURE = array();
+		$picturesToDelete = array();
 		$arPICTURE_WORK = array();
 
 		//PERSONAL_PHOTO upload
@@ -235,30 +236,27 @@ else
 			$_POST['PERSONAL_PHOTO_ID']
 			&& intval($_POST['PERSONAL_PHOTO_ID']) > 0
 			&& intval($_POST['PERSONAL_PHOTO_ID']) != intval($arResult["User"]["PERSONAL_PHOTO"])
+			&& in_array($_POST['PERSONAL_PHOTO_ID'], \Bitrix\Main\UI\FileInputUtility::instance()->checkFiles(
+				'PERSONAL_PHOTO_IMAGE_ID',
+				array($_POST['PERSONAL_PHOTO_ID'])
+			))
 		)
 		{
-			if (
-				in_array($_POST['PERSONAL_PHOTO_ID'], \Bitrix\Main\UI\FileInputUtility::instance()->checkFiles(
-						'PERSONAL_PHOTO_IMAGE_ID',
-						array($_POST['PERSONAL_PHOTO_ID'])
-					)
-				)
-			)
-			{
-				$arPICTURE = CFile::MakeFileArray($_POST['PERSONAL_PHOTO_ID']);
-			}
+			$arPICTURE = CFile::MakeFileArray($_POST['PERSONAL_PHOTO_ID']);
+			$arPICTURE["old_file"] = $arResult["User"]["PERSONAL_PHOTO"];
+			$picturesToDelete[] = $_POST['PERSONAL_PHOTO_ID'];
 		}
 		elseif ( //usual template
 			strlen($_FILES["PERSONAL_PHOTO"]["name"]) > 0
 		)
 		{
-			$arPICTURE = $_FILES["PERSONAL_PHOTO"]; 
+			$arPICTURE = $_FILES["PERSONAL_PHOTO"];
+			$arPICTURE["old_file"] = $arResult["User"]["PERSONAL_PHOTO"];
 		}
-
-		if (sizeof($arPICTURE) != 0 || isset($_POST["PERSONAL_PHOTO_del"]))
+		else if (($_POST["PERSONAL_PHOTO_del"] ?: $_POST["PERSONAL_PHOTO_ID_del"]) <> '')
 		{
 			$arPICTURE["old_file"] = $arResult["User"]["PERSONAL_PHOTO"];
-			$arPICTURE["del"] = $_POST["PERSONAL_PHOTO_del"];
+			$arPICTURE["del"] = ($_POST["PERSONAL_PHOTO_del"] ?: $_POST["PERSONAL_PHOTO_ID_del"]);
 		}
 
 		//WORK_LOGO upload
@@ -267,18 +265,15 @@ else
 			$_POST['WORK_LOGO_ID']
 			&& intval($_POST['WORK_LOGO_ID']) > 0
 			&& intval($_POST['WORK_LOGO_ID']) != intval($arResult["User"]["WORK_LOGO"])
+			&& in_array($_POST['WORK_LOGO_ID'], \Bitrix\Main\UI\FileInputUtility::instance()->checkFiles(
+				'WORK_LOGO_IMAGE_ID',
+				array($_POST['WORK_LOGO_ID'])
+			))
 		)
 		{
-			if (in_array($_POST['WORK_LOGO_ID'], \Bitrix\Main\UI\FileInputUtility::instance()->checkFiles(
-						'WORK_LOGO_IMAGE_ID',
-						array($_POST['WORK_LOGO_ID'])
-					)
-				)
-			)
-			{
-				$arPICTURE_WORK = CFile::MakeFileArray($_POST['WORK_LOGO_ID']);
-			}
-		}		
+			$arPICTURE_WORK = CFile::MakeFileArray($_POST['WORK_LOGO_ID']);
+			$picturesToDelete[] = $_POST['WORK_LOGO_ID'];
+		}
 		elseif ( // usual template
 			strlen($_FILES["WORK_LOGO"]["name"]) > 0 
 			|| isset($_POST["WORK_LOGO_del"])
@@ -292,7 +287,7 @@ else
 		if (sizeof($arPICTURE_WORK) != 0)
 		{
 			$arPICTURE_WORK["old_file"] = $arResult["User"]["WORK_LOGO"];
-			$arPICTURE_WORK["del"] = $_POST["WORK_LOGO_del"];
+			$arPICTURE_WORK["del"] = ($_POST["WORK_LOGO_del"] ?: $_POST["WORK_LOGO_ID_del"]);
 		}
 
 		$arFields = Array(
@@ -346,6 +341,9 @@ else
 			$arNewFieldsValue[$key] = $arFieldsValue[$key];
 
 		$res = $USER->Update($SONET_USER_ID, $arNewFieldsValue);
+
+		while ($f = array_pop($picturesToDelete))
+			CFile::Delete($f);
 
 		if (!$res)
 			$strErrorMessage = $USER->LAST_ERROR;

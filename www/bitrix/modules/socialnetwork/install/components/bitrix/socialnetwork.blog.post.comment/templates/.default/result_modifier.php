@@ -15,6 +15,7 @@ $arResult["newCount"] = $arResult["~newCount"];
 include_once(__DIR__."/functions.php");
 include_once(__DIR__."/../mobile_app/functions.php");
 $arResult["PUSH&PULL"] = false;
+
 if(!empty($arResult["CommentsResult"]) && is_array($arResult["CommentsResult"]))
 {
 	$arResult["~CommentsResult"] = $arResult["CommentsResult"] = array_reverse($arResult["CommentsResult"]);
@@ -54,7 +55,16 @@ if(!empty($arResult["CommentsResult"]) && is_array($arResult["CommentsResult"]))
 		else
 		{
 			if (count($arResult["CommentsResult"]) > $arResult["newCount"])
+			{
 				$arResult["newCount"] = count($arResult["CommentsResult"]);
+				if (
+					$filter == ">=ID"
+					&& $commentId > 0
+				) // commentId in $_REQUEST
+				{
+					$arParams["PAGE_SIZE"] = $arResult["newCount"];
+				}
+			}
 			$arResult["CommentsResult"] = $arResult["~CommentsResult"];
 		}
 	}

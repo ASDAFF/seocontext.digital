@@ -40,8 +40,6 @@ $arDefaultUrlTemplates404 = array(
 
 	"search" => "search.php",
 
-	"mail" => "mail/",
-
 	"message_form" => "messages/form/#user_id#/",
 	"message_form_mess" => "messages/chat/#user_id#/#message_id#/",
 	"messages_chat" => "messages/chat/#user_id#/",
@@ -117,6 +115,7 @@ $arDefaultUrlTemplates404 = array(
 	"user_blog_post_rss" => "user/#user_id#/blog/rss/#type#/#post_id#/",
 	"user_blog_draft" => "user/#user_id#/blog/draft/",
 	"user_blog_moderation" => "user/#user_id#/blog/moderation/",
+	"user_blog_tags" => "user/#user_id#/blog/tags/",
 	"user_blog_post" => "user/#user_id#/blog/#post_id#/",
 
 	"user_tasks" => "user/#user_id#/tasks/",
@@ -140,6 +139,7 @@ $arDefaultUrlTemplates404 = array(
 	"user_security" => "user/#user_id#/security/",
 	"user_codes" => "user/#user_id#/codes/",
 	"user_passwords" => "user/#user_id#/passwords/",
+	"user_synchronize" => "user/#user_id#/synchronize/",
 );
 
 $diskEnabled = (
@@ -199,8 +199,6 @@ $arDefaultUrlTemplatesN404 = array(
 	"group_request_user" => "page=group_request_user&group_id=#group_id#&user_id=#user_id#",
 
 	"search" => "page=search",
-
-	"mail" => "page=mail",
 
 	"message_form" => "page=message_form&user_id=#user_id#",
 	"message_form_mess" => "page=message_form_mess&user_id=#user_id#&message_id=#message_id#",
@@ -276,6 +274,7 @@ $arDefaultUrlTemplatesN404 = array(
 	"user_blog_post_rss" => "page=user_blog_post_rss&user_id=#user_id#&type=#type#&post_id=#post_id#",
 	"user_blog_draft" => "page=user_blog_draft&user_id=#user_id#",
 	"user_blog_moderation" => "page=user_blog_moderation&user_id=#user_id#",
+	"user_blog_tags" => "page=user_blog_tags&user_id=#user_id#",
 	"user_blog_post" => "page=user_blog_post&user_id=#user_id#&post_id=#post_id#",
 
 	"user_tasks" => "page=user_tasks&user_id=#user_id#",
@@ -296,6 +295,7 @@ $arDefaultUrlTemplatesN404 = array(
 
 	"user_security" => "page=user_security&user_id=#user_id#",
 	"user_passwords" => "page=user_passwords&user_id=#user_id#",
+	"user_synchronize" => "page=user_synchronize&user_id=#user_id#",
 );
 $arDefaultVariableAliases404 = array();
 $arDefaultVariableAliases = array();
@@ -805,7 +805,6 @@ if(check_bitrix_sessid() || $_SERVER['REQUEST_METHOD'] == "PUT")
 				"CALENDAR_GROUP_IBLOCK_ID" => false,
 				"PATH_TO_GROUP_CALENDAR_ELEMENT" => "",
 
-				"TASK_IBLOCK_ID" => $arParams["TASK_IBLOCK_ID"],
 				"PATH_TO_GROUP_TASK_ELEMENT" => "",
 				"PATH_TO_USER_TASK_ELEMENT" => $arResult["PATH_TO_USER_TASKS_TASK"],
 				"TASK_FORUM_ID" => $arParams["TASK_FORUM_ID"],
@@ -1222,7 +1221,7 @@ if (
 	if (!CSocNetUser::CanProfileView($USER->GetID(), intval($arResult["VARIABLES"]["user_id"]), SITE_ID, $arContext))
 	{
 		$bAccessFound = false;
-		if ($componentPage = "user_blog_post")
+		if ($componentPage == "user_blog_post")
 		{
 			if (
 				isset($arResult["VARIABLES"]["post_id"])
@@ -1243,6 +1242,21 @@ if (
 					)
 				);
 				if ($arLog = $rsLog->Fetch())
+				{
+					$bAccessFound = true;
+				}
+			}
+		}
+		elseif ($componentPage == "user_tasks_task")
+		{
+			if (
+				isset($arResult["VARIABLES"]["task_id"])
+				&& intval($arResult["VARIABLES"]["task_id"]) > 0
+				&& \Bitrix\Main\Loader::includeModule('tasks')
+			)
+			{
+				$task = \CTaskItem::getInstance($arResult["VARIABLES"]["task_id"], $USER->getId());
+				if ($task->checkCanRead())
 				{
 					$bAccessFound = true;
 				}

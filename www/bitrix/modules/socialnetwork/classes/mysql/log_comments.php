@@ -1,6 +1,9 @@
 <?
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/socialnetwork/classes/general/log_comments.php");
 
+use Bitrix\Socialnetwork\Item\LogIndex;
+use Bitrix\Socialnetwork\LogIndexTable;
+
 class CSocNetLogComments extends CAllSocNetLogComments
 {
 	/***************************************/
@@ -8,17 +11,9 @@ class CSocNetLogComments extends CAllSocNetLogComments
 	/***************************************/
 	function Add($arFields, $bSetSource = false, $bSendEvent = true, $bSetLogUpDate = true)
 	{
-		global $DB;
+		global $DB, $APPLICATION, $CACHE_MANAGER, $USER_FIELD_MANAGER;
 
-		$arFields1 = array();
-		foreach ($arFields as $key => $value)
-		{
-			if (substr($key, 0, 1) == "=")
-			{
-				$arFields1[substr($key, 1)] = $value;
-				unset($arFields[$key]);
-			}
-		}
+		$arFields1 = \Bitrix\Socialnetwork\Util::getEqualityFields($arFields);
 
 		if (
 			$bSetSource 
@@ -38,7 +33,7 @@ class CSocNetLogComments extends CAllSocNetLogComments
 		$db_events = GetModuleEvents("socialnetwork", "OnBeforeSocNetLogCommentAdd");
 		while ($arEvent = $db_events->Fetch())
 		{
-			if (ExecuteModuleEventEx($arEvent, array(&$arFields))===false)
+			if (ExecuteModuleEventEx($arEvent, array(&$arFields)) === false)
 			{
 				return false;
 			}
@@ -116,7 +111,7 @@ class CSocNetLogComments extends CAllSocNetLogComments
 
 		if (!CSocNetLogComments::CheckFields("ADD", $arFields))
 		{
-			if ($e = $GLOBALS["APPLICATION"]->GetException())
+			if ($e = $APPLICATION->GetException())
 			{
 				$errorMessage = $e->GetString();
 			}
@@ -143,16 +138,7 @@ class CSocNetLogComments extends CAllSocNetLogComments
 		)
 		{
 			$arInsert = $DB->PrepareInsert("b_sonet_log_comment", $arFields);
-
-			foreach ($arFields1 as $key => $value)
-			{
-				if (strlen($arInsert[0]) > 0)
-					$arInsert[0] .= ", ";
-				$arInsert[0] .= $key;
-				if (strlen($arInsert[1]) > 0)
-					$arInsert[1] .= ", ";
-				$arInsert[1] .= $value;
-			}
+			\Bitrix\Socialnetwork\Util::processEqualityFieldsToInsert($arFields1, $arInsert);
 
 			$ID = false;
 			if (strlen($arInsert[0]) > 0)
@@ -170,10 +156,12 @@ class CSocNetLogComments extends CAllSocNetLogComments
 						!array_key_exists("RATING_TYPE_ID", $arFields)
 						|| empty($arFields["RATING_TYPE_ID"])
 					)
+					{
 						CSocNetLogComments::Update($ID, array(
 							"RATING_TYPE_ID" => "LOG_COMMENT",
 							"RATING_ENTITY_ID" => $ID
 						));
+					}
 
 					CSocNetLogFollow::Set(
 						$arFields["USER_ID"], 
@@ -227,11 +215,17 @@ class CSocNetLogComments extends CAllSocNetLogComments
 						ExecuteModuleEventEx($arEvent, array($ID, $arFields));
 					}
 
-					$GLOBALS["USER_FIELD_MANAGER"]->Update("SONET_COMMENT", $ID, $arFields);
+					$USER_FIELD_MANAGER->Update("SONET_COMMENT", $ID, $arFields);
+
+					LogIndex::setIndex(array(
+						'itemType' => LogIndexTable::ITEM_TYPE_COMMENT,
+						'itemId' => $ID,
+						'fields' => $arFields
+					));
 
 					if(defined("BX_COMP_MANAGED_CACHE"))
 					{
-						$GLOBALS["CACHE_MANAGER"]->ClearByTag("SONET_LOG_".$arFields["LOG_ID"]);
+						$CACHE_MANAGER->ClearByTag("SONET_LOG_".$arFields["LOG_ID"]);
 					}
 
 					$cache = new CPHPCache;
@@ -255,12 +249,12 @@ class CSocNetLogComments extends CAllSocNetLogComments
 
 	function Update($ID, $arFields, $bSetSource = false)
 	{
-		global $DB;
+		global $DB, $APPLICATION, $USER_FIELD_MANAGER;
 
 		$ID = IntVal($ID);
 		if ($ID <= 0)
 		{
-			$GLOBALS["APPLICATION"]->ThrowException(GetMessage("SONET_LC_WRONG_PARAMETER_ID"), "ERROR_NO_ID");
+			$APPLICATION->ThrowException(GetMessage("SONET_LC_WRONG_PARAMETER_ID"), "ERROR_NO_ID");
 			return false;
 		}
 
@@ -304,15 +298,7 @@ class CSocNetLogComments extends CAllSocNetLogComments
 			}
 		}
 
-		$arFields1 = array();
-		foreach ($arFields as $key => $value)
-		{
-			if (substr($key, 0, 1) == "=")
-			{
-				$arFields1[substr($key, 1)] = $value;
-				unset($arFields[$key]);
-			}
-		}
+		$arFields1 = \Bitrix\Socialnetwork\Util::getEqualityFields($arFields);
 
 		if ($bSetSource)
 		{
@@ -401,13 +387,7 @@ class CSocNetLogComments extends CAllSocNetLogComments
 		)
 		{
 			$strUpdate = $DB->PrepareUpdate("b_sonet_log_comment", $arFields);
-
-			foreach ($arFields1 as $key => $value)
-			{
-				if (strlen($strUpdate) > 0)
-					$strUpdate .= ", ";
-				$strUpdate .= $key."=".$value." ";
-			}
+			\Bitrix\Socialnetwork\Util::processEqualityFieldsToUpdate($arFields1, $strUpdate);
 
 			if (strlen($strUpdate) > 0)
 			{
@@ -417,15 +397,34 @@ class CSocNetLogComments extends CAllSocNetLogComments
 					"WHERE ID = ".$ID." ";
 				$DB->Query($strSql, False, "File: ".__FILE__."<br>Line: ".__LINE__);
 
-				$GLOBALS["USER_FIELD_MANAGER"]->Update("SONET_COMMENT", $ID, $arFields);
+				$USER_FIELD_MANAGER->Update("SONET_COMMENT", $ID, $arFields);
 
 				$cache = new CPHPCache;
 				$cache->CleanDir("/sonet/log/".intval(intval($arFields["LOG_ID"]) / 1000)."/".$arFields["LOG_ID"]."/comments/");
 			}
-			elseif (!$GLOBALS["USER_FIELD_MANAGER"]->Update("SONET_COMMENT", $ID, $arFields))
+			elseif (!$USER_FIELD_MANAGER->Update("SONET_COMMENT", $ID, $arFields))
 			{
 				$ID = False;
 			}
+
+			if (intval($ID) > 0)
+			{
+				$events = GetModuleEvents("socialnetwork", "OnAfterSocNetLogCommentUpdate");
+				while ($arEvent = $events->Fetch())
+				{
+					ExecuteModuleEventEx($arEvent, array($ID, $arFields));
+				}
+
+				if (!empty($arFields['MESSAGE']))
+				{
+					LogIndex::setIndex(array(
+						'itemType' => LogIndexTable::ITEM_TYPE_COMMENT,
+						'itemId' => $ID,
+						'fields' => $arFields
+					));
+				}
+			}
+
 		}
 		else
 		{
@@ -497,6 +496,7 @@ class CSocNetLogComments extends CAllSocNetLogComments
 			"CREATED_BY_LOGIN" => Array("FIELD" => "U1.LOGIN", "TYPE" => "string", "FROM" => "LEFT JOIN b_user U1 ON LC.USER_ID = U1.ID"),
 			"CREATED_BY_PERSONAL_PHOTO" => Array("FIELD" => "U1.PERSONAL_PHOTO", "TYPE" => "int", "FROM" => "LEFT JOIN b_user U1 ON LC.USER_ID = U1.ID"),
 			"CREATED_BY_PERSONAL_GENDER" => Array("FIELD" => "U1.PERSONAL_GENDER", "TYPE" => "string", "FROM" => "LEFT JOIN b_user U1 ON LC.USER_ID = U1.ID"),
+			"CREATED_BY_EXTERNAL_AUTH_ID" => Array("FIELD" => "U1.EXTERNAL_AUTH_ID", "TYPE" => "string", "FROM" => "LEFT JOIN b_user U1 ON LC.USER_ID = U1.ID"),
 		);
 
 		if (array_key_exists("LOG_SITE_ID", $arFilter))
@@ -565,9 +565,9 @@ class CSocNetLogComments extends CAllSocNetLogComments
 			&& array_key_exists("CHECK_RIGHTS", $arParams)
 			&& $arParams["CHECK_RIGHTS"] == "Y"
 			&& !array_key_exists("USER_ID", $arParams)
-			&& is_object($GLOBALS["USER"])
+			&& is_object($USER)
 		)
-			$arParams["USER_ID"] = $GLOBALS["USER"]->GetID();
+			$arParams["USER_ID"] = $USER->GetID();
 
 		if (
 			!empty($arParams)
@@ -589,7 +589,7 @@ class CSocNetLogComments extends CAllSocNetLogComments
 				)
 					$arParams["SUBSCRIBE_USER_ID"] = $arParams["USER_ID"];
 				else
-					$arParams["SUBSCRIBE_USER_ID"] = $GLOBALS["USER"]->GetID();
+					$arParams["SUBSCRIBE_USER_ID"] = $USER->GetID();
 			}
 
 			if (!array_key_exists("MY_ENTITIES", $arParams))
@@ -804,7 +804,7 @@ class CSocNetLogComments extends CAllSocNetLogComments
 			}
 			else
 			{
-				// ÒÎËÜÊÎ ÄËß MYSQL!!! ÄËß ORACLE ÄÐÓÃÎÉ ÊÎÄ
+				// MYSQL only, ORACLE has another code
 				$cnt = $dbRes->SelectedRowsCount();
 			}
 
@@ -830,7 +830,9 @@ class CSocNetLogComments extends CAllSocNetLogComments
 
 	function OnBlogDelete($blog_id)
 	{
-		return $GLOBALS["DB"]->Query("DELETE SLC FROM b_sonet_log_comment SLC INNER JOIN b_blog_comment BC ON SLC.SOURCE_ID = BC.ID AND BC.BLOG_ID = ".intval($blog_id)." WHERE SLC.EVENT_ID = 'blog_comment_micro' OR SLC.EVENT_ID = 'blog_comment'", true);
+		global $DB;
+
+		return $DB->Query("DELETE SLC FROM b_sonet_log_comment SLC INNER JOIN b_blog_comment BC ON SLC.SOURCE_ID = BC.ID AND BC.BLOG_ID = ".intval($blog_id)." WHERE SLC.EVENT_ID = 'blog_comment_micro' OR SLC.EVENT_ID = 'blog_comment'", true);
 	}
 }
 ?>

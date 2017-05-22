@@ -74,9 +74,9 @@ class CSocServBitrix24Net extends CSocServAuth
 			(defined("ADMIN_SECTION") && ADMIN_SECTION == true ? 'admin=1' : 'site_id='.SITE_ID)
 			.'&backurl='.urlencode($GLOBALS["APPLICATION"]->GetCurPageParam(
 				'check_key='.CSocServAuthManager::GetUniqueKey(),
-				array(
-					"logout", "auth_service_error", "auth_service_id", "check_key"
-				)
+				array_merge(array(
+					"auth_service_error", "auth_service_id", "check_key"
+				), \Bitrix\Main\HttpRequest::getSystemParameters())
 			))
 			.'&mode='.$mode;
 
@@ -131,20 +131,7 @@ class CSocServBitrix24Net extends CSocServAuth
 
 			if($this->getEntityOAuth()->GetAccessToken($redirect_uri) !== false)
 			{
-				$lastAuth = $this->getEntityOAuth()->getLastAuth();
-
-				if(is_array($lastAuth) && $lastAuth['profile'] > 0 && !isset($_REQUEST['checkword']))
-				{
-					$arB24NetUser = array(
-						'ID' => $lastAuth['user_id'],
-						'PROFILE_ID' => $lastAuth['profile'],
-					);
-				}
-				else
-				{
-					$arB24NetUser = $this->getEntityOAuth()->GetCurrentUser();
-				}
-
+				$arB24NetUser = $this->getEntityOAuth()->GetCurrentUser();
 				if($arB24NetUser)
 				{
 					$authError = true;
@@ -203,7 +190,7 @@ class CSocServBitrix24Net extends CSocServAuth
 			self::SetOption("bitrix24net_domain", ($request->isHttps() ? "https://" : "http://").$request->getHttpHost());
 		}
 
-		$aRemove = array("logout", "auth_service_error", "auth_service_id", "code", "error_reason", "error", "error_description", "check_key", "current_fieldset", "checkword");
+		$aRemove = array_merge(array("auth_service_error", "auth_service_id", "code", "error_reason", "error", "error_description", "check_key", "current_fieldset", "checkword"), \Bitrix\Main\HttpRequest::getSystemParameters());
 
 		$url = ($APPLICATION->GetCurDir() == "/login/") ? "" : $APPLICATION->GetCurDir();
 
@@ -306,6 +293,7 @@ class CSocServBitrix24Net extends CSocServAuth
 </script>
 <?
 
+		\CMain::FinalActions();
 		die();
 	}
 

@@ -31,7 +31,7 @@ $APPLICATION->IncludeComponent(
 						"InputVideo",
 						"Table", "Justify", "InsertOrderedList",
 						"InsertUnorderedList",
-						"Source", "MentionUser", "Spoiler"
+						"Source", "MentionUser"
 				),
 				"BUTTONS" => Array(
 						"UploadFile",
@@ -279,10 +279,25 @@ $APPLICATION->IncludeComponent(
 								<span class="event-feed-rep-phrase event-feed-rep-phrase-yearly"><?= GetMessage('EC_JS_YEAR_P')
 									?></span>
 
-								<span style="display: inline-block; padding-top: 5px;">
-									<label for="<?=$id_?>edit-ev-rep-diap-to" class="event-feed-rep-phrase-to"><?=GetMessage('EC_T_DIALOG_STOP_REPEAT')?>:</label>
-									<input name="EVENT_RRULE[UNTIL]" class="calendar-inp calendar-inp-cal" id="event-repeat-to-value<?=$id?>" type="hidden"/>
-									<input class="calendar-inp calendar-inp-cal" id="event-repeat-to<?=$id?>" type="text" style="width: 100px; font-size: 13px;"/>
+								<span class="event-feed-endson-wrap">
+									<label class="event-feed-endson-label"><?= GetMessage('EC_ENDS_ON_LABEL')?>:</label>
+
+									<span class="event-feed-endson-piece">
+										<input id="<?=$id?>event-endson-never" name="rrule_endson" type="radio" checked="checked" value="never">
+										<label for="<?=$id?>event-endson-never"><?= GetMessage('EC_ENDS_ON_NEVER')?></label>
+									</span>
+									<span class="event-feed-endson-piece">
+										<input id="<?=$id?>event-endson-count" name="rrule_endson" type="radio" value="count">
+										<label for="<?=$id?>event-endson-count">
+											<?= GetMessage('EC_ENDS_ON_COUNT', array('#COUNT#' => '<input class="calendar-inp" id="'.$id.'event-endson-count-input" type="text" style="width: 30px" size="2" name="EVENT_RRULE[COUNT]" placeholder="'.GetMessage('EC_ENDS_ON_COUNT_PLACEHOLDER').'">'))?>
+										</label>
+									</span>
+									<span class="event-feed-endson-piece">
+										<input id="<?=$id?>event-endson-until" name="rrule_endson" type="radio" value="until">
+										<label for="<?=$id?>event-endson-until">
+											<?= GetMessage('EC_ENDS_ON_UNTIL', array('#UNTIL_DATE#' => '<input name="EVENT_RRULE[UNTIL]" class="calendar-inp calendar-inp-cal" id="event-repeat-to'.$id.'" type="text" style="width: 100px;" placeholder="'.GetMessage('EC_ENDS_ON_UNTIL_PLACEHOLDER').'"/>'))?>
+										</label>
+									</span>
 								</span>
 							</div>
 							<div class="feed-cal-week-days-cont">
@@ -347,6 +362,7 @@ $APPLICATION->IncludeComponent(
 		<span id="feed-cal-additional-hide" class="feed-event-more-link-open"><span class="feed-event-more-link-text"><?= GetMessage('ECLF_HIDE_ADD_SECT')?></span><span class="feed-event-more-link-icon"></span></span>
 	</div>
 </div>
+
 <script>
 window.oEditEventManager = new window.EditEventManager(<?=CUtil::PhpToJSObject(
 	array(
@@ -364,7 +380,8 @@ window.oEditEventManager = new window.EditEventManager(<?=CUtil::PhpToJSObject(
 			'SelectMR' => GetMessageJS('EC_PL_SEL_MEET_ROOM'),
 			'OpenMRPage' => GetMessageJS('EC_PL_OPEN_MR_PAGE'),
 			'MRNotReservedErr' => GetMessageJS('EC_MR_RESERVE_ERR_BUSY'),
-			'MRReserveErr' => GetMessageJS('EC_MR_RESERVE_ERR')
+			'MRReserveErr' => GetMessageJS('EC_MR_RESERVE_ERR'),
+			'EC_BUSY_ALERT' => GetMessageJS('EC_BUSY_ALERT')
 		),
 		'workTimeStart' => $arParams["TIME_START"],
 		'workTimeEnd' => $arParams["TIME_END"]

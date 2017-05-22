@@ -1,9 +1,9 @@
-<?
+<?php
 IncludeModuleLangFile(__FILE__);
 
 class CClusterSlave
 {
-	function SetOnLine($node_id, $master_id)
+	public static function SetOnLine($node_id, $master_id)
 	{
 		global $DB;
 
@@ -123,7 +123,7 @@ class CClusterSlave
 		}
 	}
 
-	function Pause($node_id)
+	public static function Pause($node_id)
 	{
 		global $DB;
 
@@ -154,7 +154,7 @@ class CClusterSlave
 		}
 	}
 
-	function Resume($node_id)
+	public static function Resume($node_id)
 	{
 		global $DB;
 
@@ -185,7 +185,7 @@ class CClusterSlave
 		}
 	}
 
-	function Stop($node_id)
+	public static function Stop($node_id)
 	{
 		global $DB;
 
@@ -224,7 +224,7 @@ class CClusterSlave
 		}
 	}
 
-	function SkipSQLError($node_id)
+	public static function SkipSQLError($node_id)
 	{
 		global $DB;
 
@@ -255,7 +255,7 @@ class CClusterSlave
 		}
 	}
 
-	function GetStatus($node_id, $bSlaveStatus = true, $bGlobalStatus = true, $bVariables = true)
+	public static function GetStatus($node_id, $bSlaveStatus = true, $bGlobalStatus = true, $bVariables = true)
 	{
 		global $DB;
 
@@ -380,7 +380,7 @@ class CClusterSlave
 		return $arStatus;
 	}
 
-	function GetList()
+	public static function GetList()
 	{
 		global $DB, $CACHE_MANAGER;
 		static $arSlaves = false;
@@ -418,7 +418,7 @@ class CClusterSlave
 	 * @param array $arNode
 	 * @param CDatabase $nodeDB
 	 */
-	function AdjustServerID($arNode, $nodeDB)
+	public static function AdjustServerID($arNode, $nodeDB)
 	{
 		$rs = $nodeDB->Query("show variables like 'server_id'", false, '', array("fixed_connection"=>true));
 		if($ar = $rs->Fetch())

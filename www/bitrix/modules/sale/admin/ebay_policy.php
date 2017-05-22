@@ -108,7 +108,7 @@ if($bSaved)
 			<?=Loc::getMessage("SALE_EBAY_SITE")?>: <?=CLang::SelectBox("SITE_ID", $SITE_ID, "", "this.form.submit();")?>
 		</td>
 		<td align="right">
-			<img alt="eBay logo" src="/bitrix/images/sale/ebay-logo.png" style="width: 100px; height: 67px;">
+			<img alt="eBay logo" src="/bitrix/images/sale/ebay/logo.png" style="width: 100px; height: 67px;">
 		</td>
 	</tr>
 </table>

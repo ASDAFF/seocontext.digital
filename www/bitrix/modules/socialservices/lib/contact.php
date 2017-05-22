@@ -117,6 +117,9 @@ class ContactTable extends Main\Entity\DataManager
 		}
 	}
 
+	/**
+	 * @deprecated
+	 */
 	public static function onUserLoginSocserv($params)
 	{
 		global $USER;
@@ -517,6 +520,9 @@ class ContactTable extends Main\Entity\DataManager
 		}
 	}
 
+	/**
+	 * @deprecated
+	 */
 	protected static function notifyPossible($userId)
 	{
 		if(Main\Loader::includeModule('im'))

@@ -83,6 +83,9 @@ if ($GLOBALS["USER"]->IsAuthorized()):
 				<?if ($arGadgetParams["URL_PASSWORDS"]):
 					?><li class="bx-icon-action bx-icon-passwords"><a href="<?=$arGadgetParams["URL_PASSWORDS"]?>"><?= GetMessage("GD_SONET_USER_LINKS_PASSWORDS") ?></a></li><?
 				endif;?>
+				<?if ($arGadgetParams["URL_SYNCHRONIZE"]):
+					?><li class="bx-icon-action bx-icon-synchronize"><a href="<?=$arGadgetParams["URL_SYNCHRONIZE"]?>"><?= GetMessage("GD_SONET_USER_LINKS_SYNCHRONIZE") ?></a></li><?
+				endif;?>
 				<?if ($arParams["G_SONET_USER_OTP"]["IS_ACTIVE"] && $arParams["G_SONET_USER_OTP"]["ARE_RECOVERY_CODES_ENABLED"]):
 					?><li class="bx-icon-action bx-icon-codes"><a href="<?=$arGadgetParams["URL_CODES"]?>"><?= GetMessage("GD_SONET_USER_LINKS_CODES") ?></a></li><?
 				endif?>

@@ -185,7 +185,11 @@ class HttpHeaders
 				}
 				elseif(preg_match('/^filename="(.+)"$/', $contentElement, $matches))
 				{
-					$filename = $matches[3];
+					$filename = $matches[1];
+				}
+				elseif(preg_match('/^filename=(.+)$/', $contentElement, $matches))
+				{
+					$filename = $matches[1];
 				}
 			}
 

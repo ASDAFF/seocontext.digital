@@ -1,84 +1,490 @@
 <?
 IncludeModuleLangFile($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/calendar/classes/general/calendar.php");
+
+use Bitrix\Main\Loader;
+use Bitrix\Disk\Uf\FileUserType;
+use Bitrix\Disk\AttachedObject;
+
 class CCalendarEvent
 {
-	private static $Fields = array(), $lastAttendeesList = array();
 	public static $eventUFDescriptions;
 	public static $TextParser;
+	private static $fields = array(), $lastAttendeesList = array();
 
-	private static function GetFields()
+	public static function GetLastAttendees()
 	{
-		global $DB;
-		if (!count(self::$Fields))
+		$res = array();
+		if (isset(self::$lastAttendeesList) && is_array(self::$lastAttendeesList))
 		{
-			CTimeZone::Disable();
-			self::$Fields = array(
-				"ID" => Array("FIELD_NAME" => "CE.ID", "FIELD_TYPE" => "int"),
-				"PARENT_ID" => Array("FIELD_NAME" => "CE.PARENT_ID", "FIELD_TYPE" => "int"),
-				"ACTIVE" => Array("FIELD_NAME" => "CE.ACTIVE", "FIELD_TYPE" => "string"),
-				"DELETED" => Array("FIELD_NAME" => "CE.DELETED", "FIELD_TYPE" => "string"),
-				"CAL_TYPE" => Array("FIELD_NAME" => "CE.CAL_TYPE", "FIELD_TYPE" => "string"),
-				"OWNER_ID" => Array("FIELD_NAME" => "CE.OWNER_ID", "FIELD_TYPE" => "int"),
-				"EVENT_TYPE" => Array("FIELD_NAME" => "CE.EVENT_TYPE", "FIELD_TYPE" => "string"),
-				"CREATED_BY" => Array("FIELD_NAME" => "CE.CREATED_BY", "FIELD_TYPE" => "int"),
-				"NAME" => Array("FIELD_NAME" => "CE.NAME", "FIELD_TYPE" => "string"),
-				"DATE_FROM" => Array("FIELD_NAME" => $DB->DateToCharFunction("CE.DATE_FROM").' as DATE_FROM', "FIELD_TYPE" => "date"),
-				"DATE_TO" => Array("FIELD_NAME" => $DB->DateToCharFunction("CE.DATE_TO").' as DATE_TO', "FIELD_TYPE" => "date"),
-				"TZ_FROM" => Array("FIELD_NAME" => "CE.TZ_FROM", "FIELD_TYPE" => "string"),
-				"TZ_TO" => Array("FIELD_NAME" => "CE.TZ_TO", "FIELD_TYPE" => "string"),
-				"TZ_OFFSET_FROM" => Array("FIELD_NAME" => "CE.TZ_OFFSET_FROM", "FIELD_TYPE" => "int"),
-				"TZ_OFFSET_TO" => Array("FIELD_NAME" => "CE.TZ_OFFSET_TO", "FIELD_TYPE" => "int"),
-				"DATE_FROM_TS_UTC" => Array("FIELD_NAME" => "CE.DATE_FROM_TS_UTC", "FIELD_TYPE" => "int"),
-				"DATE_TO_TS_UTC" => Array("FIELD_NAME" => "CE.DATE_TO_TS_UTC", "FIELD_TYPE" => "int"),
+			foreach(self::$lastAttendeesList as $id => $attendees)
+			{
+				$res[$id] = array();
+				foreach($attendees as $user)
+				{
+					$name = trim($user["USER_NAME"]);
 
-				"TIMESTAMP_X" => Array("FIELD_NAME" => $DB->DateToCharFunction("CE.TIMESTAMP_X").' as TIMESTAMP_X', "FIELD_TYPE" => "date"),
-				"DT_FROM" => Array("FIELD_NAME" => $DB->DateToCharFunction("CE.DT_FROM").' as DT_FROM', "FIELD_TYPE" => "date"),
-				"DT_TO" => Array("FIELD_NAME" => $DB->DateToCharFunction("CE.DT_TO").' as DT_TO', "FIELD_TYPE" => "date"),
-				"DATE_CREATE" => Array("FIELD_NAME" => $DB->DateToCharFunction("CE.DATE_CREATE").' as DATE_CREATE', "FIELD_TYPE" => "date"),
-				"DESCRIPTION" => Array("FIELD_NAME" => "CE.DESCRIPTION", "FIELD_TYPE" => "string"),
-				"DT_SKIP_TIME" => Array("FIELD_NAME" => "CE.DT_SKIP_TIME", "FIELD_TYPE" => "string"),
-				"DT_LENGTH" => Array("FIELD_NAME" => "CE.DT_LENGTH", "FIELD_TYPE" => "int"),
-				"PRIVATE_EVENT" => Array("FIELD_NAME" => "CE.PRIVATE_EVENT", "FIELD_TYPE" => "string"),
-				"ACCESSIBILITY" => Array("FIELD_NAME" => "CE.ACCESSIBILITY", "FIELD_TYPE" => "string"),
-				"IMPORTANCE" => Array("FIELD_NAME" => "CE.IMPORTANCE", "FIELD_TYPE" => "string"),
-				"IS_MEETING" => Array("FIELD_NAME" => "CE.IS_MEETING", "FIELD_TYPE" => "string"),
-				"MEETING_HOST" => Array("FIELD_NAME" => "CE.MEETING_HOST", "FIELD_TYPE" => "int"),
-				"MEETING_STATUS" => Array("FIELD_NAME" => "CE.MEETING_STATUS", "FIELD_TYPE" => "string"),
-				"MEETING" => Array("FIELD_NAME" => "CE.MEETING", "FIELD_TYPE" => "string"),
-				"LOCATION" => Array("FIELD_NAME" => "CE.LOCATION", "FIELD_TYPE" => "string"),
-				"REMIND" => Array("FIELD_NAME" => "CE.REMIND", "FIELD_TYPE" => "string"),
-				"EXTERNAL_ID" => Array("FIELD_NAME" => "CE.EXTERNAL_ID", "FIELD_TYPE" => "string"),
-				"COLOR" => Array("FIELD_NAME" => "CE.COLOR", "FIELD_TYPE" => "string"),
-				"TEXT_COLOR" => Array("FIELD_NAME" => "CE.TEXT_COLOR", "FIELD_TYPE" => "string"),
-				"RRULE" => Array("FIELD_NAME" => "CE.RRULE", "FIELD_TYPE" => "string"),
-				"EXRULE" => Array("FIELD_NAME" => "CE.EXRULE", "FIELD_TYPE" => "string"),
-				"RDATE" => Array("FIELD_NAME" => "CE.RDATE", "FIELD_TYPE" => "string"),
-				"EXDATE" => Array("FIELD_NAME" => "CE.EXDATE", "FIELD_TYPE" => "string"),
-				"ATTENDEES_CODES" => Array("FIELD_NAME" => "CE.ATTENDEES_CODES", "FIELD_TYPE" => "string"),
-				"DAV_XML_ID" => Array("FIELD_NAME" => "CE.DAV_XML_ID", "FIELD_TYPE" => "string"), //
-				"DAV_EXCH_LABEL" => Array("FIELD_NAME" => "CE.DAV_EXCH_LABEL", "FIELD_TYPE" => "string"), // Exchange sync label
-				"CAL_DAV_LABEL" => Array("FIELD_NAME" => "CE.CAL_DAV_LABEL", "FIELD_TYPE" => "string"), // CalDAV sync label
-				"VERSION" => Array("FIELD_NAME" => "CE.VERSION", "FIELD_TYPE" => "string") // Version used for outlook sync
-			);
-			CTimeZone::Enable();
+					$type = (intVal($user["USER_ID"]) > 0) ? "int" : "ext";
+					if ($type == "int")
+					{
+						$user["ID"] = intVal($user["USER_ID"]);
+						$name = CCalendar::GetUserName($user);
+					}
+
+					$res[$id][] = array(
+						"type" => $type,
+						"id" => intVal($user["USER_ID"]),
+						"name" => $name,
+						"email" => trim($user["USER_EMAIL"]), // For ext only
+						"photo" => $user["PERSONAL_PHOTO"],
+						"status" => trim($user["STATUS"]),
+						"desc" => trim($user["DESCRIPTION"]),
+						"color" => trim($user["COLOR"]),
+						"text_color" => trim($user["TEXT_COLOR"]),
+						"accessibility" => trim($user["ACCESSIBILITY"])
+					);
+				}
+			}
 		}
-		return self::$Fields;
+		return $res;
 	}
 
-	public static function GetList($Params = array())
+	public static function SetLastAttendees($attendees)
+	{
+		self::$lastAttendeesList = $attendees;
+	}
+
+	public static function CheckRRULE($RRule = array())
+	{
+		if ($RRule['FREQ'] != 'WEEKLY' && isset($RRule['BYDAY']))
+			unset($RRule['BYDAY']);
+		return $RRule;
+	}
+
+	public static function Edit($params = array())
+	{
+		global $DB, $CACHE_MANAGER;
+		$arFields = $params['arFields'];
+
+		$arAffectedSections = array();
+		$significantChanges = isset($params['significantChanges']) ? $params['significantChanges'] : false;
+		$sendInvitations = $params['sendInvitations'] !== false;
+		$sendEditNotification = $params['sendEditNotification'] !== false;
+
+		$result = false;
+		$attendeesCodes = array();
+		// Get current user id
+		$userId = (isset($params['userId']) && intVal($params['userId']) > 0) ? intVal($params['userId']) : CCalendar::GetCurUserId();
+		if (!$userId && isset($arFields['CREATED_BY']))
+			$userId = intVal($arFields['CREATED_BY']);
+		$path = !empty($params['path']) ? $params['path'] : CCalendar::GetPath($arFields['CAL_TYPE'], $arFields['OWNER_ID'], true);
+
+		$bNew = !isset($arFields['ID']) || $arFields['ID'] <= 0;
+		$arFields['TIMESTAMP_X'] = CCalendar::Date(mktime(), true, false);
+		if ($bNew)
+		{
+			if (!isset($arFields['CREATED_BY']))
+			{
+				$arFields['CREATED_BY'] = ($arFields['IS_MEETING'] && $arFields['CAL_TYPE'] == 'user' && $arFields['OWNER_ID']) ? $arFields['OWNER_ID'] : $userId;
+			}
+
+			if (!isset($arFields['DATE_CREATE']))
+				$arFields['DATE_CREATE'] = $arFields['TIMESTAMP_X'];
+		}
+
+		if (!isset($arFields['OWNER_ID']) || !$arFields['OWNER_ID'])
+			$arFields['OWNER_ID'] = 0;
+
+		// Current event
+		$currentEvent = array();
+		if (!$bNew)
+		{
+			if (isset($params['currentEvent']))
+				$currentEvent = $params['currentEvent'];
+			else
+				$currentEvent = CCalendarEvent::GetById($arFields['ID']);
+
+			if (is_array($arFields['LOCATION']) && !isset($arFields['LOCATION']['OLD']) && $currentEvent)
+			{
+				$arFields['LOCATION']['OLD'] = $currentEvent['LOCATION'];
+			}
+
+			if ($currentEvent['IS_MEETING'] && !isset($arFields['ATTENDEES']) && $currentEvent['PARENT_ID'] == $currentEvent['ID'] && $arFields['IS_MEETING'])
+			{
+				$arFields['ATTENDEES'] = array();
+				$attendees = self::GetAttendees($currentEvent['PARENT_ID']);
+				if ($attendees[$currentEvent['PARENT_ID']])
+				{
+					for($i = 0, $l = count($attendees[$currentEvent['PARENT_ID']]); $i < $l; $i++)
+					{
+						$arFields['ATTENDEES'][] = $attendees[$currentEvent['PARENT_ID']][$i]['USER_ID'];
+					}
+				}
+			}
+
+			if ($currentEvent['PARENT_ID'])
+				$arFields['PARENT_ID'] = $currentEvent['PARENT_ID'];
+		}
+
+
+		if ($userId > 0 && self::CheckFields($arFields, $currentEvent, $userId))
+		{
+			if (!$bNew && !isset($params['significantChanges']) && $arFields)
+			{
+				$significantChanges = self::CheckSignificantChangesFields($arFields, $currentEvent);
+			}
+
+			if ($arFields['CAL_TYPE'] == 'user')
+				$CACHE_MANAGER->ClearByTag('calendar_user_'.$arFields['OWNER_ID']);
+			$attendees = is_array($arFields['ATTENDEES']) ? $arFields['ATTENDEES'] : array();
+
+			if (!$arFields['PARENT_ID'] || $arFields['PARENT_ID'] == $arFields['ID'])
+			{
+				$fromTs = $arFields['DATE_FROM_TS_UTC'];
+				$toTs = $arFields['DATE_TO_TS_UTC'];
+				if ($arFields['DT_SKIP_TIME'] == "Y")
+				{
+					//$toTs += CCalendar::GetDayLen();
+				}
+				else
+				{
+					$fromTs += date('Z', $arFields['DATE_FROM_TS_UTC']);
+					$toTs += date('Z', $arFields['DATE_TO_TS_UTC']);
+				}
+
+				$arFields['LOCATION'] = CCalendar::SetLocation(
+					$arFields['LOCATION']['OLD'],
+					$arFields['LOCATION']['NEW'],
+					array(
+						// UTC timestamp + date('Z', $timestamp) /*offset of the server*/
+						'dateFrom' => CCalendar::Date($fromTs, $arFields['DT_SKIP_TIME'] !== "Y"),
+						'dateTo' => CCalendar::Date($toTs, $arFields['DT_SKIP_TIME'] !== "Y"),
+						'name' => $arFields['NAME'],
+						'persons' => count($attendees),
+						'attendees' => $attendees,
+						'bRecreateReserveMeetings' => $arFields['LOCATION']['RE_RESERVE'] !== 'N'
+					)
+				);
+			}
+			else
+			{
+				$arFields['LOCATION'] = CCalendar::GetTextLocation($arFields['LOCATION']['NEW']);
+			}
+
+			if (!isset($arFields['IS_MEETING']) &&
+				isset($arFields['ATTENDEES']) && is_array($arFields['ATTENDEES']) && empty($arFields['ATTENDEES']))
+			{
+				$arFields['IS_MEETING'] = false;
+			}
+
+			if (is_array($arFields['MEETING']))
+			{
+				$arFields['~MEETING'] = $arFields['MEETING'];
+				$arFields['MEETING']['REINVITE'] = false;
+				$arFields['MEETING'] = serialize($arFields['MEETING']);
+			}
+
+			if ($arFields['IS_MEETING'])
+			{
+				$attendeesCodes = $arFields['ATTENDEES_CODES'];
+				if (is_array($arFields['ATTENDEES_CODES']) && !empty($arFields['ATTENDEES_CODES']))
+				{
+					$arFields['ATTENDEES_CODES'] = implode(',', $arFields['ATTENDEES_CODES']);
+				}
+
+				if (!isset($arFields['MEETING_STATUS']) && $arFields['MEETING_HOST'] == $arFields['CREATED_BY'])
+					$arFields['MEETING_STATUS'] = 'H';
+			}
+
+			if (is_array($arFields['RELATIONS']))
+			{
+				$arFields['~RELATIONS'] = $arFields['RELATIONS'];
+				$arFields['RELATIONS'] = serialize($arFields['RELATIONS']);
+			}
+
+			$arReminders = array();
+			if (is_array($arFields['REMIND']))
+			{
+				foreach ($arFields['REMIND'] as $remind)
+				{
+					if (is_array($remind) && isset($remind['type']) && in_array($remind['type'], array('min', 'hour', 'day')))
+					{
+						$arReminders[] = array('type' => $remind['type'], 'count' => floatVal($remind['count']));
+					}
+				}
+			}
+			elseif($currentEvent['REMIND'])
+			{
+				$arReminders = $currentEvent['REMIND'];
+			}
+			$arFields['REMIND'] = count($arReminders) > 0 ? serialize($arReminders) : '';
+
+			$AllFields = self::GetFields();
+			$dbFields = array();
+			foreach($arFields as $field => $val)
+				if(isset($AllFields[$field]) && $field != "ID")
+					$dbFields[$field] = $arFields[$field];
+			CTimeZone::Disable();
+
+			if ($bNew) // Add
+			{
+				$eventId = $DB->Add("b_calendar_event", $dbFields, array('DESCRIPTION', 'MEETING', 'EXDATE'));
+			}
+			else // Update
+			{
+				$eventId = $arFields['ID'];
+				$strUpdate = $DB->PrepareUpdate("b_calendar_event", $dbFields);
+				$strSql =
+					"UPDATE b_calendar_event SET ".
+						$strUpdate.
+						" WHERE ID=".IntVal($eventId);
+
+				$DB->QueryBind($strSql, array(
+					'DESCRIPTION' => $arFields['DESCRIPTION'],
+					'MEETING' => $arFields['MEETING'],
+					'EXDATE' => $arFields['EXDATE']
+				));
+			}
+
+			CTimeZone::Enable();
+
+			if ($bNew && !isset($dbFields['DAV_XML_ID']))
+			{
+				$strSql =
+					"UPDATE b_calendar_event SET ".
+						$DB->PrepareUpdate("b_calendar_event", array('DAV_XML_ID' => $eventId)).
+						" WHERE ID=".IntVal($eventId);
+				$DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			}
+
+			// *** Check and update section links ***
+			$sectionId = (is_array($arFields['SECTIONS']) && $arFields['SECTIONS'][0]) ? intVal($arFields['SECTIONS'][0]) : false;
+
+			if ($sectionId && CCalendarSect::GetById($sectionId, false))
+			{
+				if (!$bNew)
+				{
+					$arAffectedSections[] = $currentEvent['SECT_ID'];
+				}
+				self::ConnectEventToSection($eventId, $sectionId);
+			}
+			else
+			{
+				// It's new event we have to find section where to put it automatically
+				if ($bNew)
+				{
+					if ($arFields['IS_MEETING'] && $arFields['PARENT_ID'] && $arFields['CAL_TYPE'] == 'user')
+					{
+						$sectionId = CCalendar::GetMeetingSection($arFields['OWNER_ID']);
+					}
+					else
+					{
+						$sectionId = CCalendarSect::GetLastUsedSection($arFields['CAL_TYPE'], $arFields['OWNER_ID'], $userId);
+					}
+
+					if ($sectionId)
+					{
+						$res = CCalendarSect::GetList(array('arFilter' => array('CAL_TYPE' => $arFields['CAL_TYPE'],'OWNER_ID' => $arFields['OWNER_ID'], 'ID'=> $sectionId)));
+						if (!$res || !$res[0])
+							$sectionId = false;
+					}
+					else
+					{
+						$sectionId = false;
+					}
+
+					if (!$sectionId)
+					{
+						$sectRes = CCalendarSect::GetSectionForOwner($arFields['CAL_TYPE'], $arFields['OWNER_ID'], true);
+						$sectionId = $sectRes['sectionId'];
+					}
+					self::ConnectEventToSection($eventId, $sectionId);
+				}
+				else
+				{
+					// It's existing event, we take it's section to update modification lables (no db changes in b_calendar_event_sect)
+					$sectionId = $currentEvent['SECT_ID'];
+				}
+			}
+			$arAffectedSections[] = $sectionId;
+
+			if (count($arAffectedSections) > 0)
+				CCalendarSect::UpdateModificationLabel($arAffectedSections);
+
+			if ($arFields['IS_MEETING'] || (!$bNew && $currentEvent['IS_MEETING']))
+			{
+				if (!$arFields['PARENT_ID'])
+				{
+					$DB->Query("UPDATE b_calendar_event SET ".$DB->PrepareUpdate("b_calendar_event", array("PARENT_ID" => $eventId))." WHERE ID=".intVal($eventId), false, "FILE: ".__FILE__."<br> LINE: ".__LINE__);
+				}
+
+				if (!$arFields['PARENT_ID'] || $arFields['PARENT_ID'] == $eventId)
+				{
+					self::CreateChildEvents($eventId, $arFields, $params);
+				}
+
+				if (!$arFields['PARENT_ID'])
+				{
+					$arFields['PARENT_ID'] = intVal($eventId);
+				}
+			}
+			else
+			{
+				if (($bNew && !$arFields['PARENT_ID']) || (!$bNew && !$currentEvent['PARENT_ID']))
+				{
+					$DB->Query("UPDATE b_calendar_event SET ".$DB->PrepareUpdate("b_calendar_event", array("PARENT_ID" => $eventId))." WHERE ID=".intVal($eventId), false, "FILE: ".__FILE__."<br> LINE: ".__LINE__);
+					if (!$arFields['PARENT_ID'])
+						$arFields['PARENT_ID'] = intVal($eventId);
+				}
+
+				if (Loader::includeModule("pull"))
+				{
+					$curUserId = $userId;
+					if ($arFields['PARENT_ID'] && $arFields['PARENT_ID'] !== $arFields['ID'])
+						$curUserId = $arFields['OWNER_ID'];
+
+					CPullStack::AddByUser($curUserId, Array(
+						'module_id' => 'calendar',
+						'command' => 'event_update',
+						'params' => array(
+							'EVENT' => CCalendarEvent::OnPullPrepareArFields($arFields),
+							'ATTENDEES' => array(),
+							'NEW' => $bNew ? 'Y' : 'N'
+						)
+					));
+				}
+			}
+
+			// Clean old reminders and add new reminders
+			if ($arFields["CAL_TYPE"] != 'user' ||
+				$arFields['OWNER_ID'] != $userId ||
+				$eventId == $arFields['PARENT_ID'])
+			{
+				CCalendarReminder::UpdateReminders(
+					array(
+						'id' => $eventId,
+						'reminders' => $arReminders,
+						'arFields' => $arFields,
+						'userId' => $userId,
+						'path' => $path,
+						'bNew' => $bNew
+					)
+				);
+			}
+
+			// Send invitations and notivications
+			if ($arFields['IS_MEETING'])
+			{
+				if ($params['saveAttendeesStatus'] && $sendEditNotification)
+				{
+					if ($arFields['PARENT_ID'] != $eventId && ($arFields['MEETING_STATUS'] == "Y" || $arFields['MEETING_STATUS'] == "Q"))
+					{
+						$CACHE_MANAGER->ClearByTag('calendar_user_'.$arFields['OWNER_ID']);
+						$fromTo = CCalendarEvent::GetEventFromToForUser($arFields, $arFields['OWNER_ID']);
+						CCalendarNotify::Send(array(
+							'mode' => 'change_notify',
+							'name' => $arFields['NAME'],
+							"from" => $fromTo['DATE_FROM'],
+							"to" => $fromTo['DATE_TO'],
+							"location" => CCalendar::GetTextLocation($arFields["LOCATION"]),
+							"guestId" => $arFields['OWNER_ID'],
+							"eventId" => $arFields['PARENT_ID'],
+							"userId" => $userId,
+							"fields" => $arFields
+						));
+					}
+				}
+				elseif ($sendInvitations && $arFields['PARENT_ID'] != $eventId && $arFields['MEETING_STATUS'] == 'Q')
+				{
+					$CACHE_MANAGER->ClearByTag('calendar_user_'.$arFields['OWNER_ID']);
+					$fromTo = CCalendarEvent::GetEventFromToForUser($arFields, $arFields['OWNER_ID']);
+					CCalendarNotify::Send(array(
+						"mode" => 'invite',
+						"name" => $arFields['NAME'],
+						"from" => $fromTo['DATE_FROM'],
+						"to" => $fromTo['DATE_TO'],
+						"location" => CCalendar::GetTextLocation($arFields["LOCATION"]),
+						"guestId" => $arFields['OWNER_ID'],
+						"eventId" => $arFields['PARENT_ID'],
+						"userId" => $userId,
+						"fields" => $arFields
+					));
+				}
+				elseif ($sendEditNotification)
+				{
+					if ($arFields['PARENT_ID'] != $eventId && $arFields['MEETING_STATUS'] == "Y" && $significantChanges)
+					{
+						$CACHE_MANAGER->ClearByTag('calendar_user_'.$arFields['OWNER_ID']);
+						$fromTo = CCalendarEvent::GetEventFromToForUser($arFields, $arFields['OWNER_ID']);
+						CCalendarNotify::Send(array(
+							'mode' => 'change_notify',
+							'name' => $arFields['NAME'],
+							"from" => $fromTo['DATE_FROM'],
+							"to" => $fromTo['DATE_TO'],
+							"location" => CCalendar::GetTextLocation($arFields["LOCATION"]),
+							"guestId" => $arFields['OWNER_ID'],
+							"eventId" => $arFields['PARENT_ID'],
+							"userId" => $userId,
+							"fields" => $arFields
+						));
+					}
+				}
+			}
+
+			if ($arFields['IS_MEETING'] && !empty($arFields['ATTENDEES_CODES']) && $arFields['PARENT_ID'] == $eventId)
+			{
+				CCalendarLiveFeed::OnEditCalendarEventEntry(array(
+					'eventId' => $eventId,
+					'arFields' => $arFields,
+					'attendeesCodes' => $attendeesCodes
+				));
+			}
+			CCalendar::ClearCache('event_list');
+
+			$result = $eventId;
+		}
+
+		return $result;
+	}
+
+	public static function GetById($ID, $checkPermissions = true)
+	{
+		if ($ID > 0)
+		{
+			$Event = CCalendarEvent::GetList(
+				array(
+					'arFilter' => array(
+						"ID" => $ID,
+						"DELETED" => "N"
+					),
+					'parseRecursion' => false,
+					'fetchAttendees' => $checkPermissions,
+					'checkPermissions' => $checkPermissions,
+					'setDefaultLimit' => false
+				)
+			);
+			if ($Event && is_array($Event[0]))
+				return $Event[0];
+		}
+		return false;
+	}
+
+	public static function GetList($params = array())
 	{
 		global $DB, $USER_FIELD_MANAGER;
-		$getUF = $Params['getUserfields'] !== false;
-		$checkPermissions = $Params['checkPermissions'] !== false;
+		$getUF = $params['getUserfields'] !== false;
+		$checkPermissions = $params['checkPermissions'] !== false;
 		$bCache = CCalendar::CacheTime() > 0;
-		$Params['setDefaultLimit'] = $Params['setDefaultLimit'] === true;
-		$userId = isset($Params['userId']) ? intVal($Params['userId']) : CCalendar::GetCurUserId();
+		$params['setDefaultLimit'] = $params['setDefaultLimit'] === true;
+		$userId = isset($params['userId']) ? intVal($params['userId']) : CCalendar::GetCurUserId();
+		$fetchSection = $params['fetchSection'];
+		$attendees = array();
+		$result = null;
 
 		CTimeZone::Disable();
 		if($bCache)
 		{
 			$cache = new CPHPCache;
-			$cacheId = 'event_list_'.md5(serialize($Params));
+			$cacheId = 'event_list_'.md5(serialize($params));
 			if ($checkPermissions)
 				$cacheId .= 'chper'.CCalendar::GetCurUserId().'|';
 			if (CCalendar::IsSocNet() && CCalendar::IsSocnetAdmin())
@@ -89,15 +495,15 @@ class CCalendarEvent
 
 			if ($cache->InitCache(CCalendar::CacheTime(), $cacheId, $cachePath))
 			{
-				$res = $cache->GetVars();
-				$arResult = $res["arResult"];
-				$arAttendees = $res["arAttendees"];
+				$res = self::PrepareFromCache($cache->GetVars());
+				$result = $res["result"];
+				$attendees = $res["attendees"];
 			}
 		}
 
-		if (!$bCache || !isset($arResult))
+		if (!$bCache || !isset($result))
 		{
-			$arFilter = $Params['arFilter'];
+			$arFilter = $params['arFilter'];
 			if ($getUF)
 			{
 				$obUserFieldsSql = new CUserTypeSQL();
@@ -106,9 +512,9 @@ class CCalendarEvent
 				$obUserFieldsSql->SetFilter($arFilter);
 			}
 
-			$Params['fetchAttendees'] = $Params['fetchAttendees'] !== false;
+			$params['fetchAttendees'] = $params['fetchAttendees'] !== false;
 
-			if ($Params['setDefaultLimit'] !== false) // Deprecated
+			if ($params['setDefaultLimit'] !== false) // Deprecated
 			{
 				if (!isset($arFilter["FROM_LIMIT"])) // default 3 month back
 					$arFilter["FROM_LIMIT"] = CCalendar::Date(time() - 31 * 3 * 24 * 3600, false);
@@ -118,7 +524,7 @@ class CCalendarEvent
 			}
 
 			// Array('ID' => 'asc')
-			$arOrder = isset($Params['arOrder']) ? $Params['arOrder'] : Array();
+			$arOrder = isset($params['arOrder']) ? $params['arOrder'] : Array();
 			$arFields = self::GetFields();
 
 			if ($arFilter["DELETED"] === false)
@@ -127,6 +533,7 @@ class CCalendarEvent
 				$arFilter["DELETED"] = "N";
 
 			$join = '';
+
 			$arSqlSearch = array();
 			if(is_array($arFilter))
 			{
@@ -150,11 +557,23 @@ class CCalendarEvent
 						if ($ts > 0)
 							$arSqlSearch[] = "CE.DATE_FROM_TS_UTC<=".($ts + 86399);
 					}
+					elseif($n == 'ID')
+					{
+						if(is_array($val))
+						{
+							$val = array_map(intval, $val);
+							$arSqlSearch[] = 'CE.ID IN (\''.implode('\',\'', $val).'\')';
+						}
+						else if (intVal($val) > 0)
+						{
+							$arSqlSearch[] = "CE.ID=".intVal($val);
+						}
+					}
 					elseif($n == 'OWNER_ID')
 					{
 						if(is_array($val))
 						{
-							$val = array_map(intVal, $val);
+							$val = array_map(intval, $val);
 							$arSqlSearch[] = 'CE.OWNER_ID IN (\''.implode('\',\'', $val).'\')';
 						}
 						else if (intVal($val) > 0)
@@ -170,7 +589,7 @@ class CCalendarEvent
 					{
 						if(is_array($val))
 						{
-							$val = array_map(intVal, $val);
+							$val = array_map(intval, $val);
 							$arSqlSearch[] = 'CE.CREATED_BY IN (\''.implode('\',\'', $val).'\')';
 						}
 						else if (intVal($val) > 0)
@@ -226,6 +645,15 @@ class CCalendarEvent
 					$arSqlSearch[] = "(".$r.")";
 			}
 
+			$selectList = "";
+			foreach($arFields as $field)
+				$selectList .= $field['FIELD_NAME'].", ";
+
+			if ($fetchSection && $arFilter['ACTIVE_SECTION'] == 'Y')
+			{
+				$selectList .= "CS.CAL_DAV_CAL as SECTION_DAV_XML_ID,";
+			}
+
 			$strSqlSearch = GetFilterSqlSearch($arSqlSearch);
 			$strOrderBy = '';
 			foreach($arOrder as $by=>$order)
@@ -240,10 +668,6 @@ class CCalendarEvent
 			{
 				$strOrderBy = "ORDER BY ".rtrim($strOrderBy, ",");
 			}
-
-			$selectList = "";
-			foreach($arFields as $field)
-				$selectList .= $field['FIELD_NAME'].", ";
 
 			$strSql = "
 				SELECT ".
@@ -265,7 +689,7 @@ class CCalendarEvent
 				$res->SetUserFields($USER_FIELD_MANAGER->GetUserFields("CALENDAR_EVENT"));
 			}
 
-			$arResult = Array();
+			$result = Array();
 			$arMeetingIds = array();
 			$arEvents = array();
 			$bIntranet = CCalendar::IsIntranetEnabled();
@@ -295,10 +719,8 @@ class CCalendarEvent
 					$arMeetingIds[] = $event['ID'];
 			}
 
-			if ($Params['fetchAttendees'] && count($arMeetingIds) > 0)
-				$arAttendees = self::GetAttendees($arMeetingIds);
-			else
-				$arAttendees = array();
+			if ($params['fetchAttendees'] && count($arMeetingIds) > 0)
+				$attendees = self::GetAttendees($arMeetingIds);
 
 			foreach($arEvents as $event)
 			{
@@ -310,6 +732,12 @@ class CCalendarEvent
 						$event['MEETING'] = array();
 				}
 
+				if (isset($event['RELATIONS']) && $event['RELATIONS'] != "")
+				{
+					$event['RELATIONS'] = unserialize($event['RELATIONS']);
+					if (!is_array($event['RELATIONS']))
+						$event['RELATIONS'] = array();
+				}
 
 				if (isset($event['REMIND']) && $event['REMIND'] != "")
 				{
@@ -318,9 +746,9 @@ class CCalendarEvent
 						$event['REMIND'] = array();
 				}
 
-				if ($bIntranet && $event['IS_MEETING'] && isset($arAttendees[$event['ID']]) && count($arAttendees[$event['ID']]) > 0)
+				if ($bIntranet && $event['IS_MEETING'] && isset($attendees[$event['ID']]) && count($attendees[$event['ID']]) > 0)
 				{
-					$event['~ATTENDEES'] = $arAttendees[$event['ID']];
+					$event['~ATTENDEES'] = $attendees[$event['ID']];
 				}
 				$checkPermissionsForEvent = $userId != $event['CREATED_BY']; // It's creator
 
@@ -350,112 +778,197 @@ class CCalendarEvent
 
 				$event = self::PreHandleEvent($event);
 
-				if ($Params['parseRecursion'] && self::CheckRecurcion($event))
+				if ($params['parseRecursion'] && self::CheckRecurcion($event))
 				{
-					self::ParseRecursion($arResult, $event, array(
+					self::ParseRecursion($result, $event, array(
 						'fromLimit' => $arFilter["FROM_LIMIT"],
 						'toLimit' => $arFilter["TO_LIMIT"],
-						'instanceCount' => isset($Params['maxInstanceCount']) ? $Params['maxInstanceCount'] : false,
-						'preciseLimits' => isset($Params['preciseLimits']) ? $Params['preciseLimits'] : false
+						'instanceCount' => isset($params['maxInstanceCount']) ? $params['maxInstanceCount'] : false,
+						'preciseLimits' => isset($params['preciseLimits']) ? $params['preciseLimits'] : false
 					));
 				}
 				else
 				{
-					self::HandleEvent($arResult, $event);
+					self::HandleEvent($result, $event);
 				}
 			}
 
 			if ($bCache)
 			{
 				$cache->StartDataCache(CCalendar::CacheTime(), $cacheId, $cachePath);
-				$cache->EndDataCache(array(
-					"arResult" => $arResult,
-					"arAttendees" => $arAttendees
-				));
+				$cache->EndDataCache(self::PrepareForCache(array(
+					"result" => $result,
+					"attendees" => $attendees
+				)));
 			}
 		}
 
 		CTimeZone::Enable();
 
-		//self::$lastAttendeesList = $arAttendees;
+
 		if (!is_array(self::$lastAttendeesList))
 		{
-			self::$lastAttendeesList = $arAttendees;
+			self::$lastAttendeesList = $attendees;
 		}
-		elseif(is_array($arAttendees))
+		elseif(is_array($attendees))
 		{
-			foreach($arAttendees as $eventId => $att)
+			foreach($attendees as $eventId => $att)
 				self::$lastAttendeesList[$eventId] = $att;
 		}
 
-		return $arResult;
+		return $result;
 	}
 
-	public static function GetById($ID, $checkPermissions = true)
+	private static function PrepareFromCache($data = array())
 	{
-		if ($ID > 0)
+		if (is_array($data['result']))
 		{
-			$Event = CCalendarEvent::GetList(
-				array(
-					'arFilter' => array(
-						"ID" => $ID,
-						"DELETED" => "N"
-					),
-					'parseRecursion' => false,
-					'fetchAttendees' => $checkPermissions,
-					'checkPermissions' => $checkPermissions,
-					'setDefaultLimit' => false
-				)
-			);
-			if ($Event && is_array($Event[0]))
-				return $Event[0];
-		}
-		return false;
-	}
-
-	public static function GetLastAttendees()
-	{
-		$res = array();
-		if (isset(self::$lastAttendeesList) && is_array(self::$lastAttendeesList))
-		{
-			foreach(self::$lastAttendeesList as $id => $attendees)
+			foreach ($data['result'] as $i => $event)
 			{
-				$res[$id] = array();
-				foreach($attendees as $user)
+				if ($event['IS_MEETING'] && is_array($event['~ATTENDEES']))
 				{
-					$name = trim($user["USER_NAME"]);
-
-					$type = (intVal($user["USER_ID"]) > 0) ? "int" : "ext";
-					if ($type == "int")
+					foreach ($event['~ATTENDEES'] as $j => $attender)
 					{
-						$user["ID"] = intVal($user["USER_ID"]);
-						$name = CCalendar::GetUserName($user);
+						$tmp = $attender['STATUS'];
+						$data['result'][$i]['~ATTENDEES'][$j] = $data['users'][$attender['USER_ID']];
+						$data['result'][$i]['~ATTENDEES'][$j]['STATUS'] = $attender['STATUS'];
 					}
-
-					$res[$id][] = array(
-						"type" => $type,
-						"id" => intVal($user["USER_ID"]),
-						"name" => $name,
-						"email" => trim($user["USER_EMAIL"]), // For ext only
-						"photo" => $user["PERSONAL_PHOTO"],
-						"status" => trim($user["STATUS"]),
-						"desc" => trim($user["DESCRIPTION"]),
-						"color" => trim($user["COLOR"]),
-						"text_color" => trim($user["TEXT_COLOR"]),
-						"accessibility" => trim($user["ACCESSIBILITY"])
-					);
 				}
 			}
 		}
-		return $res;
+
+		if (is_array($data['attendees']))
+		{
+			foreach($data['attendees'] as $eventId => $att)
+			{
+				foreach ($att as $j => $at)
+				{
+					$data['attendees'][$eventId][$j] = $data['users'][$at['USER_ID']];
+					$data['attendees'][$eventId][$j]['STATUS'] = $at['STATUS'];
+				}
+			}
+		}
+		unset($data['users']);
+		return $data;
 	}
 
-	public static function SetLastAttendees($attendees)
+	private static function PrepareForCache($data = array())
 	{
-		self::$lastAttendeesList = $attendees;
+		$data['users'] = array();
+
+		if (is_array($data['result']))
+		{
+			foreach ($data['result'] as $i => $event)
+			{
+				if ($event['IS_MEETING'] && is_array($event['~ATTENDEES']))
+				{
+					foreach ($event['~ATTENDEES'] as $j => $user)
+					{
+						$data['result'][$i]['~ATTENDEES'][$j] = array(
+							'USER_ID' => $user['USER_ID'],
+							'STATUS' => $user['STATUS']
+						);
+
+						unset($user['STATUS']);
+						//if (!array_key_exists($user['USER_ID'], $data['users']))
+						$data['users'][$user['USER_ID']] = $user;
+					}
+				}
+			}
+		}
+
+		if (is_array($data['attendees']))
+		{
+			foreach($data['attendees'] as $eventId => $att)
+			{
+				foreach ($att as $j => $user)
+				{
+					$data['attendees'][$eventId][$j] = array(
+						'USER_ID' => $user['USER_ID'],
+						'STATUS' => $user['STATUS']
+					);
+
+					unset($user['STATUS']);
+					//if (!array_key_exists($user['USER_ID'], $data['users']))
+					$data['users'][$user['USER_ID']] = $user;
+				}
+			}
+		}
+
+		return $data;
 	}
 
-	// TODO: cache it!
+	private static function GetFields()
+	{
+		global $DB;
+		if (!count(self::$fields))
+		{
+			CTimeZone::Disable();
+			self::$fields = array(
+				"ID" => Array("FIELD_NAME" => "CE.ID", "FIELD_TYPE" => "int"),
+				"PARENT_ID" => Array("FIELD_NAME" => "CE.PARENT_ID", "FIELD_TYPE" => "int"),
+				"ACTIVE" => Array("FIELD_NAME" => "CE.ACTIVE", "FIELD_TYPE" => "string"),
+				"DELETED" => Array("FIELD_NAME" => "CE.DELETED", "FIELD_TYPE" => "string"),
+				"CAL_TYPE" => Array("FIELD_NAME" => "CE.CAL_TYPE", "FIELD_TYPE" => "string"),
+				"OWNER_ID" => Array("FIELD_NAME" => "CE.OWNER_ID", "FIELD_TYPE" => "int"),
+				"EVENT_TYPE" => Array("FIELD_NAME" => "CE.EVENT_TYPE", "FIELD_TYPE" => "string"),
+				"CREATED_BY" => Array("FIELD_NAME" => "CE.CREATED_BY", "FIELD_TYPE" => "int"),
+				"NAME" => Array("FIELD_NAME" => "CE.NAME", "FIELD_TYPE" => "string"),
+				"DATE_FROM" => Array("FIELD_NAME" => $DB->DateToCharFunction("CE.DATE_FROM").' as DATE_FROM', "FIELD_TYPE" => "date"),
+				"DATE_TO" => Array("FIELD_NAME" => $DB->DateToCharFunction("CE.DATE_TO").' as DATE_TO', "FIELD_TYPE" => "date"),
+				"TZ_FROM" => Array("FIELD_NAME" => "CE.TZ_FROM", "FIELD_TYPE" => "string"),
+				"TZ_TO" => Array("FIELD_NAME" => "CE.TZ_TO", "FIELD_TYPE" => "string"),
+				"TZ_OFFSET_FROM" => Array("FIELD_NAME" => "CE.TZ_OFFSET_FROM", "FIELD_TYPE" => "int"),
+				"TZ_OFFSET_TO" => Array("FIELD_NAME" => "CE.TZ_OFFSET_TO", "FIELD_TYPE" => "int"),
+				"DATE_FROM_TS_UTC" => Array("FIELD_NAME" => "CE.DATE_FROM_TS_UTC", "FIELD_TYPE" => "int"),
+				"DATE_TO_TS_UTC" => Array("FIELD_NAME" => "CE.DATE_TO_TS_UTC", "FIELD_TYPE" => "int"),
+
+				"TIMESTAMP_X" => Array("FIELD_NAME" => $DB->DateToCharFunction("CE.TIMESTAMP_X").' as TIMESTAMP_X', "FIELD_TYPE" => "date"),
+				"DATE_CREATE" => Array("FIELD_NAME" => $DB->DateToCharFunction("CE.DATE_CREATE").' as DATE_CREATE', "FIELD_TYPE" => "date"),
+				"DESCRIPTION" => Array("FIELD_NAME" => "CE.DESCRIPTION", "FIELD_TYPE" => "string"),
+				"DT_SKIP_TIME" => Array("FIELD_NAME" => "CE.DT_SKIP_TIME", "FIELD_TYPE" => "string"),
+				"DT_LENGTH" => Array("FIELD_NAME" => "CE.DT_LENGTH", "FIELD_TYPE" => "int"),
+				"PRIVATE_EVENT" => Array("FIELD_NAME" => "CE.PRIVATE_EVENT", "FIELD_TYPE" => "string"),
+				"ACCESSIBILITY" => Array("FIELD_NAME" => "CE.ACCESSIBILITY", "FIELD_TYPE" => "string"),
+				"IMPORTANCE" => Array("FIELD_NAME" => "CE.IMPORTANCE", "FIELD_TYPE" => "string"),
+				"IS_MEETING" => Array("FIELD_NAME" => "CE.IS_MEETING", "FIELD_TYPE" => "string"),
+				"MEETING_HOST" => Array("FIELD_NAME" => "CE.MEETING_HOST", "FIELD_TYPE" => "int"),
+				"MEETING_STATUS" => Array("FIELD_NAME" => "CE.MEETING_STATUS", "FIELD_TYPE" => "string"),
+				"MEETING" => Array("FIELD_NAME" => "CE.MEETING", "FIELD_TYPE" => "string"),
+				"LOCATION" => Array("FIELD_NAME" => "CE.LOCATION", "FIELD_TYPE" => "string"),
+				"REMIND" => Array("FIELD_NAME" => "CE.REMIND", "FIELD_TYPE" => "string"),
+				"COLOR" => Array("FIELD_NAME" => "CE.COLOR", "FIELD_TYPE" => "string"),
+				"TEXT_COLOR" => Array("FIELD_NAME" => "CE.TEXT_COLOR", "FIELD_TYPE" => "string"),
+				"RRULE" => Array("FIELD_NAME" => "CE.RRULE", "FIELD_TYPE" => "string"),
+				"EXDATE" => Array("FIELD_NAME" => "CE.EXDATE", "FIELD_TYPE" => "string"),
+				"ATTENDEES_CODES" => Array("FIELD_NAME" => "CE.ATTENDEES_CODES", "FIELD_TYPE" => "string"),
+				"DAV_XML_ID" => Array("FIELD_NAME" => "CE.DAV_XML_ID", "FIELD_TYPE" => "string"), //
+				"DAV_EXCH_LABEL" => Array("FIELD_NAME" => "CE.DAV_EXCH_LABEL", "FIELD_TYPE" => "string"), // Exchange sync label
+				"CAL_DAV_LABEL" => Array("FIELD_NAME" => "CE.CAL_DAV_LABEL", "FIELD_TYPE" => "string"), // CalDAV sync label
+				"VERSION" => Array("FIELD_NAME" => "CE.VERSION", "FIELD_TYPE" => "string"), // Version used for outlook sync
+				"RECURRENCE_ID" => Array("FIELD_NAME" => "CE.RECURRENCE_ID", "FIELD_TYPE" => "int"),
+				"RELATIONS" => Array("FIELD_NAME" => "CE.RELATIONS", "FIELD_TYPE" => "int")
+			);
+			CTimeZone::Enable();
+		}
+		return self::$fields;
+	}
+
+	public static function ConnectEventToSection($eventId, $sectionId)
+	{
+		global $DB;
+		$DB->Query(
+			"DELETE FROM b_calendar_event_sect WHERE EVENT_ID=".intVal($eventId),
+			false, "FILE: ".__FILE__."<br> LINE: ".__LINE__);
+
+		$DB->Query(
+			"INSERT INTO b_calendar_event_sect(EVENT_ID, SECT_ID) ".
+			"SELECT ".intVal($eventId).", ID ".
+			"FROM b_calendar_section ".
+			"WHERE ID=".intVal($sectionId),
+			false, "FILE: ".__FILE__."<br> LINE: ".__LINE__);
+	}
+
 	public static function GetAttendees($arEventIds = array())
 	{
 		global $DB;
@@ -484,7 +997,7 @@ class CCalendarEvent
 				$strSql = "
 				SELECT
 					CE.OWNER_ID AS USER_ID,
-					CE.ID, CE.PARENT_ID, CE.MEETING_STATUS, CE.COLOR, CE.TEXT_COLOR, CE.ACCESSIBILITY, CE.REMIND,
+					CE.ID, CE.PARENT_ID, CE.MEETING_STATUS,
 					U.LOGIN, U.NAME, U.LAST_NAME, U.SECOND_NAME, U.EMAIL, U.PERSONAL_PHOTO, U.WORK_POSITION,
 					BUF.UF_DEPARTMENT
 				FROM
@@ -505,21 +1018,14 @@ class CCalendarEvent
 					$attendeeId = $entry['USER_ID'];
 					if(!isset($arAttendees[$parentId]))
 						$arAttendees[$parentId] = array();
-
 					$entry["STATUS"] = trim($entry["MEETING_STATUS"]);
-					$entry["COLOR"] = trim($entry["COLOR"]);
-					$entry["TEXT_COLOR"] = trim($entry["TEXT_COLOR"]);
-					$entry["ACCESSIBILITY"] = trim($entry["ACCESSIBILITY"]);
-
-					if(empty($entry["ACCESSIBILITY"]))
-						$entry["ACCESSIBILITY"] = 'busy';
 
 					CCalendar::SetUserDepartment($attendeeId, (empty($entry['UF_DEPARTMENT']) ? array() : unserialize($entry['UF_DEPARTMENT'])));
 					$entry['DISPLAY_NAME'] = CCalendar::GetUserName($entry);
 					$entry['URL'] = CCalendar::GetUserUrl($attendeeId);
 					$entry['AVATAR'] = CCalendar::GetUserAvatarSrc($entry);
 					$entry['EVENT_ID'] = $entry['ID'];
-					unset($entry['ID'], $entry['PARENT_ID'], $entry['MEETING_STATUS']);
+					unset($entry['ID'], $entry['PARENT_ID'], $entry['MEETING_STATUS'], $entry['UF_DEPARTMENT']);
 
 					$arAttendees[$parentId][] = $entry;
 				}
@@ -529,233 +1035,81 @@ class CCalendarEvent
 		return $arAttendees;
 	}
 
-	public static function GetAttendeesOld($arEventIds = array())
+	public static function ApplyAccessRestrictions($event, $userId = false)
 	{
-		global $DB;
+		$sectId = $event['SECT_ID'];
+		if (!$event['ACCESSIBILITY'])
+			$event['ACCESSIBILITY'] = 'busy';
 
-		$arAttendees = array();
-		if (!is_array($arEventIds))
-			$arEventIds = array($arEventIds);
-		$strMeetIds = "";
-		foreach($arEventIds as $id)
-			if (intVal($id) > 0)
-				$strMeetIds .= ','.intVal($id);
-		$strMeetIds = trim($strMeetIds, ', ');
+		$private = $event['PRIVATE_EVENT'] && $event['CAL_TYPE'] == 'user';
+		$bManager = false;
+		$bAttendee = false;
 
-		if ($strMeetIds != '')
+		if (isset($event['~ATTENDEES']))
 		{
-			$strSql = "
-			SELECT
-				CA.*,
-				U.LOGIN, U.NAME, U.LAST_NAME, U.SECOND_NAME, U.EMAIL, U.PERSONAL_PHOTO, U.WORK_POSITION,
-				BUF.UF_DEPARTMENT
-			FROM
-				b_calendar_attendees CA
-				LEFT JOIN b_user U ON (U.ID=CA.USER_ID)
-				LEFT JOIN b_uts_user BUF ON (BUF.VALUE_ID = CA.USER_ID)
-			WHERE
-				U.ACTIVE = 'Y' AND
-				CA.EVENT_ID in (".$strMeetIds.")";
-
-			$res = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
-			while($attendee = $res->Fetch())
+			foreach($event['~ATTENDEES'] as $user)
 			{
-				if (!isset($arAttendees[$attendee['EVENT_ID']]))
-					$arAttendees[$attendee['EVENT_ID']] = array();
-
-				$attendee["STATUS"] = trim($attendee["STATUS"]);
-				$attendee["DESCRIPTION"] = trim($attendee["DESCRIPTION"]);
-				$attendee["COLOR"] = trim($attendee["COLOR"]);
-				$attendee["TEXT_COLOR"] = trim($attendee["TEXT_COLOR"]);
-				$attendee["ACCESSIBILITY"] = trim($attendee["ACCESSIBILITY"]);
-
-				if (empty($attendee["ACCESSIBILITY"]))
-					$attendee["ACCESSIBILITY"] = 'busy';
-				CCalendar::SetUserDepartment($attendee["USER_ID"], (empty($attendee['UF_DEPARTMENT']) ? array() : unserialize($attendee['UF_DEPARTMENT'])));
-				$attendee['DISPLAY_NAME'] = CCalendar::GetUserName($attendee);
-				$attendee['URL'] = CCalendar::GetUserUrl($attendee["USER_ID"]);
-				$attendee['AVATAR'] = CCalendar::GetUserAvatarSrc($attendee);
-				$arAttendees[$attendee['EVENT_ID']][] = $attendee;
+				if ($user['USER_ID'] == $userId)
+					$bAttendee = true;
 			}
 		}
 
-		return $arAttendees;
-	}
+		if(!$userId)
+			$userId = CCalendar::GetUserId();
 
-	public static function CheckRecurcion($event)
-	{
-		return $event['RRULE'] != '' || $event['RDATE'] != '';
-	}
+		$settings = CCalendar::GetSettings(array('request' => false));
+		if (Loader::includeModule('intranet') && $event['CAL_TYPE'] == 'user' && $settings['dep_manager_sub'])
+			$bManager = in_array($userId, CCalendar::GetUserManagers($event['OWNER_ID'], true));
 
-	public static function ParseRecursion(&$res, $event, $Params = array())
-	{
-		$event['DT_LENGTH'] = intVal($event['DT_LENGTH']);// length in seconds
-		$length = $event['DT_LENGTH'];
-
-		$rrule = self::ParseRRULE($event['RRULE']);
-
-		$tsFrom = CCalendar::Timestamp($event['DATE_FROM']);
-		$tsTo = CCalendar::Timestamp($event['DATE_TO']);
-
-		if (($tsTo - $tsFrom) > $event['DT_LENGTH'] + CCalendar::DAY_LENGTH)
+		if ($event['CAL_TYPE'] == 'user' && $event['IS_MEETING'] && $event['OWNER_ID'] != $userId)
 		{
-			$toTS = $tsFrom + $event['DT_LENGTH'];
-			if ($event['DT_SKIP_TIME'] == 'Y')
+			if ($bAttendee)
 			{
-				$toTS -= CCalendar::GetDayLen();
+				$sectId = CCalendar::GetMeetingSection($userId);
 			}
-			$event['DATE_TO'] = CCalendar::Date($toTS);
+			elseif (isset($event['USER_MEETING']['ATTENDEE_ID']) && $event['USER_MEETING']['ATTENDEE_ID'] !== $userId)
+			{
+				$sectId = CCalendar::GetMeetingSection($event['USER_MEETING']['ATTENDEE_ID']);
+				$event['SECT_ID'] = $sectId;
+				$event['OWNER_ID'] = $event['USER_MEETING']['ATTENDEE_ID'];
+			}
 		}
 
-		$h24 = CCalendar::GetDayLen();
-		$instanceCount = ($Params['instanceCount'] && $Params['instanceCount'] > 0) ? $Params['instanceCount'] : false;
-		$preciseLimits = $Params['preciseLimits'];
-
-		if ($length < 0) // Protection from infinite recursion
-			$length = $h24;
-
-		// Time boundaries
-		if (isset($Params['fromLimitTs']))
-			$limitFromTS = intVal($Params['fromLimitTs']);
-		else
-			$limitFromTS = CCalendar::Timestamp($Params['fromLimit']);
-
-		if (isset($Params['toLimitTs']))
-			$limitToTS = intVal($Params['toLimitTs']);
-		else
-			$limitToTS = CCalendar::Timestamp($Params['toLimit']);
-
-		$evFromTS = CCalendar::Timestamp($event['DATE_FROM']);
-		$evToTS = CCalendar::Timestamp($event['DATE_TO']);
-
-		$limitFromTS += $event['TZ_OFFSET_FROM'];
-		$limitToTS += $event['TZ_OFFSET_TO'];
-		$limitToTS += CCalendar::GetDayLen();
-		$limitFromTSReal = $limitFromTS;
-
-		if ($limitFromTS < $event['DATE_FROM_TS_UTC'])
-			$limitFromTS = $event['DATE_FROM_TS_UTC'];
-		if ($limitToTS > $event['DATE_TO_TS_UTC'])
-			$limitToTS = $event['DATE_TO_TS_UTC'];
-
-		$skipTime = $event['DT_SKIP_TIME'] === 'Y';
-		$fromTS = $evFromTS;
-
-		$event['~DATE_FROM'] = $event['DATE_FROM'];
-		$event['~DATE_TO'] = $event['DATE_TO'];
-
-		$hour = date("H", $fromTS);
-		$min = date("i", $fromTS);
-		$sec = date("s", $fromTS);
-
-		$orig_d = date("d", $fromTS);
-		$orig_m = date("m", $fromTS);
-		$orig_y = date("Y", $fromTS);
-
-		$count = 0;
-		$realCount = 0;
-		$dispCount = 0;
-
-		while(true)
+		if ($private || (!CCalendarSect::CanDo('calendar_view_full', $sectId, $userId) && !$bManager && !$bAttendee))
 		{
-			$d = date("d", $fromTS);
-			$m = date("m", $fromTS);
-			$y = date("Y", $fromTS);
-			$toTS = mktime($hour, $min, $sec + $length, $m, $d, $y);
-
-			if (
-				(!$fromTS || $fromTS < $evFromTS - CCalendar::GetDayLen()) || // Emergensy exit (mantis: 56981)
-				($rrule['COUNT'] > 0 && $count >= $rrule['COUNT']) ||
-				(!$rrule['COUNT'] && $fromTS >= $limitToTS) ||
-				($instanceCount && $dispCount >= $instanceCount)
-			)
+			if ($private)
 			{
-				break;
+				$event['NAME'] = '['.GetMessage('EC_ACCESSIBILITY_'.strtoupper($event['ACCESSIBILITY'])).']';
+				if (!$bManager && !CCalendarSect::CanDo('calendar_view_time', $sectId, $userId))
+					return false;
 			}
-
-			if ($rrule['FREQ'] == 'WEEKLY')
+			else
 			{
-				$weekDay = CCalendar::WeekDayByInd(date("w", $fromTS));
-
-				if ($rrule['BYDAY'][$weekDay])
+				if (!CCalendarSect::CanDo('calendar_view_title', $sectId, $userId))
 				{
-					if (($preciseLimits && $toTS > $limitFromTSReal) || (!$preciseLimits && $toTS > $limitFromTS - $h24))
-					{
-						if ($event['DT_SKIP_TIME'] == 'Y')
-						{
-							$toTS -= CCalendar::GetDayLen();
-						}
-						$event['DATE_FROM'] = CCalendar::Date($fromTS, !$skipTime, false);
-						$event['DATE_TO'] = CCalendar::Date($toTS, !$skipTime, false);
-						$event['RRULE'] = $rrule;
-						$event['RINDEX'] = $count;
-						self::HandleEvent($res, $event);
-						$dispCount++;
-					}
-					$realCount++;
+					if (CCalendarSect::CanDo('calendar_view_time', $sectId, $userId))
+						$event['NAME'] = '['.GetMessage('EC_ACCESSIBILITY_'.strtoupper($event['ACCESSIBILITY'])).']';
+					else
+						return false;
 				}
-
-				if (isset($weekDay) && $weekDay == 'SU')
-					$delta = ($rrule['INTERVAL'] - 1) * 7 + 1;
 				else
-					$delta = 1;
-
-				$fromTS = mktime($hour, $min, $sec, $m, $d + $delta, $y);
+				{
+					$event['NAME'] = $event['NAME'].' ['.GetMessage('EC_ACCESSIBILITY_'.strtoupper($event['ACCESSIBILITY'])).']';
+				}
 			}
-			else // HOURLY, DAILY, MONTHLY, YEARLY
+			$event['~IS_MEETING'] = $event['IS_MEETING'];
+
+			// Clear information about
+			unset($event['DESCRIPTION'], $event['IS_MEETING'],$event['MEETING_HOST'],$event['MEETING'],$event['LOCATION'],$event['REMIND'],$event['USER_MEETING'],$event['~ATTENDEES'],$event['ATTENDEES_CODES']);
+
+			foreach($event as $k => $value)
 			{
-				if (($preciseLimits && $toTS > $limitFromTSReal) || (!$preciseLimits && $toTS > $limitFromTS - $h24))
-				{
-					if ($event['DT_SKIP_TIME'] == 'Y')
-					{
-						$toTS -= CCalendar::GetDayLen();
-					}
-					$event['DATE_FROM'] = CCalendar::Date($fromTS, !$skipTime, false);
-					$event['DATE_TO'] = CCalendar::Date($toTS, !$skipTime, false);
-					$event['RRULE'] = $rrule;
-					$event['RINDEX'] = $count;
-					self::HandleEvent($res, $event);
-
-					$dispCount++;
-				}
-				$realCount++;
-				switch ($rrule['FREQ'])
-				{
-					case 'DAILY':
-						$fromTS = mktime($hour, $min, $sec, $m, $d + $rrule['INTERVAL'], $y);
-						break;
-					case 'MONTHLY':
-						$durOffset = $realCount * $rrule['INTERVAL'];
-
-						$day = $orig_d;
-						$month = $orig_m + $durOffset;
-						$year = $orig_y;
-
-						if ($month > 12)
-						{
-							$delta_y = floor($month / 12);
-							$delta_m = $month - $delta_y * 12;
-
-							$month = $delta_m;
-							$year = $orig_y + $delta_y;
-						}
-
-						// 1. Check only for 29-31 dates. 2.We are out of range in this month
-						if ($orig_d > 28 && $orig_d > date("t", mktime($hour, $min, $sec, $month, 1, $year)))
-						{
-							$month++;
-							$day = 1;
-						}
-
-						$fromTS = mktime($hour, $min, $sec, $month, $day, $year);
-						break;
-					case 'YEARLY':
-						$fromTS = mktime($hour, $min, $sec, $orig_m, $orig_d, $y + $rrule['INTERVAL']);
-						break;
-				}
+				if (substr($k, 0, 3) == 'UF_')
+					unset($event[$k]);
 			}
-			$count++;
 		}
+
+		return $event;
 	}
 
 	private static function PreHandleEvent($item)
@@ -806,7 +1160,14 @@ class CCalendarEvent
 			$item['IMPORTANCE'] = 'normal';
 		$item['PRIVATE_EVENT'] = trim($item['PRIVATE_EVENT']);
 
-		$item['~DESCRIPTION'] = self::ParseText($item['DESCRIPTION'], $item['ID'], $item['UF_WEBDAV_CAL_EVENT']);
+		if ($item['PARENT_ID'])
+		{
+			$item['~DESCRIPTION'] = self::ParseText($item['DESCRIPTION'], $item['PARENT_ID'], $item['UF_WEBDAV_CAL_EVENT']);
+		}
+		else
+		{
+			$item['~DESCRIPTION'] = self::ParseText($item['DESCRIPTION'], $item['ID'], $item['UF_WEBDAV_CAL_EVENT']);
+		}
 
 		if (isset($item['UF_CRM_CAL_EVENT']) && is_array($item['UF_CRM_CAL_EVENT']) && count($item['UF_CRM_CAL_EVENT']) == 0)
 			$item['UF_CRM_CAL_EVENT'] = '';
@@ -814,15 +1175,243 @@ class CCalendarEvent
 		return $item;
 	}
 
-	private static function HandleEvent(&$res, $item = array())
+	public static function CheckRecurcion($event)
 	{
-		$userId = CCalendar::GetCurUserId();
+		return $event['RRULE'] != '';
+	}
 
-		$item['~USER_OFFSET_FROM'] = $item['~USER_OFFSET_TO'] = CCalendar::GetTimezoneOffset($item['TZ_FROM']) - CCalendar::GetCurrentOffsetUTC($userId);
-		if ($item['TZ_FROM'] !== $item['TZ_TO'])
-			$item['~USER_OFFSET_TO'] = CCalendar::GetTimezoneOffset($item['TZ_TO']) - CCalendar::GetCurrentOffsetUTC($userId);
+	public static function ParseText($text = "", $eventId = 0, $arUFWDValue = array())
+	{
+		if ($text != "")
+		{
+			if (!is_object(self::$TextParser))
+			{
+				self::$TextParser = new CTextParser();
+				self::$TextParser->allow = array("HTML" => "N", "ANCHOR" => "Y", "BIU" => "Y", "IMG" => "Y", "QUOTE" => "Y", "CODE" => "Y", "FONT" => "Y", "LIST" => "Y", "SMILES" => "Y", "NL2BR" => "N", "VIDEO" => "Y", "TABLE" => "Y", "CUT_ANCHOR" => "N", "ALIGN" => "Y", "USER" => "Y", "USERFIELDS" => self::__GetUFForParseText($eventId, $arUFWDValue));
+			}
 
-		$res[] = $item;
+			self::$TextParser->allow["USERFIELDS"] = self::__GetUFForParseText($eventId, $arUFWDValue);
+			$text = self::$TextParser->convertText($text);
+		}
+		return $text;
+	}
+
+	public static function __GetUFForParseText($eventId = 0, $arUFWDValue = array())
+	{
+		if (!isset(self::$eventUFDescriptions))
+		{
+			global $USER_FIELD_MANAGER;
+			$USER_FIELDS = $USER_FIELD_MANAGER->GetUserFields("CALENDAR_EVENT", $eventId, LANGUAGE_ID);
+			$USER_FIELDS = array(
+				'UF_WEBDAV_CAL_EVENT' => $USER_FIELDS['UF_WEBDAV_CAL_EVENT']
+			);
+			self::$eventUFDescriptions = $USER_FIELDS;
+		}
+		else
+		{
+			$USER_FIELDS = self::$eventUFDescriptions;
+		}
+
+		if (empty($arUFWDValue))
+		{
+			$arUFWDValue = $USER_FIELDS['UF_WEBDAV_CAL_EVENT']['VALUE'];
+		}
+
+		$USER_FIELDS['UF_WEBDAV_CAL_EVENT']['VALUE'] = $arUFWDValue;
+		$USER_FIELDS['UF_WEBDAV_CAL_EVENT']['ENTITY_VALUE_ID'] = $eventId;
+
+		return $USER_FIELDS;
+	}
+
+	public static function ParseRecursion(&$res, $event, $params = array())
+	{
+		$event['DT_LENGTH'] = intVal($event['DT_LENGTH']);// length in seconds
+		$length = $event['DT_LENGTH'];
+
+		$rrule = self::ParseRRULE($event['RRULE']);
+		$exDate = self::GetExDate($event['EXDATE']);
+		$tsFrom = CCalendar::Timestamp($event['DATE_FROM']);
+		$tsTo = CCalendar::Timestamp($event['DATE_TO']);
+
+		if (($tsTo - $tsFrom) > $event['DT_LENGTH'] + CCalendar::DAY_LENGTH)
+		{
+			$toTS = $tsFrom + $event['DT_LENGTH'];
+			if ($event['DT_SKIP_TIME'] == 'Y')
+			{
+				$toTS -= CCalendar::GetDayLen();
+			}
+			$event['DATE_TO'] = CCalendar::Date($toTS);
+		}
+
+		$h24 = CCalendar::GetDayLen();
+		$instanceCount = ($params['instanceCount'] && $params['instanceCount'] > 0) ? $params['instanceCount'] : false;
+		$preciseLimits = $params['preciseLimits'];
+
+		if ($length < 0) // Protection from infinite recursion
+			$length = $h24;
+
+		// Time boundaries
+		if (isset($params['fromLimitTs']))
+			$limitFromTS = intVal($params['fromLimitTs']);
+		else
+			$limitFromTS = CCalendar::Timestamp($params['fromLimit']);
+
+		if (isset($params['toLimitTs']))
+			$limitToTS = intVal($params['toLimitTs']);
+		else
+			$limitToTS = CCalendar::Timestamp($params['toLimit']);
+
+		$evFromTS = CCalendar::Timestamp($event['DATE_FROM']);
+
+		$limitFromTS += $event['TZ_OFFSET_FROM'];
+		$limitToTS += $event['TZ_OFFSET_TO'];
+		$limitToTS += CCalendar::GetDayLen();
+		$limitFromTSReal = $limitFromTS;
+
+		if ($limitFromTS < $event['DATE_FROM_TS_UTC'])
+			$limitFromTS = $event['DATE_FROM_TS_UTC'];
+		if ($limitToTS > $event['DATE_TO_TS_UTC'])
+			$limitToTS = $event['DATE_TO_TS_UTC'];
+
+		$skipTime = $event['DT_SKIP_TIME'] === 'Y';
+		$fromTS = $evFromTS;
+
+		if ($skipTime)
+		{
+			$event['~DATE_FROM'] = CCalendar::Date(CCalendar::Timestamp($event['DATE_FROM']), false);
+			$event['~DATE_TO'] = CCalendar::Date(CCalendar::Timestamp($event['DATE_TO']), false);
+		}
+		else
+		{
+			$event['~DATE_FROM'] = $event['DATE_FROM'];
+			$event['~DATE_TO'] = $event['DATE_TO'];
+		}
+
+		$hour = date("H", $fromTS);
+		$min = date("i", $fromTS);
+		$sec = date("s", $fromTS);
+
+		$orig_d = date("d", $fromTS);
+		$orig_m = date("m", $fromTS);
+		$orig_y = date("Y", $fromTS);
+
+		$count = 0;
+		$realCount = 0;
+		$dispCount = 0;
+
+		while(true)
+		{
+			$d = date("d", $fromTS);
+			$m = date("m", $fromTS);
+			$y = date("Y", $fromTS);
+			$toTS = mktime($hour, $min, $sec + $length, $m, $d, $y);
+
+			if (
+				(!$fromTS || $fromTS < $evFromTS - CCalendar::GetDayLen()) || // Emergensy exit (mantis: 56981)
+				($rrule['COUNT'] > 0 && $realCount >= $rrule['COUNT']) ||
+				(!$rrule['COUNT'] && $fromTS >= $limitToTS) ||
+				($instanceCount && $dispCount >= $instanceCount)
+			)
+			{
+				break;
+			}
+
+			// Common handling
+			$event['DATE_FROM'] = CCalendar::Date($fromTS, !$skipTime, false);
+			$event['RRULE'] = $rrule;
+			$event['RINDEX'] = $realCount;
+			$exclude = false;
+
+			if (count($exDate) > 0)
+			{
+				$fromDate = CCalendar::Date($fromTS, false);
+				$exclude = in_array($fromDate, $exDate);
+			}
+
+			if ($rrule['FREQ'] == 'WEEKLY')
+			{
+				$weekDay = CCalendar::WeekDayByInd(date("w", $fromTS));
+
+				if ($rrule['BYDAY'][$weekDay])
+				{
+					if (($preciseLimits && $toTS >= $limitFromTSReal) || (!$preciseLimits && $toTS > $limitFromTS - $h24))
+					{
+						if ($event['DT_SKIP_TIME'] == 'Y')
+						{
+							$toTS -= CCalendar::GetDayLen();
+						}
+						$event['DATE_TO'] = CCalendar::Date($toTS, !$skipTime, false);
+
+						if (!$exclude)
+						{
+							self::HandleEvent($res, $event);
+							$dispCount++;
+						}
+					}
+					$realCount++;
+				}
+
+				if (isset($weekDay) && $weekDay == 'SU')
+					$delta = ($rrule['INTERVAL'] - 1) * 7 + 1;
+				else
+					$delta = 1;
+
+				$fromTS = mktime($hour, $min, $sec, $m, $d + $delta, $y);
+			}
+			else // HOURLY, DAILY, MONTHLY, YEARLY
+			{
+				if ($event['DT_SKIP_TIME'] == 'Y')
+				{
+					$toTS -= CCalendar::GetDayLen();
+				}
+				if (($preciseLimits && $toTS >= $limitFromTSReal) ||
+					(!$preciseLimits && $toTS > $limitFromTS - $h24))
+				{
+					$event['DATE_TO'] = CCalendar::Date($toTS, !$skipTime, false);
+					if (!$exclude)
+					{
+						self::HandleEvent($res, $event);
+						$dispCount++;
+					}
+				}
+				$realCount++;
+				switch ($rrule['FREQ'])
+				{
+					case 'DAILY':
+						$fromTS = mktime($hour, $min, $sec, $m, $d + $rrule['INTERVAL'], $y);
+						break;
+					case 'MONTHLY':
+						$durOffset = $realCount * $rrule['INTERVAL'];
+
+						$day = $orig_d;
+						$month = $orig_m + $durOffset;
+						$year = $orig_y;
+
+						if ($month > 12)
+						{
+							$delta_y = floor($month / 12);
+							$delta_m = $month - $delta_y * 12;
+
+							$month = $delta_m;
+							$year = $orig_y + $delta_y;
+						}
+
+						// 1. Check only for 29-31 dates. 2.We are out of range in this month
+						if ($orig_d > 28 && $orig_d > date("t", mktime($hour, $min, $sec, $month, 1, $year)))
+						{
+							$month++;
+							$day = 1;
+						}
+
+						$fromTS = mktime($hour, $min, $sec, $month, $day, $year);
+						break;
+					case 'YEARLY':
+						$fromTS = mktime($hour, $min, $sec, $orig_m, $orig_d, $y + $rrule['INTERVAL']);
+						break;
+				}
+			}
+			$count++;
+		}
 	}
 
 	public static function ParseRRULE($rule = '')
@@ -921,61 +1510,22 @@ class CCalendarEvent
 		return $res;
 	}
 
-	private static function PackRRule($RRule = array())
+	public static function GetExDate($exDate = '')
 	{
-		$strRes = "";
-		if (is_array($RRule))
-		{
-			foreach($RRule as $key => $val)
-				$strRes .= $key.'='.$val.';';
-		}
-		$strRes = trim($strRes, ', ');
-		return $strRes;
+		if (!is_array($exDate))
+			$exDate = $exDate == '' ? array() : explode(';', $exDate);
+		return $exDate;
 	}
 
-	public static function CheckRRULE($RRule = array())
+	private static function HandleEvent(&$res, $item = array())
 	{
-		if ($RRule['FREQ'] != 'WEEKLY' && isset($RRule['BYDAY']))
-			unset($RRule['BYDAY']);
-		return $RRule;
-	}
+		$userId = CCalendar::GetCurUserId();
 
-	public static function ParseText($text = "", $eventId = 0, $arUFWDValue = array())
-	{
-		if ($text != "")
-		{
-			if (!is_object(self::$TextParser))
-			{
-				self::$TextParser = new CTextParser();
-				self::$TextParser->allow = array("HTML" => "N", "ANCHOR" => "Y", "BIU" => "Y", "IMG" => "Y", "QUOTE" => "Y", "CODE" => "Y", "FONT" => "Y", "LIST" => "Y", "SMILES" => "Y", "NL2BR" => "N", "VIDEO" => "Y", "TABLE" => "Y", "CUT_ANCHOR" => "N", "ALIGN" => "Y", "USER" => "Y", "USERFIELDS" => self::__GetUFForParseText($eventId, $arUFWDValue));
-			}
+		$item['~USER_OFFSET_FROM'] = $item['~USER_OFFSET_TO'] = CCalendar::GetTimezoneOffset($item['TZ_FROM']) - CCalendar::GetCurrentOffsetUTC($userId);
+		if ($item['TZ_FROM'] !== $item['TZ_TO'])
+			$item['~USER_OFFSET_TO'] = CCalendar::GetTimezoneOffset($item['TZ_TO']) - CCalendar::GetCurrentOffsetUTC($userId);
 
-			self::$TextParser->allow["USERFIELDS"] = self::__GetUFForParseText($eventId, $arUFWDValue);
-			$text = self::$TextParser->convertText($text);
-		}
-		return $text;
-	}
-
-	public static function __GetUFForParseText($eventId = 0, $arUFWDValue = array())
-	{
-		if (!isset(self::$eventUFDescriptions))
-		{
-			global $USER_FIELD_MANAGER;
-			$USER_FIELDS = $USER_FIELD_MANAGER->GetUserFields("CALENDAR_EVENT", $eventId, LANGUAGE_ID);
-			$USER_FIELDS = array(
-				'UF_WEBDAV_CAL_EVENT' => $USER_FIELDS['UF_WEBDAV_CAL_EVENT']
-			);
-			self::$eventUFDescriptions = $USER_FIELDS;
-		}
-		else
-		{
-			$USER_FIELDS = self::$eventUFDescriptions;
-		}
-
-		$USER_FIELDS['UF_WEBDAV_CAL_EVENT']['VALUE'] = $arUFWDValue;
-		$USER_FIELDS['UF_WEBDAV_CAL_EVENT']['ENTITY_VALUE_ID'] = $eventId;
-
-		return $USER_FIELDS;
+		$res[] = $item;
 	}
 
 	public static function CheckFields(&$arFields, $currentEvent = array(), $userId = false)
@@ -985,6 +1535,19 @@ class CCalendarEvent
 
 		if (!$userId)
 			$userId = CCalendar::GetCurUserId();
+
+		if (!isset($arFields['DT_SKIP_TIME']) && isset($currentEvent['DT_SKIP_TIME']))
+		{
+			$arFields['DT_SKIP_TIME'] = $currentEvent['DT_SKIP_TIME'];
+		}
+		if (!isset($arFields['DATE_FROM']) && isset($currentEvent['DATE_FROM']))
+		{
+			$arFields['DATE_FROM'] = $currentEvent['DATE_FROM'];
+		}
+		if (!isset($arFields['DATE_TO']) && isset($currentEvent['DATE_TO']))
+		{
+			$arFields['DATE_TO'] = $currentEvent['DATE_TO'];
+		}
 
 		$bNew = !isset($arFields['ID']) || $arFields['ID'] <= 0;
 		if (!isset($arFields['DATE_CREATE']) && $bNew)
@@ -1009,11 +1572,6 @@ class CCalendarEvent
 		$arFields['DT_SKIP_TIME'] = $arFields['DT_SKIP_TIME'] !== 'Y' ? 'N' : 'Y';
 		$fromTs = CCalendar::Timestamp($arFields['DATE_FROM'], false, $arFields['DT_SKIP_TIME'] !== 'Y');
 		$toTs = CCalendar::Timestamp($arFields['DATE_TO'], false, $arFields['DT_SKIP_TIME'] !== 'Y');
-
-		if ($fromTs > $toTs)
-		{
-			$toTs = $fromTs;
-		}
 
 		$arFields['DATE_FROM'] = CCalendar::Date($fromTs);
 		$arFields['DATE_TO'] = CCalendar::Date($toTs);
@@ -1086,6 +1644,14 @@ class CCalendarEvent
 			$arFields['DATE_TO_TS_UTC'] = $toTs - $arFields['TZ_OFFSET_TO'];
 		}
 
+		if ($arFields['DATE_FROM_TS_UTC'] > $arFields['DATE_TO_TS_UTC'])
+		{
+			$arFields['DATE_TO'] = $arFields['DATE_FROM'];
+			$arFields['DATE_TO_TS_UTC'] = $arFields['DATE_FROM_TS_UTC'];
+			$arFields['TZ_OFFSET_TO'] = $arFields['TZ_OFFSET_FROM'];
+			$arFields['TZ_TO'] = $arFields['TZ_FROM'];
+		}
+
 		$h24 = 60 * 60 * 24; // 24 hours
 		if ($arFields['DT_SKIP_TIME'] == 'Y')
 		{
@@ -1104,8 +1670,7 @@ class CCalendarEvent
 			}
 			else
 			{
-				$arFields['DT_LENGTH'] = intVal($toTs - $fromTs);
-
+				$arFields['DT_LENGTH'] = intVal($arFields['DATE_TO_TS_UTC'] - $arFields['DATE_FROM_TS_UTC']);
 				if ($arFields['DT_SKIP_TIME'] == "Y") // We have dates without times
 					$arFields['DT_LENGTH'] += $h24;
 			}
@@ -1135,18 +1700,21 @@ class CCalendarEvent
 		if (is_array($arFields['RRULE']) && isset($arFields['RRULE']['FREQ']) && in_array($arFields['RRULE']['FREQ'], array('HOURLY','DAILY','MONTHLY','YEARLY','WEEKLY')))
 		{
 			// Interval
-			if (isset($arFields['RRULE']['INTERVAL']) && intVal($arFields['RRULE']['INTERVAL']) > 1)
-				$arFields['RRULE']['INTERVAL'] = intVal($arFields['RRULE']['INTERVAL']);
+			if (isset($arFields['RRULE']['INTERVAL']) && intval($arFields['RRULE']['INTERVAL']) > 1)
+				$arFields['RRULE']['INTERVAL'] = intval($arFields['RRULE']['INTERVAL']);
 
 			// Until date
-			$periodTs = CCalendar::Timestamp($arFields['RRULE']['UNTIL'], false, false);
-			if (!$periodTs)
+			$untilTs = CCalendar::Timestamp($arFields['RRULE']['UNTIL'], false, false);
+			if (!$untilTs)
 			{
 				$arFields['RRULE']['UNTIL'] = CCalendar::GetMaxDate();
-				$periodTs = CCalendar::Timestamp($arFields['RRULE']['UNTIL'], false, false);
+				$untilTs = CCalendar::Timestamp($arFields['RRULE']['UNTIL'], false, false);
 			}
-			$arFields['DATE_TO_TS_UTC'] = $periodTs + CCalendar::GetDayLen();
-			$arFields['RRULE']['UNTIL'] = CCalendar::Date($periodTs, false);
+			$arFields['DATE_TO_TS_UTC'] = $untilTs + CCalendar::GetDayLen();
+			$arFields['RRULE']['UNTIL'] = CCalendar::Date($untilTs, false);
+
+			if (isset($arFields['RRULE']['COUNT']))
+				$arFields['RRULE']['COUNT'] = intval($arFields['RRULE']['COUNT']);
 
 			if (isset($arFields['RRULE']['BYDAY']))
 			{
@@ -1169,15 +1737,24 @@ class CCalendarEvent
 				$arFields['RRULE']['BYDAY'] = implode(',',$BYDAY);
 			}
 			unset($arFields['RRULE']['~UNTIL']);
+
+			if (isset($arFields["EXDATE"]))
+				$excludeDates = self::GetExDate($arFields["EXDATE"]);
+			else
+				$excludeDates = self::GetExDate($currentEvent['EXDATE']);
+
+			if (!empty($excludeDates) && $untilTs)
+			{
+				$arFields["EXDATE"] = self::SetExDate($excludeDates, $untilTs);
+			}
+
 			$arFields['RRULE'] = self::PackRRule($arFields['RRULE']);
 		}
 		else
 		{
 			$arFields['RRULE'] = '';
+			$arFields['EXDATE'] = '';
 		}
-		$arFields['EXRULE'] = "";
-		$arFields['RDATE'] = "";
-		$arFields['EXDATE'] = "";
 
 		// Location
 		if (!is_array($arFields['LOCATION']))
@@ -1189,380 +1766,256 @@ class CCalendarEvent
 		return true;
 	}
 
-	public static function Edit($Params = array())
+	public static function CheckSignificantChangesFields($newFields = array(), $currentFields = array())
 	{
-		global $DB, $CACHE_MANAGER;
-		$arFields = $Params['arFields'];
-		$arAffectedSections = array();
+		$significantChanges = false;
 		$significantFieldList = array(
 			'DATE_FROM',
 			'DATE_TO',
 			'RRULE',
-			'RDATE',
 			'EXDATE',
 			'NAME',
 			'DESCRIPTION',
 			'LOCATION'
 		);
-		$significantChanges = isset($Params['significantChanges']) ? $Params['significantChanges'] : false;
 
-		$result = false;
-		// Get current user id
-		$userId = (isset($Params['userId']) && intVal($Params['userId']) > 0) ? intVal($Params['userId']) : CCalendar::GetCurUserId();
-		if (!$userId && isset($arFields['CREATED_BY']))
-			$userId = intVal($arFields['CREATED_BY']);
-		$path = !empty($Params['path']) ? $Params['path'] : CCalendar::GetPath($arFields['CAL_TYPE'], $arFields['OWNER_ID'], true);
-
-		$bNew = !isset($arFields['ID']) || $arFields['ID'] <= 0;
-		$arFields['TIMESTAMP_X'] = CCalendar::Date(mktime(), true, false);
-		if ($bNew)
+		foreach ($significantFieldList as $fieldKey)
 		{
-			if (!isset($arFields['CREATED_BY']))
+			if ($newFields[$fieldKey] !== $currentFields[$fieldKey] && $fieldKey != 'LOCATION')
 			{
-				$arFields['CREATED_BY'] = ($arFields['IS_MEETING'] && $arFields['CAL_TYPE'] == 'user' && $arFields['OWNER_ID']) ? $arFields['OWNER_ID'] : $userId;
+				$significantChanges = true;
+				break;
 			}
-
-			if (!isset($arFields['DATE_CREATE']))
-				$arFields['DATE_CREATE'] = $arFields['TIMESTAMP_X'];
+			else if ($fieldKey == 'LOCATION' && $newFields['LOCATION']['NEW'] != $currentFields[$fieldKey])
+			{
+				$significantChanges = true;
+				break;
+			}
 		}
 
-		if (!isset($arFields['OWNER_ID']) || !$arFields['OWNER_ID'])
-			$arFields['OWNER_ID'] = 0;
+		return $significantChanges;
+	}
 
-		// Current event
-		$currentEvent = array();
-		if (!$bNew)
+	private static function PackRRule($RRule = array())
+	{
+		$strRes = "";
+		if (is_array($RRule))
 		{
-			if (isset($Params['currentEvent']))
-				$currentEvent = $Params['currentEvent'];
-			else
-				$currentEvent = CCalendarEvent::GetById($arFields['ID']);
-
-			if (is_array($arFields['LOCATION']) && !isset($arFields['LOCATION']['OLD']) && $currentEvent)
-			{
-				$arFields['LOCATION']['OLD'] = $currentEvent['LOCATION'];
-			}
-
-			if ($currentEvent['IS_MEETING'] && !isset($arFields['ATTENDEES']) && $currentEvent['PARENT_ID'] == $currentEvent['ID'] && $arFields['IS_MEETING'])
-			{
-				$arFields['ATTENDEES'] = array();
-				$attendees = self::GetAttendees($currentEvent['PARENT_ID']);
-				if ($attendees[$currentEvent['PARENT_ID']])
-				{
-					for($i = 0, $l = count($attendees[$currentEvent['PARENT_ID']]); $i < $l; $i++)
-					{
-						$arFields['ATTENDEES'][] = $attendees[$currentEvent['PARENT_ID']][$i]['USER_ID'];
-					}
-				}
-			}
-
-			if (($currentEvent['IS_MEETING'] || $arFields['IS_MEETING']) && $currentEvent['PARENT_ID'])
-				$arFields['PARENT_ID'] = $currentEvent['PARENT_ID'];
+			foreach($RRule as $key => $val)
+				$strRes .= $key.'='.$val.';';
 		}
-		if ($userId > 0 && self::CheckFields($arFields, $currentEvent, $userId))
+		$strRes = trim($strRes, ', ');
+		return $strRes;
+	}
+
+	public static function CreateChildEvents($parentId, $arFields, $params)
+	{
+		global $DB, $CACHE_MANAGER;
+		$parentId = intVal($parentId);
+		$attendees = $arFields['ATTENDEES'];
+		$bCalDav = CCalendar::IsCalDAVEnabled();
+		$involvedAttendees = array();
+
+		if ($parentId)
 		{
-			if (!$bNew && !isset($Params['significantChanges']))
+			// It's new event
+			$bNew = !isset($arFields['ID']) || $arFields['ID'] <= 0;
+
+			$curAttendeesIndex = array();
+			$deletedAttendees = array();
+			if (!$bNew)
 			{
-				foreach ($significantFieldList as $fieldKey)
+				$curAttendees = self::GetAttendees($parentId);
+				$curAttendees = $curAttendees[$parentId];
+
+				if (is_array($curAttendees))
 				{
-					if ($arFields[$fieldKey] !== $currentEvent[$fieldKey] && $fieldKey != 'LOCATION')
+					foreach($curAttendees as $user)
 					{
-						$significantChanges = true;
-						break;
+						$curAttendeesIndex[$user['USER_ID']] = $user;
+						if ($user['USER_ID'] !== $arFields['MEETING_HOST'] &&
+							($user['USER_ID'] !== $arFields['OWNER_ID'] || $arFields['CAL_TYPE'] !== 'user'))
+						{
+							$deletedAttendees[$user['USER_ID']] = $user['USER_ID'];
+							$involvedAttendees[] = $user['USER_ID'];
+						}
 					}
-					else if ($fieldKey == 'LOCATION' && $arFields['LOCATION']['NEW'] != $currentEvent[$fieldKey])
+				}
+			}
+
+			if (is_array($attendees))
+			{
+				foreach($attendees as $userKey)
+				{
+					$attendeeId = intVal($userKey);
+					$CACHE_MANAGER->ClearByTag('calendar_user_'.$attendeeId);
+
+					// Skip creation of child event if it's event inside his own user calendar
+					if ($attendeeId)
 					{
-						$significantChanges = true;
-						break;
+						if ($arFields['CAL_TYPE'] == 'user' && $arFields['OWNER_ID'] == $attendeeId)
+							continue;
+
+						$childParams = $params;
+						$childParams['arFields']['CAL_TYPE'] = 'user';
+						$childParams['arFields']['PARENT_ID'] = $parentId;
+						$childParams['arFields']['OWNER_ID'] = $attendeeId;
+						$childParams['arFields']['CREATED_BY'] = $attendeeId;
+
+						if (intVal($arFields['CREATED_BY']) == $attendeeId)
+						{
+							$childParams['arFields']['MEETING_STATUS'] = 'Y';
+						}
+						else
+						{
+							if ($params['saveAttendeesStatus'] && $params['currentEvent'] && $params['currentEvent']['~ATTENDEES'])
+							{
+								foreach($params['currentEvent']['~ATTENDEES'] as $currentAttendee)
+								{
+									if ($currentAttendee['USER_ID'] == $attendeeId)
+									{
+										$childParams['arFields']['MEETING_STATUS'] = $currentAttendee['STATUS'];
+										break;
+									}
+								}
+							}
+							else
+							{
+								$childParams['arFields']['MEETING_STATUS'] = 'Q';
+							}
+						}
+
+						unset($childParams['arFields']['SECTIONS']);
+						unset($childParams['currentEvent']);
+						unset($childParams['arFields']['ID']);
+						unset($childParams['arFields']['DAV_XML_ID']);
+
+						$bExchange = CCalendar::IsExchangeEnabled($attendeeId);
+
+						if ($bNew || !$curAttendeesIndex[$attendeeId])
+						{
+							$childSectId = CCalendar::GetMeetingSection($attendeeId, true);
+							if ($childSectId)
+							{
+								$childParams['arFields']['SECTIONS'] = array($childSectId);
+							}
+
+							// CalDav & Exchange
+							if ($bExchange || $bCalDav)
+							{
+								CCalendarSync::DoSaveToDav(array(
+									'bCalDav' => $bCalDav,
+									'bExchange' => $bExchange,
+									'sectionId' => $childSectId
+								), $childParams['arFields']);
+							}
+						}
+
+						$childParams['sendInvitations'] = $params['sendInvitations'];
+
+						if (!$bNew && $curAttendeesIndex[$attendeeId])
+						{
+							$childParams['arFields']['ID'] = $curAttendeesIndex[$attendeeId]['EVENT_ID'];
+
+							if (!$arFields['~MEETING']['REINVITE'])
+							{
+								$childParams['arFields']['MEETING_STATUS'] = $curAttendeesIndex[$attendeeId]['STATUS'];
+
+								$childParams['sendInvitations'] = $childParams['sendInvitations'] &&  $curAttendeesIndex[$attendeeId]['STATUS'] != 'Q';
+							}
+
+							if ($bExchange || $bCalDav)
+							{
+								$childParams['currentEvent'] = CCalendarEvent::GetById($childParams['arFields']['ID'], false);
+								CCalendarSync::DoSaveToDav(array(
+									'bCalDav' => $bCalDav,
+									'bExchange' => $bExchange,
+									'sectionId' => $childParams['currentEvent']['SECT_ID']
+								), $childParams['arFields'], $childParams['currentEvent']);
+							}
+						}
+
+						self::Edit($childParams);
+						$involvedAttendees[] = $attendeeId;
+						unset($deletedAttendees[$attendeeId]);
 					}
 				}
 			}
 
-			if ($arFields['CAL_TYPE'] == 'user')
-				$CACHE_MANAGER->ClearByTag('calendar_user_'.$arFields['OWNER_ID']);
-			$attendees = is_array($arFields['ATTENDEES']) ? $arFields['ATTENDEES'] : array();
-
-			if (!$arFields['PARENT_ID'] || $arFields['PARENT_ID'] == $arFields['ID'])
+			// Delete
+			$delIdStr = '';
+			if (!$bNew && count($deletedAttendees) > 0)
 			{
-				$fromTs = $arFields['DATE_FROM_TS_UTC'];
-				$toTs = $arFields['DATE_TO_TS_UTC'];
-				if ($arFields['DT_SKIP_TIME'] == "Y")
+				foreach($deletedAttendees as $attendeeId)
 				{
-					//$toTs += CCalendar::GetDayLen();
-				}
-				else
-				{
-					$fromTs += date('Z', $arFields['DATE_FROM_TS_UTC']);
-					$toTs += date('Z', $arFields['DATE_TO_TS_UTC']);
-				}
-
-				$arFields['LOCATION'] = CCalendar::SetLocation(
-					$arFields['LOCATION']['OLD'],
-					$arFields['LOCATION']['NEW'],
-					array(
-						// UTC timestamp + date('Z', $timestamp) /*offset of the server*/
-						'dateFrom' => CCalendar::Date($fromTs, $arFields['DT_SKIP_TIME'] !== "Y"),
-						'dateTo' => CCalendar::Date($toTs, $arFields['DT_SKIP_TIME'] !== "Y"),
-						'name' => $arFields['NAME'],
-						'persons' => count($attendees),
-						'attendees' => $attendees,
-						'bRecreateReserveMeetings' => $arFields['LOCATION']['RE_RESERVE'] !== 'N'
-					)
-				);
-			}
-			else
-			{
-				$arFields['LOCATION'] = CCalendar::GetTextLocation($arFields['LOCATION']['NEW']);
-			}
-
-			$bSendInvitations = $Params['bSendInvitations'] !== false;
-			if (!isset($arFields['IS_MEETING']) &&
-				isset($arFields['ATTENDEES']) && is_array($arFields['ATTENDEES']) && empty($arFields['ATTENDEES']))
-			{
-				$arFields['IS_MEETING'] = false;
-			}
-
-			$attendeesCodes = array();
-
-			if (is_array($arFields['MEETING']))
-			{
-				$arFields['~MEETING'] = $arFields['MEETING'];
-				$arFields['MEETING'] = serialize($arFields['~MEETING']);
-			}
-
-			if ($arFields['IS_MEETING'] && is_array($arFields['MEETING']))
-			{
-				if (!empty($arFields['ATTENDEES_CODES']))
-				{
-					$attendeesCodes = $arFields['ATTENDEES_CODES'];
-					$arFields['ATTENDEES_CODES'] = implode(',', $arFields['ATTENDEES_CODES']);
-				}
-
-				if (!isset($arFields['MEETING_STATUS']))
-					$arFields['MEETING_STATUS'] = 'H';
-			}
-
-			$arReminders = array();
-			if (is_array($arFields['REMIND']))
-			{
-				foreach ($arFields['REMIND'] as $remind)
-					if (in_array($remind['type'], array('min', 'hour', 'day')))
-						$arReminders[] = array('type' => $remind['type'],'count' => floatVal($remind['count']));
-			}
-			elseif($currentEvent['REMIND'])
-			{
-				$arReminders = $currentEvent['REMIND'];
-			}
-			$arFields['REMIND'] = count($arReminders) > 0 ? serialize($arReminders) : '';
-
-			$AllFields = self::GetFields();
-			$dbFields = array();
-			foreach($arFields as $field => $val)
-				if(isset($AllFields[$field]) && $field != "ID")
-					$dbFields[$field] = $arFields[$field];
-			CTimeZone::Disable();
-
-			if ($bNew) // Add
-			{
-				$eventId = CDatabase::Add("b_calendar_event", $dbFields, array('DESCRIPTION', 'MEETING', 'RDATE', 'EXDATE'));
-			}
-			else // Update
-			{
-				$eventId = $arFields['ID'];
-				$strUpdate = $DB->PrepareUpdate("b_calendar_event", $dbFields);
-				$strSql =
-					"UPDATE b_calendar_event SET ".
-						$strUpdate.
-						" WHERE ID=".IntVal($eventId);
-
-				$DB->QueryBind($strSql, array(
-					'DESCRIPTION' => $arFields['DESCRIPTION'],
-					'MEETING' => $arFields['MEETING'],
-					'RDATE' => $arFields['RDATE'],
-					'EXDATE' => $arFields['EXDATE']
-				));
-			}
-
-			CTimeZone::Enable();
-
-			if ($bNew && !isset($dbFields['DAV_XML_ID']))
-			{
-				$strSql =
-					"UPDATE b_calendar_event SET ".
-						$DB->PrepareUpdate("b_calendar_event", array('DAV_XML_ID' => $eventId)).
-						" WHERE ID=".IntVal($eventId);
-				$DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
-			}
-
-			// *** Check and update section links ***
-			$sectionId = (is_array($arFields['SECTIONS']) && $arFields['SECTIONS'][0]) ? intVal($arFields['SECTIONS'][0]) : false;
-
-			if ($sectionId && CCalendarSect::GetById($sectionId, false))
-			{
-				if (!$bNew)
-				{
-					$arAffectedSections[] = $currentEvent['SECT_ID'];
-				}
-				self::ConnectEventToSection($eventId, $sectionId);
-			}
-			else
-			{
-				// It's new event we have to find section where to put it automatically
-				if ($bNew)
-				{
-					if ($arFields['IS_MEETING'] && $arFields['PARENT_ID'] && $arFields['CAL_TYPE'] == 'user')
+					$att = $curAttendeesIndex[$attendeeId];
+					if ($params['sendInvitations'] !== false && $att['STATUS'] == 'Y')
 					{
-						$sectionId = CCalendar::GetMeetingSection($arFields['OWNER_ID']);
-					}
-					else
-					{
-						$sectionId = CCalendarSect::GetLastUsedSection($arFields['CAL_TYPE'], $arFields['OWNER_ID'], $userId);
-					}
-
-					if ($sectionId)
-					{
-						$res = CCalendarSect::GetList(array('arFilter' => array('CAL_TYPE' => $arFields['CAL_TYPE'],'OWNER_ID' => $arFields['OWNER_ID'], 'ID'=> $sectionId)));
-						if (!$res || !$res[0])
-							$sectionId = false;
-					}
-					else
-					{
-						$sectionId = false;
-					}
-
-					if (!$sectionId)
-					{
-						$sectRes = CCalendarSect::GetSectionForOwner($arFields['CAL_TYPE'], $arFields['OWNER_ID'], true);
-						$sectionId = $sectRes['sectionId'];
-					}
-					self::ConnectEventToSection($eventId, $sectionId);
-				}
-				else
-				{
-					// It's existing event, we take it's section to update modification lables (no db changes in b_calendar_event_sect)
-					$sectionId = $currentEvent['SECT_ID'];
-				}
-			}
-			$arAffectedSections[] = $sectionId;
-
-			if (count($arAffectedSections) > 0)
-				CCalendarSect::UpdateModificationLabel($arAffectedSections);
-
-			$bPull = CModule::IncludeModule("pull");
-
-			if ($arFields['IS_MEETING'] || (!$bNew && $currentEvent['IS_MEETING']))
-			{
-				if (!$arFields['PARENT_ID'])
-				{
-					$DB->Query("UPDATE b_calendar_event SET ".$DB->PrepareUpdate("b_calendar_event", array("PARENT_ID" => $eventId))." WHERE ID=".intVal($eventId), false, "FILE: ".__FILE__."<br> LINE: ".__LINE__);
-				}
-
-				if (!$arFields['PARENT_ID'] || $arFields['PARENT_ID'] == $eventId)
-				{
-					self::CreateChildEvents($eventId, $arFields, $Params, $userId);
-				}
-
-				if (!$arFields['PARENT_ID'])
-				{
-					$arFields['PARENT_ID'] = intVal($eventId);
-				}
-			}
-			else
-			{
-				if (($bNew && !$arFields['PARENT_ID']) || (!$bNew && !$currentEvent['PARENT_ID']))
-				{
-					$DB->Query("UPDATE b_calendar_event SET ".$DB->PrepareUpdate("b_calendar_event", array("PARENT_ID" => $eventId))." WHERE ID=".intVal($eventId), false, "FILE: ".__FILE__."<br> LINE: ".__LINE__);
-					if (!$arFields['PARENT_ID'])
-						$arFields['PARENT_ID'] = intVal($eventId);
-				}
-
-				if ($bPull)
-				{
-					$curUserId = $userId;
-					if ($arFields['PARENT_ID'] && $arFields['PARENT_ID'] !== $arFields['ID'])
-						$curUserId = $arFields['OWNER_ID'];
-
-					CPullStack::AddByUser($curUserId, Array(
-						'module_id' => 'calendar',
-						'command' => 'event_update',
-						'params' => array(
-							'EVENT' => CCalendarEvent::OnPullPrepareArFields($arFields),
-							'ATTENDEES' => array(),
-							'NEW' => $bNew ? 'Y' : 'N'
-						)
-					));
-				}
-			}
-
-			// Clean old reminders and add new reminders
-			if ($arFields["CAL_TYPE"] != 'user' || $arFields['OWNER_ID'] != $userId || $eventId == $arFields['PARENT_ID'])
-			{
-				self::UpdateReminders(
-						array(
-								'id' => $eventId,
-								'reminders' => $arReminders,
-								'arFields' => $arFields,
-								'userId' => $userId,
-								'path' => $path,
-								'bNew' => $bNew
-						)
-				);
-			}
-
-			// Send invitations and notivications
-			if ($arFields['IS_MEETING'])
-			{
-				if ($bSendInvitations)
-				{
-					if ($arFields['PARENT_ID'] != $eventId)
-					{
-						$CACHE_MANAGER->ClearByTag('calendar_user_'.$arFields['OWNER_ID']);
-						$fromTo = CCalendarEvent::GetEventFromToForUser($arFields, $arFields['OWNER_ID']);
-						CCalendar::SendMessage(array(
-							'mode' => 'invite',
-							'name' => $arFields['NAME'],
+						$CACHE_MANAGER->ClearByTag('calendar_user_'.$att["USER_ID"]);
+						$fromTo = CCalendarEvent::GetEventFromToForUser($arFields, $att["USER_ID"]);
+						CCalendarNotify::Send(array(
+							"mode" => 'cancel',
+							"name" => $arFields['NAME'],
 							"from" => $fromTo['DATE_FROM'],
 							"to" => $fromTo['DATE_TO'],
 							"location" => CCalendar::GetTextLocation($arFields["LOCATION"]),
-							"meetingText" => $arFields["~MEETING"]["TEXT"],
-							"guestId" => $arFields['OWNER_ID'],
-							"eventId" => $arFields['PARENT_ID'],
-							"userId" => $userId
+							"guestId" => $att["USER_ID"],
+							"eventId" => $parentId,
+							"userId" => $arFields['MEETING_HOST'],
+							"fields" => $arFields
 						));
 					}
-				}
-				else
-				{
-					if ($arFields['PARENT_ID'] != $eventId && $arFields['MEETING_STATUS'] == "Y" && $significantChanges)
+					$delIdStr .= ','.intVal($att['EVENT_ID']);
+
+					$bExchange = CCalendar::IsExchangeEnabled($attendeeId);
+					if ($bExchange || $bCalDav)
 					{
-						$CACHE_MANAGER->ClearByTag('calendar_user_'.$arFields['OWNER_ID']);
-						$fromTo = CCalendarEvent::GetEventFromToForUser($arFields, $arFields['OWNER_ID']);
-						CCalendar::SendMessage(array(
-							'mode' => 'change_notify',
-							'name' => $arFields['NAME'],
-							"from" => $fromTo['DATE_FROM'],
-							"to" => $fromTo['DATE_TO'],
-							"location" => CCalendar::GetTextLocation($arFields["LOCATION"]),
-							"meetingText" => $arFields["~MEETING"]["TEXT"],
-							"guestId" => $arFields['OWNER_ID'],
-							"eventId" => $arFields['PARENT_ID'],
-							"userId" => $userId
-						));
+						$currentEvent = CCalendarEvent::GetList(
+							array(
+								'arFilter' => array(
+									"PARENT_ID" => $parentId,
+									"OWNER_ID" => $attendeeId,
+									"IS_MEETING" => 1,
+									"DELETED" => "N"
+								),
+								'parseRecursion' => false,
+								'fetchAttendees' => true,
+								'fetchMeetings' => true,
+								'checkPermissions' => false,
+								'setDefaultLimit' => false
+							)
+						);
+						$currentEvent = $currentEvent[0];
+
+						if ($currentEvent)
+						{
+							CCalendarSync::DoDeleteToDav(array(
+									'bCalDav' => $bCalDav,
+									'bExchangeEnabled' => $bExchange,
+									'sectionId' => $currentEvent['SECT_ID']
+							), $currentEvent);
+						}
 					}
 				}
 			}
 
-			if ($arFields['CAL_TYPE'] == 'user' && $arFields['IS_MEETING'] && !empty($attendeesCodes) && $arFields['PARENT_ID'] == $eventId)
+			$delIdStr = trim($delIdStr, ', ');
+
+			if ($delIdStr != '')
 			{
-				CCalendarLiveFeed::OnEditCalendarEventEntry($eventId, $arFields, $attendeesCodes);
+				$strSql =
+					"UPDATE b_calendar_event SET ".
+					$DB->PrepareUpdate("b_calendar_event", array("DELETED" => "Y")).
+					" WHERE PARENT_ID=".intval($parentId)." AND ID IN(".$delIdStr.")";
+				$DB->Query($strSql, false, "FILE: ".__FILE__."<br> LINE: ".__LINE__);
 			}
 
-			CCalendar::ClearCache('event_list');
-
-			$result = $eventId;
+			if (count($involvedAttendees) > 0)
+			{
+				$involvedAttendees = array_unique($involvedAttendees);
+				CCalendar::UpdateCounter($involvedAttendees);
+			}
 		}
-
-		return $result;
 	}
 
 	public static function GetEventFromToForUser($params, $userId)
@@ -1571,11 +2024,13 @@ class CCalendarEvent
 
 		$fromTs = CCalendar::Timestamp($params['DATE_FROM'], false, !$skipTime);
 		$toTs = CCalendar::Timestamp($params['DATE_TO'], false, !$skipTime);
+
 		if (!$skipTime)
 		{
 			$fromTs = $fromTs - (CCalendar::GetTimezoneOffset($params['TZ_FROM']) - CCalendar::GetCurrentOffsetUTC($userId));
 			$toTs = $toTs - (CCalendar::GetTimezoneOffset($params['TZ_TO']) - CCalendar::GetCurrentOffsetUTC($userId));
 		}
+
 		$dateFrom = CCalendar::Date($fromTs, !$skipTime);
 		$dateTo = CCalendar::Date($toTs, !$skipTime);
 
@@ -1586,21 +2041,6 @@ class CCalendarEvent
 			"TS_TO" => $toTs
 		);
 	}
-
-	public static function GetCurrentSectionIds($eventId)
-	{
-		global $DB;
-		$strSql = "SELECT SECT_ID FROM b_calendar_event_sect WHERE EVENT_ID=".intVal($eventId);
-		$res = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
-
-		$result = array();
-		while($e = $res->Fetch())
-			$result[] = intVal($e['SECT_ID']);
-
-		return $result;
-	}
-
-
 
 	public static function OnPullPrepareArFields($arFields = array())
 	{
@@ -1630,6 +2070,19 @@ class CCalendarEvent
 		return $arFields;
 	}
 
+	public static function GetCurrentSectionIds($eventId)
+	{
+		global $DB;
+		$strSql = "SELECT SECT_ID FROM b_calendar_event_sect WHERE EVENT_ID=".intVal($eventId);
+		$res = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+
+		$result = array();
+		while($e = $res->Fetch())
+			$result[] = intVal($e['SECT_ID']);
+
+		return $result;
+	}
+
 	public static function UpdateUserFields($eventId, $arFields = array())
 	{
 		$eventId = intVal($eventId);
@@ -1644,193 +2097,6 @@ class CCalendarEvent
 			ExecuteModuleEventEx($arEvent, array('ID' => $eventId,'arFields' => $arFields));
 
 		return true;
-	}
-
-	public static function CreateChildEvents($parentId, $arFields, $Params, $userId = 0)
-	{
-		global $DB, $CACHE_MANAGER;
-		$parentId = intVal($parentId);
-		$attendees = $arFields['ATTENDEES'];
-		$bCalDav = CCalendar::IsCalDAVEnabled();
-		$involvedAttendees = array();
-
-		if ($parentId)
-		{
-
-			// It's new event
-			$bNew = !isset($arFields['ID']) || $arFields['ID'] <= 0;
-
-			$curAttendeesIndex = array();
-			$deletedAttendees = array();
-			//$arAffectedSections = array();
-			if (!$bNew)
-			{
-				$curAttendees = self::GetAttendees($parentId);
-				$curAttendees = $curAttendees[$parentId];
-
-				if (is_array($curAttendees))
-				{
-					foreach($curAttendees as $user)
-					{
-						$curAttendeesIndex[$user['USER_ID']] = $user;
-						if ($user['USER_ID'] !== $arFields['MEETING_HOST'] && ($user['USER_ID'] !== $arFields['OWNER_ID'] || $arFields['CAL_TYPE'] !== 'user'))
-						{
-							$deletedAttendees[$user['USER_ID']] = $user['USER_ID'];
-							$involvedAttendees[] = $user['USER_ID'];
-						}
-						//$arAffectedSections[] = CCalendar::GetMeetingSection($user['USER_KEY']);
-					}
-				}
-			}
-
-			if (is_array($attendees))
-			{
-				foreach($attendees as $userKey)
-				{
-					$attendeeId = intVal($userKey);
-					$CACHE_MANAGER->ClearByTag('calendar_user_'.$attendeeId);
-
-					// Skip creation child event if it's event inside his own user calendar
-					if ($attendeeId && (intVal($arFields['CREATED_BY']) !== $attendeeId || $arFields['CAL_TYPE'] != 'user'))
-					{
-						$childParams = $Params;
-						$childParams['arFields']['CAL_TYPE'] = 'user';
-						$childParams['arFields']['PARENT_ID'] = $parentId;
-						$childParams['arFields']['OWNER_ID'] = $attendeeId;
-						$childParams['arFields']['CREATED_BY'] = $attendeeId;
-						if (intVal($arFields['CREATED_BY']) == $attendeeId)
-							$childParams['arFields']['MEETING_STATUS'] = 'Y';
-						else
-							$childParams['arFields']['MEETING_STATUS'] = 'Q';
-
-						unset($childParams['arFields']['SECTIONS']);
-						unset($childParams['currentEvent']);
-						unset($childParams['arFields']['ID']);
-						unset($childParams['arFields']['DAV_XML_ID']);
-
-						$bExchange = CCalendar::IsExchangeEnabled($attendeeId);
-
-						if ($bNew || !$curAttendeesIndex[$attendeeId])
-						{
-							$childSectId = CCalendar::GetMeetingSection($attendeeId, true);
-							if ($childSectId)
-							{
-								$childParams['arFields']['SECTIONS'] = array($childSectId);
-							}
-
-							// CalDav & Exchange
-							if ($bExchange || $bCalDav)
-							{
-								CCalendar::DoSaveToDav(array(
-										'bCalDav' => $bCalDav,
-										'bExchange' => $bExchange,
-										'sectionId' => $childSectId
-								), $childParams['arFields']);
-							}
-						}
-
-						$childParams['bSendInvitations'] = $Params['bSendInvitations'];
-						if (!$bNew && $curAttendeesIndex[$attendeeId])
-						{
-							$childParams['arFields']['ID'] = $curAttendeesIndex[$attendeeId]['EVENT_ID'];
-
-							if (!$arFields['~MEETING']['REINVITE'])
-							{
-								$childParams['arFields']['MEETING_STATUS'] = $curAttendeesIndex[$attendeeId]['STATUS'];
-
-								$childParams['bSendInvitations'] = $childParams['bSendInvitations'] &&  $curAttendeesIndex[$attendeeId]['STATUS'] != 'Q';
-							}
-
-							if ($bExchange || $bCalDav)
-							{
-								$childParams['currentEvent'] = CCalendarEvent::GetById($childParams['arFields']['ID'], false);
-								CCalendar::DoSaveToDav(array(
-										'bCalDav' => $bCalDav,
-										'bExchange' => $bExchange,
-										'sectionId' => $childParams['currentEvent']['SECT_ID']
-								), $childParams['arFields'], $childParams['currentEvent']);
-							}
-						}
-
-						self::Edit($childParams);
-						$involvedAttendees[] = $attendeeId;
-						unset($deletedAttendees[$attendeeId]);
-					}
-				}
-			}
-
-			// Delete
-			$delIdStr = '';
-			if (!$bNew && count($deletedAttendees) > 0)
-			{
-				foreach($deletedAttendees as $attendeeId)
-				{
-					$att = $curAttendeesIndex[$attendeeId];
-					if ($Params['bSendInvitations'] !== false && $att['STATUS'] == 'Y')
-					{
-						$CACHE_MANAGER->ClearByTag('calendar_user_'.$att["USER_ID"]);
-						$fromTo = CCalendarEvent::GetEventFromToForUser($arFields, $att["USER_ID"]);
-						CCalendar::SendMessage(array(
-							'mode' => 'cancel',
-							'name' => $arFields['NAME'],
-							"from" => $fromTo['DATE_FROM'],
-							"to" => $fromTo['DATE_TO'],
-							"location" => CCalendar::GetTextLocation($arFields["LOCATION"]),
-							"guestId" => $att["USER_ID"],
-							"eventId" => $parentId,
-							"userId" => $arFields['MEETING_HOST']
-						));
-					}
-					$delIdStr .= ','.intVal($att['EVENT_ID']);
-
-					$bExchange = CCalendar::IsExchangeEnabled($attendeeId);
-					if ($bExchange || $bCalDav)
-					{
-						$currentEvent = CCalendarEvent::GetList(
-							array(
-								'arFilter' => array(
-									"PARENT_ID" => $parentId,
-									"OWNER_ID" => $attendeeId,
-									"IS_MEETING" => 1,
-									"DELETED" => "N"
-								),
-								'parseRecursion' => false,
-								'fetchAttendees' => true,
-								'fetchMeetings' => true,
-								'checkPermissions' => false,
-								'setDefaultLimit' => false
-							)
-						);
-						$currentEvent = $currentEvent[0];
-
-						if ($currentEvent)
-						{
-							CCalendar::DoDeleteToDav(array(
-									'bCalDav' => $bCalDav,
-									'bExchangeEnabled' => $bExchange,
-									'sectionId' => $currentEvent['SECT_ID']
-							), $currentEvent);
-						}
-					}
-				}
-			}
-
-			$delIdStr = trim($delIdStr, ', ');
-			if ($delIdStr != '')
-			{
-				$strSql =
-					"UPDATE b_calendar_event SET ".
-					$DB->PrepareUpdate("b_calendar_event", array("DELETED" => "Y")).
-					" WHERE PARENT_ID=".intval($parentId)." AND ID IN(".$delIdStr.")";
-				$DB->Query($strSql, false, "FILE: ".__FILE__."<br> LINE: ".__LINE__);
-			}
-
-			if (count($involvedAttendees) > 0)
-			{
-				$involvedAttendees = array_unique($involvedAttendees);
-				CCalendar::UpdateCounter($involvedAttendees);
-			}
-		}
 	}
 
 	public static function GetChildEvents($parentId)
@@ -1862,126 +2128,13 @@ class CCalendarEvent
 		return false;
 	}
 
-	public static function ConnectEventToSection($eventId, $sectionId)
-	{
-		global $DB;
-		$DB->Query(
-			"DELETE FROM b_calendar_event_sect WHERE EVENT_ID=".intVal($eventId),
-			false, "FILE: ".__FILE__."<br> LINE: ".__LINE__);
-
-		$DB->Query(
-			"INSERT INTO b_calendar_event_sect(EVENT_ID, SECT_ID) ".
-			"SELECT ".intVal($eventId).", ID ".
-			"FROM b_calendar_section ".
-			"WHERE ID=".intVal($sectionId),
-			false, "FILE: ".__FILE__."<br> LINE: ".__LINE__);
-	}
-
-	function UpdateReminders($Params = array())
-	{
-		$eventId = intVal($Params['id']);
-		$reminders = $Params['reminders'];
-		$arFields = $Params['arFields'];
-		$userId = $Params['userId'];
-		$bNew = $Params['bNew'];
-
-		$path = $Params['path'];
-		$path = CHTTP::urlDeleteParams($path, array("action", "sessid", "bx_event_calendar_request", "EVENT_ID"));
-		$viewPath = CHTTP::urlAddParams($path, array('EVENT_ID' => $eventId));
-
-		$remAgentParams = array(
-			'eventId' => $eventId,
-			'userId' => $arFields["CREATED_BY"],
-			'viewPath' => $viewPath,
-			'calendarType' => $arFields["CAL_TYPE"],
-			'ownerId' => $arFields["OWNER_ID"]
-		);
-
-		// 1. clean reminders
-		if (!$bNew) // if we edit event here can be "old" reminders
-			CCalendar::RemoveAgent($remAgentParams);
-
-		// 2. Set new reminders
-		$startTs = $arFields['DATE_FROM_TS_UTC']; // Start of the event in UTC
-		$agentTime = 0;
-
-		foreach($reminders as $reminder)
-		{
-			$delta = intVal($reminder['count']) * 60; //Minute
-			if ($reminder['type'] == 'hour')
-				$delta = $delta * 60; //Hour
-			elseif ($reminder['type'] == 'day')
-				$delta =  $delta * 60 * 24; //Day
-
-			// $startTs - UTC timestamp;  date('Z', $startTs) - offset of the server
-			$agentTime = $startTs + date('Z', $startTs);
-			if (($agentTime - $delta) >= (time() - 60 * 5)) // Inaccuracy - 5 min
-			{
-				CCalendar::AddAgent(CCalendar::Date($agentTime - $delta), $remAgentParams);
-			}
-			elseif($arFields['RRULE'] != '')
-			{
-				$arEvents = CCalendarEvent::GetList(
-					array(
-						'arFilter' => array(
-							"ID" => $eventId,
-							"DELETED" => "N",
-							"FROM_LIMIT" => CCalendar::Date(time() - 3600, false),
-							"TO_LIMIT" => CCalendar::GetMaxDate()
-						),
-						'userId' => $userId,
-						'parseRecursion' => true,
-						'maxInstanceCount' => 2,
-						'preciseLimits' => true,
-						'fetchAttendees' => true,
-						'checkPermissions' => false,
-						'setDefaultLimit' => false
-					)
-				);
-
-				if ($arEvents && is_array($arEvents[0]))
-				{
-					$nextEvent = $arEvents[0];
-					$startTs = CCalendar::Timestamp($nextEvent['DATE_FROM'], false, $arEvents[0]["DT_SKIP_TIME"] !== 'Y');
-					if ($nextEvent["DT_SKIP_TIME"] == 'N' && $nextEvent["TZ_FROM"])
-					{
-						$startTs = $startTs - CCalendar::GetTimezoneOffset($nextEvent["TZ_FROM"], $startTs); // UTC timestamp
-					}
-
-					if (($startTs + date("Z", $startTs)) < (time() - 60 * 5) && $arEvents[1]) // Inaccuracy - 5 min)
-					{
-						$nextEvent = $arEvents[1];
-					}
-
-					$startTs = CCalendar::Timestamp($nextEvent['DATE_FROM'], false, $arEvents[0]["DT_SKIP_TIME"] !== 'Y');
-					if ($nextEvent["DT_SKIP_TIME"] == 'N' && $nextEvent["TZ_FROM"])
-					{
-						$startTs = $startTs - CCalendar::GetTimezoneOffset($nextEvent["TZ_FROM"], $startTs); // UTC timestamp
-					}
-					$reminder = $nextEvent['REMIND'][0];
-					if ($reminder)
-					{
-						$delta = intVal($reminder['count']) * 60; //Minute
-						if ($reminder['type'] == 'hour')
-							$delta = $delta * 60; //Hour
-						elseif ($reminder['type'] == 'day')
-							$delta =  $delta * 60 * 24; //Day
-
-						// $startTs - UTC timestamp;  date("Z", $startTs) - offset of the server
-						$agentTime = $startTs + date("Z", $startTs);
-						if (($agentTime - $delta) >= (time() - 60 * 5)) // Inaccuracy - 5 min
-							CCalendar::AddAgent(CCalendar::Date($agentTime - $delta), $remAgentParams);
-					}
-				}
-			}
-		}
-	}
-
 	public static function Delete($params)
 	{
 		global $DB, $CACHE_MANAGER;
 		$bCalDav = CCalendar::IsCalDAVEnabled();
 		$id = intVal($params['id']);
+		$sendNotification = $params['sendNotification'] !== false;
+
 		if ($id)
 		{
 			$userId = (isset($params['userId']) && $params['userId'] > 0) ? $params['userId'] : CCalendar::GetCurUserId();
@@ -2006,11 +2159,14 @@ class CCalendarEvent
 			{
 				if ($event['IS_MEETING'] && $event['PARENT_ID'] !== $event['ID'])
 				{
-					CCalendarEvent::SetMeetingStatus(
-						$userId,
-						$event['ID'],
-						'N'
-					);
+					if ($event['MEETING_STATUS'] == 'Y' || $event['MEETING_STATUS'] == 'Q')
+					{
+						self::SetMeetingStatus(array(
+							'userId' => $userId,
+							'eventId' => $event['ID'],
+							'status' => 'N'
+						));
+					}
 				}
 				else
 				{
@@ -2036,7 +2192,9 @@ class CCalendarEvent
 
 					if ($event['IS_MEETING'])
 					{
-						if (CModule::IncludeModule("im"))
+						CCalendarNotify::ClearNotifications($event['PARENT_ID']);
+
+						if (Loader::includeModule("im"))
 						{
 							CIMNotify::DeleteBySubTag("CALENDAR|INVITE|".$event['PARENT_ID']);
 							CIMNotify::DeleteBySubTag("CALENDAR|STATUS|".$event['PARENT_ID']);
@@ -2060,12 +2218,12 @@ class CCalendarEvent
 						foreach($childEvents as $chEvent)
 						{
 							$CACHE_MANAGER->ClearByTag('calendar_user_'.$chEvent["OWNER_ID"]);
-							if ($chEvent["MEETING_STATUS"] != "N")
+							if ($chEvent["MEETING_STATUS"] != "N" && $sendNotification)
 							{
 								if ($chEvent['DATE_TO_TS_UTC'] + date("Z", $chEvent['DATE_TO_TS_UTC']) > (time() - 60 * 5))
 								{
 									$fromTo = CCalendarEvent::GetEventFromToForUser($event, $chEvent["OWNER_ID"]);
-									CCalendar::SendMessage(array(
+									CCalendarNotify::Send(array(
 										'mode' => 'cancel',
 										'name' => $chEvent['NAME'],
 										"from" => $fromTo["DATE_FROM"],
@@ -2085,7 +2243,7 @@ class CCalendarEvent
 							$bExchange = CCalendar::IsExchangeEnabled($chEvent["OWNER_ID"]);
 							if ($bExchange || $bCalDav)
 							{
-								CCalendar::DoDeleteToDav(array(
+								CCalendarSync::DoDeleteToDav(array(
 										'bCalDav' => $bCalDav,
 										'bExchangeEnabled' => $bExchange,
 										'sectionId' => $chEvent['SECT_ID']
@@ -2155,16 +2313,94 @@ class CCalendarEvent
 		return false;
 	}
 
-	public static function SetMeetingStatus($userId, $eventId, $status = 'Q', $comment = '')
+	public static function SetMeetingStatusEx($params)
+	{
+		if ($params['reccurentMode'] && $params['currentDateFrom'])
+		{
+			$event = self::GetById($params['parentId'], false);
+			$recurrenceId = $event['RECURRENCE_ID'] ? $event['RECURRENCE_ID'] : $event['ID'];
+
+			if ($params['reccurentMode'] != 'all')
+			{
+				$res = CCalendar::SaveEventEx(array(
+					'arFields' => array(
+						"ID" => $params['parentId']
+					),
+					'silentErrorMode' => false,
+					'recursionEditMode' => $params['reccurentMode'],
+					'userId' => $event['MEETING_HOST'],
+					'checkPermission' => false,
+					'currentEventDateFrom' => $params['currentDateFrom'],
+					'sendEditNotification' => false
+				));
+
+				if ($res && $res['recEventId'])
+				{
+					self::SetMeetingStatus(array(
+						'userId' => $params['attendeeId'],
+						'eventId' => $res['recEventId'],
+						'status' => $params['status']
+					));
+				}
+			}
+
+			if ($params['reccurentMode'] == 'all' || $params['reccurentMode'] == 'next')
+			{
+				$recRelatedEvents = CCalendarEvent::GetEventsByRecId($recurrenceId, false);
+
+				if ($params['reccurentMode'] == 'next')
+				{
+					$untilTimestamp = CCalendar::Timestamp($params['currentDateFrom']);
+				}
+				else
+				{
+					$untilTimestamp = false;
+					self::SetMeetingStatus(array(
+						'userId' => $params['attendeeId'],
+						'eventId' => $params['eventId'],
+						'status' => $params['status']
+					));
+				}
+
+				foreach($recRelatedEvents as $ev)
+				{
+					if ($ev['ID'] == $params['eventId'])
+						continue;
+
+					if($params['reccurentMode'] == 'all' ||
+						($untilTimestamp && CCalendar::Timestamp($ev['DATE_FROM']) > $untilTimestamp))
+					{
+						self::SetMeetingStatus(array(
+							'userId' => $params['attendeeId'],
+							'eventId' => $ev['ID'],
+							'status' => $params['status']
+						));
+					}
+				}
+			}
+		}
+		else
+		{
+			self::SetMeetingStatus(array(
+				'userId' => $params['attendeeId'],
+				'eventId' => $params['eventId'],
+				'status' => $params['status']
+			));
+		}
+	}
+
+	public static function SetMeetingStatus($params)
 	{
 		CTimeZone::Disable();
 		global $DB, $CACHE_MANAGER;
-		$eventId = intVal($eventId);
-		$userId = intVal($userId);
+		$eventId = $params['eventId'] = intVal($params['eventId']);
+		$userId = $params['userId'] = intVal($params['userId']);
+		$status = $params['status'];
 		if(!in_array($status, array("Q", "Y", "N", "H", "M")))
-			$status = "Q";
+			$status = $params['status'] = "Q";
 
 		$event = CCalendarEvent::GetById($eventId, false);
+
 		if ($event && $event['IS_MEETING'] && intVal($event['PARENT_ID']) > 0)
 		{
 			$strSql = "UPDATE b_calendar_event SET ".
@@ -2175,23 +2411,23 @@ class CCalendarEvent
 			CCalendarSect::UpdateModificationLabel($event['SECT_ID']);
 
 			// Clear invitation in messager
-			if (CModule::IncludeModule("im"))
-			{
-				CIMNotify::DeleteByTag("CALENDAR|INVITE|".$event['PARENT_ID']."|".$userId);
-				CIMNotify::DeleteByTag("CALENDAR|STATUS|".$event['PARENT_ID']."|".$userId);
-			}
+			CCalendarNotify::ClearNotifications($event['PARENT_ID'], $userId);
 
 			// Add new notification in messenger
-			$fromTo = CCalendarEvent::GetEventFromToForUser($event, $userId);
-			CCalendar::SendMessage(array(
-				'mode' => $status == "Y" ? 'status_accept' : 'status_decline',
-				'name' => $event['NAME'],
-				"from" => $fromTo["DATE_FROM"],
-				"guestId" => $userId,
-				"eventId" => $event['PARENT_ID'],
-				"userId" => $userId,
-				"markRead" => true
-			));
+			if ($params['personalNotification'] !== false)
+			{
+				$fromTo = CCalendarEvent::GetEventFromToForUser($event, $userId);
+				CCalendarNotify::Send(array(
+					'mode' => $status == "Y" ? 'status_accept' : 'status_decline',
+					'name' => $event['NAME'],
+					"from" => $fromTo["DATE_FROM"],
+					"guestId" => $userId,
+					"eventId" => $event['PARENT_ID'],
+					"userId" => $userId,
+					"markRead" => true,
+					"fields" => $event
+				));
+			}
 
 			// If it's open meeting and our attendee is not on the list
 			if ($event['MEETING'] && $event['MEETING']['OPEN'] && ($status == 'Y' || $status == 'M'))
@@ -2208,7 +2444,7 @@ class CCalendarEvent
 					}
 				}
 
-				if (!$attendeeExist)
+				if (!$attendeeExist && is_array($event))
 				{
 					// 1. Create another childEvent for new attendee
 					$AllFields = self::GetFields();
@@ -2226,7 +2462,8 @@ class CCalendarEvent
 					$dbFields['PARENT_ID'] = $event['PARENT_ID'];
 					$dbFields['MEETING'] = serialize($event['MEETING']);
 					$dbFields['REMIND'] = serialize($event['REMIND']);
-					$eventId = CDatabase::Add("b_calendar_event", $dbFields, array('DESCRIPTION', 'MEETING', 'RDATE', 'EXDATE'));
+					$eventId = $DB->Add("b_calendar_event", $dbFields, array('DESCRIPTION', 'MEETING', 'EXDATE'));
+
 					$DB->Query("UPDATE b_calendar_event SET ".
 						$DB->PrepareUpdate("b_calendar_event", array('DAV_XML_ID' => $eventId)).
 						" WHERE ID=".IntVal($eventId), false, "File: ".__FILE__."<br>Line: ".__LINE__);
@@ -2245,6 +2482,7 @@ class CCalendarEvent
 					// 2. Update ATTENDEES_CODES
 					$attendeesCodes = $event['ATTENDEES_CODES'];
 					$attendeesCodes[] = 'U'.intVal($userId);
+
 					$attendeesCodes = array_unique($attendeesCodes);
 					$DB->Query("UPDATE b_calendar_event SET ".
 						"ATTENDEES_CODES='".implode(',', $attendeesCodes)."'".
@@ -2255,33 +2493,103 @@ class CCalendarEvent
 			}
 
 			// Notify author of event
-			if ($event['MEETING']['NOTIFY'] && $userId != $event['MEETING_HOST'])
+			if ($event['MEETING']['NOTIFY'] && $userId != $event['MEETING_HOST'] &&
+				$params['hostNotification'] !== false)
 			{
 				// Send message to the author
 				$fromTo = CCalendarEvent::GetEventFromToForUser($event, $event['MEETING_HOST']);
-				CCalendar::SendMessage(array(
+				CCalendarNotify::Send(array(
 					'mode' => $status == "Y" ? 'accept' : 'decline',
 					'name' => $event['NAME'],
 					"from" => $fromTo["DATE_FROM"],
 					"to" => $fromTo["DATE_TO"],
 					"location" => CCalendar::GetTextLocation($event["LOCATION"]),
-					"comment" => $comment,
 					"guestId" => $userId,
 					"eventId" => $event['PARENT_ID'],
-					"userId" => $event['MEETING_HOST']
+					"userId" => $event['MEETING_HOST'],
+					"fields" => $event
 				));
 			}
 			CCalendarSect::UpdateModificationLabel(array($event['SECTIONS'][0]));
+
+			if ($status == "N")
+			{
+				$childEvent = CCalendarEvent::GetList(
+					array(
+						'arFilter' => array(
+							"PARENT_ID" => $event['PARENT_ID'],
+							"CREATED_BY" => $userId,
+							"IS_MEETING" => 1,
+							"DELETED" => "N"
+						),
+						'parseRecursion' => false,
+						'checkPermissions' => false,
+						'setDefaultLimit' => false
+					)
+				);
+
+				if ($childEvent && $childEvent[0])
+				{
+					$childEvent = $childEvent[0];
+					$bCalDav = CCalendar::IsCalDAVEnabled();
+					$bExchange = CCalendar::IsExchangeEnabled($userId);
+
+					if ($bExchange || $bCalDav)
+					{
+						CCalendarSync::DoDeleteToDav(array(
+							'bCalDav' => $bCalDav,
+							'bExchangeEnabled' => $bExchange,
+							'sectionId' => $childEvent['SECT_ID']
+						), $childEvent);
+					}
+				}
+			}
+
+			if ($status == "Y" && $params['affectRecRelatedEvents'] !== false)
+			{
+				$event = self::GetById($event['PARENT_ID'], false);
+				$recurrenceId = $event['RECURRENCE_ID'] ? $event['RECURRENCE_ID'] : $event['ID'];
+
+				if ($recurrenceId)
+				{
+					$recRelatedEvents = CCalendarEvent::GetEventsByRecId($recurrenceId, false);
+					foreach($recRelatedEvents as $ev)
+					{
+						if ($ev['ID'] == $params['eventId'])
+							continue;
+
+						self::SetMeetingStatus(array(
+							'userId' => $userId,
+							'eventId' => $ev['ID'],
+							'status' => $status,
+							'personalNotification' => false,
+							'hostNotification' => false,
+							'affectRecRelatedEvents' => false
+						));
+					}
+				}
+			}
+
 
 			CCalendar::UpdateCounter($userId);
 
 			$CACHE_MANAGER->ClearByTag('calendar_user_'.$userId);
 			$CACHE_MANAGER->ClearByTag('calendar_user_'.$event['CREATED_BY']);
 		}
+		else
+		{
+			CCalendarNotify::ClearNotifications($eventId);
+		}
 
 		CTimeZone::Enable();
 		CCalendar::ClearCache(array('attendees_list', 'event_list'));
 	}
+
+	/*
+	 * $params['dateFrom']
+	 * $params['dateTo']
+	 *
+	 * */
 
 	public static function GetMeetingStatus($userId, $eventId)
 	{
@@ -2363,8 +2671,13 @@ class CCalendarEvent
 				if ($arFields['REMIND'] && is_array($arFields['REMIND']))
 				{
 					foreach ($arFields['REMIND'] as $remind)
-						if (in_array($remind['type'], array('min', 'hour', 'day')))
-							$arReminders[] = array('type' => $remind['type'],'count' => floatVal($remind['count']));
+					{
+						if(is_array($remind) && isset($remind['type']) && in_array($remind['type'], array('min', 'hour', 'day')))
+						{
+
+							$arReminders[] = array('type' => $remind['type'], 'count' => floatVal($remind['count']));
+						}
+					}
 				}
 			}
 
@@ -2379,11 +2692,6 @@ class CCalendarEvent
 		return true;
 	}
 
-	/*
-	 * $params['dateFrom']
-	 * $params['dateTo']
-	 *
-	 * */
 	public static function GetAccessibilityForUsers($params = array())
 	{
 		$curEventId = intVal($params['curEventId']);
@@ -2419,6 +2727,7 @@ class CCalendarEvent
 				),
 				'parseRecursion' => true,
 				'fetchAttendees' => true,
+				'fetchSection' => true,
 				'setDefaultLimit' => false,
 				'checkPermissions' => $params['checkPermissions']
 			)
@@ -2428,7 +2737,11 @@ class CCalendarEvent
 		{
 			if ($curEventId && ($event["ID"] == $curEventId || $event["PARENT_ID"] == $curEventId))
 				continue;
+			if ($event["ACCESSIBILITY"] == 'free')
+				continue;
 			if ($event["IS_MEETING"] && ($event["MEETING_STATUS"] == "N" || $event["MEETING_STATUS"] == "Q"))
+				continue;
+			if (CCalendarSect::CheckGoogleVirtualSection($event['SECTION_DAV_XML_ID']))
 				continue;
 
 			$accessibility[$event['OWNER_ID']][] = array(
@@ -2450,89 +2763,12 @@ class CCalendarEvent
 		return $accessibility;
 	}
 
-	public static function ApplyAccessRestrictions($event, $userId = false)
-	{
-		$sectId = $event['SECT_ID'];
-		if (!$event['ACCESSIBILITY'])
-			$event['ACCESSIBILITY'] = 'busy';
-
-		$private = $event['PRIVATE_EVENT'] && $event['CAL_TYPE'] == 'user';
-		$bManager = false;
-		$bAttendee = false;
-
-		if (isset($event['~ATTENDEES']))
-		{
-			foreach($event['~ATTENDEES'] as $user)
-			{
-				if ($user['USER_ID'] == $userId)
-					$bAttendee = true;
-			}
-		}
-
-		if(!$userId)
-			$userId = CCalendar::GetUserId();
-
-		$settings = CCalendar::GetSettings(array('request' => false));
-		if (CModule::IncludeModule('intranet') && $event['CAL_TYPE'] == 'user' && $settings['dep_manager_sub'])
-			$bManager = in_array($userId, CCalendar::GetUserManagers($event['OWNER_ID'], true));
-
-		if ($event['CAL_TYPE'] == 'user' && $event['IS_MEETING'] && $event['OWNER_ID'] != $userId)
-		{
-			if ($bAttendee)
-			{
-				$sectId = CCalendar::GetMeetingSection($userId);
-			}
-			elseif (isset($event['USER_MEETING']['ATTENDEE_ID']) && $event['USER_MEETING']['ATTENDEE_ID'] !== $userId)
-			{
-				$sectId = CCalendar::GetMeetingSection($event['USER_MEETING']['ATTENDEE_ID']);
-				$event['SECT_ID'] = $sectId;
-				$event['OWNER_ID'] = $event['USER_MEETING']['ATTENDEE_ID'];
-			}
-		}
-
-		if ($private || (!CCalendarSect::CanDo('calendar_view_full', $sectId, $userId) && !$bManager && !$bAttendee))
-		{
-			if ($private)
-			{
-				$event['NAME'] = '['.GetMessage('EC_ACCESSIBILITY_'.strtoupper($event['ACCESSIBILITY'])).']';
-				if (!$bManager && !CCalendarSect::CanDo('calendar_view_time', $sectId, $userId))
-					return false;
-			}
-			else
-			{
-				if (!CCalendarSect::CanDo('calendar_view_title', $sectId, $userId))
-				{
-					if (CCalendarSect::CanDo('calendar_view_time', $sectId, $userId))
-						$event['NAME'] = '['.GetMessage('EC_ACCESSIBILITY_'.strtoupper($event['ACCESSIBILITY'])).']';
-					else
-						return false;
-				}
-				else
-				{
-					$event['NAME'] = $event['NAME'].' ['.GetMessage('EC_ACCESSIBILITY_'.strtoupper($event['ACCESSIBILITY'])).']';
-				}
-			}
-			$event['~IS_MEETING'] = $event['IS_MEETING'];
-
-			// Clear information about
-			unset($event['DESCRIPTION'], $event['IS_MEETING'],$event['MEETING_HOST'],$event['MEETING'],$event['LOCATION'],$event['REMIND'],$event['USER_MEETING'],$event['~ATTENDEES'],$event['ATTENDEES_CODES']);
-
-			foreach($event as $k => $value)
-			{
-				if (substr($k, 0, 3) == 'UF_')
-					unset($event[$k]);
-			}
-		}
-
-		return $event;
-	}
-
-	public static function GetAbsent($users = false, $Params = array())
+	public static function GetAbsent($users = false, $params = array())
 	{
 		// Can be called from agent... So we have to create $USER if it is not exists
 		$tempUser = CCalendar::TempUser(false, true);
 
-		$curUserId = isset($Params['userId']) ? intVal($Params['userId']) : CCalendar::GetCurUserId();
+		$curUserId = isset($params['userId']) ? intVal($params['userId']) : CCalendar::GetCurUserId();
 		$arUsers = array();
 
 		if ($users !== false && is_array($users))
@@ -2554,10 +2790,10 @@ class CCalendarEvent
 		if ($users)
 			$arFilter['CREATED_BY'] = $users;
 
-		if (isset($Params['fromLimit']))
-			$arFilter['FROM_LIMIT'] = CCalendar::Date(CCalendar::Timestamp($Params['fromLimit'], false), true, false);
-		if (isset($Params['toLimit']))
-			$arFilter['TO_LIMIT'] = CCalendar::Date(CCalendar::Timestamp($Params['toLimit'], false), true, false);
+		if (isset($params['fromLimit']))
+			$arFilter['FROM_LIMIT'] = CCalendar::Date(CCalendar::Timestamp($params['fromLimit'], false), true, false);
+		if (isset($params['toLimit']))
+			$arFilter['TO_LIMIT'] = CCalendar::Date(CCalendar::Timestamp($params['toLimit'], false), true, false);
 
 		$arEvents = CCalendarEvent::GetList(
 			array(
@@ -2571,7 +2807,7 @@ class CCalendarEvent
 			)
 		);
 
-		$bSocNet = CModule::IncludeModule("socialnetwork");
+		$bSocNet = Loader::includeModule("socialnetwork");
 		$result = array();
 		$settings = CCalendar::GetSettings(array('request' => false));
 
@@ -2595,7 +2831,7 @@ class CCalendarEvent
 
 				$private = $event['PRIVATE_EVENT'] && $event['CAL_TYPE'] == 'user';
 				$bManager = false;
-				if (!$private && CCalendar::IsIntranetEnabled() && CModule::IncludeModule('intranet') && $event['CAL_TYPE'] == 'user' && $settings['dep_manager_sub'])
+				if (!$private && CCalendar::IsIntranetEnabled() && Loader::includeModule('intranet') && $event['CAL_TYPE'] == 'user' && $settings['dep_manager_sub'])
 					$bManager = in_array($curUserId, CCalendar::GetUserManagers($event['OWNER_ID'], true));
 
 				if ($private || (!CCalendarSect::CanDo('calendar_view_full', $sectId) && !$bManager))
@@ -2662,6 +2898,29 @@ class CCalendarEvent
 		CCalendar::ClearCache(array('section_list', 'event_list'));
 	}
 
+	public static function CleanEventsWithDeadParents()
+	{
+		global $DB;
+		$strSql = "SELECT PARENT_ID from b_calendar_event where PARENT_ID in (SELECT ID from b_calendar_event where MEETING_STATUS='H' and DELETED='Y') AND DELETED='N'";
+		$res = $DB->Query($strSql, false, "FILE: ".__FILE__."<br> LINE: ".__LINE__);
+
+		$strItems = "0";
+		while($res = $res->Fetch())
+		{
+			$strItems .= ",".intval($res['ID']);
+		}
+
+		if ($strItems != "0")
+		{
+			$strSql =
+				"UPDATE b_calendar_event SET ".
+				$DB->PrepareUpdate("b_calendar_event", array("DELETED" => "Y")).
+				" WHERE PARENT_ID in (".$strItems.")";
+			$DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+		}
+		CCalendar::ClearCache(array('section_list', 'event_list'));
+	}
+
 	public static function CheckEndUpdateAttendeesCodes($event)
 	{
 		if ($event['ID'] > 0 && $event['IS_MEETING'] && empty($event['ATTENDEES_CODES']) && is_array($event['~ATTENDEES']))
@@ -2687,38 +2946,9 @@ class CCalendarEvent
 		return $event['ATTENDEES_CODES'];
 	}
 
-	public static function UpdateAttendeesCodes($parentEventId, $newAttendee)
-	{
-
-//		$arFields['ATTENDEES_CODES'] = $arAccessCodes;
-//		$arFields['ATTENDEES'] = CCalendar::GetDestinationUsers($arAccessCodes);
-
-//		if ($event['ID'] > 0 && $event['IS_MEETING'] && empty($event['ATTENDEES_CODES']) && is_array($event['~ATTENDEES']))
-//		{
-//			$event['ATTENDEES_CODES'] = array();
-//			foreach($event['~ATTENDEES'] as $attendee)
-//			{
-//				if (intval($attendee['USER_ID']) > 0)
-//				{
-//					$event['ATTENDEES_CODES'][] = 'U'.IntVal($attendee['USER_ID']);
-//				}
-//			}
-//			$event['ATTENDEES_CODES'] = array_unique($event['ATTENDEES_CODES']);
-//
-//			global $DB;
-//			$strSql =
-//				"UPDATE b_calendar_event SET ".
-//				"ATTENDEES_CODES='".implode(',', $event['ATTENDEES_CODES'])."'".
-//				" WHERE ID=".IntVal($event['ID']);
-//			$DB->Query($strSql, false, "FILE: ".__FILE__."<br> LINE: ".__LINE__);
-//			CCalendar::ClearCache(array('event_list'));
-//		}
-//		return $event['ATTENDEES_CODES'];
-	}
-
 	public static function CanView($eventId, $userId)
 	{
-		CModule::IncludeModule("calendar");
+		Loader::includeModule("calendar");
 		$event = CCalendarEvent::GetList(
 			array(
 				'arFilter' => array(
@@ -2769,6 +2999,352 @@ class CCalendarEvent
 			$UF = $USER_FIELD_MANAGER->GetUserFields("CALENDAR_EVENT", $event['ID'], LANGUAGE_ID);
 		}
 		return $UF;
+	}
+
+	public static function SetExDate($exDate = array(), $untilTimestamp = false)
+	{
+		if ($untilTimestamp && !empty($exDate) && is_array($exDate))
+		{
+			$exDateRes = array();
+			foreach($exDate as $date)
+			{
+				if (CCalendar::Timestamp($date) <= $untilTimestamp)
+					$exDateRes[] = $date;
+			}
+			$exDate = $exDateRes;
+		}
+
+		return implode(';', $exDate);
+	}
+
+	public static function GetEventsByRecId($recurrenceId, $checkPermissions = true)
+	{
+		if ($recurrenceId > 0)
+		{
+			$events = CCalendarEvent::GetList(
+				array(
+					'arFilter' => array(
+						"RECURRENCE_ID" => $recurrenceId,
+						"DELETED" => "N"
+					),
+					'parseRecursion' => false,
+					'fetchAttendees' => false,
+					'checkPermissions' => $checkPermissions,
+					'setDefaultLimit' => false
+				)
+			);
+			return $events;
+		}
+		return array();
+	}
+
+	public static function GetEventCommentXmlId($event)
+	{
+		if (is_array($event['RELATIONS']) && array_key_exists('COMMENT_XML_ID', $event['RELATIONS']) && $event['RELATIONS']['COMMENT_XML_ID'])
+		{
+			$commentXmlId = $event['RELATIONS']['COMMENT_XML_ID'];
+		}
+		else
+		{
+			$eventCommentId = $event['PARENT_ID'] ? $event['PARENT_ID'] : $event['ID'];
+			$commentXmlId = "EVENT_".$eventCommentId;
+
+			if (CCalendarEvent::CheckRecurcion($event))
+			{
+				// We have reccurent event which was created from another reccurent event
+				if ($event['RECURRENCE_ID'])
+				{
+					$commentXmlId = "EVENT_".$event['RECURRENCE_ID'];
+					$commentXmlId .= '_'.CCalendar::Date(CCalendar::Timestamp($event['DATE_FROM']), false);
+				}
+				else
+				{
+					if (CCalendar::Date(CCalendar::Timestamp($event['DATE_FROM']), false) !== CCalendar::Date(CCalendar::Timestamp($event['~DATE_FROM']), false) && $event['RINDEX'] > 0)
+						$commentXmlId .= '_'.CCalendar::Date(CCalendar::Timestamp($event['DATE_FROM']), false);
+				}
+			}
+		}
+
+		return $commentXmlId;
+	}
+
+	public static function ExtractDateFromCommentXmlId($xmlId = '')
+	{
+		$date = false;
+		if ($xmlId)
+		{
+			$xmlAr = explode('_', $xmlId);
+			if (is_array($xmlAr) && isset($xmlAr[2]) && $xmlAr[2])
+			{
+				$date = CCalendar::Date(CCalendar::Timestamp($xmlAr[2]), false);
+			}
+		}
+		return $date;
+	}
+
+	public static function GetRRULEDescription($event, $html = false, $showUntil = true)
+	{
+		$res = '';
+		if($event['RRULE'])
+		{
+			if(!is_array($event['RRULE']))
+				$event['RRULE'] = CCalendarEvent::ParseRRULE($event['RRULE']);
+
+			switch($event['RRULE']['FREQ'])
+			{
+				case 'DAILY':
+					if($event['RRULE']['INTERVAL'] == 1)
+						$res = GetMessage('EC_RRULE_EVERY_DAY');
+					else
+						$res = GetMessage('EC_RRULE_EVERY_DAY_1', array('#DAY#' => $event['RRULE']['INTERVAL']));
+					break;
+				case 'WEEKLY':
+					$daysList = array();
+					foreach($event['RRULE']['BYDAY'] as $day)
+						$daysList[] = GetMessage('EC_'.$day);
+					$daysList = implode(', ', $daysList);
+					if($event['RRULE']['INTERVAL'] == 1)
+						$res = GetMessage('EC_RRULE_EVERY_WEEK', array('#DAYS_LIST#' => $daysList));
+					else
+						$res = GetMessage('EC_RRULE_EVERY_WEEK_1', array('#WEEK#' => $event['RRULE']['INTERVAL'], '#DAYS_LIST#' => $daysList));
+					break;
+				case 'MONTHLY':
+					if($event['RRULE']['INTERVAL'] == 1)
+						$res = GetMessage('EC_RRULE_EVERY_MONTH');
+					else
+						$res = GetMessage('EC_RRULE_EVERY_MONTH_1', array('#MONTH#' => $event['RRULE']['INTERVAL']));
+					break;
+				case 'YEARLY':
+					if($event['RRULE']['INTERVAL'] == 1)
+						$res = GetMessage('EC_RRULE_EVERY_YEAR', array('#DAY#' => $event['FROM_MONTH_DAY'], '#MONTH#' => $event['FROM_MONTH']));
+					else
+						$res = GetMessage('EC_RRULE_EVERY_YEAR_1', array('#YEAR#' => $event['RRULE']['INTERVAL'], '#DAY#' => $event['FROM_MONTH_DAY'], '#MONTH#' => $event['FROM_MONTH']));
+					break;
+			}
+
+			if ($html)
+				$res .= '<br>';
+			else
+				$res .= ', ';
+
+			if (isset($event['~DATE_FROM']))
+			{
+				$res .= GetMessage('EC_RRULE_FROM', array('#FROM_DATE#' => CCalendar::Date(CCalendar::Timestamp($event['~DATE_FROM']), false)));
+			}
+			else
+			{
+				$res .= GetMessage('EC_RRULE_FROM', array('#FROM_DATE#' => CCalendar::Date(CCalendar::Timestamp($event['DATE_FROM']), false)));
+			}
+
+			if($showUntil && $event['RRULE']['UNTIL'] != CCalendar::GetMaxDate())
+			{
+				$res .= ' '.GetMessage('EC_RRULE_UNTIL', array('#UNTIL_DATE#' => CCalendar::Date(CCalendar::Timestamp($event['RRULE']['UNTIL']), false)));
+			}
+			elseif($showUntil && $event['RRULE']['COUNT'] > 0)
+			{
+				$res .= ', '.GetMessage('EC_RRULE_COUNT', array('#COUNT#' => $event['RRULE']['COUNT']));
+			}
+		}
+
+		return $res;
+	}
+
+	public static function ExcludeInstance($eventId, $excludeDate)
+	{
+		global $CACHE_MANAGER;
+		$eventId = intval($eventId);
+		$excludeDateTs = CCalendar::Timestamp($excludeDate);
+		$excludeDate = CCalendar::Date($excludeDateTs, false);
+
+		$event = CCalendarEvent::GetList(
+			array(
+				'arFilter' => array(
+					"ID" => $eventId,
+					"DELETED" => "N"
+				),
+				'parseRecursion' => false,
+				'fetchAttendees' => true,
+				'setDefaultLimit' => false
+			)
+		);
+		if ($event && is_array($event[0]))
+			$event = $event[0];
+
+		if ($event && CCalendarEvent::CheckRecurcion($event) && $excludeDate)
+		{
+			$excludeDates = CCalendarEvent::GetExDate($event['EXDATE']);
+			$excludeDates[] = $excludeDate;
+
+			$id = CCalendar::SaveEvent(array(
+				'arFields' => array(
+					'ID' => $event['ID'],
+					'DATE_FROM' => $event['DATE_FROM'],
+					'DATE_TO' => $event['DATE_TO'],
+					'EXDATE' => CCalendarEvent::SetExDate($excludeDates)
+				),
+				'silentErrorMode' => false,
+				'recursionEditMode' => 'skip'
+			));
+
+			foreach($event['~ATTENDEES'] as $attendee)
+			{
+				if ($attendee['STATUS'] == 'Y')
+				{
+					if ($event['DT_SKIP_TIME'] !== 'Y')
+					{
+						$excludeDate = CCalendar::Date(CCalendar::DateWithNewTime(CCalendar::Timestamp($event['DATE_FROM']), $excludeDateTs));
+					}
+
+					$CACHE_MANAGER->ClearByTag('calendar_user_'.$attendee["USER_ID"]);
+					CCalendarNotify::Send(array(
+						"mode" => 'cancel_this',
+						"name" => $event['NAME'],
+						"from" => $excludeDate,
+						"guestId" => $attendee["USER_ID"],
+						"eventId" => $event['PARENT_ID'],
+						"userId" => $event['MEETING_HOST'],
+						"fields" => $event
+					));
+				}
+			}
+		}
+	}
+
+
+	public static function getDiskUFFileNameList($valueList = array())
+	{
+		$result = array();
+
+		if (
+			!empty($valueList)
+			&& is_array($valueList)
+			&& Loader::includeModule('disk')
+		)
+		{
+			$attachedIdList = array();
+			foreach($valueList as $value)
+			{
+				list($type, $realValue) = FileUserType::detectType($value);
+				if($type == FileUserType::TYPE_NEW_OBJECT)
+				{
+					$file = \Bitrix\Disk\File::loadById($realValue, array('STORAGE'));
+					$result[] = strip_tags($file->getName());
+				}
+				else
+				{
+					$attachedIdList[] = $realValue;
+				}
+			}
+
+			if(!empty($attachedIdList))
+			{
+				$attachedObjects = AttachedObject::getModelList(array(
+					'with' => array('OBJECT'),
+					'filter' => array(
+						'ID' => $attachedIdList
+					),
+				));
+				foreach($attachedObjects as $attachedObject)
+				{
+					$file = $attachedObject->getFile();
+					$result[] = strip_tags($file->getName());
+				}
+			}
+		}
+
+		return $result;
+	}
+
+	public static function getSearchIndexContent($eventId)
+	{
+		$res = '';
+		if (intval($eventId) > 0)
+		{
+			$events = \CCalendarEvent::getList(
+				array(
+					'arFilter' => array(
+						"ID" => $eventId,
+						"DELETED" => "N"
+					),
+					'parseRecursion' => false,
+					'fetchAttendees' => true,
+					'checkPermissions' => false,
+					'setDefaultLimit' => false
+				)
+			);
+			$res = is_array($events[0]) && is_array($events[0]) ? self::formatSearchIndexContent($events[0]) : '';
+		}
+		return $res;
+	}
+
+	public static function getSearchIndexContentBatch($eventIdList = array())
+	{
+		$res = array();
+		if (is_array($eventIdList))
+		{
+			$events = \CCalendarEvent::getList(
+				array(
+					'arFilter' => array(
+						"ID" => $eventIdList,
+						"DELETED" => "N"
+					),
+					'parseRecursion' => false,
+					'fetchAttendees' => true,
+					'checkPermissions' => false,
+					'setDefaultLimit' => false
+				)
+			);
+
+			foreach($events as $event)
+			{
+				$res[$event['ID']] = self::formatSearchIndexContent($event);
+			}
+		}
+		return $res;
+	}
+
+	public static function formatSearchIndexContent($entry = array())
+	{
+		$content = '';
+		if (!empty($entry))
+		{
+			if (isset($entry['SEARCHABLE_CONTENT']) && !empty($entry['SEARCHABLE_CONTENT']))
+			{
+				$content = $entry['SEARCHABLE_CONTENT'];
+			}
+			else
+			{
+				$content = $entry['NAME'].' '.$entry['DESCRIPTION'];
+
+				if ($entry['IS_MEETING'])
+				{
+					if(!empty($entry['~ATTENDEES']))
+					{
+						foreach($entry['~ATTENDEES'] as $user)
+						{
+							$content .= ' '.$user['DISPLAY_NAME'];
+						}
+					}
+
+					if(!empty($entry['ATTENDEES_CODES']))
+					{
+						$content .= ' '.join(' ', Bitrix\Socialnetwork\Item\LogIndex::getEntitiesName($entry['ATTENDEES_CODES']));
+					}
+				}
+
+				if (!empty($entry['UF_WEBDAV_CAL_EVENT'])
+					&& \Bitrix\Main\Config\Option::get('disk', 'successfully_converted', false)
+				)
+				{
+					$fileNameList = self::getDiskUFFileNameList($entry['UF_WEBDAV_CAL_EVENT']);
+					if (!empty($fileNameList))
+					{
+						$content .= ' '.join(' ', $fileNameList);
+					}
+				}
+			}
+		}
+		return $content;
 	}
 }
 ?>

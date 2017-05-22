@@ -198,15 +198,17 @@ if(!$bEmptyCols)
 // Sorting and URL
 //*********************
 
-$sTabParam = "";
-$aDelParam = array("bxajaxid", "AJAX_CALL", $arParams["SORT_VARS"]["by"], $arParams["SORT_VARS"]["order"]);
+$uri = new \Bitrix\Main\Web\Uri($this->request->getRequestUri());
+$uri->deleteParams(\Bitrix\Main\HttpRequest::getSystemParameters());
+$uri->deleteParams(array("bxajaxid", "AJAX_CALL", $arParams["SORT_VARS"]["by"], $arParams["SORT_VARS"]["order"]));
+
 if($arParams["FORM_ID"] <> '' && $arParams["TAB_ID"] <> '')
 {
-	$sTabParam = $arParams["FORM_ID"].'_active_tab='.$arParams["TAB_ID"];
-	$aDelParam[] = $arParams["FORM_ID"].'_active_tab';
+	$uri->addParams(array($arParams["FORM_ID"].'_active_tab' => $arParams["TAB_ID"]));
 }
 
-$arResult["CURRENT_URL"] = $APPLICATION->GetCurPageParam($sTabParam, $aDelParam);
+$arResult["CURRENT_URL"] = $uri->getUri();
+
 $sep = (strpos($arResult["CURRENT_URL"], "?") !== false? "&":"?");
 
 reset($arParams["SORT"]);

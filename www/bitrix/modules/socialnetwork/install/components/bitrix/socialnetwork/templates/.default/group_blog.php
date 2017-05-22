@@ -80,6 +80,7 @@ $arLogParams = Array(
 			"SET_LOG_CACHE" => "Y",
 			"CACHE_TYPE" => $arParams["CACHE_TYPE"],
 			"CACHE_TIME" => $arParams["CACHE_TIME"],
+			"CHECK_COMMENTS_PERMS" => (isset($arParams["CHECK_COMMENTS_PERMS"]) && $arParams["CHECK_COMMENTS_PERMS"] == "Y" ? "Y" : "N")
 		);
 ?><div id="log_external_container"></div><?
 $APPLICATION->IncludeComponent(

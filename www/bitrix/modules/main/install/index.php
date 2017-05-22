@@ -7,6 +7,8 @@
  */
 
 use Bitrix\Main\Localization\CultureTable;
+use Bitrix\Main\Service\GeoIp;
+
 
 IncludeModuleLangFile(__FILE__);
 
@@ -410,6 +412,15 @@ class main extends CModule
 		self::InstallDesktop();
 
 		self::InstallSmiles();
+
+		/* geolocation handlers */
+		if(function_exists('geoip_db_avail')) //if available php geoip extension
+		{
+			GeoIp\HandlerTable::add(array('SORT' => 90, 'ACTIVE' => 'Y', 'CLASS_NAME' => '\Bitrix\Main\Service\GeoIp\Extension'));
+		}
+
+		GeoIp\HandlerTable::add(array('SORT' => 100, 'ACTIVE' => 'N', 'CLASS_NAME' => '\Bitrix\Main\Service\GeoIp\MaxMind'));
+		GeoIp\HandlerTable::add(array('SORT' => 110, 'ACTIVE' => 'Y', 'CLASS_NAME' => '\Bitrix\Main\Service\GeoIp\SypexGeo'));
 
 		return true;
 	}
@@ -900,29 +911,34 @@ class main extends CModule
 								"ROW" => 1,
 								"HIDE" => "N"
 							),
-							"ADMIN_PERFMON@666666666" => array(
+							"ADMIN_SITESPEED@666666777" => array(
 								"COLUMN" => 1,
 								"ROW" => 2,
 								"HIDE" => "N"
 							),
+							"ADMIN_PERFMON@666666666" => array(
+								"COLUMN" => 1,
+								"ROW" => 3,
+								"HIDE" => "N"
+							),
 							"ADMIN_PRODUCTS@111111111" => array(
 								"COLUMN" => 1,
-								"ROW" => 5,
+								"ROW" => 65,
 								"HIDE" => "N"
 							),
 							"ADMIN_INFO@333333333" => array(
 								"COLUMN" => 1,
-								"ROW" => 6,
+								"ROW" => 7,
 								"HIDE" => "N"
 							),
 							"ADMIN_CHECKLIST@777888999" => array(
 								"COLUMN" => 1,
-								"ROW" => 7,
+								"ROW" => 8,
 								"HIDE" => "N",
 							),
 							"RSSREADER@777777777" => array(
 								"COLUMN" => 1,
-								"ROW" => 8,
+								"ROW" => 9,
 								"HIDE" => "N",
 								"SETTINGS" => array(
 									"TITLE_STD" => GetMessage("MAIN_DESKTOP_RSS_TITLE"),
@@ -937,12 +953,12 @@ class main extends CModule
 				{
 					$arOptions[0]["GADGETS"]["ADMIN_MARKETPALCE@22549"] = Array(
 						"COLUMN" => 1,
-						"ROW" => 3,
+						"ROW" => 4,
 						"HIDE" => "N",
 					);
 					$arOptions[0]["GADGETS"]["ADMIN_MOBILESHOP@13391"] = Array(
 						"COLUMN" => 1,
-						"ROW" => 4,
+						"ROW" => 5,
 						"HIDE" => "N"
 					);
 				}
@@ -993,9 +1009,14 @@ class main extends CModule
 								"ROW" => 1,
 								"HIDE" => "N"
 							),
-							"ADMIN_PERFMON@666666666" => array(
+							"ADMIN_SITESPEED@666666777" => array(
 								"COLUMN" => 1,
 								"ROW" => 2,
+								"HIDE" => "N"
+							),
+							"ADMIN_PERFMON@666666666" => array(
+								"COLUMN" => 1,
+								"ROW" => 3,
 								"HIDE" => "N"
 							),
 						)
@@ -1005,7 +1026,7 @@ class main extends CModule
 				{
 					$arOptions[0]["GADGETS"]["ADMIN_MARKETPALCE@22549"] = Array(
 						"COLUMN" => 1,
-						"ROW" => 3,
+						"ROW" => 4,
 						"HIDE" => "N",
 					);
 				}
@@ -1044,29 +1065,34 @@ class main extends CModule
 								"ROW" => 1,
 								"HIDE" => "N"
 							),
-							"ADMIN_PERFMON@666666666" => array(
+							"ADMIN_SITESPEED@666666777" => array(
 								"COLUMN" => 1,
 								"ROW" => 2,
 								"HIDE" => "N"
 							),
-							"ADMIN_PRODUCTS@111111111" => array(
+							"ADMIN_PERFMON@666666666" => array(
 								"COLUMN" => 1,
-								"ROW" => 5,
+								"ROW" => 3,
 								"HIDE" => "N"
 							),
-							"ADMIN_INFO@333333333" => array(
+							"ADMIN_PRODUCTS@111111111" => array(
 								"COLUMN" => 1,
 								"ROW" => 6,
 								"HIDE" => "N"
 							),
-							"ADMIN_CHECKLIST@777888999" => array(
+							"ADMIN_INFO@333333333" => array(
 								"COLUMN" => 1,
 								"ROW" => 7,
+								"HIDE" => "N"
+							),
+							"ADMIN_CHECKLIST@777888999" => array(
+								"COLUMN" => 1,
+								"ROW" => 8,
 								"HIDE" => "N",
 							),
 							"RSSREADER@777777777" => array(
 								"COLUMN" => 1,
-								"ROW" => 8,
+								"ROW" => 9,
 								"HIDE" => "N",
 								"SETTINGS" => array(
 									"TITLE_STD" => GetMessage("MAIN_DESKTOP_RSS_TITLE"),
@@ -1081,12 +1107,12 @@ class main extends CModule
 				{
 					$arOptions[0]["GADGETS"]["ADMIN_MARKETPALCE@22549"] = Array(
 						"COLUMN" => 1,
-						"ROW" => 3,
+						"ROW" => 4,
 						"HIDE" => "N",
 					);
 					$arOptions[0]["GADGETS"]["ADMIN_MOBILESHOP@13391"] = Array(
 						"COLUMN" => 1,
-						"ROW" => 4,
+						"ROW" => 5,
 						"HIDE" => "N"
 					);
 				}
@@ -1132,9 +1158,14 @@ class main extends CModule
 								"ROW" => 0,
 								"HIDE" => "N"
 							),
-							"ADMIN_PERFMON@666666666" => array(
+							"ADMIN_SITESPEED@666666777" => array(
 								"COLUMN" => 1,
 								"ROW" => 1,
+								"HIDE" => "N"
+							),
+							"ADMIN_PERFMON@666666666" => array(
+								"COLUMN" => 1,
+								"ROW" => 2,
 								"HIDE" => "N"
 							),
 						)
@@ -1144,7 +1175,7 @@ class main extends CModule
 				{
 					$arOptions[0]["GADGETS"]["ADMIN_MARKETPALCE@22549"] = Array(
 						"COLUMN" => 1,
-						"ROW" => 2,
+						"ROW" => 3,
 						"HIDE" => "N",
 					);
 				}
@@ -1351,6 +1382,7 @@ class main extends CModule
 		$arMessages[] = array(
 			"EVENT_NAME" => "NEW_USER",
 			"LID" => "s1",
+			"LANGUAGE_ID" => LANGUAGE_ID,
 			"EMAIL_FROM" => "#DEFAULT_EMAIL_FROM#",
 			"EMAIL_TO" => "#DEFAULT_EMAIL_FROM#",
 			"SUBJECT" => GetMessage("MAIN_NEW_USER_EVENT_NAME"),
@@ -1359,6 +1391,7 @@ class main extends CModule
 		$arMessages[] = array(
 			"EVENT_NAME" => "USER_INFO",
 			"LID" => "s1",
+			"LANGUAGE_ID" => LANGUAGE_ID,
 			"EMAIL_FROM" => "#DEFAULT_EMAIL_FROM#",
 			"EMAIL_TO" => "#EMAIL#",
 			"SUBJECT" => GetMessage("MAIN_USER_INFO_EVENT_NAME"),
@@ -1367,6 +1400,7 @@ class main extends CModule
 		$arMessages[] = array(
 			"EVENT_NAME" => "USER_PASS_REQUEST",
 			"LID" => "s1",
+			"LANGUAGE_ID" => LANGUAGE_ID,
 			"EMAIL_FROM" => "#DEFAULT_EMAIL_FROM#",
 			"EMAIL_TO" => "#EMAIL#",
 			"SUBJECT" => GetMessage("MAIN_USER_PASS_REQUEST_EVENT_NAME"),
@@ -1375,6 +1409,7 @@ class main extends CModule
 		$arMessages[] = array(
 			"EVENT_NAME" => "USER_PASS_CHANGED",
 			"LID" => "s1",
+			"LANGUAGE_ID" => LANGUAGE_ID,
 			"EMAIL_FROM" => "#DEFAULT_EMAIL_FROM#",
 			"EMAIL_TO" => "#EMAIL#",
 			"SUBJECT" => GetMessage("MAIN_USER_PASS_CHANGED_EVENT_NAME"),
@@ -1383,6 +1418,7 @@ class main extends CModule
 		$arMessages[] = array(
 			"EVENT_NAME" => "NEW_USER_CONFIRM",
 			"LID" => "s1",
+			"LANGUAGE_ID" => LANGUAGE_ID,
 			"EMAIL_FROM" => "#DEFAULT_EMAIL_FROM#",
 			"EMAIL_TO" => "#EMAIL#",
 			"SUBJECT" => GetMessage("MAIN_NEW_USER_CONFIRM_EVENT_NAME"),
@@ -1391,6 +1427,7 @@ class main extends CModule
 		$arMessages[] = array(
 			"EVENT_NAME" => "USER_INVITE",
 			"LID" => "s1",
+			"LANGUAGE_ID" => LANGUAGE_ID,
 			"EMAIL_FROM" => "#DEFAULT_EMAIL_FROM#",
 			"EMAIL_TO" => "#EMAIL#",
 			"SUBJECT" => GetMessage("MAIN_USER_INVITE_EVENT_NAME"),
@@ -1399,6 +1436,7 @@ class main extends CModule
 		$arMessages[] = array(
 			"EVENT_NAME" => "FEEDBACK_FORM",
 			"LID" => "s1",
+			"LANGUAGE_ID" => LANGUAGE_ID,
 			"EMAIL_FROM" => "#DEFAULT_EMAIL_FROM#",
 			"EMAIL_TO" => "#EMAIL_TO#",
 			"SUBJECT" => GetMessage("MF_EVENT_SUBJECT"),

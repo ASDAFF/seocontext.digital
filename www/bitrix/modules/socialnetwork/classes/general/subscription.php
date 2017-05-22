@@ -1,4 +1,7 @@
 <?
+
+use Bitrix\Socialnetwork\Integration;
+
 class CAllSocNetSubscription
 {
 	function CheckFields($ACTION, &$arFields, $ID = 0)
@@ -95,7 +98,7 @@ class CAllSocNetSubscription
 
 		$userID = IntVal($userID);
 		$code = trim($code);
-		
+
 		if (
 			$userID <= 0
 			|| strlen($code) <= 0
@@ -114,21 +117,45 @@ class CAllSocNetSubscription
 			)
 		);
 
+		$result = false;
+
 		if ($arSubscription = $rsSubscription->Fetch())
 		{
 			if ($value != "Y")
 			{
-				CSocNetSubscription::Delete($arSubscription["ID"]);
+				$result = CSocNetSubscription::delete($arSubscription["ID"]);
 			}
 		}
 		else
 		{
 			if ($value == "Y")
 			{
-				CSocNetSubscription::Add(array(
+				$result = CSocNetSubscription::add(array(
 					"USER_ID" => $userID,
 					"CODE" => $code
 				));
+			}
+		}
+
+		if (
+			$result
+			&& preg_match('/^SG(\d+)$/i', $code, $matches)
+		)
+		{
+			$chatId = false;
+			$groupId = $matches[1];
+			$chatData = \Bitrix\Socialnetwork\Integration\Im\Chat\Workgroup::getChatData(Array(
+				'group_id' => $groupId
+			));
+			if (!empty($chatData[$groupId]) && intval($chatData[$groupId]) > 0)
+			{
+				$chatId = $chatData[$groupId];
+			}
+
+			if ($chatId)
+			{
+				$CIMChat = new CIMChat($userID);
+				$CIMChat->muteNotify($chatId, ($value != "Y"));
 			}
 		}
 
@@ -160,7 +187,9 @@ class CAllSocNetSubscription
 		}
 
 		if (empty($arFields["EXCLUDE_USERS"]))
+		{
 			$arFields["EXCLUDE_USERS"] = array();
+		}
 
 		if (intval($arFields["LOG_ID"]) > 0)
 		{
@@ -180,17 +209,84 @@ class CAllSocNetSubscription
 			$arFields["EXCLUDE_USERS"] = array_unique($arFields["EXCLUDE_USERS"]);
 		}
 
+		$chatData = $chatIdList = array();
+		if (!empty($arFields["MESSAGE_CHAT"]))
+		{
+			$chatData = Integration\Im\Chat\Workgroup::getChatData(array(
+				'group_id' => $arFields["GROUP_ID"]
+			));
+		}
+
+		if (!empty($chatData))
+		{
+			$arFields["GROUP_ID"] = array_diff($arFields["GROUP_ID"], array_unique(array_keys($chatData)));
+			$chatIdList = array_unique(array_values($chatData));
+		}
+
+		if (!empty($chatIdList))
+		{
+			$tmp = \CSocNetLogTools::processPath(
+				array(
+					"URL" => $arFields["URL"],
+				),
+				(intval($arFields["FROM_USER_ID"]) > 0 ? $arFields["FROM_USER_ID"] : 1),
+				SITE_ID
+			);
+			$chatUrl = $tmp["URLS"]["URL"];
+
+			$chatMessageFields = array(
+				"MESSAGE" => str_replace(
+					array("#URL#", "#url#"),
+					$chatUrl,
+					$arFields["MESSAGE_CHAT"]
+				),
+			);
+
+			if (intval($arFields["FROM_USER_ID"]) > 0)
+			{
+				$chatMessageFields["FROM_USER_ID"] = intval($arFields["FROM_USER_ID"]);
+			}
+
+			foreach($chatIdList as $chatId)
+			{
+				\CIMChat::addMessage(array_merge(
+					$chatMessageFields, array(
+						"TO_CHAT_ID" => $chatId
+					)
+				));
+			}
+		}
+
+		// if all groups processed by chats
+		if (empty($arFields["GROUP_ID"]))
+		{
+			return $arUserIDSent;
+		}
+
 		$arMessageFields = array(
 			"MESSAGE_TYPE" => IM_MESSAGE_SYSTEM,
 			"NOTIFY_TYPE" => IM_NOTIFY_FROM,
 			"NOTIFY_MODULE" => "socialnetwork",
 			"NOTIFY_EVENT" => "sonet_group_event",
-			"NOTIFY_TAG" => "SONET|EVENT|".(intval($arFields["LOG_ID"]) > 0 ? $arFields["LOG_ID"] : rand())
+			"NOTIFY_TAG" => ""
 		);
 
 		if (intval($arFields["FROM_USER_ID"]) > 0)
 		{
 			$arMessageFields["FROM_USER_ID"] = $arFields["FROM_USER_ID"];
+		}
+
+		if (!empty($arFields["NOTIFY_TAG"]))
+		{
+			$arMessageFields["NOTIFY_TAG"] = $arFields["NOTIFY_TAG"];
+			CIMNotify::DeleteByTag(
+				$arFields["NOTIFY_TAG"],
+				(intval($arFields["FROM_USER_ID"]) > 0 ? intval($arFields["FROM_USER_ID"]) : false)
+			);
+		}
+		elseif (intval($arFields["LOG_ID"]) > 0)
+		{
+			$arMessageFields["NOTIFY_TAG"] = "SONET|EVENT|".intval($arFields["LOG_ID"]);
 		}
 
 		$arUserToSend = array();
@@ -303,7 +399,7 @@ class CAllSocNetSubscription
 		return $arUserIDSent;
 	}
 
-	function IsUserSubscribed($userID, $code)
+	public static function IsUserSubscribed($userID, $code)
 	{
 		global $CACHE_MANAGER;
 
@@ -361,6 +457,29 @@ class CAllSocNetSubscription
 		}
 
 		return (in_array($userID, $arSubscriberID));
+	}
+
+	public static function OnAfterChatMuteNotify($fields)
+	{
+		$result = false;
+
+		if (
+			!is_array($fields)
+			|| empty($fields['USER_ID'])
+			|| empty($fields['MUTE'])
+			|| empty($fields['CHAT'])
+			|| !isset($fields['CHAT']['ENTITY_TYPE'])
+			|| $fields['CHAT']['ENTITY_TYPE'] != Integration\Im\Chat\Workgroup::CHAT_ENTITY_TYPE
+			|| empty($fields['CHAT']['ENTITY_ID'])
+		)
+		{
+			return $result;
+		}
+
+		$groupId = intval($fields['CHAT']['ENTITY_ID']);
+		$userId = intval($fields['USER_ID']);
+
+		return self::set($userId, "SG".$groupId, ($fields['MUTE'] != "Y" ? "Y" : "N"));
 	}
 }
 ?>

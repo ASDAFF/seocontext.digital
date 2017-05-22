@@ -54,7 +54,10 @@ require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admi
 							}
 
 							?> value=<?=$priceTypeElement['ID']?> >
-								<?=CUtil::JSEscape(htmlspecialcharsbx($priceTypeElement['NAME_LANG']))?>
+								<?
+									$priceTypeName = (strlen($priceTypeElement['NAME_LANG'])) ? $priceTypeElement['NAME_LANG'] : $priceTypeElement['NAME'];
+								?>
+								<?=CUtil::JSEscape(htmlspecialcharsbx($priceTypeName))?>
 							</option>
 							<?
 						}
@@ -106,7 +109,10 @@ require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admi
 									echo('selected');
 								}
 								?> value=<?=$priceTypeElement['ID']?>>
-									<?=CUtil::JSEscape(htmlspecialcharsbx($priceTypeElement['NAME_LANG']))?>
+									<?
+									$priceTypeName = (strlen($priceTypeElement['NAME_LANG'])) ? $priceTypeElement['NAME_LANG'] : $priceTypeElement['NAME'];
+									?>
+									<?=CUtil::JSEscape(htmlspecialcharsbx($priceTypeName))?>
 								</option>
 								<?
 							}
@@ -143,7 +149,7 @@ require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admi
 											echo('selected');
 										}
 									?> value=<?=strtolower($currencyCode)?>>
-									<?=$currencyElement?>
+									<?=htmlspecialcharsbx($currencyElement)?>
 								</option>
 								<?
 							}

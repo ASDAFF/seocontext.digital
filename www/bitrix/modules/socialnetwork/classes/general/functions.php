@@ -902,7 +902,7 @@ class CSocNetTextParser
 		{
 			$dbSite = CSite::GetByID(SITE_ID);
 			$arSite = $dbSite->Fetch();
-			$arParams["SERVER_NAME"] = $arSite["SERVER_NAME"];
+			$arParams["SERVER_NAME"] = htmlspecialcharsEx($arSite["SERVER_NAME"]);
 			if (strLen($arParams["SERVER_NAME"]) <=0)
 			{
 				if (defined("SITE_SERVER_NAME") && strlen(SITE_SERVER_NAME)>0)
@@ -1395,7 +1395,7 @@ class CSocNetAllowed
 		unset($arSocNetAllowedSubscribeEntityTypesDesc);
 	}
 
-	function AddAllowedEntityType($entityType)
+	public static function AddAllowedEntityType($entityType)
 	{
 		if (is_array($entityType))
 		{
@@ -1435,7 +1435,7 @@ class CSocNetAllowed
 
 	/* --- entity types desc --- */
 
-	function AddAllowedEntityTypeDesc($entityTypeDescCode, $arEntityTypeDesc)
+	public static function AddAllowedEntityTypeDesc($entityTypeDescCode, $arEntityTypeDesc)
 	{
 		$entityTypeDescCode = trim($entityTypeDescCode);
 
@@ -1479,11 +1479,11 @@ class CSocNetAllowed
 
 		foreach($newAllowedFeatures as $strFeatureCode => $arFeature)
 		{
-			self::AddAllowedFeature($strFeatureCode, $arFeature);
+			self::addAllowedFeature($strFeatureCode, $arFeature);
 		}
 	}
 
-	function AddAllowedFeature($strFeatureCode, $arFeature)
+	public static function addAllowedFeature($strFeatureCode, $arFeature)
 	{
 		$strFeatureCode = trim($strFeatureCode);
 
@@ -1564,6 +1564,8 @@ class CSocNetAllowed
 				}
 			}
 		}
+
+		return true;
 	}
 
 	function UpdateAllowedFeature($strFeatureCode, $arFeature)
@@ -1597,6 +1599,8 @@ class CSocNetAllowed
 		}
 
 		self::$arAllowedFeatures[$strFeatureCode] = $arFeature;
+
+		return true;
 	}
 
 	public static function GetAllowedFeatures()

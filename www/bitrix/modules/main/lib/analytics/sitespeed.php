@@ -3,6 +3,7 @@ namespace Bitrix\Main\Analytics;
 
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Config\Option;
+use Bitrix\Main\Config\Configuration;
 
 Loc::loadMessages(__FILE__);
 
@@ -61,7 +62,16 @@ class SiteSpeed
 
 	public static function canGatherStat()
 	{
-		return defined("LICENSE_KEY") && LICENSE_KEY !== "DEMO";
+		$enabled = (defined("LICENSE_KEY") && LICENSE_KEY !== "DEMO");
+		if($enabled)
+		{
+			$settings = Configuration::getValue("analytics_counter");
+			if(isset($settings["enabled"]) && $settings["enabled"] === false)
+			{
+				$enabled = false;
+			}
+		}
+		return $enabled;
 	}
 
 	public static function isOn()

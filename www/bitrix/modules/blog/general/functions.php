@@ -208,71 +208,26 @@ class blogTextParser extends CTextParser
 		return "TAG [".$name."]";
 	}
 
+	function convert4im($text, $arImages = Array())
+	{
+		$text = preg_replace(
+			array(
+				"/\[(\/?)(code|quote)([^\]]*)\]/is".BX_UTF_PCRE_MODIFIER,
+				"/\\[url\\s*=\\s*(\\S+?)\\s*\\](.*?)\\[\\/url\\]/is".BX_UTF_PCRE_MODIFIER
+			),
+			array(
+				"",
+				"\\1"
+			),
+			$text
+		);
+
+		return $this->convert4mail($text, $arImages);
+	}
+
 	function convert4mail($text, $arImages = Array())
 	{
-		$text = Trim($text);
-		if (strlen($text)<=0) return "";
-		$arPattern = array();
-		$arReplace = array();
-
-		$arPattern[] = "/\[(code|quote)(.*?)\]/is".BX_UTF_PCRE_MODIFIER;
-		$arReplace[] = "\n>================== \\1 ===================\n";
-
-		$arPattern[] = "/\[\/(code|quote)(.*?)\]/is".BX_UTF_PCRE_MODIFIER;
-		$arReplace[] = "\n>===========================================\n";
-
-		$arPattern[] = "/\<WBR[\s\/]?\>/is".BX_UTF_PCRE_MODIFIER;
-		$arReplace[] = "";
-
-		$arPattern[] = "/^(\r|\n)+?(.*)$/";
-		$arReplace[] = "\\2";
-
-		$arPattern[] = "/\[b\](.+?)\[\/b\]/is".BX_UTF_PCRE_MODIFIER;
-		$arReplace[] = "\\1";
-
-		$arPattern[] = "/\[i\](.+?)\[\/i\]/is".BX_UTF_PCRE_MODIFIER;
-		$arReplace[] = "\\1";
-
-		$arPattern[] = "/\[u\](.+?)\[\/u\]/is".BX_UTF_PCRE_MODIFIER;
-		$arReplace[] = "_\\1_";
-
-		$arPattern[] = "/\[s\](.+?)\[\/s\]/is".BX_UTF_PCRE_MODIFIER;
-		$arReplace[] = "_\\1_";
-
-		$arPattern[] = "/\[(\/?)(color|font|size|left|right|center)([^\]]*)\]/is".BX_UTF_PCRE_MODIFIER;
-		$arReplace[] = "";
-
-		$arPattern[] = "/\[url\](\S+?)\[\/url\]/is".BX_UTF_PCRE_MODIFIER;
-		$arReplace[] = "(URL: \\1)";
-
-		$arPattern[] = "/\[url\s*=\s*(\S+?)\s*\](.*?)\[\/url\]/is".BX_UTF_PCRE_MODIFIER;
-		$arReplace[] = "\\2 (URL: \\1)";
-
-		$arPattern[] = "/\[img([^\]]*)\](.+?)\[\/img\]/is".BX_UTF_PCRE_MODIFIER;
-		$arReplace[] = "(IMAGE: \\2)";
-
-		$arPattern[] = "/\[video([^\]]*)\](.+?)\[\/video[\s]*\]/is".BX_UTF_PCRE_MODIFIER;
-		$arReplace[] = "(VIDEO: \\2)";
-
-		$arPattern[] = "/\[(\/?)list\]/is".BX_UTF_PCRE_MODIFIER;
-		$arReplace[] = "\n";
-
-		$arPattern[] = "/\[table\](.*?)\[\/table\]/is".BX_UTF_PCRE_MODIFIER;
-		$arReplace[] = "\\1\n";
-		$arPattern[] = "/\[tr\](.*?)\[\/tr\]/is".BX_UTF_PCRE_MODIFIER;
-		$arReplace[] = "\\1\n";
-		$arPattern[] = "/\[td\](.*?)\[\/td\]/is".BX_UTF_PCRE_MODIFIER;
-		$arReplace[] = "\\1\t";
-
-		$arPattern[] = "/\[user([^\]]*)\](.+?)\[\/user\]/is".BX_UTF_PCRE_MODIFIER;
-		$arReplace[] = "\\2";
-
-		$arPattern[] = "/\[DOCUMENT([^\]]*)\]/is".BX_UTF_PCRE_MODIFIER;
-		$arReplace[] = "";
-		
-
-		$text = preg_replace($arPattern, $arReplace, $text);
-		$text = str_replace("&shy;", "", $text);
+		$text = parent::convert4mail($text);
 
 		$serverName = ((defined("SITE_SERVER_NAME") && strlen(SITE_SERVER_NAME) > 0) ? SITE_SERVER_NAME : COption::GetOptionString("main", "server_name", ""));
 		if (strlen($serverName) <=0)

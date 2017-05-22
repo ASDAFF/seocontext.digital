@@ -207,4 +207,10 @@ $MESS["MAIN_OPTIONS_URL_PREVIEW"] = "Rich media links";
 $MESS["MAIN_OPTION_URL_PREVIEW_ENABLE"] = "Enable rich media links:";
 $MESS["MAIN_OPTION_URL_PREVIEW_SAVE_IMAGES"] = "Store images locally:";
 $MESS["main_sett_public_panel_hide"] = "Never show the toolbar to users:";
+$MESS["MAIN_OPTIONS_UPDATE_DEVSRV"] = "Development only:";
+$MESS["MAIN_OPTIONS_USE_CAPTCHA"] = "Use CAPTCHA when recovering password:";
+$MESS["MAIN_OPTIONS_IMAGES"] = "User profile images";
+$MESS["MAIN_OPTIONS_IMAGES_WIDTH"] = "Max. width (px):";
+$MESS["MAIN_OPTIONS_IMAGES_HEIGHT"] = "Max. height (px):";
+$MESS["MAIN_OPTIONS_IMAGES_SIZE"] = "Max. file size, bytes:";
 ?>

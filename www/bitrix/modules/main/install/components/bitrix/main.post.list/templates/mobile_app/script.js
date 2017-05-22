@@ -8,10 +8,10 @@
 			text : "",
 			form : {},
 			list : {},
-			comments : {}
+			comments : {},
+			commentExemplarId : {}
 		},
-		makeId = function(ENTITY_XMIL_ID, ID)
-		{
+		makeId = function(ENTITY_XMIL_ID, ID) {
 			return ENTITY_XMIL_ID + '-' + (ID > 0 ? ID : '0');
 		};
 	var setText = function(text) {
@@ -47,17 +47,15 @@
 	};
 	BX.addCustomEvent(window, 'OnUCFormSubmit', function(){ setText(''); });
 
-	BX.addCustomEvent("main.post.form/text", function(text){
+	BXMobileApp.addCustomEvent("main.post.form/text", function(text){
 		text = BX.type.isArray(text) ? text[0] : text;
 		setText(text);
 	});
-	var
-		inner = {
+	var inner = {
 		keyBoardIsShown : false,
 		mention : {}
 	},
-	appendToForm = function(fd, key, val)
-	{
+		appendToForm = function(fd, key, val) {
 		if (!!val && typeof val == "object")
 		{
 			for (var ii in val)
@@ -84,7 +82,6 @@
 		}
 	});
 
-
 	var commentObj = function(id, text, attachments) {
 		this.id = id;
 		this.text = (text || "");
@@ -96,15 +93,7 @@
 		attachments : [],
 		node : null,
 		getText : function() {
-			var text = this.text;
-			for (var ii in this.mentions)
-			{
-				if (this.mentions.hasOwnProperty(ii))
-				{
-					text = text.replace(new RegExp(ii,"gi"), this.mentions[ii]);
-				}
-			}
-			return text;
+			return this.text;
 		}
 	};
 	/*
@@ -152,8 +141,8 @@
 		BX.addCustomEvent(window, "onMPFIsInitialized", this.bindHandler);
 		if (BX["MPF"])
 			this.bindHandler(BX["MPF"].getInstance(this.handlerId));
+		this.jsCommentId = BX.util.getRandomString(20);
 	};
-
 	MPFForm.prototype = {
 		bindHandler : function(handler) {
 			if (handler && handler.id == this.handlerId)
@@ -186,7 +175,7 @@
 							comment = this.initComment(comment, "", false);
 							comment.mentions[authorName] = '[USER=' + authorId + ']' + authorName + '[/USER]';
 							var text = (this.handler && this.handler.simpleForm ? this.handler.simpleForm.writingParams["~text"] : comment.text);
-							comment.text = text + (text == "" ? "" : " ") + authorName + ', ';
+							comment.text = text + (text == "" ? "" : " ") + '[USER=' + authorId + ']' + authorName + '[/USER]' + ', ';
 						}
 						this.show(comment, comment.text, false);
 					}
@@ -254,7 +243,7 @@
 			}
 		},
 		writing : function(comment) {
-			BX.onCustomEvent(window, 'OnUCUserIsWriting', [comment["id"][0], comment["id"][1]]);
+			BX.onCustomEvent(window, 'OnUCUserIsWriting', [comment["id"][0], comment["id"][1], this.jsCommentId]);
 		},
 		reinitComment : function(comment) {
 			var id = [comment["id"][0], 0],
@@ -279,6 +268,7 @@
 		},
 		show : function(id, text, data) {
 			this.comment = this.initComment(id, text, data);
+			this.jsCommentId = BX.util.getRandomString(20);
 			BX.onCustomEvent(this.handler, 'OnUCFormBeforeShow', [this, text, data]);
 			repo.entityId = id[0];
 			this.handler.show(this.comment, (!!data));
@@ -287,6 +277,7 @@
 		},
 		submitClear : function(comment) {
 			commentObj.removeInstance(comment);
+			this.jsCommentId = BX.util.getRandomString(20);
 			if (this.comment == comment)
 			{
 
@@ -316,7 +307,8 @@
 				post = new window.MobileAjaxWrapper(),
 				fd = new window.FormData(),
 				ii;
-
+			if (this.jsCommentId !== null)
+				post_data['COMMENT_EXEMPLAR_ID'] = this.jsCommentId;
 
 			if (comment.id[1] > 0)
 			{
@@ -439,7 +431,6 @@
 			this.handler.closeWait();
 		}
 	};
-
 	MPFForm.link = function(ENTITY_XML_ID, form) {
 		var id = form['id'];
 		repo['form'][id] = (repo['form'][id] || (new MPFForm(id)));
@@ -520,6 +511,18 @@
 			menu.push({
 				title: BX.message('BPC_MES_DELETE'),
 				callback: function() { repo["list"][ENTITY_XML_ID].act(node.getAttribute('bx-mpl-delete-url'), ID, 'DELETE'); }});
+		if (node.getAttribute("bx-mpl-createtask-show") == "Y")
+			menu.push({
+				title: BX.message('BPC_MES_CREATETASK'),
+				callback: function() {
+					if (typeof oMSL != 'undefined')
+					{
+						oMSL.createTask({
+							entityType: 'BLOG_COMMENT',
+							entityId: ID
+						});
+					}
+				}});
 		if (menu.length > 0)
 		{
 			action = new window.BXMobileApp.UI.ActionSheet({ buttons: menu }, "commentSheet" );
@@ -575,8 +578,7 @@
 		return false;
 	};
 
-	var init = function(window)
-	{
+	var init = function(window) {
 		BX.MPL = function(params, staticParams, formParams)
 		{
 			BX.MPL.superclass.constructor.apply(this, arguments);
@@ -609,22 +611,43 @@
 					this.clearThumb(comment);
 				}
 			}, this);
-			this.windowEvents['onPull'] = BX.delegate(function(data) {
+			this.windowEvents['onPull-unicomments'] = BX.delegate(function(data) {
 				var params = data.params;
-				if (data.module_id == "unicomments" && data.command == "comment_mobile" &&
-					params["ENTITY_XML_ID"] == this.ENTITY_XML_ID && ((params["USER_ID"] + '') != (BX.message("USER_ID") + '')))
+				if (
+					data.command == "comment_mobile"
+					&& params["ENTITY_XML_ID"] == this.ENTITY_XML_ID
+					&& (
+						((params["USER_ID"] + '') != (BX.message("USER_ID") + ''))
+						||
+						( params["EXEMPLAR_ID"] && params["EXEMPLAR_ID"] != this.exemplarId )
+						||
+						(
+							typeof params["AUX"] != 'undefined'
+							&& BX.util.in_array(params["AUX"], ['createtask', 'fileversion'])
+						)
+					)
+				)
 				{
 					if (data.command == 'comment_mobile' && params["ID"])
+					{
+						if (params["COMMENT_EXEMPLAR_ID"])
+							repo.commentExemplarId[params["ENTITY_XML_ID"] + '_' + params["COMMENT_EXEMPLAR_ID"]] = true;
 						this.pullNewRecord(params);
-					else if (data.command == 'answer')
+					}
+					else if (data.command === 'answer' &&
+						((params["USER_ID"] + '') !== (BX.message("USER_ID") + '')) &&
+						(!params["COMMENT_EXEMPLAR_ID"] || repo.commentExemplarId[params["ENTITY_XML_ID"] + '_' + params["COMMENT_EXEMPLAR_ID"]] !== true)
+					)
+					{
 						this.pullNewAuthor(params["USER_ID"], params["NAME"], params["AVATAR"]);
+					}
 				}
 			}, this);
 
 			BX.addCustomEvent(window, 'OnUCFormResponse', this.windowEvents['OnUCFormResponse']);
 			BX.addCustomEvent(window, 'OnUCAfterRecordAdd', this.windowEvents['OnUCAfterRecordAdd']);
 			BX.addCustomEvent(window, 'OnUCFormBeforeSubmit', this.windowEvents['OnUCFormBeforeSubmit']);
-			BX.addCustomEvent(window, 'onPull', this.windowEvents['onPull']);
+			BXMobileApp.addCustomEvent(window, 'onPull-unicomments', this.windowEvents['onPull-unicomments']);
 
 			if (staticParams['SHOW_POST_FORM'] == "Y")
 				MPFForm.link(this.ENTITY_XML_ID, formParams);
@@ -634,6 +657,7 @@
 		};
 		BX.extend(BX.MPL, window["FCList"]);
 		BX.MPL.prototype.init = function() {};
+		BX.MPL.prototype.url["activity"] = BX.message("SITE_DIR") + 'mobile/?mobile_action=comment_activity';
 		BX.MPL.prototype.makeThumb = function(id, message, txt, attachments) {
 			var container = (message.node || BX('record-' + id.join('-') + '-cover'));
 			if (!container)

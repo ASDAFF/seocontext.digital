@@ -21,38 +21,43 @@ $generateCode = false;
 if(!$arResult["FIELD_ID"] && $arResult["IS_PROPERTY"])
 	$generateCode = true;
 
-$arToolbar = array();
+$listAction = array();
 if($arResult["FIELD_ID"] && $arResult["FIELD_ID"] != "NAME")
 {
-	$arToolbar[] = array(
-		"TEXT"=>GetMessage("CT_BLFE_TOOLBAR_DELETE"),
-		"TITLE"=>GetMessage("CT_BLFE_TOOLBAR_DELETE_TITLE"),
-		"LINK"=>"javascript:BX.Lists['".$jsClass."'].deleteField('form_".$arResult["FORM_ID"]."',
-			'".GetMessage("CT_BLFE_TOOLBAR_DELETE_WARNING")."')",
-		"ICON"=>"btn-delete-field",
+	$listAction[] = array(
+		"id" => "deleteField",
+		"text" => GetMessage("CT_BLFE_TOOLBAR_DELETE"),
+		"action" => "BX.Lists['".$jsClass."'].deleteField('form_".$arResult["FORM_ID"]."',
+			'".GetMessage("CT_BLFE_TOOLBAR_DELETE_WARNING")."')"
 	);
 }
 
-if(count($arToolbar))
-	$arToolbar[] = array(
-		"SEPARATOR"=>"Y",
-	);
-
-$arToolbar[] = array(
-	"TEXT"=>GetMessage("CT_BLFE_TOOLBAR_FIELDS"),
-	"TITLE"=>GetMessage("CT_BLFE_TOOLBAR_FIELDS_TITLE"),
-	"LINK"=>$arResult["LIST_FIELDS_URL"],
-	"ICON"=>"btn-view-fields",
-);
-
-$APPLICATION->IncludeComponent(
-	"bitrix:main.interface.toolbar",
-	"",
-	array(
-		"BUTTONS"=>$arToolbar,
-	),
-	$component, array("HIDE_ICONS" => "Y")
-);
+$isBitrix24Template = (SITE_TEMPLATE_ID == "bitrix24");
+if($isBitrix24Template)
+{
+	$this->SetViewTarget("pagetitle", 100);
+}
+else
+{
+	$APPLICATION->SetAdditionalCSS("/bitrix/js/lists/css/intranet-common.css");
+}
+?>
+<div class="pagetitle-container pagetitle-align-right-container">
+	<a href="<?=$arResult["LIST_FIELDS_URL"]?>" class="lists-list-back">
+		<?=GetMessage("CT_BLFE_TOOLBAR_RETURN_LIST_ELEMENT")?>
+	</a>
+	<?if($listAction):?>
+		<span id="lists-title-action" class="webform-small-button webform-small-button-transparent bx-filter-button">
+		<span class="webform-small-button-text"><?=GetMessage("CT_BLFE_TOOLBAR_ACTION")?></span>
+		<span id="lists-title-action-icon" class="webform-small-button-icon"></span>
+	</span>
+	<?endif;?>
+</div>
+<?
+if($isBitrix24Template)
+{
+	$this->EndViewTarget();
+}
 
 $customHtml = "";
 
@@ -385,7 +390,6 @@ elseif($arResult["FORM_DATA"]["TYPE"] == "N:Sequence")
 elseif(preg_match("/^(E|E:)/", $arResult["FORM_DATA"]["TYPE"]))
 {
 	//No default value input
-
 	$readOnlyAdd = false;
 }
 elseif(!is_array($arPropertyFields["HIDE"]) || !in_array("DEFAULT_VALUE", $arPropertyFields["HIDE"]))
@@ -418,6 +422,7 @@ elseif(!is_array($arPropertyFields["HIDE"]) || !in_array("DEFAULT_VALUE", $arPro
 						"DESCRIPTION"=>"",
 						"MODE" => "EDIT_FORM",
 						"FORM_NAME" => "form_".$arResult["FORM_ID"],
+						"MULTIPLE" => $arResult["FORM_DATA"]["MULTIPLE"]
 					),
 				)
 			);
@@ -602,8 +607,8 @@ if(is_array($arResult["LIST"]))
 				<td style="display:none;"></td>
 				<td align="center" class="sort-td" title="'.GetMessage("CT_BLFE_SORT_TITLE").'"></td>
 				<td class="tdInput">
-					<input type="hidden" name="LIST['.$arEnum["ID"].'][SORT]" value="'.$sort.'" class="sort-input">
-					<input type="text" size="35" name="LIST['.$arEnum["ID"].'][VALUE]" value="'.$arEnum["VALUE"].'" class="value-input">
+					<input type="hidden" name="LIST['.htmlspecialcharsbx($arEnum["ID"]).'][SORT]" value="'.$sort.'" class="sort-input">
+					<input type="text" size="35" name="LIST['.htmlspecialcharsbx($arEnum["ID"]).'][VALUE]" value="'.htmlspecialcharsbx($arEnum["~VALUE"]).'" class="value-input">
 				</td>
 				<td align="center" class="delete-action"><div class="delete-action"
 					onclick="BX.Lists[\''.$jsClass.'\'].deleteListItem(this);" title="'.GetMessage("CT_BLFE_DELETE_TITLE").'"></div></td>
@@ -641,7 +646,7 @@ if(is_array($arResult["LIST"]))
 			$html .= '<option value=""'.(count($arResult["LIST_DEF"])==0? ' selected': '').'>'.GetMessage("CT_BLFE_ENUM_NO_DEFAULT").'</option>';
 
 		foreach($arResult["LIST"] as $arEnum)
-			$html .= '<option value="'.$arEnum["ID"].'"'.(isset($arResult["LIST_DEF"][$arEnum["ID"]])? ' selected': '').'>'.$arEnum["VALUE"].'</option>';
+			$html .= '<option value="'.htmlspecialcharsbx($arEnum["ID"]).'"'.(isset($arResult["LIST_DEF"][htmlspecialcharsbx($arEnum["ID"])])? ' selected': '').'>'.htmlspecialcharsbx($arEnum["~VALUE"]).'</option>';
 
 		$html .= '
 				</select>
@@ -684,8 +689,9 @@ if(is_array($arResult["LIST"]))
 	{
 		foreach($arResult["LIST"] as $arEnum)
 		{
-			$customHtml .= '<input type="hidden" name="LIST['.$arEnum["ID"].'][SORT]" value="'.$arEnum["SORT"].'">'
-				.'<input type="hidden" name="LIST['.$arEnum["ID"].'][VALUE]" value="'.$arEnum["VALUE"].'">';
+			$customHtml .= '<input type="hidden" name="LIST['.htmlspecialcharsbx($arEnum["ID"]).'][SORT]" value="'.$arEnum["SORT"].'">'
+				.'<input type="hidden" name="LIST['.htmlspecialcharsbx($arEnum["ID"]).'][VALUE]" value="'
+				.htmlspecialcharsbx($arEnum["~VALUE"]).'">';
 		}
 	}
 }
@@ -714,7 +720,8 @@ $APPLICATION->IncludeComponent(
 			iblockTypeId: '<?=$arParams['IBLOCK_TYPE_ID']?>',
 			iblockId: '<?=$arResult['IBLOCK_ID']?>',
 			socnetGroupId: '<?=$socnetGroupId?>',
-			generateCode: '<?=$generateCode?>'
+			generateCode: '<?=$generateCode?>',
+			listAction: <?=\Bitrix\Main\Web\Json::encode($listAction)?>
 		});
 
 		BX.message({

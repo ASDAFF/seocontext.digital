@@ -126,7 +126,7 @@ class CAllFile
 		return "";
 	}
 
-	public static function SaveFile($arFile, $strSavePath, $bForceMD5=false, $bSkipExt=false)
+	public static function SaveFile($arFile, $strSavePath, $bForceMD5=false, $bSkipExt=false, $dirAdd='')
 	{
 		$strFileName = GetFileName($arFile["name"]);	/* filename.gif */
 
@@ -185,7 +185,7 @@ class CAllFile
 		$bExternalStorage = false;
 		foreach(GetModuleEvents("main", "OnFileSave", true) as $arEvent)
 		{
-			if(ExecuteModuleEventEx($arEvent, array(&$arFile, $strFileName, $strSavePath, $bForceMD5, $bSkipExt)))
+			if(ExecuteModuleEventEx($arEvent, array(&$arFile, $strFileName, $strSavePath, $bForceMD5, $bSkipExt, $dirAdd)))
 			{
 				$bExternalStorage = true;
 				break;
@@ -196,42 +196,49 @@ class CAllFile
 		{
 			$upload_dir = COption::GetOptionString("main", "upload_dir", "upload");
 			$io = CBXVirtualIo::GetInstance();
-			if($bForceMD5 != true && COption::GetOptionString("main", "save_original_file_name", "N")=="Y")
+			if($bForceMD5 != true && COption::GetOptionString("main", "save_original_file_name", "N") == "Y")
 			{
-				$dir_add = '';
-				$i=0;
-				while(true)
+				$dir_add = $dirAdd;
+				if($dir_add == '')
 				{
-					$dir_add = substr(md5(uniqid("", true)), 0, 3);
-					if(!$io->FileExists($_SERVER["DOCUMENT_ROOT"]."/".$upload_dir."/".$strSavePath."/".$dir_add."/".$strFileName))
+					$i = 0;
+					while(true)
 					{
-						break;
-					}
-					if($i >= 25)
-					{
-						$j=0;
-						while(true)
+						$dir_add = substr(md5(uniqid("", true)), 0, 3);
+						if(!$io->FileExists($_SERVER["DOCUMENT_ROOT"]."/".$upload_dir."/".$strSavePath."/".$dir_add."/".$strFileName))
 						{
-							$dir_add = substr(md5(mt_rand()), 0, 3)."/".substr(md5(mt_rand()), 0, 3);
-							if(!$io->FileExists($_SERVER["DOCUMENT_ROOT"]."/".$upload_dir."/".$strSavePath."/".$dir_add."/".$strFileName))
-							{
-								break;
-							}
-							if($j >= 25)
-							{
-								$dir_add = substr(md5(mt_rand()), 0, 3)."/".md5(mt_rand());
-								break;
-							}
-							$j++;
+							break;
 						}
-						break;
+						if($i >= 25)
+						{
+							$j = 0;
+							while(true)
+							{
+								$dir_add = substr(md5(mt_rand()), 0, 3)."/".substr(md5(mt_rand()), 0, 3);
+								if(!$io->FileExists($_SERVER["DOCUMENT_ROOT"]."/".$upload_dir."/".$strSavePath."/".$dir_add."/".$strFileName))
+								{
+									break;
+								}
+								if($j >= 25)
+								{
+									$dir_add = substr(md5(mt_rand()), 0, 3)."/".md5(mt_rand());
+									break;
+								}
+								$j++;
+							}
+							break;
+						}
+						$i++;
 					}
-					$i++;
 				}
 				if(substr($strSavePath, -1, 1) <> "/")
+				{
 					$strSavePath .= "/".$dir_add;
+				}
 				else
+				{
 					$strSavePath .= $dir_add."/";
+				}
 			}
 			else
 			{
@@ -239,9 +246,13 @@ class CAllFile
 				while(true)
 				{
 					if(substr($strSavePath, -1, 1) <> "/")
+					{
 						$strSavePath .= "/".substr($strFileName, 0, 3);
+					}
 					else
+					{
 						$strSavePath .= substr($strFileName, 0, 3)."/";
+					}
 
 					if(!$io->FileExists($_SERVER["DOCUMENT_ROOT"]."/".$upload_dir."/".$strSavePath."/".$strFileName))
 						break;
@@ -261,7 +272,7 @@ class CAllFile
 
 			if(is_set($arFile, "content"))
 			{
-				$f = fopen($strPhysicalFileNameX, "ab");
+				$f = fopen($strPhysicalFileNameX, "w");
 				if(!$f)
 					return false;
 				if(fwrite($f, $arFile["content"]) === false)
@@ -313,8 +324,9 @@ class CAllFile
 
 							imagejpeg($properlyOriented, $strPhysicalFileNameX, $jpgQuality);
 							clearstatcache(true, $strPhysicalFileNameX);
-							$arFile['size'] = filesize($strPhysicalFileNameX);
 						}
+
+						$arFile['size'] = filesize($strPhysicalFileNameX);
 					}
 				}
 			}
@@ -1727,6 +1739,7 @@ function ImgShw(ID, width, height, alt)
 
 	public static function ImageCreateFromBMP($filename)
 	{
+		// https://ru.wikipedia.org/wiki/BMP
 		if(!$f1 = fopen($filename,"rb"))
 			return false;
 
@@ -1735,16 +1748,32 @@ function ImgShw(ID, width, height, alt)
 		if ($FILE['file_type'] != 19778)
 			return false;
 
-		//2 : read and parse BMP data
-		$BMP = unpack('Vheader_size/Vwidth/Vheight/vplanes/vbits_per_pixel'.
-			'/Vcompression/Vsize_bitmap/Vhoriz_resolution'.
-			'/Vvert_resolution/Vcolors_used/Vcolors_important', fread($f1,40));
+		$head = unpack('Vheader_size', fread($f1, 4));
+		if ($head['header_size'] == 12)
+		{
+			//2 : read and parse BMP data (CORE)
+			$BMP = unpack('vwidth/vheight/vplanes/vbits_per_pixel', fread($f1, 8));
+		}
+		else
+		{
+			//2 : read and parse BMP data (3 4 5)
+			$BMP = unpack('lwidth/lheight/vplanes/vbits_per_pixel'.
+				'/Vcompression/Vsize_bitmap/Vhoriz_resolution'.
+				'/Vvert_resolution/Vcolors_used/Vcolors_important', fread($f1, 36));
+		}
 
-		//DDoS protection
-		if($BMP['width'] > 65535)
-			$BMP['width'] = 65535;
-		if($BMP['height'] > 65535)
-			$BMP['height'] = 65535;
+		if($BMP['width'] < 0)
+			$BMP['width'] = 0;
+
+		if($BMP['height'] < 0)
+		{
+			$flip = true;
+			$BMP['height'] = -$BMP['height'];
+		}
+		else
+		{
+			$flip = false;
+		}
 
 		$BMP['colors'] = pow(2,$BMP['bits_per_pixel']);
 
@@ -1788,6 +1817,27 @@ function ImgShw(ID, width, height, alt)
 					$X++;
 				}
 				$Y--;
+				if($dPY > 0)
+					fread($f1, $dPY);
+				if (feof($f1))
+					break;
+			}
+		}
+		elseif($BMP['bits_per_pixel'] == 24 && $flip)
+		{
+			$dPY = $BMP['decal'];
+			$width = $BMP['width'];
+			$Y = 0;
+			while ($Y < $BMP['height'])
+			{
+				$X = 0;
+				while($X < $width)
+				{
+					$COLOR = unpack("V", fread($f1, 3).$VIDE);
+					imagesetpixel($res, $X, $Y, $COLOR[1]);
+					$X++;
+				}
+				$Y++;
 				if($dPY > 0)
 					fread($f1, $dPY);
 				if (feof($f1))
@@ -2099,7 +2149,7 @@ function ImgShw(ID, width, height, alt)
 		if (class_exists("imagick") && function_exists('memory_get_usage'))
 		{
 			//When memory limit reached we'll try to use ImageMagic
-			$memoryNeeded = $arSourceFileSizeTmp[0] * $arSourceFileSizeTmp[1] * 4 * 2;
+			$memoryNeeded = $arSourceFileSizeTmp[0] * $arSourceFileSizeTmp[1] * 4 * 3;
 			$memoryLimit = CUtil::Unformat(ini_get('memory_limit'));
 			if ((memory_get_usage() + $memoryNeeded) > $memoryLimit)
 			{
@@ -2462,8 +2512,46 @@ function ImgShw(ID, width, height, alt)
 
 	public static function ImageHandleOrientation($orientation, $sourceImage)
 	{
+		if ($orientation <= 1)
+		{
+			return false;
+		}
+
 		if (!is_resource($sourceImage))
 		{
+			if (class_exists("imagick"))
+			{
+				$im = new Imagick();
+				try
+				{
+					$im->readImage($sourceImage);
+
+					if ($orientation == 7 || $orientation == 8)
+						$sourceImage = $im->rotateImage(new ImagickPixel('#00000000'), 270);
+					elseif ($orientation == 3 || $orientation == 4)
+						$sourceImage = $im->rotateImage(new ImagickPixel('#00000000'), 180);
+					elseif ($orientation == 5 || $orientation == 6)
+						$sourceImage = $im->rotateImage(new ImagickPixel('#00000000'), 90);
+
+					if (
+						$orientation == 2 || $orientation == 7
+						|| $orientation == 4 || $orientation == 5
+					)
+					{
+						$im->flopImage();
+					}
+					$im->setImageOrientation(0);
+					$im->writeImage();
+					$im->destroy();
+					clearstatcache(true, $sourceImage);
+
+					return false;
+				}
+				catch (ImagickException $e)
+				{
+				}
+			}
+
 			$imgArray = CFile::GetImageSize($sourceImage, true, false);
 			if(is_array($imgArray) && $imgArray[2] == IMAGETYPE_JPEG)
 			{
@@ -2473,32 +2561,24 @@ function ImgShw(ID, width, height, alt)
 			{
 				return false;
 			}
-
 		}
-		if ($orientation > 1)
+
+		if ($orientation == 7 || $orientation == 8)
+			$sourceImage = imagerotate($sourceImage, 90, null);
+		elseif ($orientation == 3 || $orientation == 4)
+			$sourceImage = imagerotate($sourceImage, 180, null);
+		elseif ($orientation == 5 || $orientation == 6)
+			$sourceImage = imagerotate($sourceImage, 270, null);
+
+		if (
+			$orientation == 2 || $orientation == 7
+			|| $orientation == 4 || $orientation == 5
+		)
 		{
-			if ($orientation == 7 || $orientation == 8)
-				$sourceImage = imagerotate($sourceImage, 90, null);
-			elseif ($orientation == 3 || $orientation == 4)
-				$sourceImage = imagerotate($sourceImage, 180, null);
-			elseif ($orientation == 5 || $orientation == 6)
-				$sourceImage = imagerotate($sourceImage, 270, null);
-
-			if (
-				$orientation == 2 || $orientation == 7
-				|| $orientation == 4 || $orientation == 5
-			)
-			{
-				CFile::ImageFlipHorizontal($sourceImage);
-			}
-
-			return $sourceImage;
-		}
-		else
-		{
-			return false;
+			CFile::ImageFlipHorizontal($sourceImage);
 		}
 
+		return $sourceImage;
 	}
 
 	public static function ViewByUser($arFile, $arOptions = array())
@@ -3330,6 +3410,65 @@ function ImgShw(ID, width, height, alt)
 				"rtf" => "application/msword",
 				"rar" => "application/x-rar-compressed",
 				"zip" => "application/zip",
+				"ogv" => "video/ogg",
+				"mp4" => "video/mp4",
+				"mp4v" => "video/mp4",
+				"mpg4" => "video/mp4",
+				"mpeg" => "video/mpeg",
+				"mpg" => "video/mpeg",
+				"mpe" => "video/mpeg",
+				"m1v" => "video/mpeg",
+				"m2v" => "video/mpeg",
+				"webm" => "video/webm",
+				"3gp" => "video/3gpp",
+				"3g2" => "video/3gpp2",
+				"h264" => "video/h264",
+				"jpgv" => "video/jpeg",
+				"qt" => "video/quicktime",
+				"mov" => "video/quicktime",
+				"dvb" => "video/vnd.dvb.file",
+				"fvt" => "video/vnd.fvt",
+				"mxu" => "video/vnd.mpegurl",
+				"m4u" => "video/vnd.mpegurl",
+				"pyv" => "video/vnd.ms-playready.media.pyv",
+				"uvu" => "video/vnd.uvvu.mp4",
+				"uvvu" => "video/vnd.uvvu.mp4",
+				"viv" => "video/vnd.vivo",
+				"f4v" => "video/x-f4v",
+				"fli" => "video/x-fli",
+				"flv" => "video/x-flv",
+				"m4v" => "video/x-m4v",
+				"mkv" => "video/x-matroska",
+				"mk3d" => "video/x-matroska",
+				"mks" => "video/x-matroska",
+				"mng" => "video/x-mng",
+				"asf" => "video/x-ms-asf",
+				"asx" => "video/x-ms-asf",
+				"vob" => "video/x-ms-vob",
+				"wm" => "video/x-ms-wm",
+				"wmv" => "video/x-ms-wmv",
+				"wmx" => "video/x-ms-wmx",
+				"wvx" => "video/x-ms-wvx",
+				"avi" => "video/x-msvideo",
+				"movie" => "video/x-sgi-movie",
+				"smv" => "video/x-smv",
+				"mpga" => "audio/mpeg",
+				"mp2" => "audio/mpeg",
+				"mp2a" => "audio/mpeg",
+				"mp3" => "audio/mpeg",
+				"m2a" => "audio/mpeg",
+				"m3a" => "audio/mpeg",
+				"ogg" => "audio/ogg",
+				"oga" => "audio/ogg",
+				"spx" => "audio/ogg",
+				"weba" => "audio/webm",
+				"aac" => "audio/aacp",
+				"flac" => "audio/x-flac",
+				"m3u" => "audio/x-mpegurl",
+				"m3u8" => "application/vnd.apple.mpegurl",
+				"ts" => "video/MP2T",
+				"wav" => "audio/x-wav",
+				"m4a" => "audio/mp4",
 			);
 			$type = $arTypes[strtolower(substr($pathX, bxstrrpos($pathX, ".") + 1))];
 		}

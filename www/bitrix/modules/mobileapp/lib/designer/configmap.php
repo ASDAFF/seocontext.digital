@@ -97,18 +97,20 @@ class ConfigMap
 
 	public function getParamDescription($name, $type)
 	{
-		$desc = ParameterType::getDesc($type);
-		if ($type == ParameterType::VALUE_LIST)
+		if(is_array($type))
 		{
-			$desc["list"] = $this->getValueList($name);
+			$typeParam = ParameterType::getDesc($type["type"]);
+			$desc = array_merge($type,$typeParam);
+		}
+		else
+		{
+			$desc = ParameterType::getDesc($type);
 		}
 
 		if (!self::isGroup($name))
 		{
 			$desc["parent"] = $this->getGroupByParam($name);
 		}
-
-		$desc["limits"] = $this->getLimits($name);;
 
 		return $desc;
 	}

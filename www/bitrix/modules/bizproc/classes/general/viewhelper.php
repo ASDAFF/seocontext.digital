@@ -69,7 +69,7 @@ class CBPViewHelper
 				array('MODIFIED' => 'DESC'),
 				array('WORKFLOW_ID' => $workflowId),
 				false,
-				false,
+				array('nTopCount' => 50),
 				array('ID', 'MODIFIED', 'NAME', 'DESCRIPTION', 'PARAMETERS', 'STATUS', 'IS_INLINE', 'ACTIVITY')
 			);
 			while ($task = $taskIterator->getNext())

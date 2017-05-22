@@ -88,7 +88,7 @@ class CCatalogProduct extends CAllCatalogProduct
 				$rsProducts = $DB->Query($strQuery, false, "File: ".__FILE__."<br>Line: ".__LINE__);
 				if ($arProduct = $rsProducts->Fetch())
 				{
-					$arFields["OLD_QUANTITY"] = doubleval($arProduct['QUANTITY']);
+					$arFields["OLD_QUANTITY"] = (float)$arProduct['QUANTITY'];
 					Catalog\SubscribeTable::setOldProductAvailable($ID, $arProduct['AVAILABLE']);
 				}
 				if (isset($arFields["OLD_QUANTITY"]))
@@ -339,6 +339,15 @@ class CCatalogProduct extends CAllCatalogProduct
 						$res = CIBlock::FilterCreate("CAT_PR.AVAILABLE", $val, "string_equal", $cOperationType);
 						$join = false;
 						break;
+					case "SUBSCRIBE":
+						if (is_string($val))
+						{
+							if ($val == $strSubscribe)
+								$val = array($val, 'D');
+							$res = CIBlock::FilterCreate("CAT_PR.SUBSCRIBE", $val, "string_equal", $cOperationType);
+							$join = false;
+						}
+						break;
 					case "WEIGHT":
 						$res = CIBlock::FilterCreate("CAT_PR.WEIGHT", $val, "number", $cOperationType);
 						$join = false;
@@ -568,7 +577,15 @@ class CCatalogProduct extends CAllCatalogProduct
 		);
 	}
 
-	function GetList($arOrder = array(), $arFilter = array(), $arGroupBy = false, $arNavStartParams = false, $arSelectFields = array())
+	/**
+	 * @param array $arOrder
+	 * @param array $arFilter
+	 * @param bool|array $arGroupBy
+	 * @param bool|array $arNavStartParams
+	 * @param array $arSelectFields
+	 * @return bool|CDBResult
+	 */
+	public static function GetList($arOrder = array(), $arFilter = array(), $arGroupBy = false, $arNavStartParams = false, $arSelectFields = array())
 	{
 		global $DB;
 
@@ -653,11 +670,10 @@ class CCatalogProduct extends CAllCatalogProduct
 
 		$intTopCount = 0;
 		$boolNavStartParams = (!empty($arNavStartParams) && is_array($arNavStartParams));
-		if ($boolNavStartParams && array_key_exists('nTopCount', $arNavStartParams))
-		{
-			$intTopCount = intval($arNavStartParams["nTopCount"]);
-		}
-		if ($boolNavStartParams && 0 >= $intTopCount)
+		if ($boolNavStartParams && isset($arNavStartParams['nTopCount']))
+			$intTopCount = (int)$arNavStartParams['nTopCount'];
+
+		if ($boolNavStartParams && $intTopCount <= 0)
 		{
 			$strSql_tmp = "SELECT COUNT('x') as CNT FROM b_catalog_product CP ".$arSqls["FROM"];
 			if (!empty($arSqls["WHERE"]))
@@ -682,10 +698,9 @@ class CCatalogProduct extends CAllCatalogProduct
 		}
 		else
 		{
-			if ($boolNavStartParams && 0 < $intTopCount)
-			{
+			if ($boolNavStartParams && $intTopCount > 0)
 				$strSql .= " LIMIT ".$intTopCount;
-			}
+
 			$dbRes = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
 		}
 

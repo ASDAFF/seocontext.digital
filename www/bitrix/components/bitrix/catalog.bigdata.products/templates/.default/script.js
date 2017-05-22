@@ -1479,10 +1479,9 @@ function bx_rcm_get_from_cloud(injectId, rcmParameters, localAjaxData)
 
 	var onready = function(response) {
 
-		if (!response.items)
-		{
-			response.items = [];
-		}
+		if ((!BX.type.isArray(response.items) && !BX.type.isPlainObject(response.items)) || !BX.type.isNotEmptyString(response.id))
+			return;
+
 		BX.ajax({
 			url: '/bitrix/components/bitrix/catalog.bigdata.products/ajax.php?'+BX.ajax.prepareData({'AJAX_ITEMS': response.items, 'RID': response.id}),
 			method: 'POST',

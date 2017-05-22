@@ -33,10 +33,33 @@ BX.Sale.Admin.OrderInfo =
 	{
 		var span = BX("order_info_buyer_phone");
 
-		if(span)
-			span.innerHTML = '<a href="javascript:void(0)" onclick="BX.Sale.Admin.OrderEditPage.desktopMakeCall(\''+phone+'\');">'+
-				BX.util.htmlspecialchars(phone)+
+		if(!span)
+			return;
+
+		var callText = '';
+
+		if(phone)
+		{
+			if(!(phone instanceof Array))
+			{
+				phone = [phone];
+			}
+
+			for(var i = 0, l = phone.length; i < l; i++)
+			{
+				phone[i] = phone[i].replace(/'/g, "");
+				phone[i] = BX.util.htmlspecialchars(phone[i]);
+
+				if(callText.length > 0)
+					callText += ', ';
+
+						callText += '<a href="javascript:void(0)" onclick="BX.Sale.Admin.OrderEditPage.desktopMakeCall(\''+phone[i]+'\');">'+
+					phone[i]+
 				'</a>';
+			}
+		}
+
+		span.innerHTML = callText;
 	},
 
 	setBuyerEmail: function(email)
@@ -55,7 +78,7 @@ BX.Sale.Admin.OrderInfo =
 		var span = BX("order_info_order_status_name");
 
 		if(span && BX.Sale.Admin.OrderEditPage.statusesNames && BX.Sale.Admin.OrderEditPage.statusesNames[statusId])
-			span.innerHTML = BX.Sale.Admin.OrderEditPage.statusesNames[statusId];
+			span.innerHTML = BX.util.htmlspecialchars(BX.Sale.Admin.OrderEditPage.statusesNames[statusId]);
 	},
 
 	setPrice: function(price)

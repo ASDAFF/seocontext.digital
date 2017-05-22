@@ -3,7 +3,7 @@
  * Bitrix Framework
  * @package bitrix
  * @subpackage main
- * @copyright 2001-2013 Bitrix
+ * @copyright 2001-2016 Bitrix
  */
 
 /**
@@ -110,6 +110,11 @@ $arAllOptions = array(
 		Array("bx_fast_download", GetMessage("MAIN_OPT_BX_FAST_DOWNLOAD"), "N", Array("checkbox", "N")),
 		Array("note" => GetMessage("MAIN_OPT_BX_FAST_DOWNLOAD_HINT")),
 
+		GetMessage("MAIN_OPTIONS_IMAGES"),
+		Array("profile_image_width", GetMessage("MAIN_OPTIONS_IMAGES_WIDTH"), "", Array("text", "10")),
+		Array("profile_image_height", GetMessage("MAIN_OPTIONS_IMAGES_HEIGHT"), "", Array("text", "10")),
+		Array("profile_image_size", GetMessage("MAIN_OPTIONS_IMAGES_SIZE"), "", Array("text", "10")),
+
 		GetMessage("MAIN_OPTIMIZE_CSS_SETTINGS"),
 		Array("optimize_css_files", GetMessage("MAIN_OPTIMIZE_CSS"), "N", Array("checkbox", "Y")),
 		Array("optimize_js_files", GetMessage("MAIN_OPTIMIZE_JS"), "N", Array("checkbox", "Y")),
@@ -125,6 +130,7 @@ $arAllOptions = array(
 		array("curr_time", GetMessage("MAIN_OPT_TIME_ZONES_LOCAL"), GetMessage("MAIN_OPT_TIME_ZONES_DIFF")." ".date('O')." (".date('Z').")<br>".GetMessage("MAIN_OPT_TIME_ZONES_DIFF_STD")." ".(date('I')? GetMessage("MAIN_OPT_TIME_ZONES_DIFF_STD_S") : GetMessage("MAIN_OPT_TIME_ZONES_DIFF_STD_ST"))."<br>".GetMessage("MAIN_OPT_TIME_ZONES_DIFF_DATE")." ".date('r'), array("statichtml")),
 	),
 	"update" => Array(
+		Array("update_devsrv", GetMessage("MAIN_OPTIONS_UPDATE_DEVSRV"), "N", Array("checkbox", "Y")),
 		Array("update_site", GetMessage("MAIN_UPDATE_SERVER"), "www.bitrixsoft.com", Array("text", 30)),
 		Array("update_site_proxy_addr", GetMessage("MAIN_UPDATE_SERVER_PR_AD"), "", Array("text", 30)),
 		Array("update_site_proxy_port", GetMessage("MAIN_UPDATE_SERVER_PR_PR"), "", Array("text", 30)),
@@ -146,6 +152,7 @@ $arAllOptions = array(
 		Array("note"=>GetMessage("MAIN_OPT_DIGEST_NOTE")),
 		Array("custom_register_page", GetMessage("MAIN_OPT_REGISTER_PAGE"), "", Array("text", 40)),
 		Array("auth_components_template", GetMessage("MAIN_OPTIONS_AUTH_TEMPLATE") , "", Array("text", 40)),
+		Array("captcha_restoring_password", GetMessage("MAIN_OPTIONS_USE_CAPTCHA"), "N", Array("checkbox", "Y")),
 
 		GetMessage("MAIN_OPT_SECURE_AUTH"),
 		Array("use_encrypted_auth", GetMessage("MAIN_OPT_SECURE_PASS"), "N", Array("checkbox", "Y"), (CRsaSecurity::Possible()? "N":"Y")),
@@ -266,7 +273,7 @@ function HidePanelFor()
 ";
 
 foreach($arCodes as $code)
-	$panel .= '<div style="margin-bottom:4px"><input type="hidden" name="show_panel_for_users[]" value="'.$code.'">'.($arNames[$code]["provider"] <> ''? $arNames[$code]["provider"].': ':'').$arNames[$code]["name"].'&nbsp;<a href="javascript:void(0);" onclick="DeleteAccess(this, \''.$code.'\')" class="access-delete"></a></div>';
+	$panel .= '<div style="margin-bottom:4px"><input type="hidden" name="show_panel_for_users[]" value="'.$code.'">'.($arNames[$code]["provider"] <> ''? $arNames[$code]["provider"].': ':'').htmlspecialcharsbx($arNames[$code]["name"]).'&nbsp;<a href="javascript:void(0);" onclick="DeleteAccess(this, \''.$code.'\')" class="access-delete"></a></div>';
 
 $panel .= '</div><a href="javascript:void(0)" class="bx-action-href" onclick="ShowPanelFor()">'.GetMessage("main_sett_add_users").'</a>';
 
@@ -275,7 +282,7 @@ $panelHide = "
 ";
 
 foreach($arHideCodes as $code)
-	$panelHide .= '<div style="margin-bottom:4px"><input type="hidden" name="hide_panel_for_users[]" value="'.$code.'">'.($arNames[$code]["provider"] <> ''? $arNames[$code]["provider"].': ':'').$arNames[$code]["name"].'&nbsp;<a href="javascript:void(0);" onclick="DeleteAccess(this, \''.$code.'\')" class="access-delete"></a></div>';
+	$panelHide .= '<div style="margin-bottom:4px"><input type="hidden" name="hide_panel_for_users[]" value="'.$code.'">'.($arNames[$code]["provider"] <> ''? $arNames[$code]["provider"].': ':'').htmlspecialcharsbx($arNames[$code]["name"]).'&nbsp;<a href="javascript:void(0);" onclick="DeleteAccess(this, \''.$code.'\')" class="access-delete"></a></div>';
 
 $panelHide .= '</div><a href="javascript:void(0)" class="bx-action-href" onclick="HidePanelFor()">'.GetMessage("main_sett_add_users").'</a>';
 

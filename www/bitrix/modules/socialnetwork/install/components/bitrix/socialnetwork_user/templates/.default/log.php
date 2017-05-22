@@ -50,6 +50,7 @@ $APPLICATION->IncludeComponent(
 		"AVATAR_SIZE_COMMENT" => $arParams["LOG_COMMENT_THUMBNAIL_SIZE"],
 		"NEW_TEMPLATE" => $arParams["LOG_NEW_TEMPLATE"],
 		"AUTH" => $arParams["LOG_AUTH"],
+		"CHECK_COMMENTS_PERMS" => (isset($arParams["CHECK_COMMENTS_PERMS"]) && $arParams["CHECK_COMMENTS_PERMS"] == "Y" ? "Y" : "N")
 	),
 	$component 
 );

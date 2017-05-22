@@ -74,7 +74,7 @@ $APPLICATION->RestartBuffer();
 			"ENTITY_TYPE" => "WF",
 			"ENTITY_ID" => CBPStateService::getWorkflowIntegerId($task['WORKFLOW_ID']),
 			"ENTITY_XML_ID" => "WF_".$task['WORKFLOW_ID'],
-			"PERMISSION" => "Y",
+			"PERMISSION" => "M",
 			"URL_TEMPLATES_PROFILE_VIEW" => "/company/personal/user/#user_id#/",
 			"SHOW_RATING" => "Y",
 			"SHOW_LINK_TO_MESSAGE" => "N",

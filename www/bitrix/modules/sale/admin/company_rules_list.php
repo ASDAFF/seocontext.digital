@@ -30,7 +30,7 @@ namespace Bitrix\Sale\Company\AdminPage\CompanyRules
 	$id = (int)$_GET['ID'];
 	$tableId = 'table_company_rules';
 	$oSort = new \CAdminSorting($tableId);
-	$lAdmin = new \CAdminSubList($tableId, $oSort, '/bitrix/modules/sale/admin/company_rules_list.php?ID='.$id);
+	$lAdmin = new \CAdminSubList($tableId, $oSort, '/bitrix/admin/sale_company_rules_list.php?ID='.$id);
 
 	$ruleClassNames = Company\Restrictions\Manager::getClassesList();
 	$data = Company\Restrictions\Manager::getRestrictionsList($id);

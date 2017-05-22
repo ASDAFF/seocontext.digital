@@ -14,7 +14,7 @@ $MESS["SPOD_ACCOUNT_DATA"] = "Данные вашей учетной запис�
 $MESS["SPOD_LOGIN"] = "Логин";
 $MESS["SPOD_EMAIL"] = "E-mail адрес";
 $MESS["SPOD_ACCOUNT"] = "Учетная запись";
-$MESS["SPOD_ORDER_PERS_TYPE"] = "Тип плательщика";
+$MESS["SPOD_PERSON_TYPE_NAME"] = "Тип плательщика";
 $MESS["SPOD_ORDER_PROPERTIES"] = "Параметры заказа";
 $MESS["SPOD_ORDER_USER_COMMENT"] = "Комментарии покупателя";
 $MESS["SPOD_ORDER_PAYMENT"] = "Параметры оплаты";
@@ -79,4 +79,10 @@ $MESS["SPOD_TPL_GOOD"] = "товар";
 $MESS["SPOD_TPL_GOODS"] = "товаров";
 $MESS["SPOD_TPL_TWO_GOODS"] = "товара";
 $MESS["SPOD_TPL_SUMOF"] = "на сумму";
+$MESS["SPOD_TPL_RESTRICTED_PAID"] = "На проверке менеджером";
+$MESS["SOPD_TPL_RESTRICTED_PAID_MESSAGE"] = "<b>Обратите внимание:</b> оплата заказа будет доступна после подтверждения менеджером";
+$MESS["SPOD_CHECK_TITLE"] = "Список чеков";
+$MESS["SPOD_CHECK_NUM"] = "Чек №#CHECK_NUMBER#";
+$MESS["SPOD_ORDER_DESC"] = "Комментарии к заказу";
+
 ?>

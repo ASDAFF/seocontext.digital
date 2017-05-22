@@ -355,6 +355,17 @@ BX.adjust = function(elem, data)
 		}
 	}
 
+	if (data.dataset)
+	{
+		for (j in data.dataset)
+		{
+			if(data.dataset.hasOwnProperty(j))
+			{
+				elem.dataset[j] = data.dataset[j]
+			}
+		}
+	}
+
 	if (data.children && data.children.length > 0)
 	{
 		for (j=0,len=data.children.length; j<len; j++)
@@ -370,7 +381,7 @@ BX.adjust = function(elem, data)
 		BX.cleanNode(elem);
 		elem.appendChild((elem.ownerDocument || document).createTextNode(data.text));
 	}
-	else if (data.html)
+	else if (typeof data.html !== 'undefined')
 	{
 		elem.innerHTML = data.html;
 	}
@@ -1198,6 +1209,15 @@ BX.bind = function(el, evname, func)
 
 		return;
 	}
+	else if (evname === 'fullscreenchange')
+	{
+		if (document.cancelFullScreen)
+			BX.bind(el, "fullscreenchange", func);
+		else if (document.mozCancelFullScreen)
+			BX.bind(el, "mozfullscreenchange", func);
+		else if (document.webkitCancelFullScreen)
+			BX.bind(el, "webkitfullscreenchange", func);
+	}
 
 	if (el.addEventListener) // Gecko / W3C
 	{
@@ -1375,7 +1395,15 @@ BX.fireEvent = function(ob,ev)
 			{
 				case 'MouseEvent':
 					e = document.createEvent('MouseEvent');
-					e.initMouseEvent(ev, true, true, top, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, null);
+					try
+					{
+						e.initMouseEvent(ev, true, true, top, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, null);
+					}
+					catch (initException)
+					{
+						e.initMouseEvent(ev, true, true, window, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, null);
+					}
+
 				break;
 				default:
 					e = document.createEvent('Event');
@@ -1592,6 +1620,10 @@ BX.fixEventPageY = function(event)
 	return event;
 };
 
+/**
+ * @deprecated
+ * @see e.preventDefault()
+ */
 BX.PreventDefault = function(e)
 {
 	if(!e) e = window.event;
@@ -2258,6 +2290,18 @@ BX.util = {
 
 		return first;
 	},
+	
+	array_flip: function ( object ) 
+	{
+	    var newObject = {};
+		
+	    for (var key in object) 
+		{
+	        newObject[object[key]] = key;
+	    }
+		
+	    return newObject;
+	},
 
 	array_unique: function(ar)
 	{
@@ -2441,6 +2485,24 @@ BX.util = {
 			h = screen.height;
 		}
 		return window.open(url, '', 'status=no,scrollbars=yes,resizable=yes,width='+width+',height='+height+',top='+Math.floor((h - height)/2-14)+',left='+Math.floor((w - width)/2-5));
+	},
+	
+	shuffle: function(array) 
+	{
+		var temporaryValue, randomIndex;
+		var currentIndex = array.length;
+		
+		while (0 !== currentIndex) 
+		{
+			randomIndex = Math.floor(Math.random() * currentIndex);
+			currentIndex -= 1;
+			
+			temporaryValue = array[currentIndex];
+			array[currentIndex] = array[randomIndex];
+			array[randomIndex] = temporaryValue;
+		}
+		
+		return array;
 	},
 
 	// BX.util.objectSort(object, sortBy, sortDir) - Sort object by property
@@ -3364,142 +3426,29 @@ BX.getCDNPath = function(path)
 
 BX.loadScript = function(script, callback, doc)
 {
-	if (!BX.isReady)
+	if (BX.type.isString(script))
 	{
-		var _args = arguments;
-		BX.ready(function() {
-			BX.loadScript.apply(this, _args);
-		});
-		return;
+		script = [script];
 	}
 
-	doc = doc || document;
-
-	if (BX.type.isString(script))
-		script = [script];
-	var _callback = function()
-	{
-		return (callback && BX.type.isFunction(callback)) ? callback() : null
-	};
-	var load_js = function(ind)
-	{
-		if(ind >= script.length)
-			return _callback();
-
-		if(!!script[ind])
-		{
-			var fileSrc = BX.getJSPath(script[ind]);
-			if(isScriptLoaded(fileSrc))
-			{
-				load_js(++ind);
-			}
-			else
-			{
-				var oHead = doc.getElementsByTagName("head")[0] || doc.documentElement;
-				var oScript = doc.createElement('script');
-				oScript.src = script[ind];
-
-				var bLoaded = false;
-				oScript.onload = oScript.onreadystatechange = function()
-				{
-					if (!bLoaded && (!oScript.readyState || oScript.readyState == "loaded" || oScript.readyState == "complete"))
-					{
-						bLoaded = true;
-						setTimeout(function (){load_js(++ind);}, 50);
-
-						oScript.onload = oScript.onreadystatechange = null;
-						if (oHead && oScript.parentNode)
-						{
-							oHead.removeChild(oScript);
-						}
-					}
-				};
-
-				jsList.push(fileSrc);
-				return oHead.insertBefore(oScript, oHead.firstChild);
-			}
-		}
-		else
-		{
-			load_js(++ind);
-		}
-		return null;
-	};
-
-	load_js(0);
+	return BX.load(script, callback, doc);
 };
 
-BX.loadCSS = function(arCSS, doc, win)
+BX.loadCSS = function(css, doc, win)
 {
-	if (!BX.isReady)
+	if (BX.type.isString(css))
 	{
-		var _args = arguments;
-		BX.ready(function() {
-			BX.loadCSS.apply(this, _args);
+		css = [css];
+	}
+
+	if (BX.type.isArray(css))
+	{
+		css = css.map(function(url) {
+			return { url: url, ext: "css" }
 		});
-		return null;
+
+		BX.load(css, null, doc);
 	}
-
-	var bSingle = false;
-	if (BX.type.isString(arCSS))
-	{
-		bSingle = true;
-		arCSS = [arCSS];
-	}
-
-	var i,
-		l = arCSS.length,
-		lnk = null,
-		pLnk = [];
-
-	if (l == 0)
-		return null;
-
-	doc = doc || document;
-	win = win || window;
-
-	if (!win.bxhead)
-	{
-		var heads = doc.getElementsByTagName('HEAD');
-		win.bxhead = heads[0];
-
-		if (!win.bxhead)
-		{
-			return null;
-		}
-	}
-
-	for (i = 0; i < l; i++)
-	{
-		var _check = BX.getCSSPath(arCSS[i]);
-		if (isCssLoaded(_check))
-		{
-			continue;
-		}
-
-		lnk = document.createElement('LINK');
-		lnk.href = arCSS[i];
-		lnk.rel = 'stylesheet';
-		lnk.type = 'text/css';
-
-		var templateLink = getTemplateLink(win.bxhead);
-		if (templateLink !== null)
-		{
-			templateLink.parentNode.insertBefore(lnk, templateLink);
-		}
-		else
-		{
-			win.bxhead.appendChild(lnk);
-		}
-
-		pLnk.push(lnk);
-		cssList.push(_check);
-	}
-
-	if (bSingle)
-		return lnk;
-
-	return pLnk;
 };
 
 BX.load = function(items, callback, doc)
@@ -3563,19 +3512,6 @@ function loadAsync(items, callback, doc)
 		return true;
 	}
 
-	function one(callback)
-	{
-		callback = callback || BX.DoNothing;
-
-		if (callback._done)
-		{
-			return;
-		}
-
-		callback();
-		callback._done = 1;
-	}
-
 	if (!BX.type.isFunction(callback))
 	{
 		callback = null;
@@ -3589,6 +3525,7 @@ function loadAsync(items, callback, doc)
 		itemSet[item.name] = item;
 	}
 
+	var callbackWasCalled = false;
 	for (i = 0; i < items.length; i++)
 	{
 		item = items[i];
@@ -3596,7 +3533,12 @@ function loadAsync(items, callback, doc)
 		load(item, function () {
 			if (allLoaded(itemSet))
 			{
-				one(callback);
+				if (!callbackWasCalled)
+				{
+					callback && callback();
+					callbackWasCalled = true;
+				}
+
 			}
 		}, doc);
 	}
@@ -3754,11 +3696,11 @@ function loadAsset(asset, callback, doc)
 
 	if (ext === "css")
 	{
-		cssList.push(BX.getCSSPath(asset.url));
+		cssList.push(normalizeMinUrl(normalizeUrl(asset.url)));
 	}
 	else
 	{
-		jsList.push(BX.getJSPath(asset.url));
+		jsList.push(normalizeMinUrl(normalizeUrl(asset.url)));
 	}
 
 	var templateLink = null;
@@ -3802,10 +3744,38 @@ function getAsset(item)
 	return asset;
 }
 
+function normalizeUrl(url)
+{
+	if (!BX.type.isNotEmptyString(url))
+	{
+		return "";
+	}
+
+	url = BX.getJSPath(url);
+	url = url.replace(/\?[0-9]*$/, "");
+
+	return url;
+}
+
+function normalizeMinUrl(url)
+{
+	if (!BX.type.isNotEmptyString(url))
+	{
+		return "";
+	}
+
+	var minPos = url.indexOf(".min");
+	return minPos >= 0 ? url.substr(0, minPos) + url.substr(minPos + 4) : url;
+}
+
 function isCssLoaded(fileSrc)
 {
 	initCssList();
-	return (BX.util.in_array(BX.getCSSPath(fileSrc), cssList));
+
+	fileSrc = normalizeUrl(fileSrc);
+	var fileSrcMin = normalizeMinUrl(fileSrc);
+
+	return (fileSrc !== fileSrcMin && BX.util.in_array(fileSrcMin, cssList)) || BX.util.in_array(fileSrc, cssList);
 }
 
 function initCssList()
@@ -3821,7 +3791,8 @@ function initCssList()
 				var href = linksCol[i].getAttribute('href');
 				if (BX.type.isNotEmptyString(href))
 				{
-					cssList.push(BX.getCSSPath(href));
+					href = normalizeMinUrl(normalizeUrl(href));
+					cssList.push(href);
 				}
 			}
 		}
@@ -3858,7 +3829,11 @@ function getTemplateLink(head)
 function isScriptLoaded(fileSrc)
 {
 	initJsList();
-	return BX.util.in_array(BX.getJSPath(fileSrc), jsList);
+
+	fileSrc = normalizeUrl(fileSrc);
+	var fileSrcMin = normalizeMinUrl(fileSrc);
+
+	return (fileSrc !== fileSrcMin && BX.util.in_array(fileSrcMin, jsList)) || BX.util.in_array(fileSrc, jsList);
 }
 
 function initJsList()
@@ -3875,7 +3850,8 @@ function initJsList()
 
 				if (BX.type.isNotEmptyString(src))
 				{
-					jsList.push(BX.getJSPath(src));
+					src = normalizeMinUrl(normalizeUrl(src));
+					jsList.push(src);
 				}
 			}
 		}
@@ -4948,6 +4924,7 @@ function _checkNode(obj, params)
 				break;
 
 				case 'attr':
+				case 'attrs':
 				case 'attribute':
 					if (BX.type.isString(params[i]))
 					{
@@ -4989,6 +4966,7 @@ function _checkNode(obj, params)
 				break;
 
 				case 'property':
+				case 'props':
 					if (BX.type.isString(params[i]))
 					{
 						if (!obj[params[i]])
@@ -5209,7 +5187,7 @@ BX.LazyLoad = {
 		var image = null;
 		var isImageVisible = false;
 
-		checkOwnVisibility = checkOwnVisibility === false ? false : true;
+		checkOwnVisibility = (checkOwnVisibility !== false);
 		for (var i = 0, length = this.images.length; i < length; i++)
 		{
 			image = this.images[i];

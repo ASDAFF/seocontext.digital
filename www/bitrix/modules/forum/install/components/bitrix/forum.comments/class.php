@@ -218,7 +218,7 @@ final class ForumCommentsComponent extends CBitrixComponent
 			if (array_key_exists("ALLOW_EDIT_OWN_MESSAGE", $this->arParams))
 				$this->feed->setEditOwn($this->arParams["ALLOW_EDIT_OWN_MESSAGE"] == "ALL" ||
 					$this->arParams["ALLOW_EDIT_OWN_MESSAGE"] === "LAST");
-			$this->arParams["ALLOW_EDIT_OWN_MESSAGE"] = $this->feed->getEntity()->canEditOwn() ? "ALL" : "N";
+			$this->arParams["ALLOW_EDIT_OWN_MESSAGE"] = $this->feed->canEditOwn() ? "ALL" : "N";
 
 			if (!$this->errorCollection->hasErrors() && $this->feed->canRead())
 			{

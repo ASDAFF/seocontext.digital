@@ -173,7 +173,7 @@ abstract class Base
 	}
 
 	/**
-	 * @return Delivery\ExtraServices\Manager[]
+	 * @return Delivery\ExtraServices\Manager
 	 */
 	public function getExtraServices()
 	{
@@ -592,6 +592,14 @@ abstract class Base
 	}
 
 	/**
+	 * @return array
+	 */
+	public static function onGetBusinessValueGroups()
+	{
+		return array();
+	}
+
+	/**
 	 * @return bool
 	 */
 	public static function isInstalled()
@@ -661,6 +669,15 @@ abstract class Base
 	 * @return array
 	 */
 	public function getAdditionalInfoShipmentView(Shipment $shipment)
+	{
+		return array();
+	}
+
+	/**
+	 * @param Shipment $shipment
+	 * @return array
+	 */
+	public function getAdditionalInfoShipmentPublic(Shipment $shipment)
 	{
 		return array();
 	}

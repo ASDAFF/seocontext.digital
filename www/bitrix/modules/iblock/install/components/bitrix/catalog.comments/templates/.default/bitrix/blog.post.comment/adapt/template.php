@@ -1,7 +1,13 @@
 <?if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
 /** @global CMain $APPLICATION */
-CJSCore::Init(array("image"));?>
-<script>
+/** @global array $arParams */
+/** @global array $arResult */
+CJSCore::Init(array("image"));
+
+$iblockId = (isset($_REQUEST['IBLOCK_ID']) && is_string($_REQUEST['IBLOCK_ID']) ? (int)$_REQUEST['IBLOCK_ID'] : 0);
+$elementId = (isset($_REQUEST['ELEMENT_ID']) && is_string($_REQUEST['ELEMENT_ID']) ? (int)$_REQUEST['ELEMENT_ID'] : 0);
+
+?><script>
 BX.ready( function(){
 	if(BX.viewImageBind)
 	{
@@ -26,7 +32,7 @@ else
 		{
 			?>
 				var cc;
-				if(document.cookie.indexOf('<?echo session_name()?>'+'=') == -1)
+				if(document.cookie.indexOf('<?echo session_name()?>'+'=') === -1)
 					cc = Math.random();
 				else
 					cc ='<?=$arResult["CaptchaCode"]?>';
@@ -131,15 +137,9 @@ else
 				<input type="hidden" name="edit_id" id="edit_id" value="">
 				<input type="hidden" name="act" id="act" value="add">
 				<input type="hidden" name="post" value="Y">
+				<input type="hidden" name="IBLOCK_ID" value="<?=$iblockId; ?>">
+				<input type="hidden" name="ELEMENT_ID" value="<?=$elementId; ?>">
 				<?
-				if(isset($_REQUEST["IBLOCK_ID"]))
-				{
-					?><input type="hidden" name="IBLOCK_ID" value="<?=(int)$_REQUEST["IBLOCK_ID"]; ?>"><?
-				}
-				if(isset($_REQUEST["ELEMENT_ID"]))
-				{
-					?><input type="hidden" name="ELEMENT_ID" value="<?=(int)$_REQUEST["ELEMENT_ID"]; ?>"><?
-				}
 				if(isset($_REQUEST["SITE_ID"]))
 				{
 					?><input type="hidden" name="SITE_ID" value="<?=htmlspecialcharsbx($_REQUEST["SITE_ID"]); ?>"><?
@@ -246,6 +246,9 @@ else
 		$prevTab = 0;
 		function ShowComment($comment, $tabCount=0, $tabSize=2.5, $canModerate=false, $User=Array(), $use_captcha=false, $bCanUserComment=false, $errorComment=false, $arParams = array())
 		{
+			$iblockId = (isset($_REQUEST['IBLOCK_ID']) && is_string($_REQUEST['IBLOCK_ID']) ? (int)$_REQUEST['IBLOCK_ID'] : 0);
+			$elementId = (isset($_REQUEST['ELEMENT_ID']) && is_string($_REQUEST['ELEMENT_ID']) ? (int)$_REQUEST['ELEMENT_ID'] : 0);
+
 			$comment["urlToAuthor"] = "";
 			$comment["urlToBlog"] = "";
 
@@ -506,9 +509,7 @@ else
 							<span class="blog-vert-separator"></span>
 							<?
 						}
-						?>
-						<span class="blog-comment-link"><a href="#<?=$comment["ID"]?>"><?=GetMessage("B_B_MS_LINK")?></a></span>
-						<?
+
 						if($comment["CAN_EDIT"] == "Y")
 						{
 							?>
@@ -539,9 +540,9 @@ else
 							<span class="blog-vert-separator"></span>
 							<span class="blog-comment-show">
 								<?if($arParams["AJAX_POST"] == "Y"):?>
-									<a href="javascript:void(0)" onclick="return hideShowComment('<?=$comment["urlToHide"]."&".bitrix_sessid_get()?>&IBLOCK_ID=<?=$_REQUEST["IBLOCK_ID"]?>&ELEMENT_ID=<?=$_REQUEST["ELEMENT_ID"]?>', '<?=$comment["ID"]?>');" title="<?=GetMessage("BPC_MES_HIDE")?>">
+									<a href="javascript:void(0)" onclick="return hideShowComment('<?=$comment["urlToHide"]."&".bitrix_sessid_get()?>&IBLOCK_ID=<?=$iblockId; ?>&ELEMENT_ID=<?=$elementId; ?>', '<?=$comment["ID"]?>');" title="<?=GetMessage("BPC_MES_HIDE")?>">
 								<?else:?>
-									<a href="<?=$comment["urlToHide"]."&".bitrix_sessid_get()?>&IBLOCK_ID=<?=$_REQUEST["IBLOCK_ID"]?>&ELEMENT_ID=<?=$_REQUEST["ELEMENT_ID"]?>" title="<?=GetMessage("BPC_MES_HIDE")?>">
+									<a href="<?=$comment["urlToHide"]."&".bitrix_sessid_get()?>&IBLOCK_ID=<?=$iblockId; ?>&ELEMENT_ID=<?=$elementId; ?>" title="<?=GetMessage("BPC_MES_HIDE")?>">
 								<?endif;?>
 								<?=GetMessage("BPC_MES_HIDE")?></a></span>
 							<?
@@ -552,9 +553,9 @@ else
 							<span class="blog-vert-separator"></span>
 							<span class="blog-comment-delete">
 								<?if($arParams["AJAX_POST"] == "Y"):?>
-									<a href="javascript:void(0)" onclick="if(confirm('<?=GetMessage("BPC_MES_DELETE_POST_CONFIRM")?>')) deleteComment('<?=$comment["urlToDelete"]."&".bitrix_sessid_get()?>&IBLOCK_ID=<?=$_REQUEST["IBLOCK_ID"]?>&ELEMENT_ID=<?=$_REQUEST["ELEMENT_ID"]?>', '<?=$comment["ID"]?>');" title="<?=GetMessage("BPC_MES_DELETE")?>">
+									<a href="javascript:void(0)" onclick="if(confirm('<?=GetMessage("BPC_MES_DELETE_POST_CONFIRM")?>')) deleteComment('<?=$comment["urlToDelete"]."&".bitrix_sessid_get()?>&IBLOCK_ID=<?=$iblockId; ?>&ELEMENT_ID=<?=$elementId; ?>', '<?=$comment["ID"]?>');" title="<?=GetMessage("BPC_MES_DELETE")?>">
 								<?else:?>
-									<a href="javascript:if(confirm('<?=GetMessage("BPC_MES_DELETE_POST_CONFIRM")?>')) window.location='<?=$comment["urlToDelete"]."&".bitrix_sessid_get()?>&IBLOCK_ID=<?=$_REQUEST["IBLOCK_ID"]?>&ELEMENT_ID=<?=$_REQUEST["ELEMENT_ID"]?>'" title="<?=GetMessage("BPC_MES_DELETE")?>">
+									<a href="javascript:if(confirm('<?=GetMessage("BPC_MES_DELETE_POST_CONFIRM")?>')) window.location='<?=$comment["urlToDelete"]."&".bitrix_sessid_get()?>&IBLOCK_ID=<?=$iblockId; ?>&ELEMENT_ID=<?=$elementId; ?>'" title="<?=GetMessage("BPC_MES_DELETE")?>">
 								<?endif;?>
 								<?=GetMessage("BPC_MES_DELETE")?></a></span>
 							<?
@@ -607,9 +608,9 @@ else
 						$level = 0;
 						$commentPreview = Array(
 								"ID" => "preview",
-								"TitleFormated" => htmlspecialcharsEx($_POST["subject"]),
-								"TextFormated" => $_POST["commentFormated"],
-								"AuthorName" => $User["NAME"],
+								"TitleFormated" => htmlspecialcharsbx($_POST["subject"]),
+								"TextFormated" => htmlspecialcharsbx($_POST["commentFormated"]),
+								"AuthorName" => htmlspecialcharsbx($User["NAME"]),
 								"DATE_CREATE" => GetMessage("B_B_MS_PREVIEW_TITLE"),
 							);
 						ShowComment($commentPreview, (IntVal($_POST["edit_id"]) == $comment["ID"] && $comment["CAN_EDIT"] == "Y") ? $level : ($level+1), 2.5, false, Array(), false, false, false, $arParams);

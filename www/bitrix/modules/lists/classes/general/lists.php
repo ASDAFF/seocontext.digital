@@ -1,6 +1,12 @@
 <?
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Loader;
+use Bitrix\Disk\Uf\FileUserType;
+use Bitrix\Disk\AttachedObject;
+use Bitrix\Disk\File;
+use Bitrix\Main\ArgumentException;
+use Bitrix\Main\Application;
+use Bitrix\Main\Config\Option;
 
 Loc::loadMessages(__FILE__);
 
@@ -259,7 +265,7 @@ class CLists
 
 	function OnAfterIBlockDelete($iblock_id)
 	{
-		if(CModule::includeModule('bizproc'))
+		if(CModule::includeModule('bizproc') && CBPRuntime::isFeatureEnabled())
 			BizProcDocument::deleteDataIblock($iblock_id);
 	}
 
@@ -381,7 +387,7 @@ class CLists
 		}
 	}
 
-    public static function getLiveFeed($iblockId)
+	public static function getLiveFeed($iblockId)
 	{
 		global $DB;
 		$iblockId = intval($iblockId);
@@ -423,7 +429,7 @@ class CLists
 
 	public function OnAfterIBlockElementDelete($fields)
 	{
-		if(CModule::includeModule('bizproc'))
+		if(CModule::includeModule('bizproc') && CBPRuntime::isFeatureEnabled())
 		{
 			$errors = array();
 
@@ -469,7 +475,7 @@ class CLists
 	 */
 	public static function completeWorkflow($workflowId, $iblockType, $elementId, $iblockId, $action)
 	{
-		if(!Loader::includeModule('bizproc'))
+		if(!Loader::includeModule('bizproc') || !CBPRuntime::isFeatureEnabled())
 		{
 			return Loc::getMessage('LISTS_MODULE_BIZPROC_NOT_INSTALLED');
 		}
@@ -592,7 +598,7 @@ class CLists
 	/**
 	 * @param $iblockId
 	 * @param array $errors - an array of errors that occurred array(0 => 'error message')
-	 * @return bool
+	 * @return bool or int
 	 */
 	public static function copyIblock($iblockId, array &$errors)
 	{
@@ -619,6 +625,10 @@ class CLists
 		{
 			$iblock['PICTURE'] = CFile::makeFileArray($iblock['PICTURE']);
 		}
+		if(!empty($iblock['CODE']))
+		{
+			$iblock['CODE'] = $iblock['CODE'].'_copy';
+		}
 		$iblockObject = new CIBlock;
 		if(!$iblockObject)
 		{
@@ -626,7 +636,14 @@ class CLists
 			return false;
 		}
 		$copyIblockId = $iblockObject->add($iblock);
-		if(!$copyIblockId)
+		if($copyIblockId)
+		{
+			global $CACHE_MANAGER;
+			$CACHE_MANAGER->ClearByTag('lists_list_'.$copyIblockId);
+			$CACHE_MANAGER->ClearByTag('lists_list_any');
+			$CACHE_MANAGER->CleanDir('menu');
+		}
+		else
 		{
 			$errors[] = Loc::getMessage('LISTS_COPY_IBLOCK_ERROR_GET_DATA');
 			return false;
@@ -774,7 +791,7 @@ class CLists
 		/* Copy Workflow Template */
 		// Make a copy workflow templates
 
-		return true;
+		return $copyIblockId;
 	}
 
 	public static function checkChangedFields($iblockId, $elementId, array $select, array $elementFields, array $elementProperty)
@@ -988,5 +1005,701 @@ class CLists
 			.$iblockId, false, "FILE: ".__FILE__."<br> LINE: ".__LINE__);
 	}
 
+	/**
+	 * Method get iblock attached crm.
+	 *
+	 * @param string $entityType Type entity.
+	 * @return array List iblock data array(iblockId => IblockName).
+	 * @throws \Bitrix\Main\ArgumentException
+	 */
+	public static function getIblockAttachedCrm($entityType)
+	{
+		$cacheTime = defined('BX_COMP_MANAGED_CACHE') ? 3153600 : 3600*4;
+		$cacheId = 'lists-crm-attached-'.strtolower($entityType);
+		$cacheDir = '/lists/crm/attached/'.strtolower($entityType).'/';
+		$cache = new CPHPCache;
+		if($cache->initCache($cacheTime, $cacheId, $cacheDir))
+		{
+			$listIblock = $cache->getVars();
+		}
+		else
+		{
+			$cache->startDataCache();
+			$listIblock = array();
+			$listProperty = array();
+			$propertyObject = Bitrix\Iblock\PropertyTable::getList(array(
+				'select' => array('ID', 'IBLOCK_ID', 'USER_TYPE_SETTINGS'),
+				'filter' => array(
+					'=ACTIVE' => 'Y',
+					'=USER_TYPE' => 'ECrm',
+				)
+			));
+			while($property = $propertyObject->fetch())
+			{
+				$property['USER_TYPE_SETTINGS'] = unserialize($property['USER_TYPE_SETTINGS']);
+				if(empty($property['USER_TYPE_SETTINGS']['VISIBLE']))
+					$property['USER_TYPE_SETTINGS']['VISIBLE'] = 'Y';
+				if($property['USER_TYPE_SETTINGS']['VISIBLE'] == 'Y'
+					&& !empty($property['USER_TYPE_SETTINGS'][$entityType]))
+				{
+					if($property['USER_TYPE_SETTINGS'][$entityType] == 'Y')
+					{
+						$listProperty[$property['IBLOCK_ID']][] = $property['ID'];
+					}
+				}
+			}
+			foreach($listProperty as $iblockId => $listPropertyId)
+			{
+				$iblockObject = Bitrix\Iblock\IblockTable::getList(array(
+					'select' => array('ID', 'NAME', 'IBLOCK_TYPE_ID'),
+					'filter' => array('=ACTIVE' => 'Y', '=ID' => $iblockId)
+				));
+				if($iblock = $iblockObject->fetch())
+				{
+					if($iblock['IBLOCK_TYPE_ID'] == 'CRM_PRODUCT_CATALOG')
+						continue;
+					$listIblock[$iblockId] = $iblock['NAME'];
+				}
+			}
+			$cache->endDataCache($listIblock);
+		}
+
+		return $listIblock;
+	}
+
+	protected static function deleteListsCache($cacheDir)
+	{
+		$cache = new CPHPCache;
+		$cache->cleanDir($cacheDir);
+	}
+
+	public static function OnAfterIBlockPropertyAdd($fields)
+	{
+		if(!empty($fields['USER_TYPE']) && $fields['USER_TYPE'] == 'ECrm')
+		{
+			if(!empty($fields['USER_TYPE_SETTINGS']))
+			{
+				if(!is_array($fields['USER_TYPE_SETTINGS']))
+					$fields['USER_TYPE_SETTINGS'] = unserialize($fields['USER_TYPE_SETTINGS']);
+				if(is_array($fields['USER_TYPE_SETTINGS']))
+				{
+					foreach($fields['USER_TYPE_SETTINGS'] as $entityType => $marker)
+					{
+						if($marker == 'Y')
+						 self::deleteListsCache('/lists/crm/attached/'.strtolower($entityType).'/');
+					}
+				}
+			}
+			else
+			{
+				self::deleteListsCache('/lists/crm/attached/');
+			}
+		}
+	}
+
+	public static function OnAfterIBlockPropertyUpdate($fields)
+	{
+		if(!empty($fields['USER_TYPE']) && $fields['USER_TYPE'] == 'ECrm')
+		{
+			if(!empty($fields['USER_TYPE_SETTINGS']))
+			{
+				if(!is_array($fields['USER_TYPE_SETTINGS']))
+					$fields['USER_TYPE_SETTINGS'] = unserialize($fields['USER_TYPE_SETTINGS']);
+				if(is_array($fields['USER_TYPE_SETTINGS']))
+				{
+					foreach($fields['USER_TYPE_SETTINGS'] as $entityType => $marker)
+					{
+						if($marker == 'Y')
+							self::deleteListsCache('/lists/crm/attached/'.strtolower($entityType).'/');
+					}
+				}
+			}
+			else
+			{
+				self::deleteListsCache('/lists/crm/attached/');
+			}
+		}
+	}
+
+	public static function OnAfterIBlockPropertyDelete($fields)
+	{
+		if(!empty($fields['USER_TYPE']) && $fields['USER_TYPE'] == 'ECrm')
+		{
+			if(!empty($fields['USER_TYPE_SETTINGS']))
+			{
+				if(!is_array($fields['USER_TYPE_SETTINGS']))
+					$fields['USER_TYPE_SETTINGS'] = unserialize($fields['USER_TYPE_SETTINGS']);
+				if(is_array($fields['USER_TYPE_SETTINGS']))
+				{
+					foreach($fields['USER_TYPE_SETTINGS'] as $entityType => $marker)
+					{
+						if($marker == 'Y')
+							self::deleteListsCache('/lists/crm/attached/'.strtolower($entityType).'/');
+					}
+				}
+			}
+			else
+			{
+				self::deleteListsCache('/lists/crm/attached/');
+			}
+		}
+	}
+
+	public static function getChildSection($baseSectionId, array $listSection, array &$listChildSection)
+	{
+		$baseSectionId = intval($baseSectionId);
+		if(!in_array($baseSectionId, $listChildSection))
+			$listChildSection[] = $baseSectionId;
+
+		foreach($listSection as $sectionId => $section)
+		{
+			if($section['PARENT_ID'] == $baseSectionId)
+			{
+				$listChildSection[] = $sectionId;
+				self::getChildSection($sectionId, $listSection, $listChildSection);
+			}
+		}
+	}
+
+	public static function isAssociativeArray($array)
+	{
+		if (!is_array($array) || empty($array))
+			return false;
+		return array_keys($array) !== range(0, count($array) - 1);
+	}
+
+	/**
+	 * Handler OnBeforeIBlockElementAdd.
+	 *
+	 * @param array $fields Current values of the elements.
+	 * @return bool
+	 */
+	public static function OnBeforeIBlockElementAdd(&$fields)
+	{
+		$availableIblockTypeId = array("lists", "bitrix_processes", "lists_socnet");
+		$queryObject = CIBlock::getList(array(), array("ID" => $fields["IBLOCK_ID"]));
+		if($iblock = $queryObject->fetch())
+		{
+			if(in_array($iblock["IBLOCK_TYPE_ID"], $availableIblockTypeId))
+			{
+				$fields["SEARCHABLE_CONTENT"] = self::createSeachableContent($fields);
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * Handler OnBeforeIBlockElementUpdate.
+	 *
+	 * @param array $fields Current values of the elements.
+	 * @return bool
+	 */
+	public static function OnBeforeIBlockElementUpdate(&$fields)
+	{
+		$availableIblockTypeId = array("lists", "bitrix_processes", "lists_socnet");
+		$queryObject = CIBlock::getList(array(), array("ID" => $fields["IBLOCK_ID"]));
+		if($iblock = $queryObject->fetch())
+		{
+			if(in_array($iblock["IBLOCK_TYPE_ID"], $availableIblockTypeId))
+			{
+				$fields["SEARCHABLE_CONTENT"] = self::createSeachableContent($fields);
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * Agent function. Run rebuild seachable content.
+	 *
+	 * @param $iblockId
+	 * @return bool
+	 */
+	public static function runRebuildSeachableContent($iblockId)
+	{
+		$rebuildedData = Option::get("lists", "rebuild_seachable_content");
+		$rebuildedData = unserialize($rebuildedData);
+		if(!is_array($rebuildedData))
+			$rebuildedData = array();
+		if(!isset($rebuildedData[$iblockId]))
+		{
+			return '';
+		}
+
+		$limit = 50;
+		$offset = $rebuildedData[$iblockId];
+		$rebuildedElementCount = CLists::rebuildSeachableContent($iblockId, $limit, $offset);
+
+		if($rebuildedElementCount < $limit)
+		{
+			unset($rebuildedData[$iblockId]);
+			Option::set("lists", "rebuild_seachable_content", serialize($rebuildedData));
+			return '';
+		}
+		else
+		{
+			$rebuildedData[$iblockId] = $offset + $rebuildedElementCount;
+			Option::set("lists", "rebuild_seachable_content", serialize($rebuildedData));
+			return 'CLists::runRebuildSeachableContent('.$iblockId.');';
+		}
+	}
+
+	/**
+	 * Method rebuild seachable content taking into account the current values of the elements.
+	 *
+	 * @param int $iblockId Iblock id.
+	 * @param int $limit Restricts the number of results.
+	 * @param int $offset Specifies the number of rows to skip, before starting to return rows from the query expression.
+	 * @return int Number of processed items.
+	 * @throws ArgumentException
+	 */
+	public static function rebuildSeachableContent($iblockId, $limit = 100, $offset = 0)
+	{
+		$iblockId = intval($iblockId);
+		if(!$iblockId)
+			throw new ArgumentException(Loc::getMessage("LISTS_REQUIRED_PARAMETER",array("#parameter#" => "iblockId")));
+
+		$connection = Application::getInstance()->getConnection();
+		$iblockId = $connection->getSqlHelper()->forSql($iblockId);
+		$offset = intval($offset);
+		$limit = intval($limit);
+		$sqlString = "SELECT ID FROM b_iblock_element WHERE IBLOCK_ID=".$iblockId." ORDER BY ID ASC LIMIT ".$limit." OFFSET ".$offset;
+		$queryObject = $connection->query($sqlString);
+		$listElement = $queryObject->fetchAll();
+		$rebuildedElementCount = $queryObject->getSelectedRowsCount();
+		$listElementId = array();
+		foreach($listElement as $element)
+			$listElementId[] = $element['ID'];
+
+		$listElementValue = !empty($listElementId) ? self::getListElementValue($iblockId, $listElementId) : array();
+
+		$listSeachableContent = array();
+		foreach($listElementValue as $elementId => $elementData)
+		{
+			$listSeachableContent[$elementId] = self::createSeachableContent($elementData);
+		}
+
+		global $DB;
+		foreach($listSeachableContent as $elementId => $seachableContent)
+		{
+			$strUpdate = $DB->prepareUpdate("b_iblock_element", array("SEARCHABLE_CONTENT" => $seachableContent));
+			$strSql = "UPDATE b_iblock_element SET ".$strUpdate." WHERE ID=".intval($elementId);
+			$DB->query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+		}
+
+		return $rebuildedElementCount;
+	}
+
+	private static function getListElementValue($iblockId, array $listElementId)
+	{
+		$iblockId = intval($iblockId);
+		$listElementValue = array();
+		$listObject = new CList($iblockId);
+		$queryObject = CIBlockElement::getList(array(), array("IBLOCK_ID" => $iblockId,
+			"=ID" => $listElementId), false, false, array('*'));
+		while($queryResult = $queryObject->getNextElement())
+		{
+			$element = $queryResult->getFields();
+			if(is_array($element))
+			{
+				foreach($element as $fieldId => $fieldValue)
+				{
+					if(!$listObject->is_field($fieldId))
+						continue;
+					$listElementValue[$element["ID"]][$fieldId] = $element[$fieldId];
+				}
+				$query = CIblockElement::getPropertyValues($iblockId, array("ID" => $element["ID"]));
+				if($propertyValues = $query->fetch())
+				{
+					$listElementValue[$element["ID"]]["PROPERTY_VALUES"] = array();
+					foreach($propertyValues as $id => $values)
+					{
+						if($id == "IBLOCK_ELEMENT_ID")
+							continue;
+						$listElementValue[$element["ID"]]["PROPERTY_VALUES"][$id] = $values;
+					}
+				}
+			}
+		}
+		return $listElementValue;
+	}
+
+	private static function createSeachableContent(array $fields)
+	{
+		$searchableContent = $fields["NAME"];
+
+
+		if(!empty($fields["DATE_CREATE"]))
+		{
+			$searchableContent .= "\r\n".$fields["DATE_CREATE"];
+		}
+		if(!empty($fields["TIMESTAMP_X"]))
+		{
+			$searchableContent .= "\r\n".$fields["TIMESTAMP_X"];
+		}
+		if(!empty($fields["ACTIVE_FROM"]))
+		{
+			$searchableContent .= "\r\n".$fields["ACTIVE_FROM"];
+		}
+		if(!empty($fields["ACTIVE_TO"]))
+		{
+			$searchableContent .= "\r\n".$fields["ACTIVE_TO"];
+		}
+		if(!empty($fields["PREVIEW_PICTURE"]))
+		{
+			$fileData = CFile::getFileArray($fields["PREVIEW_PICTURE"]);
+			if($fileData)
+			{
+				$searchableContent .= "\r\n".$fileData["FILE_NAME"];
+			}
+		}
+		if(!empty($fields["DETAIL_PICTURE"]))
+		{
+			$fileData = CFile::getFileArray($fields["DETAIL_PICTURE"]);
+			if($fileData)
+			{
+				$searchableContent .= "\r\n".$fileData["FILE_NAME"];
+			}
+		}
+		if(!empty($fields["CREATED_BY"]))
+		{
+			$user = new CUser();
+			$userDetails = $user->getByID($fields["CREATED_BY"])->fetch();
+			if(is_array($userDetails))
+			{
+				$siteNameFormat = CSite::getNameFormat(false);
+				$searchableContent .= "\r\n".CUser::formatName($siteNameFormat, $userDetails, true, false);
+			}
+		}
+		if(!empty($fields["MODIFIED_BY"]))
+		{
+			$user = new CUser();
+			$userDetails = $user->getByID($fields["MODIFIED_BY"])->fetch();
+			if(is_array($userDetails))
+			{
+				$siteNameFormat = CSite::getNameFormat(false);
+				$searchableContent .= "\r\n".CUser::formatName($siteNameFormat, $userDetails, true, false);
+			}
+		}
+		if(!empty($fields["PREVIEW_TEXT"]))
+		{
+			if(isset($fields["PREVIEW_TEXT_TYPE"]) && $fields["PREVIEW_TEXT_TYPE"] == "html")
+				$searchableContent .= "\r\n".HTMLToTxt($fields["PREVIEW_TEXT"]);
+			else
+				$searchableContent .= "\r\n".$fields["PREVIEW_TEXT"];
+		}
+		if(!empty($fields["DETAIL_TEXT"]))
+		{
+			if(isset($fields["DETAIL_TEXT_TYPE"]) && $fields["DETAIL_TEXT_TYPE"] == "html")
+				$searchableContent .= "\r\n".HTMLToTxt($fields["DETAIL_TEXT"]);
+			else
+				$searchableContent .= "\r\n".$fields["DETAIL_TEXT"];
+		}
+		if(!empty($fields["PROPERTY_VALUES"]) && is_array($fields["PROPERTY_VALUES"]))
+		{
+			$searchableContent .= self::createSeachableContentForProperty($fields);
+		}
+
+		$searchableContent = ToUpper($searchableContent);
+
+		return $searchableContent;
+	}
+
+	private static function createSeachableContentForProperty($fields)
+	{
+		$searchableContent = '';
+
+		global $DB;
+		$properties = array();
+		foreach($fields["PROPERTY_VALUES"] as $propertyId => $valueData)
+		{
+			if(!$valueData)
+				continue;
+			$properties[$propertyId] = array();
+			if(is_array($valueData))
+			{
+				foreach($valueData as $valueId => $value)
+				{
+					if(is_object($value))
+						continue;
+					if(isset($value["VALUE"]))
+					{
+						if(is_array($value["VALUE"]))
+						{
+							if(!empty($value["VALUE"]))
+								$properties[$propertyId][] = $value["VALUE"];
+						}
+						else
+						{
+							if(strlen($value["VALUE"]) > 0)
+								$properties[$propertyId][] = $value["VALUE"];
+						}
+					}
+					else
+					{
+						if(is_array($value))
+						{
+							foreach($value as $v)
+							{
+								if(strlen($v) > 0)
+									$properties[$propertyId][] = $v;
+							}
+						}
+						else
+						{
+							if(strlen($value) > 0)
+								$properties[$propertyId][] = $value;
+						}
+					}
+				}
+			}
+			else
+			{
+				$properties[$propertyId][] = $valueData;
+			}
+
+			$queryObject = CIBlockProperty::getById($propertyId);
+			if($property = $queryObject->fetch())
+			{
+				$propertyValues = array();
+				if(!empty($property["USER_TYPE"]))
+				{
+					switch($property["USER_TYPE"])
+					{
+						case "Date":
+						case "DateTime":
+						{
+							$format = "FULL";
+							if($property["USER_TYPE"] == "Date")
+								$format = "SHORT";
+							foreach($properties[$propertyId] as $value)
+							{
+								try
+								{
+									$date = new Bitrix\Main\Type\DateTime($value);
+									$propertyValues[] = $date->format($DB->dateFormatToPHP(CSite::getDateFormat($format)));
+								}
+								catch (Exception $ex)
+								{
+									$propertyValues[] = $value;
+								}
+							}
+							break;
+						}
+						case "HTML":
+						{
+							foreach($properties[$propertyId] as $value)
+							{
+								if(is_string($value))
+								{
+									$unserialize = unserialize($value);
+									if($unserialize)
+										$value = $unserialize;
+								}
+								if(strlen(trim($value["TEXT"])) <= 0)
+									continue;
+								if(isset($value["TYPE"]))
+								{
+									$value["TYPE"] = strtoupper($value["TYPE"]);
+									if($value["TYPE"] == "HTML")
+										$propertyValues[] = HTMLToTxt($value["TEXT"]);
+								}
+							}
+							break;
+						}
+						case "EList":
+						{
+							if(!empty($properties[$propertyId]))
+							{
+								$queryObject = CIBlockElement::getList(array(), array("ID" => $properties[$propertyId]),
+									false, false, array('NAME'));
+								while($element = $queryObject->getNext())
+									$propertyValues[] = $element["~NAME"];
+							}
+							break;
+						}
+						case "Money":
+						case "map_yandex":
+						{
+							$propertyValues = $properties[$propertyId];
+							break;
+						}
+						case "Sequence":
+						{
+							foreach($properties[$propertyId] as $value)
+								$propertyValues[] = intval($value);
+							break;
+						}
+						case "ECrm":
+						{
+							if(Loader::includeModule("crm"))
+							{
+								foreach($properties[$propertyId] as $value)
+								{
+									$explode = explode('_', $value);
+									$type = $explode[0];
+									$typeId = CCrmOwnerType::resolveID(CCrmOwnerTypeAbbr::resolveName($type));
+									$propertyValues[] = CCrmOwnerType::getCaption($typeId, $explode[1], false);
+								}
+							}
+							break;
+						}
+						case "employee":
+						{
+							$siteNameFormat = CSite::getNameFormat(false);
+							foreach($properties[$propertyId] as $value)
+							{
+								$user = new CUser();
+								$userDetails = $user->getByID($value)->fetch();
+								if(is_array($userDetails))
+									$propertyValues[] = CUser::formatName($siteNameFormat, $userDetails,true,false);
+							}
+							break;
+						}
+						case "DiskFile":
+						{
+							if(Loader::includeModule("disk"))
+							{
+								foreach($properties[$propertyId] as $value)
+								{
+									if(!is_array($value))
+										$value = array($value);
+									foreach($value as $v)
+									{
+										if(empty($v))
+											continue;
+										list($type, $realId) = FileUserType::detectType($v);
+										if($type == FileUserType::TYPE_ALREADY_ATTACHED)
+										{
+											$attachedModel = AttachedObject::loadById($realId);
+											if($attachedModel)
+											{
+												$file = $attachedModel->getFile();
+												if($file)
+													$propertyValues[] = $file->getName();
+											}
+										}
+										else
+										{
+											$fileModel = File::loadById($realId, array('STORAGE'));
+											if($fileModel)
+												$propertyValues[] = $fileModel->getName();
+										}
+									}
+								}
+							}
+							break;
+						}
+					}
+				}
+				else
+				{
+					switch($property["PROPERTY_TYPE"])
+					{
+						case "S":
+						{
+							$propertyValues = $properties[$propertyId];
+							break;
+						}
+						case "N":
+						{
+							$propertyValues = $properties[$propertyId];
+							break;
+						}
+						case "L":
+						{
+							$queryObject = CIBlockProperty::getPropertyEnum($propertyId);
+							while($propertyEnum = $queryObject->fetch())
+							{
+								if(in_array($propertyEnum["ID"], $properties[$propertyId]))
+									$propertyValues[] = $propertyEnum["VALUE"];
+							}
+							break;
+						}
+						case "F":
+						{
+							$listPropertyIdForGetExtraValue = array();
+							foreach($properties[$propertyId] as $value)
+							{
+								if(isset($value["name"]))
+								{
+									if(!empty($value["name"]))
+									{
+										$propertyValues[] = $value["name"];
+									}
+									else
+									{
+										$listPropertyIdForGetExtraValue[] = $propertyId;
+									}
+								}
+								else
+								{
+									$fileData = CFile::getFileArray($value);
+									if($fileData)
+										$propertyValues[] = $fileData["FILE_NAME"];
+								}
+							}
+							if(!empty($fields["ID"]) && !empty($listPropertyIdForGetExtraValue))
+							{
+								$query = CIblockElement::getPropertyValues($property["IBLOCK_ID"],
+									array("ID" => $fields["ID"]), false, array("ID" => $listPropertyIdForGetExtraValue));
+								if($listExtraPropertyValues = $query->fetch())
+								{
+									foreach($listExtraPropertyValues as $id => $extraPropertyValues)
+									{
+										if($id == "IBLOCK_ELEMENT_ID")
+											continue;
+										if(is_array($extraPropertyValues))
+										{
+											foreach($extraPropertyValues as $extraPropertyValue)
+											{
+												$fileData = CFile::getFileArray($extraPropertyValue);
+												if($fileData)
+													$propertyValues[] = $fileData["FILE_NAME"];
+											}
+										}
+										else
+										{
+											$fileData = CFile::getFileArray($extraPropertyValues);
+											if($fileData)
+												$propertyValues[] = $fileData["FILE_NAME"];
+										}
+									}
+								}
+							}
+							break;
+						}
+						case "G":
+						{
+							if(!empty($properties[$propertyId]))
+							{
+								$queryObject = CIBlockSection::getList(array(),
+									array("=ID" => $properties[$propertyId]), false, array("NAME"));
+								while($section = $queryObject->getNext())
+									$propertyValues[] = $section["~NAME"];
+							}
+							break;
+						}
+						case "E":
+						{
+							if(!empty($properties[$propertyId]))
+							{
+								$queryObject = CIBlockElement::getList(array(), array("ID" => $properties[$propertyId]),
+									false, false, array('NAME'));
+								while($element = $queryObject->getNext())
+									$propertyValues[] = $element["~NAME"];
+							}
+							break;
+						}
+					}
+				}
+				foreach($propertyValues as $propertyValue)
+					$searchableContent .= "\r\n".$propertyValue;
+			}
+		}
+
+		return $searchableContent;
+	}
 }
 ?>

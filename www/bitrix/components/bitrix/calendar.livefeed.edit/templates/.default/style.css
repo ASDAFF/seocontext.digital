@@ -1157,6 +1157,11 @@
 	border-bottom: 1px solid #EFF0F1;
 	padding: 5px 0 10px 0;
 	margin-bottom: 5px;
+
+}
+
+.feed-cal-repeat-details .feed-cal-repeat-details-inner * {
+	color: #000;
 }
 
 .event-feed-rep-phrase-to {
@@ -1174,6 +1179,18 @@
 	font-size: 14px;
 	margin-top: 11px;
 	vertical-align: top;
+}
+
+.event-feed-endson-wrap{
+	display: inline-block;
+	margin: 3px 0 0 18px;
+}
+.event-feed-endson-piece{
+	display: inline-block;
+	margin-right: 8px;
+}
+.event-feed-endson-label {
+	margin-right: 6px;
 }
 
 .feed-cal-repeat-details-none {
@@ -1214,18 +1231,10 @@
 	margin: 0 20px;
 }
 
-.feed-event .feed-add-post-edit-form
-{
-	border-top: 1px solid #f0f1f2;
-}
-
 .feed-event .feed-add-post-text
 {
 	padding: 0 !important;
 }
-
-
-
 
 .feed-cal-full-day .bxec-tz-wrap{display: none;}
 .feed-event-hidden-wrap {

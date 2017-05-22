@@ -27,4 +27,6 @@ $MESS["LM_POPUP_TAB_SEARCH"] = "Search";
 $MESS["LM_POPUP_TAB_EMAIL"] = "E-mail users";
 $MESS["LM_POPUP_TAB_CRMEMAIL"] = "CRM e-mail users";
 $MESS["LM_POPUP_TAB_LAST_CRMEMAILS"] = "CRM e-mail users";
+$MESS["LM_INVITE_EMAIL_CRM_CREATE_CONTACT"] = "Create CRM contact";
+$MESS["LM_POPUP_SEARCH_NETWORK"] = "Search Bitrix24.Network";
 ?>

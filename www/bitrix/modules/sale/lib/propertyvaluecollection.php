@@ -457,10 +457,10 @@ class PropertyValueCollection
 
 	public function getGroups()
 	{
-		if (empty($this->propertyGroups))
+		if (empty($this->propertyGroups) && !empty($this->propertyGroupMap))
 		{
 			$result = OrderPropsGroupTable::getList(array(
-				'select' => array('ID', 'NAME', 'PERSON_TYPE_ID'),
+				'select' => array('ID', 'NAME', 'PERSON_TYPE_ID', 'SORT'),
 				'filter' => array('=ID' => array_keys($this->propertyGroupMap)),
 				'order'  => array('SORT' => 'ASC'),
 			));

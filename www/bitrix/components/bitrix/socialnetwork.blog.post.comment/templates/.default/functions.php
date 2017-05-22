@@ -24,8 +24,8 @@ function socialnetworkBlogPostCommentWeb(
 		"AVATAR_SIZE" => intval(array_key_exists("AVATAR_SIZE_COMMON", $arParams) ? $arParams["AVATAR_SIZE_COMMON"] : $arParams["AVATAR_SIZE"]),
 		"AVATAR_SIZE_COMMENT" => intval($arParams["AVATAR_SIZE_COMMENT"])
 	);
-	$arAvatarSizes["AVATAR_SIZE"] = ($arAvatarSizes["AVATAR_SIZE"] > 0 ? $arAvatarSizes["AVATAR_SIZE"] : 42); // reference to CBlogUser::GetUserInfoArray
-	$arAvatarSizes["AVATAR_SIZE_COMMENT"] = ($arAvatarSizes["AVATAR_SIZE_COMMENT"] > 0 ? $arAvatarSizes["AVATAR_SIZE_COMMENT"] : 42); // reference to CBlogUser::GetUserInfoArray
+	$arAvatarSizes["AVATAR_SIZE"] = ($arAvatarSizes["AVATAR_SIZE"] > 0 ? $arAvatarSizes["AVATAR_SIZE"] : 100); // reference to CBlogUser::GetUserInfoArray
+	$arAvatarSizes["AVATAR_SIZE_COMMENT"] = ($arAvatarSizes["AVATAR_SIZE_COMMENT"] > 0 ? $arAvatarSizes["AVATAR_SIZE_COMMENT"] : 100); // reference to CBlogUser::GetUserInfoArray
 	$avatarKey = "PERSONAL_PHOTO_RESIZED";
 	if ($arAvatarSizes["AVATAR_SIZE"] == $arParams["AVATAR_SIZE"])
 		$avatarKey = "PERSONAL_PHOTO_resized";
@@ -121,6 +121,8 @@ function socialnetworkBlogPostCommentWeb(
 		"ID" => $comment["ID"],
 		"NEW" => ($arParams["FOLLOW"] != "N" && $comment["NEW"] == "Y" ? "Y" : "N"),
 		"APPROVED" => ($comment["PUBLISH_STATUS"] == BLOG_PUBLISH_STATUS_PUBLISH ? "Y" : "N"),
+		"AUX" => (!empty($comment["AuxType"]) ? $comment["AuxType"] : ''),
+		"AUX_LIVE_PARAMS" => (!empty($comment["AUX_LIVE_PARAMS"]) ? $comment["AUX_LIVE_PARAMS"] : array()),
 		"POST_TIMESTAMP" => (
 			!empty($comment["DATE_CREATE_TS"])
 				? ($comment["DATE_CREATE_TS"] + $arResult["TZ_OFFSET"])
@@ -128,7 +130,7 @@ function socialnetworkBlogPostCommentWeb(
 		),
 		"AUTHOR" => array(
 			"ID" => (is_array($arUser) ? $arUser["ID"] : false),
-			"NAME" => is_array($arUser) ? $arUser["~NAME"] : '',
+			"NAME" => is_array($arUser) ? $arUser["~NAME"] : (!empty($comment["AuthorName"]) ? $comment["AuthorName"] : ''),
 			"LAST_NAME" => is_array($arUser) ? $arUser["~LAST_NAME"] : '',
 			"SECOND_NAME" => is_array($arUser) ? $arUser["~SECOND_NAME"] : '',
 			"LOGIN" => is_array($arUser) ? $arUser["~LOGIN"] : '',
@@ -138,7 +140,8 @@ function socialnetworkBlogPostCommentWeb(
 				&& isset($arUser["EXTERNAL_AUTH_ID"])
 					? $arUser["EXTERNAL_AUTH_ID"]
 					: false
-			)
+			),
+			"UF_USER_CRM_ENTITY" => is_array($arUser) && array_key_exists('UF_USER_CRM_ENTITY', $arUser) ? $arUser['UF_USER_CRM_ENTITY'] : false,
 		),
 		"FILES" => false,
 		"UF" => false,

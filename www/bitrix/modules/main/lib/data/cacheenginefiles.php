@@ -325,7 +325,7 @@ class CacheEngineFiles
 		$this->read = @filesize($fn);
 		$this->path = $fn;
 
-		if (intval($datecreate) < (mktime() - $TTL))
+		if (intval($datecreate) < (time() - $TTL))
 		{
 			if ($this->useLock)
 			{
@@ -382,15 +382,15 @@ class CacheEngineFiles
 			{
 				$contents = "<?";
 				$contents .= "\nif(\$INCLUDE_FROM_CACHE!='Y')return false;";
-				$contents .= "\n\$datecreate = '".str_pad(mktime(), 12, "0", STR_PAD_LEFT)."';";
-				$contents .= "\n\$dateexpire = '".str_pad(mktime() + intval($TTL), 12, "0", STR_PAD_LEFT)."';";
+				$contents .= "\n\$datecreate = '".str_pad(time(), 12, "0", STR_PAD_LEFT)."';";
+				$contents .= "\n\$dateexpire = '".str_pad(time() + intval($TTL), 12, "0", STR_PAD_LEFT)."';";
 				$contents .= "\n\$ser_content = '".str_replace($search, $replace, serialize($arAllVars))."';";
 				$contents .= "\nreturn true;";
 				$contents .= "\n?>";
 			}
 			else
 			{
-				$contents = "BX".str_pad(mktime(), 12, "0", STR_PAD_LEFT).str_pad(mktime() + intval($this->TTL), 12, "0", STR_PAD_LEFT);
+				$contents = "BX".str_pad(time(), 12, "0", STR_PAD_LEFT).str_pad(time() + intval($this->TTL), 12, "0", STR_PAD_LEFT);
 				$contents .= $arAllVars;
 			}
 
@@ -445,7 +445,7 @@ class CacheEngineFiles
 			|| preg_match("/^(\\d{12})/", $header, $match)
 		)
 		{
-			if (strlen($match[1]) <= 0 || doubleval($match[1]) < mktime())
+			if (strlen($match[1]) <= 0 || doubleval($match[1]) < time())
 				return true;
 		}
 

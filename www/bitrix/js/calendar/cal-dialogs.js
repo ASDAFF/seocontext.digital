@@ -306,7 +306,7 @@ JCEC.prototype.CloseAddEventDialog = function(bClosePopup)
 	}
 	if (bClosePopup === true)
 		this.oAddEventDialog.close();
-}
+};
 
 JCEC.prototype.GetAddDialogPosition = function()
 {
@@ -329,7 +329,7 @@ JCEC.prototype.GetAddDialogPosition = function()
 	{
 		return false;
 	}
-}
+};
 
 // # # #  #  #  # Edit Event Dialog  # # #  #  #  #
 JCEC.prototype.CreateEditEventPopup = function(bCheck)
@@ -364,15 +364,9 @@ JCEC.prototype.CreateEditEventPopup = function(bCheck)
 				text: EC_MESS.Save,
 				id: this.id + 'ed-save-button',
 				className: "popup-window-button-accept",
-				events: {click : function(){
-					if (_this.oEditEventDialog.CAL.bMeetingStyleFields)
-					{
-						_this.Event.SetMeetingParams({callback: function(){_this.CloseEditEventDialog(true);}, bLocationChecked: false});
-					}
-					else
-					{
-						_this.oEditEventDialog.oController.SaveForm({callback: function(){_this.CloseEditEventDialog(true);}});
-					}
+				events: {click : function()
+				{
+					_this.oEditEventDialog.oController.SaveForm({callback: function(){_this.CloseEditEventDialog(true);}});
 				}}
 			}),
 			new BX.PopupWindowButtonLink({
@@ -401,7 +395,7 @@ JCEC.prototype.CreateEditEventPopup = function(bCheck)
 	this.oEditEventDialog = D;
 };
 
-JCEC.prototype.ShowEditEventPopup = function(Params)
+JCEC.prototype.ShowEditEventPopup = function(params)
 {
 	if (!this.oEditEventDialog)
 		this.CreateEditEventPopup();
@@ -414,15 +408,16 @@ JCEC.prototype.ShowEditEventPopup = function(Params)
 		window.LHEPostForm.unsetHandler(this.id + '_event_editor');
 	}
 
-	if (!Params)
-		Params = {};
+	if (!params)
+		params = {};
 
 	var
 		_this = this, eventId,
-		bExFromSimple = Params.bExFromSimple,
 		D = this.oEditEventDialog;
 
-	D.CAL.oEvent = Params.oEvent || {};
+	D.bExFromSimple = !!params.bExFromSimple;
+
+	D.CAL.oEvent = params.oEvent || {};
 	eventId = (D.CAL.oEvent && D.CAL.oEvent.ID) ? D.CAL.oEvent.ID : 0;
 
 	if (eventId)
@@ -446,9 +441,12 @@ JCEC.prototype.ShowEditEventPopup = function(Params)
 			}),
 		function(html)
 		{
-			BX.removeClass(D.popupContainer.firstChild, 'bxc-popup-window-loader');
-			_this.showDialogRequest = false;
-			D.CAL.DOM.content.innerHTML = BX.util.trim(html);
+			if (_this.showDialogRequest)
+			{
+				BX.removeClass(D.popupContainer.firstChild, 'bxc-popup-window-loader');
+				_this.showDialogRequest = false;
+				D.CAL.DOM.content.innerHTML = BX.util.trim(html);
+			}
 		}
 	);
 
@@ -464,8 +462,13 @@ JCEC.prototype.ShowEditEventPopup = function(Params)
 		D.CAL.DOM.pTabs = BX(_this.id + '_edit_tabs');
 		cnt++;
 
-		if (!D.CAL.DOM.pTabs && cnt < 10)
-			return setTimeout(f, 100);
+		if (!D.CAL.DOM.pTabs)
+		{
+			if (cnt < 10)
+				return setTimeout(f, 100);
+			else
+				return;
+		}
 
 		if (!D.CAL.DOM.pTabs)
 		{
@@ -513,7 +516,7 @@ JCEC.prototype.ShowEditEventPopup = function(Params)
 		}
 		BX.removeCustomEvent('onAjaxSuccessFinish', f);
 
-		if (bExFromSimple)
+		if (D.bExFromSimple)
 			_this.OpenExFromSimple(true);
 	}
 	BX.addCustomEvent('onAjaxSuccessFinish', f);
@@ -535,8 +538,12 @@ JCEC.prototype.CloseEditEventDialog = function(bClosePopup)
 
 		if (this.oEditEventDialog.oController)
 			this.oEditEventDialog.oController.DestroyDestinationControls();
+
+		this.showDialogRequest = false;
+
+		this.OnResize();
 	}
-}
+};
 
 // # # #  #  #  # View Event Dialog  # # #  #  #  #
 JCEC.prototype.CreateViewEventPopup = function()
@@ -614,8 +621,10 @@ JCEC.prototype.CreateViewEventPopup = function()
 			var bxSetStatusLink = targ.getAttribute('data-bx-set-status') || targ.parentNode.getAttribute('data-bx-set-status');
 			if (!!bxSetStatusLink)
 			{
-				_this.Event.SetMeetingStatus(bxSetStatusLink == 'Y');
-				D.close();
+				if (_this.Event.SetMeetingStatus(bxSetStatusLink == 'Y'))
+				{
+					D.close();
+				}
 				return BX.PreventDefault(e || window.event);
 			}
 		}
@@ -645,7 +654,9 @@ JCEC.prototype.ShowViewEventPopup = function(oEvent)
 	D.CAL.DOM.content.innerHTML = '<div class="bxec-popup" style="width: 700px; height: 200px;"><div class="bxce-popup-loader"><div class="bxce-loader-curtain"></div></div></div>';
 	_this.oViewEventDialog.show();
 
-	var cnt = 0;
+	var
+		cnt = 0,
+		cnt2 = 0;
 
 	D.CAL.oEvent = oEvent;
 	BX.ajax.get(
@@ -730,9 +741,43 @@ JCEC.prototype.ShowViewEventPopup = function(oEvent)
 				return BX.type.isElementNode(node) && (node.getAttribute('data-bx-viewer') || node.getAttribute('data-bx-image'));
 			}
 		);
+
+		D.CAL.DOM.commentWrap = BX(_this.id + 'comments-cont');
+		showComments(D.CAL.DOM.commentWrap.querySelector('.feed-com-avatar img'));
 	}
 
 
+	function showComments(node)
+	{
+		cnt2++;
+		if (node)
+		{
+			var width = parseInt(BX.style(node, 'width'));
+			if (width > 90 && cnt2 < 20)
+			{
+				return setTimeout(function(){showComments(node);}, 100);
+			}
+		}
+
+		_this.comAni = new BX.easing({
+			duration : 200,
+			start : {opacity : 0},
+			finish : {opacity : 100},
+			transition : BX.easing.makeEaseOut(BX.easing.transitions.quart),
+
+			step : function(state)
+			{
+				D.CAL.DOM.commentWrap.style.opacity = state.opacity / 100;
+			},
+
+			complete : BX.proxy(function()
+			{
+				D.CAL.DOM.commentWrap.style.opacity = null;
+				_this.comAni = null;
+			}, this)
+		});
+		_this.comAni.animate();
+	}
 };
 
 JCEC.prototype.AdjustOverlay = function(popup, timeout)
@@ -760,6 +805,8 @@ JCEC.prototype.CloseViewDialog = function(bClosePopup)
 		this.oViewEventDialog.adjustInterval = clearInterval(this.oViewEventDialog.adjustInterval);
 	if (bClosePopup === true)
 		this.oViewEventDialog.close();
+
+	this.OnResize();
 };
 
 // # # #  #  #  # EDIT CALENDAR DIALOG # # #  #  #  #
@@ -1197,7 +1244,7 @@ JCEC.prototype.SPD_BuildSections = function(arSections, bRegister)
 	var
 		_this = this,
 		D = this.oSupDialog,
-		pCat, pCatTitle,
+		pCat, pCatTitle, pCh,
 		i, oSect, pCatCont, pItem, key, catTitle, id;
 
 	BX.cleanNode(D.CAL.DOM.UserCntInner);
@@ -1265,7 +1312,7 @@ JCEC.prototype.SPD_BuildSections = function(arSections, bRegister)
 
 		if (bRegister)
 		{
-			var i, found = false;
+			var found = false;
 			for (i in this.arSPSections)
 			{
 				if (this.arSPSections.hasOwnProperty(i))
@@ -1471,7 +1518,8 @@ JCEC.prototype.CreateSetDialog = function()
 		inPersonal : this.type == 'user' && this.ownerId == this.userId,
 		DOM: {
 			pTabs: BX(this.id + '_set_tabs'),
-			ShowMuted: BX(this.id + '_show_muted')
+			ShowMuted: BX(this.id + '_show_muted'),
+			denyBusyInvitation: BX(this.id + '_deny_busy_invitation')
 		}
 	};
 
@@ -1546,7 +1594,7 @@ JCEC.prototype.ShowSetDialog = function(params)
 	if (D.CAL.inPersonal)
 	{
 		D.CAL.DOM.SectSelect.options.length = 0;
-		var i, l, opt, el, sel = !this.userSettings.meetSection;
+		var i, opt, el, sel = !this.userSettings.meetSection;
 		D.CAL.DOM.SectSelect.options.add(new Option(' - ' + EC_MESS.FirstInList + ' - ', 0, sel, sel));
 		for (i = 0; i < this.arSections.length; i++)
 		{
@@ -1570,6 +1618,9 @@ JCEC.prototype.ShowSetDialog = function(params)
 	}
 
 	D.CAL.DOM.ShowMuted.checked = !!this.userSettings.showMuted;
+
+	if (D.CAL.DOM.denyBusyInvitation)
+		D.CAL.DOM.denyBusyInvitation.checked = !!this.userSettings.denyBusyInvitation;
 
 	if (this.PERM.access)
 	{
@@ -1782,12 +1833,10 @@ JCEC.prototype.ExternalCalDialogEditConnection = function(ind)
 		else
 			D.CAL.DOM.Pass.value = '';
 
-
 		setTimeout(function ()
 		{
 			BX.focus(D.CAL.DOM.EditLink);
 		}, 100);
-
 
 		D.CAL.DOM.EditName.onkeyup = D.CAL.DOM.EditName.onfocus = D.CAL.DOM.EditName.onblur = function ()
 		{
@@ -2210,4 +2259,365 @@ JCEC.prototype.InitColorDialogControl = function(key, OnSetValues)
 	};
 
 	return {Set: SetColors}
-}
+};
+
+
+//
+JCEC.prototype.ShowConfirmDeleteDialog = function(oEvent)
+{
+	var _this = this;
+
+	var D = this.oConfirmDeleteDialog;
+	if (D)
+	{
+		D.destroy();
+	}
+
+	var content = BX.create('DIV');
+
+	D = new BX.PopupWindow("BXCConfirmDelete" + this.id, null, {
+		overlay: {opacity: 10},
+		autoHide: true,
+		closeByEsc : true,
+		zIndex: 0,
+		offsetLeft: 0,
+		offsetTop: 0,
+		draggable: true,
+		bindOnResize: false,
+		titleBar: EC_MESS.EC_DEL_REC_EVENT,
+		closeIcon: { right : "12px", top : "10px"},
+		className: 'bxc-popup-window',
+		buttons: [
+					new BX.PopupWindowButtonLink({
+						text: EC_MESS.Close,
+						className: "popup-window-button-link-cancel",
+						events: {click : function()
+						{
+							if (_this.oConfirmDeleteDialog)
+							{
+								_this.oConfirmDeleteDialog.close();
+							}
+						}}
+					})
+				],
+		content: content,
+		events: {}
+	});
+
+	D.CAL = {
+		butThis: new BX.PopupWindowButton({
+			text: EC_MESS.EC_REC_EV_ONLY_THIS_EVENT,
+			events: {click : function()
+			{
+				if (_this.Event.IsRecursive(oEvent))
+				{
+					_this.Event.ExcludeRecursionDate(oEvent, oEvent.DATE_FROM);
+				}
+				else if (oEvent.RECURRENCE_ID)
+				{
+					_this.Event.Delete(oEvent, true, {recursionMode: 'this'});
+				}
+
+				if (_this.oConfirmDeleteDialog)
+				{
+					_this.oConfirmDeleteDialog.close();
+				}
+			}}
+		}),
+		butNext: new BX.PopupWindowButton({
+			text: EC_MESS.EC_REC_EV_NEXT,
+			events: {click : function()
+			{
+				if (_this.Event.IsRecursive(oEvent) && oEvent.DT_FROM_TS === Math.floor(_this.ParseDate(oEvent['~DATE_FROM']).getTime() / 1000) * 1000 && !oEvent.RECURRENCE_ID)
+				{
+					_this.Event.DeleteAllReccurent(oEvent, true);
+				}
+				else
+				{
+					_this.Event.CutOffRecursiveEvent(oEvent, oEvent.DATE_FROM);
+				}
+
+				if (_this.oConfirmDeleteDialog)
+				{
+					_this.oConfirmDeleteDialog.close();
+				}
+				if (_this.oEditEventDialog)
+				{
+					_this.oEditEventDialog.close();
+				}
+			}}
+		}),
+		butAll: new BX.PopupWindowButton(
+		{
+			text: EC_MESS.EC_REC_EV_ALL,
+			events: {click : function()
+			{
+				_this.Event.DeleteAllReccurent(oEvent, true);
+
+				if (_this.oConfirmDeleteDialog)
+				{
+					_this.oConfirmDeleteDialog.close();
+				}
+				if (_this.oEditEventDialog)
+				{
+					_this.oEditEventDialog.close();
+				}
+			}}
+		}),
+		DOM: {
+			content: content
+		}
+	};
+	content.appendChild(D.CAL.butThis.buttonNode);
+	content.appendChild(D.CAL.butNext.buttonNode);
+	content.appendChild(D.CAL.butAll.buttonNode);
+
+	this.oConfirmDeleteDialog = D;
+
+	D.show();
+};
+
+JCEC.prototype.ShowConfirmEditDialog = function(event, params)
+{
+	var _this = this;
+
+	var D = this.oConfirmEditDialog;
+	if (D)
+	{
+		D.destroy();
+	}
+
+	var content = BX.create('DIV');
+
+	D = new BX.PopupWindow("BXCConfirmEdit" + this.id, null, {
+		overlay: {opacity: 10},
+		autoHide: true,
+		closeByEsc : true,
+		zIndex: 0,
+		offsetLeft: 0,
+		offsetTop: 0,
+		draggable: true,
+		bindOnResize: false,
+		titleBar: EC_MESS.EC_EDIT_REC_EVENT,
+		closeIcon: { right : "12px", top : "10px"},
+		className: 'bxc-popup-window',
+		buttons: [
+			new BX.PopupWindowButtonLink({
+				text: EC_MESS.Close,
+				className: "popup-window-button-link-cancel",
+				events: {click : function()
+				{
+					if (_this.oConfirmEditDialog)
+					{
+						_this.oConfirmEditDialog.close();
+					}
+				}}
+			})
+		],
+		content: content,
+		events: {}
+	});
+
+	D.CAL = {
+		butThis: new BX.PopupWindowButton({
+			text: EC_MESS.EC_REC_EV_ONLY_THIS_EVENT,
+			events: {click : function()
+			{
+				params.params.recurentEventEditMode = 'this';
+				_this.oEditEventDialog.oController.SaveForm(params.params, true);
+
+				if (_this.oConfirmEditDialog)
+				{
+					_this.oConfirmEditDialog.close();
+				}
+				if (_this.oEditEventDialog)
+				{
+					_this.oEditEventDialog.close();
+				}
+			}}
+		}),
+		butNext: new BX.PopupWindowButton({
+			text: EC_MESS.EC_REC_EV_NEXT,
+			events: {click : function()
+			{
+				params.params.recurentEventEditMode = 'next';
+				if (_this.oEditEventDialog.oController.Reinvite && D.CAL.DOM.reiviteInp)
+				{
+					_this.oEditEventDialog.oController.Reinvite.checked = D.CAL.DOM.reiviteInp.checked;
+				}
+				_this.oEditEventDialog.oController.SaveForm(params.params, true);
+
+				if (_this.oConfirmEditDialog)
+				{
+					_this.oConfirmEditDialog.close();
+				}
+				if (_this.oEditEventDialog)
+				{
+					_this.oEditEventDialog.close();
+				}
+			}}
+		}),
+		butAll: new BX.PopupWindowButton(
+				{
+					text: EC_MESS.EC_REC_EV_ALL,
+					events: {click : function()
+					{
+						params.params.recurentEventEditMode = 'all';
+						_this.oEditEventDialog.oController.SaveForm(params.params, true);
+
+						if (_this.oConfirmEditDialog)
+						{
+							_this.oConfirmEditDialog.close();
+						}
+						if (_this.oEditEventDialog)
+						{
+							_this.oEditEventDialog.close();
+						}
+					}}
+				}),
+		DOM: {
+			content: content
+		}
+	};
+	content.appendChild(D.CAL.butThis.buttonNode);
+	content.appendChild(D.CAL.butNext.buttonNode);
+	content.appendChild(D.CAL.butAll.buttonNode);
+
+	if (event.IS_MEETING && event.MEETING)
+	{
+		D.CAL.DOM.reiviteCont = content.appendChild(BX.create("DIV", {props: {className: 'bxec-row-reinvite'}}));
+		D.CAL.DOM.reiviteInp = D.CAL.DOM.reiviteCont.appendChild(BX.create("INPUT", {
+			props: {
+				type: "checkbox",
+				value: "Y",
+				name: 'confirm_meeting_reinvite',
+				checked: this.oEditEventDialog.oController.Reinvite.checked,
+				id: 'reinvite-inp' + this.id
+			}
+		}));
+		D.CAL.DOM.reiviteCont.appendChild(BX.create("LABEL", {
+			attrs: {'for': 'reinvite-inp' + this.id},
+			text: EC_MESS.EC_REINVITE
+		}));
+	}
+
+	this.oConfirmEditDialog = D;
+
+	D.show();
+};
+
+JCEC.prototype.ShowConfirmDeclineDialog = function(event, params)
+{
+	var _this = this;
+
+	var D = this.oConfirmDeclineDialog;
+	if (D)
+	{
+		D.destroy();
+	}
+
+	var content = BX.create('DIV');
+
+	D = new BX.PopupWindow("BXCConfirmDecline" + this.id, null, {
+		overlay: {opacity: 10},
+		autoHide: true,
+		closeByEsc : true,
+		zIndex: 0,
+		offsetLeft: 0,
+		offsetTop: 0,
+		draggable: true,
+		bindOnResize: false,
+		titleBar: EC_MESS.EC_DECLINE_REC_EVENT,
+		closeIcon: { right : "12px", top : "10px"},
+		className: 'bxc-popup-window',
+		buttons: [
+			new BX.PopupWindowButtonLink({
+				text: EC_MESS.Close,
+				className: "popup-window-button-link-cancel",
+				events: {click : function()
+				{
+					if (_this.oConfirmDeclineDialog)
+					{
+						_this.oConfirmDeclineDialog.close();
+					}
+				}}
+			})
+		],
+		content: content,
+		events: {}
+	});
+
+	D.CAL = {
+		butThis: new BX.PopupWindowButton({
+			text: EC_MESS.EC_D_REC_EV_ONLY_THIS_EVENT,
+			events: {click : function()
+			{
+				_this.Event.SetMeetingStatus(false, {
+					confirmed: true,
+					reccurentMode: 'this',
+					currentDateFrom: _this.oViewEventDialog.CAL.oEvent.DATE_FROM
+				});
+
+				if (_this.oConfirmDeclineDialog)
+				{
+					_this.oConfirmDeclineDialog.close();
+				}
+				if (_this.oViewEventDialog)
+				{
+					_this.oViewEventDialog.close();
+				}
+			}}
+		}),
+		butNext: new BX.PopupWindowButton({
+			text: EC_MESS.EC_D_REC_EV_NEXT,
+			events: {click : function()
+			{
+				_this.Event.SetMeetingStatus(false, {
+					confirmed: true,
+					reccurentMode: 'next',
+					currentDateFrom: _this.oViewEventDialog.CAL.oEvent.DATE_FROM
+				});
+
+				if (_this.oConfirmDeclineDialog)
+				{
+					_this.oConfirmDeclineDialog.close();
+				}
+				if (_this.oViewEventDialog)
+				{
+					_this.oViewEventDialog.close();
+				}
+			}}
+		}),
+		butAll: new BX.PopupWindowButton(
+				{
+					text: EC_MESS.EC_D_REC_EV_ALL,
+					events: {click : function()
+					{
+						_this.Event.SetMeetingStatus(false, {
+							confirmed: true,
+							reccurentMode: 'all',
+							currentDateFrom: _this.oViewEventDialog.CAL.oEvent.DATE_FROM
+						});
+
+						if (_this.oConfirmDeclineDialog)
+						{
+							_this.oConfirmDeclineDialog.close();
+						}
+						if (_this.oViewEventDialog)
+						{
+							_this.oViewEventDialog.close();
+						}
+					}}
+				}),
+		DOM: {
+			content: content
+		}
+	};
+	content.appendChild(D.CAL.butThis.buttonNode);
+	content.appendChild(D.CAL.butNext.buttonNode);
+	content.appendChild(D.CAL.butAll.buttonNode);
+
+	this.oConfirmDeclineDialog = D;
+
+	D.show();
+};

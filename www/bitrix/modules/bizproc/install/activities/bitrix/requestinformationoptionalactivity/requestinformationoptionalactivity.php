@@ -129,6 +129,14 @@ class CBPRequestInformationOptionalActivity
 				$arParameters["REQUEST"][] = $v;
 		}
 
+		$overdueDate = $this->OverdueDate;
+		$timeoutDuration = $this->CalculateTimeoutDuration();
+		if ($timeoutDuration > 0)
+		{
+			$overdueDate = ConvertTimeStamp(time() + max($timeoutDuration, CBPSchedulerService::getDelayMinLimit()), "FULL");
+		}
+
+		/** @var CBPTaskService $taskService */
 		$taskService = $this->workflow->GetService("TaskService");
 		$this->taskId = $taskService->CreateTask(
 			array(
@@ -136,7 +144,7 @@ class CBPRequestInformationOptionalActivity
 				"WORKFLOW_ID" => $this->GetWorkflowInstanceId(),
 				"ACTIVITY" => static::ACTIVITY,
 				"ACTIVITY_NAME" => $this->name,
-				"OVERDUE_DATE" => $this->OverdueDate,
+				"OVERDUE_DATE" => $overdueDate,
 				"NAME" => $this->Name,
 				"DESCRIPTION" => $this->Description,
 				"PARAMETERS" => $arParameters,
@@ -151,9 +159,9 @@ class CBPRequestInformationOptionalActivity
 			$this->SetStatusTitle($message);
 		}
 
-		$timeoutDuration = $this->CalculateTimeoutDuration();
 		if ($timeoutDuration > 0)
 		{
+			/** @var CBPSchedulerService $schedulerService */
 			$schedulerService = $this->workflow->GetService("SchedulerService");
 			$this->subscriptionId = $schedulerService->SubscribeOnTime($this->workflow->GetInstanceId(), $this->name, time() + $timeoutDuration);
 		}
@@ -209,6 +217,23 @@ class CBPRequestInformationOptionalActivity
 	{
 		if (!$this->isInEventActivityMode && $this->taskId > 0)
 			$this->Unsubscribe($this);
+
+		for ($i = count($this->arActivities) - 1; $i >= 0; $i--)
+		{
+			$activity = $this->arActivities[$i];
+			if ($activity->executionStatus == CBPActivityExecutionStatus::Executing)
+			{
+				$this->workflow->CancelActivity($activity);
+				return CBPActivityExecutionStatus::Canceling;
+			}
+
+			if (($activity->executionStatus == CBPActivityExecutionStatus::Canceling)
+				|| ($activity->executionStatus == CBPActivityExecutionStatus::Faulting))
+				return CBPActivityExecutionStatus::Canceling;
+
+			if ($activity->executionStatus == CBPActivityExecutionStatus::Closed)
+				return CBPActivityExecutionStatus::Closed;
+		}
 
 		return CBPActivityExecutionStatus::Closed;
 	}

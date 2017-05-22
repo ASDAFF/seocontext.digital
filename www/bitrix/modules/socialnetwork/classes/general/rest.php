@@ -19,6 +19,7 @@ class CSocNetLogRestService extends IRestService
 				"sonet_group.create" => array("CSocNetLogRestService", "createGroup"),
 				"sonet_group.update" => array("CSocNetLogRestService", "updateGroup"),
 				"sonet_group.delete" => array("CSocNetLogRestService", "deleteGroup"),
+				"sonet_group.setowner" => array("CSocNetLogRestService", "setGroupOwner"),
 				"sonet_group.user.get" => array("CSocNetLogRestService", "getGroupUsers"),
 				"sonet_group.user.invite" => array("CSocNetLogRestService", "inviteGroupUsers"),
 				"sonet_group.user.request" => array("CSocNetLogRestService", "requestGroupUser"),
@@ -522,6 +523,50 @@ class CSocNetLogRestService extends IRestService
 			throw new Exception('Socialnetwork group not found');
 
 		return true;
+	}
+
+	public static function setGroupOwner($arFields)
+	{
+		global $USER;
+
+		$groupId = $arFields['GROUP_ID'];
+		$newOwnerId = $arFields['USER_ID'];
+
+		if(intval($groupId) <= 0)
+			throw new Exception('Wrong group ID');
+
+		if(intval($newOwnerId) <= 0)
+			throw new Exception('Wrong new owner ID');
+
+		$arFilter = array(
+			"ID" => $groupId
+		);
+
+		if (!CSocNetUser::isCurrentUserModuleAdmin(SITE_ID, false))
+		{
+			$arFilter['CHECK_PERMISSIONS'] = $USER->GetID();
+		}
+
+		$dbRes = CSocNetGroup::getList(array(), $arFilter);
+		$arGroup = $dbRes->fetch();
+		if(is_array($arGroup))
+		{
+			if (
+				$arGroup["OWNER_ID"] == $USER->GetID()
+				|| CSocNetUser::IsCurrentUserModuleAdmin(SITE_ID, false)
+			)
+			{
+				if (!CSocNetUserToGroup::setOwner($newOwnerId, $arGroup["ID"], $arGroup))
+					throw new Exception('Cannot change group owner');
+			}
+			else
+				throw new Exception('User has no permissions to change group owner');
+		}
+		else
+			throw new Exception('Socialnetwork group not found');
+
+		return true;
+
 	}
 
 	public static function getGroup($arFields, $n, $server)

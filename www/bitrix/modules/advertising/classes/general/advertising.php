@@ -6,6 +6,8 @@
  * @copyright 2001-2014 Bitrix
  */
 
+use \Bitrix\Main\Application;
+
 global
 	$arrViewedBanners,		// баннеры показанные на данной странице
 	$arrADV_KEYWORDS,		// массив ключевых слов для страницы
@@ -1403,7 +1405,7 @@ class CAdvBanner_all
 		if ($BANNER_ID<=0)
 			return false;
 
-		$strSql = "SELECT CONTRACT_ID, IMAGE_ID FROM b_adv_banner WHERE ID = '$BANNER_ID'";
+		$strSql = "SELECT CONTRACT_ID, IMAGE_ID, TYPE_SID FROM b_adv_banner WHERE ID = '$BANNER_ID'";
 		$rsBanner = $DB->Query($strSql, false, $err_mess.__LINE__);
 		if ($arBanner = $rsBanner->Fetch())
 		{
@@ -1422,6 +1424,12 @@ class CAdvBanner_all
 
 			if ($ok)
 			{
+				if (defined('BX_COMP_MANAGED_CACHE'))
+				{
+					$taggedCache = Application::getInstance()->getTaggedCache();
+					$taggedCache->clearByTag('advertising_banner_type_'.$arBanner['TYPE_SID']);
+				}
+
 				CFile::Delete($arBanner["IMAGE_ID"]);
 				CAdvBanner::DeleteCountryLink($BANNER_ID);
 				CAdvBanner::DeleteSiteLink($BANNER_ID);
@@ -2000,19 +2008,38 @@ class CAdvBanner_all
 	private static function makeFileArrayFromArray($file_array, $description = null, $options = array())
 	{
 		$result = false;
-		if (file_exists($_SERVER["DOCUMENT_ROOT"].$file_array["tmp_name"]))
+
+		if (is_uploaded_file($file_array["tmp_name"]))
 		{
 			$result = $file_array;
-			$result["tmp_name"] = $_SERVER["DOCUMENT_ROOT"].$file_array["tmp_name"];
 			if (!is_null($description))
 				$result["description"] = $description;
 		}
-		elseif (strlen($file_array["tmp_name"]) > 0 && strpos($file_array["tmp_name"], CTempFile::GetAbsoluteRoot()) === 0)
+		elseif (
+			strlen($file_array["tmp_name"]) > 0
+			&& strpos($file_array["tmp_name"], CTempFile::GetAbsoluteRoot()) === 0
+		)
 		{
 			$io = CBXVirtualIo::GetInstance();
 			$absPath = $io->CombinePath("/", $file_array["tmp_name"]);
-			$tmpPath = CTempFile::GetAbsoluteRoot();
-			if (strpos($absPath, $tmpPath) === 0)
+			$tmpPath = CTempFile::GetAbsoluteRoot()."/";
+			if (strpos($absPath, $tmpPath) === 0 || (($absPath = ltrim($absPath, "/")) && strpos($absPath, $tmpPath) === 0))
+			{
+				$result = $file_array;
+				$result["tmp_name"] = $absPath;
+				$result["error"] = intval($result["error"]);
+				if (!is_null($description))
+					$result["description"] = $description;
+			}
+		}
+		elseif (strlen($file_array["tmp_name"]) > 0)
+		{
+			$io = CBXVirtualIo::GetInstance();
+			$normPath = $io->CombinePath("/", $file_array["tmp_name"]);
+			$absPath = $io->CombinePath(CTempFile::GetAbsoluteRoot(), $normPath);
+			$tmpPath = CTempFile::GetAbsoluteRoot()."/";
+			if (strpos($absPath, $tmpPath) === 0 && $io->FileExists($absPath) ||
+				($absPath = $io->CombinePath($_SERVER["DOCUMENT_ROOT"], $normPath)) && strpos($absPath, $tmpPath) === 0)
 			{
 				$result = $file_array;
 				$result["tmp_name"] = $absPath;
@@ -2561,6 +2588,12 @@ class CAdvBanner_all
 						$arFields_i["MODIFIED_BY"] = $USER_ID;
 
 					$BANNER_ID = CAdvBanner::Add($arFields_i);
+				}
+
+				if (defined('BX_COMP_MANAGED_CACHE'))
+				{
+					$taggedCache = Application::getInstance()->getTaggedCache();
+					$taggedCache->clearByTag('advertising_banner_type_'.$arFields['TYPE_SID']);
 				}
 
 				$BANNER_ID = intval($BANNER_ID);

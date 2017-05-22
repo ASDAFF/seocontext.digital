@@ -1,10 +1,10 @@
 <?
 IncludeModuleLangFile(__FILE__);
 
-$GLOBALS["SONET_GROUP_CACHE"] = array();
-
 class CAllSocNetGroup
 {
+	protected static $staticCache = array();
+
 	/***************************************/
 	/********  DATA MODIFICATION  **********/
 	/***************************************/
@@ -152,7 +152,9 @@ class CAllSocNetGroup
 		}
 
 		if (!$USER_FIELD_MANAGER->CheckFields("SONET_GROUP", $ID, $arFields))
+		{
 			return false;
+		}
 
 		return True;
 	}
@@ -162,15 +164,21 @@ class CAllSocNetGroup
 		global $DB, $APPLICATION, $CACHE_MANAGER, $USER_FIELD_MANAGER;
 
 		if (!CSocNetGroup::__ValidateID($ID))
+		{
 			return false;
+		}
 
 		$ID = IntVal($ID);
 		$bSuccess = True;
 
 		$db_events = GetModuleEvents("socialnetwork", "OnBeforeSocNetGroupDelete");
 		while ($arEvent = $db_events->Fetch())
+		{
 			if (ExecuteModuleEventEx($arEvent, array($ID))===false)
+			{
 				return false;
+			}
+		}
 
 		$arGroup = CSocNetGroup::GetByID($ID);
 		if (!$arGroup)
@@ -183,10 +191,14 @@ class CAllSocNetGroup
 
 		$events = GetModuleEvents("socialnetwork", "OnSocNetGroupDelete");
 		while ($arEvent = $events->Fetch())
+		{
 			ExecuteModuleEventEx($arEvent, array($ID));
+		}
 
 		if ($bSuccess)
+		{
 			$bSuccess = $DB->Query("DELETE FROM b_sonet_user2group WHERE GROUP_ID = ".$ID."", true);
+		}
 
 		if ($bSuccess)
 		{
@@ -199,13 +211,19 @@ class CAllSocNetGroup
 			{
 				$bSuccessTmp = $DB->Query("DELETE FROM b_sonet_features2perms WHERE FEATURE_ID = ".$arResult["ID"]."", true);
 				if (!$bSuccessTmp)
+				{
 					break;
+				}
 			}
 			if (!$bSuccessTmp)
+			{
 				$bSuccess = false;
+			}
 		}
 		if ($bSuccess)
+		{
 			$bSuccess = $DB->Query("DELETE FROM b_sonet_features WHERE ENTITY_ID = ".$ID." AND ENTITY_TYPE = '".$DB->ForSql(SONET_ENTITY_GROUP, 1)."'", true);
+		}
 		if ($bSuccess)
 		{
 			$dbResult = CSocNetLog::GetList(
@@ -219,27 +237,45 @@ class CAllSocNetGroup
 			{
 				$bSuccessTmp = $DB->Query("DELETE FROM b_sonet_log_site WHERE LOG_ID = ".$arResult["ID"]."", true);
 				if (!$bSuccessTmp)
+				{
 					break;
+				}
 
 				$bSuccessTmp = $DB->Query("DELETE FROM b_sonet_log_right WHERE LOG_ID = ".$arResult["ID"]."", true);
 				if (!$bSuccessTmp)
+				{
 					break;
+				}
 			}
 			if (!$bSuccessTmp)
+			{
 				$bSuccess = false;
+			}
 		}
-		if ($bSuccess)		
+		if ($bSuccess)
+		{
 			$bSuccess = $DB->Query("DELETE FROM b_sonet_log WHERE ENTITY_TYPE = '".SONET_ENTITY_GROUP."' AND ENTITY_ID = ".$ID."", true);
+		}
 		if ($bSuccess)
+		{
 			$bSuccess = CSocNetLog::DeleteSystemEventsByGroupID($ID);
+		}
 		if ($bSuccess)
+		{
 			$bSuccess = $DB->Query("DELETE FROM b_sonet_log_events WHERE ENTITY_TYPE = 'G' AND ENTITY_ID = ".$ID."", true);
+		}
 		if ($bSuccess)
+		{
 			$bSuccess = $DB->Query("DELETE FROM b_sonet_group_site WHERE GROUP_ID = ".$ID."", true);
+		}
 		if ($bSuccess)
+		{
 			$bSuccess = $DB->Query("DELETE FROM b_sonet_log_right WHERE GROUP_CODE LIKE 'SG".$ID."\_%' OR GROUP_CODE = 'SG".$ID."'", true);
+		}
 		if ($bSuccess)
+		{
 			$bSuccess = CSocNetSubscription::DeleteEx(false, "SG".$ID);
+		}
 
 		if ($bSuccess)
 		{
@@ -247,20 +283,30 @@ class CAllSocNetGroup
 			$bSuccess = $DB->Query("DELETE FROM b_sonet_group WHERE ID = ".$ID."", true);
 		}
 
-		if ($bSuccess)
-		{
-			CUserOptions::DeleteOption("socialnetwork", "~menu_".SONET_ENTITY_GROUP."_".$ID, false, 0);
-			unset($GLOBALS["SONET_GROUP_CACHE"][$ID]);
-		}
-		
-		if ($bSuccess)
-			$DB->Commit();
-		else
-			$DB->Rollback();
+		$sonetGroupCache = self::getStaticCache();
 
 		if ($bSuccess)
 		{
-			unset($GLOBALS["SONET_GROUP_CACHE"][$ID]);
+			CUserOptions::DeleteOption("socialnetwork", "~menu_".SONET_ENTITY_GROUP."_".$ID, false, 0);
+
+			unset($sonetGroupCache[$ID]);
+			self::setStaticCache($sonetGroupCache);
+		}
+
+		if ($bSuccess)
+		{
+			$DB->Commit();
+		}
+		else
+		{
+			$DB->Rollback();
+		}
+
+		if ($bSuccess)
+		{
+			unset($sonetGroupCache[$ID]);
+			self::setStaticCache($sonetGroupCache);
+
 			if(defined("BX_COMP_MANAGED_CACHE"))
 			{
 				$CACHE_MANAGER->ClearByTag("sonet_user2group_G".$ID);
@@ -270,14 +316,23 @@ class CAllSocNetGroup
 			}
 		}
 
-		if ($bSuccess && CModule::IncludeModule("search"))
+		if (
+			$bSuccess
+			&& CModule::IncludeModule("search")
+		)
+		{
 			CSearch::DeleteIndex("socialnetwork", "G".$ID);
+		}
 
 		if ($bSuccess)
+		{
 			$DB->Query("DELETE FROM b_sonet_event_user_view WHERE ENTITY_TYPE = '".SONET_ENTITY_GROUP."' AND ENTITY_ID = ".$ID, true);
+		}
 
 		if ($bSuccess)
+		{
 			$USER_FIELD_MANAGER->Delete("SONET_GROUP", $ID);
+		}
 
 		return $bSuccess;
 	}
@@ -287,17 +342,23 @@ class CAllSocNetGroup
 		global $APPLICATION;
 
 		if (!CSocNetGroup::__ValidateID($userID))
+		{
 			return false;
+		}
 
 		$userID = IntVal($userID);
 
 		$err = "";
 		$dbResult = CSocNetGroup::GetList(array(), array("OWNER_ID" => $userID), false, false, array("ID", "NAME"));
 		while ($arResult = $dbResult->GetNext())
+		{
 			$err .= $arResult["NAME"]."<br>";
-		
+		}
+
 		if (strlen($err) <= 0)
+		{
 			return true;
+		}
 		else
 		{
 			$err = GetMessage("SONET_GG_ERROR_CANNOT_DELETE_USER_1").$err;
@@ -341,6 +402,7 @@ class CAllSocNetGroup
 				"NUMBER_OF_MODERATORS" => $num_mods
 			), 
 			true,
+			false,
 			false
 		);
 
@@ -349,17 +411,29 @@ class CAllSocNetGroup
 
 	public static function SetLastActivity($ID, $date = false)
 	{
-		global $DB;
+		global $DB, $CACHE_MANAGER;
 
 		if (!CSocNetGroup::__ValidateID($ID))
+		{
 			return false;
+		}
 
 		$ID = IntVal($ID);
 
-		if ($date == false)
-			CSocNetGroup::Update($ID, array("=DATE_ACTIVITY" => $DB->CurrentTimeFunction()), true, false);
-		else
-			CSocNetGroup::Update($ID, array("DATE_ACTIVITY" => $date), true, false);
+		CSocNetGroup::Update($ID, (
+			$date
+				? array("DATE_ACTIVITY" => $date)
+				: array("=DATE_ACTIVITY" => $DB->CurrentTimeFunction())
+			),
+			true,
+			false,
+			false
+		);
+
+		if (defined("BX_COMP_MANAGED_CACHE"))
+		{
+			$CACHE_MANAGER->clearByTag("sonet_group_activity");
+		}
 
 		return false;
 	}
@@ -379,21 +453,25 @@ class CAllSocNetGroup
 		$ID = IntVal($ID);
 		$cacheArrayKey = ($bCheckPermissions ? "Y" : "N");
 
+		$sonetGroupCache = self::getStaticCache();
+
 		if (
-			is_array($GLOBALS["SONET_GROUP_CACHE"])
-			&& is_array($GLOBALS["SONET_GROUP_CACHE"][$ID])
-			&& is_array($GLOBALS["SONET_GROUP_CACHE"][$cacheArrayKey])
+			is_array($sonetGroupCache)
+			&& is_array($sonetGroupCache[$ID])
+			&& is_array($sonetGroupCache[$ID][$cacheArrayKey])
 		)
 		{
-			return $GLOBALS["SONET_GROUP_CACHE"][$ID][$cacheArrayKey];
+			return $sonetGroupCache[$ID][$cacheArrayKey];
 		}
 		else
 		{
+			$cache = $cache_time = $cache_id = $cache_path = false;
+
 			if (!$bCheckPermissions)
 			{
 				$cache = new CPHPCache;
 				$cache_time = 31536000;
-				$cache_id = "group_".$ID."_".LANGUAGE_ID."_".CTimeZone::GetOffset();
+				$cache_id = "group_".$ID."_".LANGUAGE_ID."_".CTimeZone::GetOffset()."_".Bitrix\Main\Context::getCurrent()->getCulture()->getDateTimeFormat();
 				$cache_path = "/sonet/group/".$ID."/";
 			}
 
@@ -457,26 +535,33 @@ class CAllSocNetGroup
 				}
 			}
 
+			if (!is_array($sonetGroupCache))
+			{
+				$sonetGroupCache = array();
+			}
 			if (
-				!array_key_exists("SONET_GROUP_CACHE", $GLOBALS)
-				|| !is_array($GLOBALS["SONET_GROUP_CACHE"])
+				!array_key_exists($ID, $sonetGroupCache)
+				|| !is_array($sonetGroupCache[$ID])
 			)
 			{
-				$GLOBALS["SONET_GROUP_CACHE"] = array();
+				$sonetGroupCache[$ID] = array();
 			}
+			$sonetGroupCache[$ID][$cacheArrayKey] = $arResult;
 
-			if (
-				!array_key_exists($ID, $GLOBALS["SONET_GROUP_CACHE"])
-				|| !is_array($GLOBALS["SONET_GROUP_CACHE"][$cacheArrayKey])
-			)
-			{
-				$GLOBALS["SONET_GROUP_CACHE"][$ID] = array();
-			}
-
-			$GLOBALS["SONET_GROUP_CACHE"][$ID][$cacheArrayKey] = $arResult;
+			self::setStaticCache($sonetGroupCache);
 
 			return $arResult;
 		}
+	}
+
+	protected function getStaticCache()
+	{
+		return self::$staticCache;
+	}
+
+	protected function setStaticCache($cache = array())
+	{
+		self::$staticCache = $cache;
 	}
 
 	/***************************************/
@@ -540,10 +625,7 @@ class CAllSocNetGroup
 		if ($userRoleInGroup == false)
 			return false;
 
-		if ($userRoleInGroup == SONET_ROLES_MODERATOR || $userRoleInGroup == SONET_ROLES_OWNER || $userRoleInGroup == SONET_ROLES_USER)
-			return true;
-		else
-			return false;
+		return in_array($userRoleInGroup, array(SONET_ROLES_OWNER, SONET_ROLES_MODERATOR, SONET_ROLES_USER));
 	}
 
 	public static function CanUserReadGroup($userID, $groupID)
@@ -564,10 +646,7 @@ class CAllSocNetGroup
 		if ($userRoleInGroup == false)
 			return false;
 
-		if ($userRoleInGroup == SONET_ROLES_MODERATOR || $userRoleInGroup == SONET_ROLES_OWNER || $userRoleInGroup == SONET_ROLES_USER)
-			return true;
-		else
-			return false;
+		return in_array($userRoleInGroup, array(SONET_ROLES_OWNER, SONET_ROLES_MODERATOR, SONET_ROLES_USER));
 	}
 
 	/***************************************/
@@ -625,7 +704,13 @@ class CAllSocNetGroup
 				$errorMessage = $e->GetString();
 				$errorID = $e->GetID();
 
-				if (StrLen($errorID) <= 0 && isset($e->messages) && is_array($e->messages) && is_array($e->messages[0]) && array_key_exists("id", $e->messages[0]))
+				if (
+					StrLen($errorID) <= 0
+					&& isset($e->messages)
+					&& is_array($e->messages)
+					&& is_array($e->messages[0])
+					&& array_key_exists("id", $e->messages[0])
+				)
 				{
 					$errorID = $e->messages[0]["id"];
 				}
@@ -661,9 +746,14 @@ class CAllSocNetGroup
 		{
 			$errorMessage = "";
 			if ($e = $APPLICATION->GetException())
+			{
 				$errorMessage = $e->GetString();
+			}
+
 			if (StrLen($errorMessage) <= 0)
+			{
 				$errorMessage = GetMessage("SONET_UR_ERROR_CREATE_U_GROUP").". ";
+			}
 
 			$APPLICATION->ThrowException($errorMessage, "ERROR_CREATE_GROUP");
 			$DB->Rollback();
@@ -671,7 +761,9 @@ class CAllSocNetGroup
 		}
 
 		if ($bAutoSubscribe)
+		{
 			CSocNetLogEvents::AutoSubscribe($ownerID, SONET_ENTITY_GROUP, $groupID);
+		}
 
 		CSocNetSubscription::Set($ownerID, "SG".$groupID, "Y");
 
@@ -807,6 +899,24 @@ class CAllSocNetGroup
 
 		// WHERE -->
 		$arAlreadyJoinedOld = $arAlreadyJoined;
+
+		if (
+			isset($arFilter['ID'])
+			&& is_array($arFilter['ID'])
+		)
+		{
+			$arFilter['@ID'] = $arFilter['ID'];
+			unset($arFilter['ID']);
+		}
+		if (
+			isset($arFilter['!ID'])
+			&& is_array($arFilter['!ID'])
+		)
+		{
+			$arFilter['!@ID'] = $arFilter['!ID'];
+			unset($arFilter['!ID']);
+		}
+
 		$strSqlWhere .= CSqlUtil::PrepareWhere($arFields, $arFilter, $arAlreadyJoined);
 		$arAlreadyJoinedDiff = array_diff($arAlreadyJoined, $arAlreadyJoinedOld);
 		
@@ -987,16 +1097,22 @@ class CAllSocNetGroup
 			if (strlen($strSqlGroupBy) > 0)
 			{
 				if (strlen($strSqlSelect) > 0)
+				{
 					$strSqlSelect .= ", ";
+				}
 				$strSqlSelect .= "COUNT(%%_DISTINCT_%% ".$arFields[$arFieldsKeys[0]]["FIELD"].") as CNT";
 			}
 			else
+			{
 				$strSqlSelect = "%%_DISTINCT_%% ".$strSqlSelect;
+			}
 		}
 		// <-- SELECT
 
 		if ($obUserFieldsSql)
+		{
 			$strSqlFrom .= " ".$obUserFieldsSql->GetJoin($arFields["ID"]["FIELD"]);
+		}
 
 		return array(
 			"SELECT" => $strSqlSelect,
@@ -1087,4 +1203,107 @@ class CAllSocNetGroup
 		else
 			return true;
 	}
+
+	public static function SearchIndex($groupId, $arSiteID = array(), $arGroupOld = array(), $bAutoSubscribe = true)
+	{
+		if (intval($groupId) <= 0)
+		{
+			return false;
+		}
+
+		if (CModule::IncludeModule("search"))
+		{
+			$arGroupNew = CSocNetGroup::GetByID($groupId);
+			if ($arGroupNew)
+			{
+				if (
+					$arGroupNew["ACTIVE"] == "N"
+					&& isset($arGroupOld)
+					&& is_array($arGroupOld)
+					&& isset($arGroupOld["ACTIVE"])
+					&& $arGroupOld["ACTIVE"] == "Y"
+				)
+				{
+					CSearch::DeleteIndex("socialnetwork", "G".$groupId);
+				}
+				elseif ($arGroupNew["ACTIVE"] == "Y")
+				{
+					$BODY = CSocNetTextParser::killAllTags($arGroupNew["~DESCRIPTION"]);
+					$BODY .= $GLOBALS["USER_FIELD_MANAGER"]->OnSearchIndex("SONET_GROUP", $groupId);
+
+					$arSearchIndexSiteID = array();
+					if (
+						is_array($arSiteID)
+						&& !empty($arSiteID)
+					)
+					{
+						foreach ($arSiteID as $site_id_tmp)
+						{
+							$arSearchIndexSiteID[$site_id_tmp] = str_replace("#group_id#", $groupId, COption::GetOptionString("socialnetwork", "group_path_template", "/workgroups/group/#group_id#/", $site_id_tmp));
+						}
+					}
+					else
+					{
+						$rsGroupSite = CSocNetGroup::GetSite($groupId);
+						while ($arGroupSite = $rsGroupSite->Fetch())
+						{
+							$arSearchIndexSiteID[$arGroupSite["LID"]] = str_replace("#group_id#", $groupId, COption::GetOptionString("socialnetwork", "group_path_template", "/workgroups/group/#group_id#/", $arGroupSite["LID"]));
+						}
+					}
+
+					$arSearchIndex = array(
+						"SITE_ID" => $arSearchIndexSiteID,
+						"LAST_MODIFIED" => $arGroupNew["DATE_ACTIVITY"],
+						"PARAM1" => $arGroupNew["SUBJECT_ID"],
+						"PARAM2" => $groupId,
+						"PARAM3" => "GROUP",
+						"PERMISSIONS" => (
+							$arGroupNew["VISIBLE"] == "Y"?
+								array('G2')://public
+								array(
+									'SG'.$groupId.'_A',//admins
+									'SG'.$groupId.'_E',//moderators
+									'SG'.$groupId.'_K',//members
+								)
+						),
+						"PARAMS" =>array(
+							"socnet_group" 	=> $groupId,
+							"entity" 		=> "socnet_group",
+						),
+						"TITLE" => $arGroupNew["~NAME"],
+						"BODY" => $BODY,
+						"TAGS" => $arGroupNew["~KEYWORDS"],
+					);
+
+					CSearch::Index("socialnetwork", "G".$groupId, $arSearchIndex, True);
+				}
+			}
+		}
+	}
+
+	public static function ConfirmAllRequests($groupId, $bAutoSubscribe = true)
+	{
+		$dbRequests = CSocNetUserToGroup::GetList(
+			array(),
+			array(
+				"GROUP_ID" => $groupId,
+				"ROLE" => SONET_ROLES_REQUEST,
+				"INITIATED_BY_TYPE" => SONET_INITIATED_BY_USER
+			),
+			false,
+			false,
+			array("ID")
+		);
+		if ($dbRequests)
+		{
+			$arIDs = array();
+			while ($arRequests = $dbRequests->GetNext())
+			{
+				$arIDs[] = $arRequests["ID"];
+			}
+			CSocNetUserToGroup::ConfirmRequestToBeMember($GLOBALS["USER"]->GetID(), $groupId, $arIDs, $bAutoSubscribe);
+		}
+	}
+
 }
+?>

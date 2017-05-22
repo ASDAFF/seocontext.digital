@@ -19,4 +19,7 @@ $MESS["SALE_DLVRS_ADD_LOC_TAB"] = "Locations";
 $MESS["SALE_DLVRS_ADD_LOC_TAB_TITLE"] = "Map locations";
 $MESS["SALE_DLVRS_ADD_CONFIG_RECEIVE_ERROR"] = "Error getting delivery service configuration";
 $MESS["SALE_DLVRS_ADD_PCONFIG_RECEIVE_ERROR"] = "Error getting delivery service profile configuration";
+$MESS["SALE_DLVRS_ADD_LICENSE_WRONG"] = "License is invalid. Some of the handler features are unavailable.";
+$MESS["SALE_DLVRS_ADD_LIST_RECEIVE_ERROR"] = "Error getting list of delivery services";
+$MESS["SALE_DLVRS_ADD_LIST_LICENSE_WRONG"] = "Some delivery services cannot be added because the license is invalid";
 ?>

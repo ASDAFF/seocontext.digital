@@ -10,6 +10,8 @@ $MESS["SDSN_ACTIVE_FROM"] = "Активна с";
 $MESS["SDSN_ACTIVE_TO"] = "Активна по";
 $MESS["SDSN_PRIORITY"] = "Приоритет применимости";
 $MESS["SDSN_LAST_DISCOUNT_NEW"] = "Прекратить прим. правил";
+$MESS["SDSN_LAST_LEVEL_DISCOUNT_NEW"] = "Прекратить уровень";
+$MESS["SDSN_SHOW_IN_CATALOG"] = "Показ в каталоге товаров";
 $MESS["SDSN_CREATED_BY_NEW"] = "Кем создано";
 $MESS["SDSN_DATE_CREATE"] = "Дата создания";
 $MESS["SDSN_MODIFIED_BY_NEW"] = "Кем изменено";
@@ -46,4 +48,5 @@ $MESS["BX_SALE_ADM_DSC_HEADER_TITLE_TIMESTAMP_X"] = "";
 $MESS["BX_SALE_ADM_DSC_HEADER_TITLE_CREATED_BY"] = "";
 $MESS["BX_SALE_ADM_DSC_HEADER_TITLE_DATE_CREATE"] = "";
 $MESS["BX_SALE_ADM_DSC_HEADER_TITLE_PRESET_ID"] = "Правило настроено с помощью пресета";
+$MESS["BT_SALE_DISCOUNT_LIST_MESS_TITLE_CATALOG_ID"] = "из каталога";
 ?>

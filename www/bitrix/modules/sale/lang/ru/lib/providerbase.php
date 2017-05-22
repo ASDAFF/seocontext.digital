@@ -1,6 +1,7 @@
 <?php
 
-$MESS["SALE_PROVIDER_RESERVE_SHIPMENT_ITEM_QUANTITY_NOT_ENOUGH"] = "Нет достаточного количества товара";
+$MESS["SALE_PROVIDER_RESERVE_SHIPMENT_ITEM_QUANTITY_NOT_ENOUGH"] = "Нет достаточного количества товара \"#PRODUCT_NAME#\"";
+$MESS["SALE_PROVIDER_RESERVE_SHIPMENT_ITEM_WRONG_AVAILABLE_QUANTITY"] = "Нет доступного количества товара \"#PRODUCT_NAME#\"";
 $MESS["SALE_PROVIDER_RESERVE_BASKET_ITEM_ERROR"] = "Ошибка резервации позиции корзины";
 $MESS["SALE_PROVIDER_RESERVE_BASKET_ITEM_WRONG_QUANTITY"] = "Неверное зарезервированное количество товара";
 $MESS["SALE_PROVIDER_RESERVE_BASKET_ITEM_QUANTITY_NOT_ENOUGH"] = "Количество резервируемого товара больше чем есть в корзине";

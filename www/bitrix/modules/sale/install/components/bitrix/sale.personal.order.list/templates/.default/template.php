@@ -8,7 +8,8 @@ use Bitrix\Main,
 
 Asset::getInstance()->addJs("/bitrix/components/bitrix/sale.order.payment.change/templates/.default/script.js");
 Asset::getInstance()->addCss("/bitrix/components/bitrix/sale.order.payment.change/templates/.default/style.css");
-CJSCore::Init(array('clipboard'));
+$this->addExternalCss("/bitrix/css/main/bootstrap.css");
+CJSCore::Init(array('clipboard', 'fx'));
 
 Loc::loadMessages(__FILE__);
 
@@ -117,8 +118,7 @@ else
 
 		foreach ($arResult['ORDERS'] as $key => $order)
 		{
-
-			if ($orderHeaderStatus !== $order['ORDER']['STATUS_ID'])
+			if ($orderHeaderStatus !== $order['ORDER']['STATUS_ID'] && $arResult['SORT_TYPE'] == 'STATUS')
 			{
 				$orderHeaderStatus = $order['ORDER']['STATUS_ID'];
 
@@ -168,10 +168,15 @@ else
 						$showDelimeter = false;
 						foreach ($order['PAYMENT'] as $payment)
 						{
-							$paymentChangeData[$payment['ACCOUNT_NUMBER']] = array(
-								"order" => htmlspecialcharsbx($order['ORDER']['ACCOUNT_NUMBER']),
-								"payment" => htmlspecialcharsbx($payment['ACCOUNT_NUMBER'])
-							);
+							if ($order['ORDER']['LOCK_CHANGE_PAYSYSTEM'] !== 'Y')
+							{
+								$paymentChangeData[$payment['ACCOUNT_NUMBER']] = array(
+									"order" => htmlspecialcharsbx($order['ORDER']['ACCOUNT_NUMBER']),
+									"payment" => htmlspecialcharsbx($payment['ACCOUNT_NUMBER']),
+									"allow_inner" => $arParams['ALLOW_INNER'],
+									"only_inner_full" => $arParams['ONLY_INNER_FULL']
+								);
+							}
 							?>
 							<div class="row sale-order-list-inner-row">
 								<?
@@ -207,6 +212,12 @@ else
 												<span class="sale-order-list-status-success"><?=Loc::getMessage('SPOL_TPL_PAID')?></span>
 												<?
 											}
+											elseif ($order['ORDER']['IS_ALLOW_PAY'] == 'N')
+											{
+												?>
+												<span class="sale-order-list-status-restricted"><?=Loc::getMessage('SPOL_TPL_RESTRICTED_PAID')?></span>
+												<?
+											}
 											else
 											{
 												?>
@@ -221,7 +232,31 @@ else
 											<span class="sale-order-list-payment-number"><?=$payment['FORMATED_SUM']?></span>
 										</div>
 										<?
-										if ($payment['PAID'] !== 'Y')
+										if (!empty($payment['CHECK_DATA']))
+										{
+											$listCheckLinks = "";
+											foreach ($payment['CHECK_DATA'] as $checkInfo)
+											{
+												$title = Loc::getMessage('SPOL_CHECK_NUM', array('#CHECK_NUMBER#' => $checkInfo['ID']))." - ". htmlspecialcharsbx($checkInfo['TYPE_NAME']);
+												if (strlen($checkInfo['LINK']))
+												{
+													$link = $checkInfo['LINK'];
+													$listCheckLinks .= "<div><a href='$link' target='_blank'>$title</a></div>";
+												}
+											}
+											if (strlen($listCheckLinks) > 0)
+											{
+												?>
+												<div class="sale-order-list-payment-check">
+													<div class="sale-order-list-payment-check-left"><?= Loc::getMessage('SPOL_CHECK_TITLE')?>:</div>
+													<div class="sale-order-list-payment-check-left">
+														<?=$listCheckLinks?>
+													</div>
+												</div>
+												<?
+											}
+										}
+										if ($payment['PAID'] !== 'Y' && $order['ORDER']['LOCK_CHANGE_PAYSYSTEM'] !== 'Y')
 										{
 											?>
 											<a href="#" class="sale-order-list-change-payment" id="<?= htmlspecialcharsbx($payment['ACCOUNT_NUMBER']) ?>">
@@ -229,12 +264,31 @@ else
 											</a>
 											<?
 										}
+										if ($order['ORDER']['IS_ALLOW_PAY'] == 'N' && $payment['PAID'] !== 'Y')
+										{
+											?>
+											<div class="sale-order-list-status-restricted-message-block">
+												<span class="sale-order-list-status-restricted-message"><?=Loc::getMessage('SOPL_TPL_RESTRICTED_PAID_MESSAGE')?></span>
+											</div>
+											<?
+										}
 										?>
+
 									</div>
 									<?
 									if ($payment['PAID'] === 'N' && $payment['IS_CASH'] !== 'Y')
 									{
-										if ($payment['NEW_WINDOW'] === 'Y')
+										if ($order['ORDER']['IS_ALLOW_PAY'] == 'N')
+										{
+											?>
+											<div class="col-md-3 col-sm-4 col-xs-12 sale-order-list-button-container">
+												<a class="sale-order-list-button inactive-button">
+													<?=Loc::getMessage('SPOL_TPL_PAY')?>
+												</a>
+											</div>
+											<?
+										}
+										elseif ($payment['NEW_WINDOW'] === 'Y')
 										{
 											?>
 											<div class="col-md-3 col-sm-4 col-xs-12 sale-order-list-button-container">
@@ -332,7 +386,7 @@ else
 
 									<div class="sale-order-list-shipment-status">
 										<span class="sale-order-list-shipment-status-item"><?=Loc::getMessage('SPOL_ORDER_SHIPMENT_STATUS');?>:</span>
-										<span class="sale-order-list-shipment-status-block"><?=$shipment['DELIVERY_STATUS_NAME']?></span>
+										<span class="sale-order-list-shipment-status-block"><?=htmlspecialcharsbx($shipment['DELIVERY_STATUS_NAME'])?></span>
 									</div>
 
 									<?

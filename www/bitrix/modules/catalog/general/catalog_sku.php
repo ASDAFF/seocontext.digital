@@ -425,6 +425,14 @@ class CAllCatalogSku
 		return $result;
 	}
 
+	/**
+	 * @param int|array $productID
+	 * @param int $iblockID
+	 * @param array $skuFilter
+	 * @param array $fields
+	 * @param array $propertyFilter
+	 * @return array|bool
+	 */
 	public static function getOffersList($productID, $iblockID = 0, $skuFilter = array(), $fields = array(), $propertyFilter = array())
 	{
 		static $propertyCache = array();
@@ -563,19 +571,19 @@ class CAllCatalogSku
 		$iblockProperties = array();
 		if (!empty($propertyFilter['ID']) || !empty($propertyFilter['CODE']))
 		{
+			sort($offersIblock);
 			$propertyIblock = array('@IBLOCK_ID' => $offersIblock);
 			if (!empty($propertyFilter['ID']))
 			{
 				sort($propertyFilter['ID']);
-				$propertyKey = md5(implode('|', $propertyFilter['ID']));
 				$propertyIblock['@ID'] = $propertyFilter['ID'];
 			}
 			else
 			{
 				sort($propertyFilter['CODE']);
-				$propertyKey = md5(implode('|', $propertyFilter['CODE']));
 				$propertyIblock['@CODE'] = $propertyFilter['CODE'];
 			}
+			$propertyKey = md5(serialize($propertyIblock));
 			if (!isset($propertyCache[$propertyKey]))
 			{
 				$propertyCache[$propertyKey] = array_fill_keys($offersIblock, array());

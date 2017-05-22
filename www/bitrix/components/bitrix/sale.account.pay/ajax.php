@@ -20,12 +20,15 @@ Loc::loadMessages(__FILE__);
 
 $request = Bitrix\Main\Application::getInstance()->getContext()->getRequest();
 $request->addFilter(new \Bitrix\Main\Web\PostDecodeFilter);
-
+if (!check_bitrix_sessid())
+{
+	die();
+}
 $signer = new \Bitrix\Main\Security\Sign\Signer;
 try
 {
-	$params = $signer->unsign($request->get('signedParamsString'), 'sale.account.pay');
-	$params = unserialize(base64_decode($params));
+	$params = $signer->unsign(base64_decode($request->get('signedParamsString')), 'sale.account.pay');
+	$params = unserialize($params);
 	$params['AJAX_DISPLAY'] = "Y";
 }
 catch (\Bitrix\Main\Security\Sign\BadSignatureException $e)

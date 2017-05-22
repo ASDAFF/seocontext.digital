@@ -1,5 +1,8 @@
 <?if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true) die();
 
+use Bitrix\Main,
+	Bitrix\Sale;
+
 class SaleBasketLineComponent extends CBitrixComponent
 {
 	protected $bUseCatalog = null;
@@ -43,9 +46,15 @@ class SaleBasketLineComponent extends CBitrixComponent
 		if ($arParams['SHOW_AUTHOR'] != 'Y')
 			$arParams['SHOW_AUTHOR'] = 'N';
 
-		$arParams['PATH_TO_REGISTER'] = trim($arParams['PATH_TO_REGISTER']);
-		if ($arParams['PATH_TO_REGISTER'] == '')
+		$arParams['PATH_TO_REGISTER'] = (isset($arParams['PATH_TO_REGISTER']) ? trim($arParams['PATH_TO_REGISTER']) : '');
+		if ($arParams['PATH_TO_REGISTER'] === '')
+			$arParams['PATH_TO_REGISTER'] = (string)Main\Config\Option::get('main', 'custom_register_page');
+		if ($arParams['PATH_TO_REGISTER'] === '')
 			$arParams['PATH_TO_REGISTER'] = SITE_DIR.'login/';
+
+		$arParams['PATH_TO_AUTHORIZE'] = (isset($arParams['PATH_TO_AUTHORIZE']) ? trim($arParams['PATH_TO_AUTHORIZE']) : '');
+		if ($arParams['PATH_TO_AUTHORIZE'] === '')
+			$arParams['PATH_TO_AUTHORIZE'] = $arParams['PATH_TO_REGISTER'];
 
 		$arParams['PATH_TO_PROFILE'] = trim($arParams['PATH_TO_PROFILE']);
 		if ($arParams['PATH_TO_PROFILE'] == '')
@@ -95,7 +104,7 @@ class SaleBasketLineComponent extends CBitrixComponent
 
 	private function getUserFilter()
 	{
-		$fUserID = IntVal(CSaleBasket::GetBasketUserID(True));
+		$fUserID = (int)CSaleBasket::GetBasketUserID(true);
 		return ($fUserID > 0)
 			? array("FUSER_ID" => $fUserID, "LID" => SITE_ID, "ORDER_ID" => "NULL")
 			: null; // no basket for current user
@@ -216,71 +225,6 @@ class SaleBasketLineComponent extends CBitrixComponent
 		return ++self::$nextNumber;
 	}
 
-	private function getNumProducts()
-	{
-		$numProducts = 0;
-
-		if ($userFilter = $this->getUserFilter())
-		{
-			$rsBasket = CSaleBasket::GetList(
-				array (),
-				$userFilter + $this->readyForOrderFilter,
-				false,
-				false,
-				array('ID', 'SET_PARENT_ID', 'TYPE')
-			);
-			while ($arItem = $rsBasket->Fetch())
-			{
-				if (CSaleBasketHelper::isSetItem($arItem))
-					continue;
-				$numProducts ++;
-			}
-		}
-
-		return $numProducts;
-	}
-
-	private function getTotalPrice()
-	{
-		if (! ($userFilter = $this->getUserFilter()))
-			return array();
-
-		$rsBasket = CSaleBasket::GetList(
-			array(),
-			$userFilter + $this->readyForOrderFilter,
-			false,
-			false,
-			array(
-				"QUANTITY", "PRICE", "CURRENCY", "DISCOUNT_PRICE", "WEIGHT", "VAT_RATE",
-				"ID", "SET_PARENT_ID", "PRODUCT_ID", "CATALOG_XML_ID", "PRODUCT_XML_ID",
-				"PRODUCT_PROVIDER_CLASS", "TYPE", "BASE_PRICE"
-			)
-		);
-
-		$arBasketItems = array();
-
-		while ($arItem = $rsBasket->Fetch())
-		{
-			if (CSaleBasketHelper::isSetItem($arItem))
-				continue;
-
-			if (!isset($arItem['BASE_PRICE']) || (float)$arItem['BASE_PRICE'] <= 0)
-				$arItem['BASE_PRICE'] = $arItem['PRICE'] + $arItem['DISCOUNT_PRICE'];
-
-			$arBasketItems[] = $arItem;
-		}
-
-		$totalPrice = 0;
-
-		if ($arBasketItems)
-		{
-			$arOrder = $this->calculateOrder($arBasketItems);
-			$totalPrice = $arOrder['ORDER_PRICE'];
-		}
-
-		return $totalPrice;
-	}
-
 	private function calculateOrder($arBasketItems)
 	{
 		$totalPrice = 0;
@@ -329,7 +273,8 @@ class SaleBasketLineComponent extends CBitrixComponent
 			array(
 				"ID", "NAME", "CALLBACK_FUNC", "MODULE", "PRODUCT_ID", "QUANTITY", "DELAY", "CAN_BUY",
 				"PRICE", "WEIGHT", "DETAIL_PAGE_URL", "CURRENCY", "VAT_RATE", "CATALOG_XML_ID", "MEASURE_NAME",
-				"PRODUCT_XML_ID", "SUBSCRIBE", "DISCOUNT_PRICE", "PRODUCT_PROVIDER_CLASS", "TYPE", "SET_PARENT_ID", "BASE_PRICE"
+				"PRODUCT_XML_ID", "SUBSCRIBE", "DISCOUNT_PRICE", "PRODUCT_PROVIDER_CLASS", "TYPE", "SET_PARENT_ID", "BASE_PRICE",
+				"PRODUCT_PRICE_ID", 'CUSTOM_PRICE'
 			)
 		);
 
@@ -409,7 +354,9 @@ class SaleBasketLineComponent extends CBitrixComponent
 
 				if (!empty($arResult["CATEGORIES"]["DELAY"]) && is_array($arResult["CATEGORIES"]["DELAY"]))
 				{
+					Sale\DiscountCouponsManager::freezeCouponStorage();
 					$orderDelay = $this->calculateOrder($arResult["CATEGORIES"]["DELAY"]);
+					Sale\DiscountCouponsManager::unFreezeCouponStorage();
 					$arResult["CATEGORIES"]["DELAY"] = $orderDelay['BASKET_ITEMS'];
 				}
 

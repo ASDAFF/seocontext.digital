@@ -101,6 +101,9 @@ class StartWritingHandler extends \Bitrix\Replica\Client\BaseHandler
 				$arRelation = \CIMChat::GetRelationById($chatId);
 				unset($arRelation[$userId]);
 
+				$chat = \Bitrix\Im\Model\ChatTable::getById($chatId);
+				$chatData = $chat->fetch();
+
 				$pullMessage = Array(
 					'module_id' => 'im',
 					'command' => 'startWriting',
@@ -110,6 +113,16 @@ class StartWritingHandler extends \Bitrix\Replica\Client\BaseHandler
 						'dialogId' => $dialogId
 					),
 				);
+				if ($chatData['ENTITY_TYPE'] == 'LINES')
+				{
+					foreach ($arRelation as $rel)
+					{
+						if ($rel["EXTERNAL_AUTH_ID"] == 'imconnector')
+						{
+							unset($arRelation[$rel["USER_ID"]]);
+						}
+					}
+				}
 				\CPullStack::AddByUsers(array_keys($arRelation), $pullMessage);
 
 				$orm = \Bitrix\Im\Model\ChatTable::getById($chatId);

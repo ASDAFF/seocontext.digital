@@ -11,6 +11,14 @@ Loc::loadMessages(__FILE__);
 
 CBitrixComponent::includeComponentClass("bitrix:sale.bestsellers");
 
+/**
+ * Class \CatalogBigdataProductsComponent
+ *
+ * No longer used by internal code and not recommended. Use "catalog.section" instead.
+ *
+ * @deprecated deprecated since catalog 17.0.5
+ * @use \CatalogSectionComponent
+ */
 class CatalogBigdataProductsComponent extends CSaleBestsellersComponent
 {
 	protected $rcmParams;
@@ -630,7 +638,8 @@ class CatalogBigdataProductsComponent extends CSaleBestsellersComponent
 				if ($this->isAjax())
 				{
 					$APPLICATION->restartBuffer();
-					echo CUtil::PhpToJSObject(array('STATUS' => 'ERROR', 'MESSAGE' => $e->getMessage()));
+					header('Content-Type: application/json');
+					echo Main\Web\Json::encode(array('STATUS' => 'ERROR', 'MESSAGE' => $e->getMessage()));
 					die();
 				}
 

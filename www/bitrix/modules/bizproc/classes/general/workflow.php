@@ -29,16 +29,6 @@ class CBPWorkflow
 		return $this->runtime;
 	}
 
-	private function GetExecutionStatus()
-	{
-		return $this->rootActivity->executionStatus;
-	}
-
-	private function GetExecutionResult()
-	{
-		return $this->rootActivity->executionResult;
-	}
-
 	private function GetWorkflowStatus()
 	{
 		return $this->rootActivity->GetWorkflowStatus();
@@ -233,14 +223,6 @@ class CBPWorkflow
 		$persister = CBPWorkflowPersister::GetPersister();
 		$persister->SaveWorkflow($this->rootActivity, true);
 	}
-
-//	public static function DeleteWorkflow($workflowId)
-//	{
-//		$workflowId = trim($workflowId);
-//		if (strlen($workflowId) <= 0)
-//			throw new Exception("workflowId");
-//		
-//	}
 
 	/**********************  EXTERNAL EVENTS  **************************************************************/
 
@@ -437,6 +419,7 @@ class CBPWorkflow
 
 	private function RunQueuedItem(CBPActivity $activity, $activityOperation, Exception $exception = null)
 	{
+		/** @var $trackingService CBPTrackingService */
 		if ($activityOperation == CBPActivityExecutorOperationType::Execute)
 		{
 			if ($activity->executionStatus == CBPActivityExecutionStatus::Executing)
@@ -445,7 +428,6 @@ class CBPWorkflow
 				{
 					$trackingService = $this->GetService("TrackingService");
 					$trackingService->Write($this->GetInstanceId(), CBPTrackingType::ExecuteActivity, $activity->GetName(), $activity->executionStatus, $activity->executionResult, ($activity->IsPropertyExists("Title") ? $activity->Title : ""), "");
-
 					$newStatus = $activity->Execute();
 
 					if ($newStatus == CBPActivityExecutionStatus::Closed)
@@ -533,6 +515,22 @@ class CBPWorkflow
 			$trackingService = $this->GetService("TrackingService");
 			$trackingService->Write($this->instanceId, CBPTrackingType::FaultActivity, "none", CBPActivityExecutionStatus::Faulting, CBPActivityExecutionResult::Faulted, "Exception", ($e->getCode()? "[".$e->getCode()."] " : '').$e->getMessage());
 		}
+	}
+
+	/**
+	 * @param CBPActivity $activity
+	 * @throws CBPArgumentNullException
+	 * @throws Exception
+	 */
+	public function FinalizeActivity(CBPActivity $activity)
+	{
+		if ($activity == null)
+			throw new CBPArgumentNullException("activity");
+
+		//if ($activity->executionStatus != CBPActivityExecutionStatus::Closed)
+		//	throw new Exception("InvalidFinalizingState");
+
+		$activity->Finalize();
 	}
 
 	/************************  EVENTS QUEUE  ********************************************************/

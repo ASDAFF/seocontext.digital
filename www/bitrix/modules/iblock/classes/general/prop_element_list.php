@@ -306,6 +306,27 @@ class CIBlockPropertyElementList
 		return  $options;
 	}
 
+	/**
+	 * Returns data for smart filter.
+	 *
+	 * @param array $arProperty				Property description.
+	 * @param array $value					Current value.
+	 * @return false|array
+	 */
+	public static function GetExtendedValue($arProperty, $value)
+	{
+		$html = self::GetPublicViewHTML($arProperty, $value, array('MODE' => 'SIMPLE_TEXT'));
+		if (strlen($html))
+		{
+			$text = htmlspecialcharsback($html);
+			return array(
+				'VALUE' => $text,
+				'UF_XML_ID' => $text,
+			);
+		}
+		return false;
+	}
+
 	function GetElements($IBLOCK_ID)
 	{
 		static $cache = array();

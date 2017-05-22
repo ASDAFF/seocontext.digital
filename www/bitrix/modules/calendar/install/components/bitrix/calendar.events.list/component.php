@@ -55,7 +55,7 @@ elseif (is_array($arEvents))
 
 	for ($i = 0, $l = count($arEvents); $i < $l; $i++)
 	{
-		$arEvents[$i]['_DETAIL_URL'] = $arParams['DETAIL_URL'].'?EVENT_ID='.$arEvents[$i]['ID'].'&EVENT_DATE='.$arEvents[$i]['DT_FROM'];
+		$arEvents[$i]['_DETAIL_URL'] = $arParams['DETAIL_URL'].'?EVENT_ID='.$arEvents[$i]['ID'].'&EVENT_DATE='.$arEvents[$i]['DATE_FROM'];
 		if ($arEvents[$i]['IS_MEETING'] && $arEvents[$i]['MEETING_STATUS'] == 'Q')
 		{
 			$arEvents[$i]['_ADD_CLASS'] = ' calendar-not-confirmed';

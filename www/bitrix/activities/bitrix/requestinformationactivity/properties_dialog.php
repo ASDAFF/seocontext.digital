@@ -322,19 +322,19 @@ function BPRIAParamSaveForm()
 {
 	if (document.getElementById("id_fri_title").value.replace(/^\s+|\s+$/g, '').length <= 0)
 	{
-		alert('<?= GetMessage("BPSFA_PD_EMPTY_TITLE") ?>');
+		alert('<?= GetMessageJS("BPSFA_PD_EMPTY_TITLE") ?>');
 		document.getElementById("id_fri_title").focus();
 		return;
 	}
 	if (document.getElementById("id_fri_name").value.replace(/^\s+|\s+$/g, '').length <= 0)
 	{
-		alert('<?= GetMessage("BPSFA_PD_EMPTY_NAME") ?>');
+		alert('<?= GetMessageJS("BPSFA_PD_EMPTY_NAME") ?>');
 		document.getElementById("id_fri_name").focus();
 		return;
 	}
 	if (!document.getElementById("id_fri_name").value.match(/^[A-Za-z_][A-Za-z0-9_]*$/g))
 	{
-		alert('<?= GetMessage("BPSFA_PD_WRONG_NAME") ?>');
+		alert('<?= GetMessageJS("BPSFA_PD_WRONG_NAME") ?>');
 		document.getElementById("id_fri_name").focus();
 		return;
 	}

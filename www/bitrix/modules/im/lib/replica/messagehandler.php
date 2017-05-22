@@ -49,10 +49,12 @@ class MessageHandler extends \Bitrix\Replica\Client\BaseHandler
 
 	/**
 	 * Method will be invoked before new database record inserted.
+	 * When an array returned the insert will be cancelled and map for
+	 * returned record will be added.
 	 *
 	 * @param array &$newRecord All fields of inserted record.
 	 *
-	 * @return void
+	 * @return null|array
 	 */
 	public function beforeInsertTrigger(array &$newRecord)
 	{
@@ -61,6 +63,7 @@ class MessageHandler extends \Bitrix\Replica\Client\BaseHandler
 		{
 			$newRecord["MESSAGE"] = self::LOADER_PLACEHOLDER;
 		}
+		return null;
 	}
 
 	/**
@@ -194,8 +197,20 @@ class MessageHandler extends \Bitrix\Replica\Client\BaseHandler
 		}
 		else if ($arFields['MESSAGE_TYPE'] == IM_MESSAGE_CHAT || $arFields['MESSAGE_TYPE'] == IM_MESSAGE_OPEN)
 		{
+			$chat = \Bitrix\Im\Model\ChatTable::getById($chatId);
+			$chatData = $chat->fetch();
+
 			foreach ($arRel as $relation)
 			{
+				if ($relation["EXTERNAL_AUTH_ID"] == \Bitrix\Im\Bot::EXTERNAL_AUTH_ID)
+				{
+					continue;
+				}
+				if ($chatData['ENTITY_TYPE'] == "LINES" && $relation["EXTERNAL_AUTH_ID"] == 'imconnector')
+				{
+					continue;
+				}
+
 				\CIMContactList::SetRecent(Array(
 					'ENTITY_ID' => $relation['CHAT_ID'],
 					'MESSAGE_ID' => $newRecord['ID'],
@@ -222,9 +237,6 @@ class MessageHandler extends \Bitrix\Replica\Client\BaseHandler
 					)),
 				);
 
-				$chat = \Bitrix\Im\Model\ChatTable::getById($chatId);
-				$chatData = $chat->fetch();
-
 				if ($chatData && \CPullOptions::GetPushStatus())
 				{
 					$pushParams = \CIMMessenger::PreparePushForChat(Array(
@@ -242,14 +254,18 @@ class MessageHandler extends \Bitrix\Replica\Client\BaseHandler
 				$pullUsersSkip = Array();
 				foreach ($arRel as $rel)
 				{
-					$pullUsers[] = $rel['USER_ID'];
+					if ($chatData['ENTITY_TYPE'] == "LINES" && $rel["EXTERNAL_AUTH_ID"] == 'imconnector')
+					{
+					}
 					if ($rel['USER_ID'] == $newRecord['AUTHOR_ID'])
 					{
+						$pullUsers[] = $rel['USER_ID'];
 						$pullUsersSkip[] = $rel['USER_ID'];
 						\CPushManager::DeleteFromQueueBySubTag($newRecord['AUTHOR_ID'], 'IM_MESS');
 					}
 					else
 					{
+						$pullUsers[] = $rel['USER_ID'];
 						if ($rel['NOTIFY_BLOCK'] == 'Y' || !\CIMSettings::GetNotifyAccess($rel['USER_ID'], 'im', ($arFields['MESSAGE_TYPE'] == IM_MESSAGE_OPEN? 'openChat': 'chat'), \CIMSettings::CLIENT_PUSH))
 						{
 							$pullUsersSkip[] = $rel['USER_ID'];
@@ -306,10 +322,7 @@ class MessageHandler extends \Bitrix\Replica\Client\BaseHandler
 
 		$arFields['DATE_MODIFY'] = time()+\CTimeZone::GetOffset();
 
-		$CCTP = new \CTextParser();
-		$CCTP->MaxStringLen = 200;
-		$CCTP->allow = array("HTML" => "N", "USER" => "N",  "ANCHOR" => "Y", "BIU" => "Y", "IMG" => "N", "QUOTE" => "N", "CODE" => "N", "FONT" => "N", "LIST" => "N", "SMILES" => "Y", "NL2BR" => "Y", "VIDEO" => "N", "TABLE" => "N", "CUT_ANCHOR" => "N", "ALIGN" => "N");
-		$pullMessage = $CCTP->convertText(htmlspecialcharsbx($arFields['MESSAGE']));
+		$pullMessage = \Bitrix\Im\Text::parse($arFields['MESSAGE']);
 
 		$relations = \CIMChat::GetRelationById($arFields['CHAT_ID']);
 
@@ -335,6 +348,17 @@ class MessageHandler extends \Bitrix\Replica\Client\BaseHandler
 		{
 			$arPullMessage['chatId'] = $arFields['CHAT_ID'];
 			$arPullMessage['senderId'] = $arFields['AUTHOR_ID'];
+
+			if ($arFields['CHAT_ENTITY_TYPE'] == 'LINES')
+			{
+				foreach ($relations as $rel)
+				{
+					if ($rel["EXTERNAL_AUTH_ID"] == 'imconnector')
+					{
+						unset($relations[$rel["USER_ID"]]);
+					}
+				}
+			}
 		}
 
 		\CPullStack::AddByUsers(array_keys($relations), $p=Array(

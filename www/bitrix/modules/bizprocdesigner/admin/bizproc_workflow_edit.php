@@ -154,7 +154,7 @@ if($_SERVER['REQUEST_METHOD']=='POST' && $_REQUEST['saveajax']=='Y' && check_bit
 		if (\Bitrix\Main\Text\BinaryString::getLength($d) > 64000)
 		{
 			?><!--SUCCESS--><script>
-			alert('<?=GetMessage("BIZPROC_USER_PARAMS_SAVE_ERROR")?>');
+			alert('<?=GetMessageJS("BIZPROC_USER_PARAMS_SAVE_ERROR")?>');
 			</script><?
 			die();
 		}
@@ -180,7 +180,7 @@ if($_SERVER['REQUEST_METHOD']=='POST' && $_REQUEST['saveajax']=='Y' && check_bit
 	{
 		// PHP 5.2.1 bug http://bugs.php.net/bug.php?id=40456
 		?><!--SUCCESS--><script>
-		alert('<?=GetMessage("BIZPROC_WFEDIT_SAVE_ERROR")?>\n<?=preg_replace('#\.\W?#', ".\\n", CUtil::JSEscape($e->getMessage()))?>');
+		alert('<?=GetMessageJS("BIZPROC_WFEDIT_SAVE_ERROR")?>\n<?=preg_replace('#\.\W?#', ".\\n", CUtil::JSEscape($e->getMessage()))?>');
 		</script><?
 		die();
 	}
@@ -260,7 +260,7 @@ if($_SERVER['REQUEST_METHOD']=='POST' && $_REQUEST['import_template']=='Y' && ch
 	?>
 	<script>
 	<?if (intval($r) <= 0):?>
-		alert('<?= GetMessage("BIZPROC_WFEDIT_IMPORT_ERROR").(strlen($errTmp) > 0 ? ": ".CUtil::JSEscape($errTmp) : "" ) ?>');
+		alert('<?= GetMessageJS("BIZPROC_WFEDIT_IMPORT_ERROR").(strlen($errTmp) > 0 ? ": ".CUtil::JSEscape($errTmp) : "" ) ?>');
 	<?else:?>
 		<?$ID = $r;?>
 	<?endif;?>

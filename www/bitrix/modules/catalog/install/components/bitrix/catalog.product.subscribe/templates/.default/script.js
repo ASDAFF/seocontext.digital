@@ -556,14 +556,14 @@
         this.alreadySubscribed = Boolean(statusSubscription);
         if(this.alreadySubscribed)
         {
-            this.elemButtonSubscribe.className = this.defaultButtonClass;
-            this.elemButtonSubscribe.innerHTML = BX.message('CPST_TITLE_ALREADY_SUBSCRIBED');
+            this.elemButtonSubscribe.className = this.buttonClass + ' ' + this.defaultButtonClass + ' disabled';
+            this.elemButtonSubscribe.innerHTML = '<span>' + BX.message('CPST_TITLE_ALREADY_SUBSCRIBED') + '</span>';
             BX.unbind(this.elemButtonSubscribe, 'click', this._elemButtonSubscribeClickHandler);
         }
         else
         {
-            this.elemButtonSubscribe.className = this.buttonClass+' '+this.defaultButtonClass;
-            this.elemButtonSubscribe.innerHTML = BX.message('CPST_SUBSCRIBE_BUTTON_NAME');
+            this.elemButtonSubscribe.className = this.buttonClass + ' ' + this.defaultButtonClass;
+            this.elemButtonSubscribe.innerHTML = '<span>' + BX.message('CPST_SUBSCRIBE_BUTTON_NAME') + '</span>';
             BX.bind(this.elemButtonSubscribe, 'click', this._elemButtonSubscribeClickHandler);
         }
     };

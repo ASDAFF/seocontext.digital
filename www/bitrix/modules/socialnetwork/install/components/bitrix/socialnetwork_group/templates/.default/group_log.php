@@ -37,6 +37,7 @@ $APPLICATION->IncludeComponent(
 		"SUBSCRIBE_ONLY" => "N",
 		"SHOW_EVENT_ID_FILTER" => "Y",
 		"SHOW_FOLLOW_FILTER" => "N",
+		"CHECK_COMMENTS_PERMS" => (isset($arParams["CHECK_COMMENTS_PERMS"]) && $arParams["CHECK_COMMENTS_PERMS"] == "Y" ? "Y" : "N")
 	),
 	$component 
 );

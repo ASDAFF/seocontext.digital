@@ -2,6 +2,8 @@
 /** @global CDatabase $DB */
 /** @global CUser $USER */
 /** @global CMain $APPLICATION */
+use Bitrix\Iblock,
+	Bitrix\Currency\CurrencyTable;
 
 define("STOP_STATISTICS", true);
 define("BX_SECURITY_SHOW_MESSAGE", true);
@@ -85,7 +87,13 @@ $arOffers = false;
 $arOfferIBlock = false;
 $intOfferIBlockID = 0;
 $arSelectOfferProps = array();
-$arSelectedPropTypes = array('S','N','L','E','G');
+$arSelectedPropTypes = array(
+	Iblock\PropertyTable::TYPE_STRING,
+	Iblock\PropertyTable::TYPE_NUMBER,
+	Iblock\PropertyTable::TYPE_LIST,
+	Iblock\PropertyTable::TYPE_ELEMENT,
+	Iblock\PropertyTable::TYPE_SECTION
+);
 $arOffersSelectKeys = array(
 	YANDEX_SKU_EXPORT_ALL,
 	YANDEX_SKU_EXPORT_MIN_PRICE,
@@ -126,25 +134,26 @@ $arCondSelectProp = array(
 	'NONEQUAL' => GetMessage('YANDEX_SKU_EXPORT_PROP_SELECT_NONEQUAL'),
 );
 
-/*
-$arCommonConfig = array(
-	'country_of_origin',
-);
-*/
-
 $arTypesConfig = array(
+	'none' => array(
+		'vendor', 'vendorCode', 'sales_notes', 'manufacturer_warranty', 'country_of_origin',
+		//'adult'
+	),
 	'vendor.model' => array(
-		'vendor', 'vendorCode', 'model', 'manufacturer_warranty',
+		'typePrefix', 'vendor', 'vendorCode', 'model', 'sales_notes', 'manufacturer_warranty', 'country_of_origin',
+		//'adult'
 	),
 	'book' => array(
-		'author', 'publisher', 'series', 'year', 'ISBN', 'volume', 'part', 'language', 'binding', 'page_extent', 'table_of_contents',
+		'author', 'publisher', 'series', 'year', 'ISBN', 'volume', 'part', 'language', 'binding',
+		'page_extent', 'table_of_contents'
 	),
 	'audiobook' => array(
-		'author', 'publisher', 'series', 'year', 'ISBN', 'performed_by', 'performance_type', 'language', 'volume', 'part', 'format', 'storage', 'recording_length', 'table_of_contents',
+		'author', 'publisher', 'series', 'year', 'ISBN', 'performed_by', 'performance_type',
+		'language', 'volume', 'part', 'format', 'storage', 'recording_length', 'table_of_contents'
 	),
 	'artist.title' => array(
-		'title', 'artist', 'director', 'starring', 'originalName', 'country', 'year', 'media',
-	),
+		'title', 'artist', 'director', 'starring', 'originalName', 'country', 'year', 'media', //'adult'
+	)
 
 	// a bit later
 /*
@@ -545,7 +554,6 @@ HTML form
 		<tr>
 			<td colspan="2" style="text-align: center;">
 				<select name="type" onchange="switchType(this[this.selectedIndex].value)">
-				<option value="none"<? echo ($type == '' || $type == 'none' ? ' selected' : ''); ?>><?=GetMessage('YANDEX_TYPE_SIMPLE');?></option>
 <?
 //foreach ($arTypesConfig as $key => $arConfig):
 		foreach ($arTypesConfigKeys as $key)
@@ -553,6 +561,10 @@ HTML form
 			if ('none' != $key)
 			{
 				?><option value="<?=$key?>"<? echo ($type == $key ? ' selected' : ''); ?>><?=$key?></option><?
+			}
+			else
+			{
+				?><option value="none" selected><?=GetMessage('YANDEX_TYPE_SIMPLE');?></option><?
 			}
 		}
 ?>
@@ -564,37 +576,11 @@ HTML form
 		<?echo BeginNote(), GetMessage('YANDEX_TYPE_NOTE'), EndNote();?>
 			</td>
 		</tr>
-<?/*
-	<tr class="heading">
-		<td colspan="2"><?=GetMessage('YANDEX_PROPS_COMMON')?></td>
-	</tr>
-	<tr>
-		<td colspan="2">
-			<div id="config_common" style="padding: 10px;">
-				<table width="75%" class="inner" align="center">
-<?
-foreach ($arCommonConfig as $prop):
-?>
-					<tr>
-						<td align="right"><?=htmlspecialcharsbx(GetMessage('YANDEX_PROP_'.$prop))?>: </td>
-						<td><?__yand_show_selector('common', $prop, $IBLOCK)?> <small>(<?=htmlspecialcharsbx($prop)?>)</small></td>
-					</tr>
-<?
-endforeach;
-?>
-				</table>
-			</div>
-		</td>
-	</tr>
-*/?>
 		<tr class="heading">
 			<td colspan="2"><?=GetMessage('YANDEX_PROPS_TYPE')?></td>
 		</tr>
 		<tr>
 			<td colspan="2">
-				<div id="config_none" style="text-align: center; padding: 10px; display: <? echo ($type == 'none' || $type == '' ? 'block' : 'none'); ?>;">
-				<? echo GetMessage('YANDEX_PROPS_NO')?>
-				</div>
 <?
 		foreach ($arTypesConfig as $key => $arConfig):
 ?>
@@ -702,7 +688,7 @@ function __addYP()
 			?><select name="SKU_EXPORT_COND" id="SKU_EXPORT_COND"><?
 			foreach ($arOffersSelect as $key => $value)
 			{
-				?><option value="<? echo htmlspecialcharsbx($key);?>" <? echo ($key == $arSKUExport['SKU_EXPORT_COND'] ? 'selected' : '');?>><? echo htmlspecialcharsex($value); ?></option><?
+				?><option value="<? echo htmlspecialcharsbx($key);?>" <? echo ($key == $arSKUExport['SKU_EXPORT_COND'] ? 'selected' : '');?>><? echo htmlspecialcharsEx($value); ?></option><?
 			}
 			?></select><?
 			if (!empty($arSelectOfferProps))
@@ -725,13 +711,13 @@ function __addYP()
 						{
 							$strSelected = 'selected';
 						}
-						?><option value="<? echo htmlspecialcharsbx($intPropID); ?>" <? echo $strSelected; ?>><? echo htmlspecialcharsex($arIBlock['OFFERS_PROPERTY'][$intPropID]['NAME']);?></option><?
+						?><option value="<? echo htmlspecialcharsbx($intPropID); ?>" <? echo $strSelected; ?>><? echo htmlspecialcharsEx($arIBlock['OFFERS_PROPERTY'][$intPropID]['NAME']);?></option><?
 					}
 					?></select></td>
 					<td valign="top"><select name="SKU_PROP_SELECT" id="SKU_PROP_SELECT"><option value="">--- <? echo ToLower(GetMessage('YANDEX_SKU_EXPORT_PROP_COND')); ?> ---</option><?
 					foreach ($arCondSelectProp as $key => $value)
 					{
-						?><option value="<? echo htmlspecialcharsbx($key);?>" <? echo ($key == $arSKUExport['SKU_PROP_COND']['COND'] ? 'selected' : ''); ?>><? echo htmlspecialcharsex($value); ?></option><?
+						?><option value="<? echo htmlspecialcharsbx($key);?>" <? echo ($key == $arSKUExport['SKU_PROP_COND']['COND'] ? 'selected' : ''); ?>><? echo htmlspecialcharsEx($value); ?></option><?
 					}
 					?></select></td>
 					<td><div id="SKU_PROP_VALUE_DV"><?
@@ -744,7 +730,7 @@ function __addYP()
 							?><select name="SKU_PROP_VALUE_<? echo $arProp['ID']?>[]" multiple><?
 							foreach ($arProp['VALUES'] as $intValueID => $strValue)
 							{
-								?><option value="<? echo htmlspecialcharsbx($intValueID); ?>" <? echo (!empty($arSKUExport['SKU_PROP_COND']['VALUES']) && in_array($intValueID,$arSKUExport['SKU_PROP_COND']['VALUES']) ? 'selected' : ''); ?>><? echo htmlspecialcharsex($strValue); ?></option><?
+								?><option value="<? echo htmlspecialcharsbx($intValueID); ?>" <? echo (!empty($arSKUExport['SKU_PROP_COND']['VALUES']) && in_array($intValueID,$arSKUExport['SKU_PROP_COND']['VALUES']) ? 'selected' : ''); ?>><? echo htmlspecialcharsEx($strValue); ?></option><?
 							}
 							?></select><?
 						}
@@ -830,7 +816,7 @@ function __addYP()
 
 		$tabControl->BeginNextTab();
 
-	$arGroups = '';
+	$arGroups = array();
 	$dbRes = CCatalogGroup::GetGroupsList(array("GROUP_ID"=>2));
 	while ($arRes = $dbRes->Fetch())
 	{
@@ -847,16 +833,20 @@ function __addYP()
 		<td><br /><select name="PRICE">
 			<option value=""<? echo ($PRICE == "" || $PRICE == 0 ? ' selected' : '');?>><?=GetMessage('YANDEX_PRICE_TYPE_NONE');?></option>
 <?
-	$dbRes = CCatalogGroup::GetListEx(
-		array('SORT' => 'ASC'),
-		array('ID' => $arGroups),
-		false,
-		false,
-		array('ID', 'NAME', 'BASE')
-	);
-	while ($arRes = $dbRes->Fetch())
+	if (!empty($arGroups))
 	{
-		?><option value="<?=$arRes['ID']?>"<? echo ($PRICE == $arRes['ID'] ? ' selected' : '');?>><?='['.$arRes['ID'].'] '.htmlspecialcharsex($arRes['NAME']);?></option><?
+		$dbRes = CCatalogGroup::GetListEx(
+			array('SORT' => 'ASC'),
+			array('ID' => $arGroups),
+			false,
+			false,
+			array('ID', 'NAME', 'BASE')
+		);
+		while ($arRes = $dbRes->Fetch())
+		{
+			?>
+			<option value="<?= $arRes['ID'] ?>"<? echo($PRICE == $arRes['ID'] ? ' selected' : ''); ?>><?= '[' . $arRes['ID'] . '] ' . htmlspecialcharsEx($arRes['NAME']); ?></option><?
+		}
 	}
 ?>
 		</select><br /><br /></td>
@@ -869,7 +859,7 @@ function __addYP()
 		<td colspan="2"><br />
 <?
 	$arCurrencyList = array();
-	$arCurrencyAllowed = array('RUR', 'RUB', 'USD', 'EUR', 'UAH', 'BYR', 'KZT');
+	$arCurrencyAllowed = array('RUR', 'RUB', 'USD', 'EUR', 'UAH', 'BYR', 'BYN', 'KZT');
 	$dbRes = CCurrency::GetList($by = 'sort', $order = 'asc');
 	while ($arRes = $dbRes->GetNext())
 	{
@@ -911,7 +901,7 @@ function __addYP()
 		foreach ($arValues as $key => $title)
 		{
 ?>
-			<option value="<?=htmlspecialcharsbx($key)?>"<? echo ($strRate == $key ? ' selected' : ''); ?>>(<?=htmlspecialcharsex($key)?>) <?=htmlspecialcharsex($title)?></option>
+			<option value="<?=htmlspecialcharsbx($key)?>"<? echo ($strRate == $key ? ' selected' : ''); ?>>(<?=htmlspecialcharsEx($key)?>) <?=htmlspecialcharsEx($title)?></option>
 <?
 		}
 ?>
@@ -939,4 +929,3 @@ function __addYP()
 		require_once ($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");
 	}
 }
-?>

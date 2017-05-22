@@ -150,19 +150,19 @@ function BWFVCCreateFieldSave()
 
 	if (fldName.replace(/^\s+|\s+$/g, '').length <= 0)
 	{
-		alert('<?= GetMessage("BPSFA_PD_EMPTY_NAME") ?>');
+		alert('<?= GetMessageJS("BPSFA_PD_EMPTY_NAME") ?>');
 		document.getElementById("id_fld_name").focus();
 		return;
 	}
 	if (fldCode.replace(/^\s+|\s+$/g, '').length <= 0)
 	{
-		alert('<?= GetMessage("BPSFA_PD_EMPTY_CODE") ?>');
+		alert('<?= GetMessageJS("BPSFA_PD_EMPTY_CODE") ?>');
 		document.getElementById("id_fld_code").focus();
 		return;
 	}
 	if (!fldCode.match(/^[A-Za-z_][A-Za-z0-9_]*$/g))
 	{
-		alert('<?= GetMessage("BPSFA_PD_WRONG_CODE") ?>');
+		alert('<?= GetMessageJS("BPSFA_PD_WRONG_CODE") ?>');
 		document.getElementById("id_fld_code").focus();
 		return;
 	}
@@ -185,11 +185,11 @@ function BWFVCCreateFieldSave()
 
 	bwfvc_newfield_counter++;
 	var cont = document.getElementById("bwfvc_container");
-	cont.innerHTML += "<input type='hidden' name='new_field_name[" + bwfvc_newfield_counter + "]' value='" + objFields.HtmlSpecialChars(fldName) + "'>";
-	cont.innerHTML += "<input type='hidden' name='new_field_code[" + bwfvc_newfield_counter + "]' value='" + objFields.HtmlSpecialChars(fldCode) + "'>";
-	cont.innerHTML += "<input type='hidden' name='new_field_type[" + bwfvc_newfield_counter + "]' value='" + objFields.HtmlSpecialChars(fldType) + "'>";
-	cont.innerHTML += "<input type='hidden' name='new_field_mult[" + bwfvc_newfield_counter + "]' value='" + objFields.HtmlSpecialChars(fldMultiple) + "'>";
-	cont.innerHTML += "<input type='hidden' name='new_field_req[" + bwfvc_newfield_counter + "]' value='" + objFields.HtmlSpecialChars(fldRequired) + "'>";
+	cont.innerHTML += "<input type='hidden' name='new_field_name[" + bwfvc_newfield_counter + "]' value=\"" + objFields.HtmlSpecialChars(fldName) + "\">";
+	cont.innerHTML += "<input type='hidden' name='new_field_code[" + bwfvc_newfield_counter + "]' value=\"" + objFields.HtmlSpecialChars(fldCode) + "\">";
+	cont.innerHTML += "<input type='hidden' name='new_field_type[" + bwfvc_newfield_counter + "]' value=\"" + objFields.HtmlSpecialChars(fldType) + "\">";
+	cont.innerHTML += "<input type='hidden' name='new_field_mult[" + bwfvc_newfield_counter + "]' value=\"" + objFields.HtmlSpecialChars(fldMultiple) + "\">";
+	cont.innerHTML += "<input type='hidden' name='new_field_req[" + bwfvc_newfield_counter + "]' value=\"" + objFields.HtmlSpecialChars(fldRequired) + "\">";
 	cont.innerHTML += BWFVCToHiddens(fldOptions, 'new_field_options[' + bwfvc_newfield_counter + ']');
 
 	BWFVCCreateField(false);

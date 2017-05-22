@@ -106,20 +106,25 @@ class RelationTable extends Entity\DataManager
 				'values' => array('N', 'Y'),
 				'title' => Loc::getMessage('RELATION_ENTITY_NOTIFY_BLOCK_FIELD'),
 			),
+			'MANAGER' => array(
+				'data_type' => 'boolean',
+				'values' => array('N', 'Y'),
+				'default_value' => 'N',
+			),
 			'CHAT' => array(
-				'data_type' => 'Bitrix\Im\Chat',
+				'data_type' => 'Bitrix\Im\Model\ChatTable',
 				'reference' => array('=this.CHAT_ID' => 'ref.ID'),
 			),
 			'START' => array(
-				'data_type' => 'Bitrix\Im\Message',
+				'data_type' => 'Bitrix\Im\Model\MessageTable',
 				'reference' => array('=this.START_ID' => 'ref.ID'),
 			),
 			'LAST_SEND' => array(
-				'data_type' => 'Bitrix\Im\Message',
+				'data_type' => 'Bitrix\Im\Model\MessageTable',
 				'reference' => array('=this.LAST_SEND_ID' => 'ref.ID'),
 			),
 			'LAST' => array(
-				'data_type' => 'Bitrix\Im\Message',
+				'data_type' => 'Bitrix\Im\Model\MessageTable',
 				'reference' => array('=this.LAST_ID' => 'ref.ID'),
 			),
 			'USER' => array(

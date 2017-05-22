@@ -504,7 +504,7 @@ BX.Report = (function ()
                 }
                 w.close();
                 w.destroy();
-            }, 3500);
+            }, 2500);
             var popupConfirm = BX.PopupWindowManager.create('bx-report-status-action', null, {
                 content: messageBox,
                 onPopupClose: function ()
@@ -533,7 +533,7 @@ BX.Report = (function ()
                     }
                     w.close();
                     w.destroy();
-                }, 3500);
+                }, 2500);
             };
         },
         show: function(element)

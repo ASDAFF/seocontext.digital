@@ -100,6 +100,40 @@ class ContactTable extends Entity\DataManager
 	}
 
 	/**
+	 * Handler of before add event
+	 * @param Entity\Event $event Event object
+	 * @return Entity\EventResult
+	 */
+	public static function onBeforeAdd(Entity\Event $event)
+	{
+		$result = new Entity\EventResult;
+		$data = $event->getParameters();
+		if(isset($data['fields']['EMAIL']))
+		{
+			$result->modifyFields(array('EMAIL' => strtolower($data['fields']['EMAIL'])));
+		}
+
+		return $result;
+	}
+
+	/**
+	 * Handler of before update event
+	 * @param Entity\Event $event Event object
+	 * @return Entity\EventResult
+	 */
+	public static function onBeforeUpdate(Entity\Event $event)
+	{
+		$result = new Entity\EventResult;
+		$data = $event->getParameters();
+		if(isset($data['fields']['EMAIL']))
+		{
+			$result->modifyFields(array('EMAIL' => strtolower($data['fields']['EMAIL'])));
+		}
+
+		return $result;
+	}
+
+	/**
 	 * @param Entity\Event $event
 	 * @return Entity\EventResult
 	 */

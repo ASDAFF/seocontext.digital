@@ -8,4 +8,6 @@ $MESS["SOPC_EMPTY_PAY_SYSTEM_LIST"] = "There are no payment systems";
 $MESS["SOPC_TITLE"] = "Top up account";
 $MESS["SOPC_INVALID_TOKEN"] = "Invalid security token";
 $MESS["SALE_ACCESS_DENIED"] = "Please log in to view user account.";
+$MESS["SOPC_ERROR_INNER_PAY_SYSTEM_RESTRICTED"] = "Payment system error. Payment using internal account has been restricted.";
+$MESS["SOPC_LOW_BALANCE"] = "Insufficient funds on internal account";
 ?>

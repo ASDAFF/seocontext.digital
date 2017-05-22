@@ -141,10 +141,11 @@ class CBPActivityExecutorOperationType
 
 class CBPDocumentEventType
 {
-	const None = 0;		//   0
-	const Create = 1;	//   1
-	const Edit = 2;		//  10
-	const Delete = 4;	// 100
+	const None = 0;		//    0
+	const Create = 1;	//    1
+	const Edit = 2;		//   10
+	const Delete = 4;	//  100
+	const Automation = 8;	// 1000
 
 	public static function Out($v)
 	{
@@ -172,6 +173,13 @@ class CBPDocumentEventType
 			if (strlen($result) > 0)
 				$result .= ", ";
 			$result .= "Delete";
+		}
+
+		if (($v & self::Automation) != 0)
+		{
+			if (strlen($result) > 0)
+				$result .= ", ";
+			$result .= "Automation";
 		}
 
 		return $result;

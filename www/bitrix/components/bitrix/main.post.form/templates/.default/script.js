@@ -1050,7 +1050,7 @@ LHEPostForm.prototype = {
 			if (params['arSize']['height'])
 				style += 'max-height:' + params['arSize']['height'] + 'px;';
 			if (style !== '')
-				this.parser['postimage']['wysiwyg'] = this.parser['postimage']['wysiwyg'].replace('#ADDITIONAL#', 'style="' + style + '" #ADDITIONAL#');
+				this.parser['postimage']['wysiwyg'] = this.parser['postimage']['wysiwyg'].replace('#ADDITIONAL#', ' style="' + style + '" #ADDITIONAL#');
 		}
 	},
 	initFiles : function(formID, params)
@@ -1281,26 +1281,25 @@ LHEPostForm.prototype = {
 					);
 				}
 			}
-			if (this.monitoring.savedFiles.join(',') != this.monitoring.files.join(','))
+			if (this.monitoring.savedFiles.join(',') !== this.monitoring.files.join(','))
 			{
-
-				var files = this.monitoring.files.join('|') + '|', id;
-				for (ii = 0; ii < this.monitoring.savedFiles.length; ii++)
+				var files = {}, id;
+				while (id = this.monitoring.savedFiles.pop())
 				{
-					id = this.monitoring.savedFiles[ii];
-					if (files.indexOf(id + '|') >= 0)
-						files = files.replace(id + '|', '');
-					else
-					{
-						id = id.split('/');
-						this.monitoringSetStatus(id[0], id[1], false);
-					}
+					files[id] = null;
 				}
-				files = files.substring(0, files.length - 1).split('|');
-				for (ii = 0; ii < files.length; ii++)
+				for (ii = 0; ii < this.monitoring.files.length; ii++)
 				{
-					id = id = files[ii].split('/');
-					this.monitoringSetStatus(id[0], id[1], true);
+					id = this.monitoring.files[ii];
+					files[id] = (files[id] >= 0 ? (files[id] + 1) : 1);
+				}
+				for (ii in files)
+				{
+					if (files.hasOwnProperty(ii))
+					{
+						id = ii.split('/');
+						this.monitoringSetStatus(id[0], id[1], (files[ii] > 0));
+					}
 				}
 			}
 			this.monitoring.savedFiles = this.monitoring.files;
@@ -1373,10 +1372,9 @@ LHEPostForm.prototype = {
 				pattern = (editorMode == "wysiwyg" ? this.parser["postimage"][editorMode] : pattern);
 				if (file.width > 0 && file.height > 0 && editor.sEditorMode == "html" )
 				{
-					params = ' style="width:' + file.width + 'px;height:' + file.height + 'px;" onload="this.style=\' \'"';
+					params = ' style="width:' + file.width + 'px;height:' + file.height + 'px;" onload="this.style.width=\'auto\';this.style.height=\'auto\';"';
 				}
 			}
-
 			if(editorMode == 'wysiwyg') // WYSIWYG
 			{
 				pattern = pattern.
@@ -1514,7 +1512,7 @@ LHEPostForm.prototype = {
 
 							if (strAdditional === "" && file["width"] > 0 && file["height"] > 0)
 							{
-								strAdditional = ' style="width:' + file["width"] + 'px;height:' + file["height"] + 'px;" onload="this.style=\' \'"';
+								strAdditional = ' style="width:' + file["width"] + 'px;height:' + file["height"] + 'px;" onload="this.style.width=\'auto\';this.style.height=\'auto\';"';
 							}
 						}
 
@@ -2342,7 +2340,7 @@ var MPFMention = {
 	bSearch: false
 };
 
-window.BXfpdSelectCallback = function(item, type, search, bUndeleted)
+window.BXfpdSelectCallback = function(item, type, search, bUndeleted, name, state)
 {
 	BX.SocNetLogDestination.BXfpSelectCallback({
 		item: item,
@@ -2350,10 +2348,50 @@ window.BXfpdSelectCallback = function(item, type, search, bUndeleted)
 		bUndeleted: bUndeleted,
 		containerInput: BX('feed-add-post-destination-item'),
 		valueInput: BX('feed-add-post-destination-input'),
-		formName: window.BXSocNetLogDestinationFormName,
+		formName: name,
+		tagInputName: 'bx-destination-tag',
+		tagLink1: BX.message('BX_FPD_LINK_1'),
+		tagLink2: BX.message('BX_FPD_LINK_2'),
+		state: (typeof state != 'undefined' ? state : null)
+	});
+};
+
+window.BXfpdUnSelectCallback = function(item, type, search, name)
+{
+	BX.SocNetLogDestination.BXfpUnSelectCallback.call({
+		formName: name,
+		inputContainerName: 'feed-add-post-destination-item',
+		inputName: 'feed-add-post-destination-input',
 		tagInputName: 'bx-destination-tag',
 		tagLink1: BX.message('BX_FPD_LINK_1'),
 		tagLink2: BX.message('BX_FPD_LINK_2')
+	}, item);
+};
+
+window.BXfpdOpenDialogCallback = function(name)
+{
+	BX.SocNetLogDestination.BXfpOpenDialogCallback.call({
+		inputBoxName: 'feed-add-post-destination-input-box',
+		inputName: 'feed-add-post-destination-input',
+		tagInputName: 'bx-destination-tag'
+	});
+};
+
+window.BXfpdCloseDialogCallback = function(name)
+{
+	BX.SocNetLogDestination.BXfpCloseDialogCallback.call({
+		inputBoxName: 'feed-add-post-destination-input-box',
+		inputName: 'feed-add-post-destination-input',
+		tagInputName: 'bx-destination-tag'
+	});
+};
+
+window.BXfpdCloseSearchCallback = function(name)
+{
+	BX.SocNetLogDestination.BXfpCloseSearchCallback.call({
+		inputBoxName: 'feed-add-post-destination-input-box',
+		inputName: 'feed-add-post-destination-input',
+		tagInputName: 'bx-destination-tag'
 	});
 };
 
@@ -2814,7 +2852,7 @@ window.MPFMentionInit = function(formId, params)
 				offsetLeft: '15px'
 			},
 			callback : {
-				select : window["BXfpdSelectCallback"],
+				select : window.BXfpdSelectCallback,
 				unSelect : BX.delegate(BX.SocNetLogDestination.BXfpUnSelectCallback, {
 					formName: window.BXSocNetLogDestinationFormName,
 					inputContainerName: 'feed-add-post-destination-item',
@@ -2837,11 +2875,6 @@ window.MPFMentionInit = function(formId, params)
 					inputBoxName: 'feed-add-post-destination-input-box',
 					inputName: 'feed-add-post-destination-input',
 					tagInputName: 'bx-destination-tag'
-				}),
-				closeSearch : BX.delegate(BX.SocNetLogDestination.BXfpCloseSearchCallback, {
-					inputBoxName: 'feed-add-post-destination-input-box',
-					inputName: 'feed-add-post-destination-input',
-					tagInputName: 'bx-destination-tag'
 				})
 			},
 			items : params["items"],
@@ -2853,9 +2886,16 @@ window.MPFMentionInit = function(formId, params)
 			allowAddUser: params["allowAddUser"],
 			allowAddCrmContact: params["allowAddCrmContact"],
 			allowSearchCrmEmailUsers: (typeof params["allowSearchCrmEmailUsers"] != 'undefined' ? !!params["allowSearchCrmEmailUsers"] : false),
-			userNameTemplate: (typeof params["userNameTemplate"] != 'undefined' ? params["userNameTemplate"] : '')
+			userNameTemplate: (typeof params["userNameTemplate"] != 'undefined' ? params["userNameTemplate"] : ''),
+			allowSonetGroupsAjaxSearch: (typeof params["allowSonetGroupsAjaxSearch"] != 'undefined' ? params["allowSonetGroupsAjaxSearch"] : false),
+			allowSonetGroupsAjaxSearchFeatures: (typeof params["allowSonetGroupsAjaxSearchFeatures"] != 'undefined' ? params["allowSonetGroupsAjaxSearchFeatures"] : {})
 		});
 		BX.bind(BX('feed-add-post-destination-input'), 'keyup', BX.delegate(BX.SocNetLogDestination.BXfpSearch, {
+			formName: window.BXSocNetLogDestinationFormName,
+			inputName: 'feed-add-post-destination-input',
+			tagInputName: 'bx-destination-tag'
+		}));
+		BX.bind(BX('feed-add-post-destination-input'), 'paste', BX.delegate(BX.SocNetLogDestination.BXfpSearch, {
 			formName: window.BXSocNetLogDestinationFormName,
 			inputName: 'feed-add-post-destination-input',
 			tagInputName: 'bx-destination-tag'
@@ -2883,7 +2923,17 @@ window.MPFMentionInit = function(formId, params)
 			{
 				if (params["itemsHidden"].hasOwnProperty(ii))
 				{
-					window.BXfpdSelectCallback({id:('SG'+params["itemsHidden"][ii]["ID"]), name:params["itemsHidden"][ii]["NAME"]}, 'sonetgroups', '', true);
+					window.BXfpdSelectCallback(
+						{
+							id: (typeof params["itemsHidden"][ii]["PREFIX"] != 'undefined' ? params["itemsHidden"][ii]["PREFIX"] : 'SG') + params["itemsHidden"][ii]["ID"],
+							name: params["itemsHidden"][ii]["NAME"]
+						},
+						(typeof params["itemsHidden"][ii]["TYPE"] != 'undefined' ? params["itemsHidden"][ii]["TYPE"] : 'sonetgroups'),
+						'',
+						true,
+						'',
+						'init'
+					);
 				}
 			}
 		}

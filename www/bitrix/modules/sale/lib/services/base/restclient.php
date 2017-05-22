@@ -34,6 +34,9 @@ class RestClient
 	protected $httpTimeout = 10;
 	protected $accessSettings = null;
 	protected $serviceHost = 'https://saleservices.bitrix.info';
+
+	protected $version = 2;
+
 	/**
 	 * Performs call to the REST method and returns decoded results of the call.
 	 * define SALE_SRVS_RESTCLIENT_DISABLE_SRV_ALIVE_CHECK to disable server alive checking.
@@ -49,7 +52,12 @@ class RestClient
 
 		if(!self::isServerAlive() && !defined('SALE_SRVS_RESTCLIENT_DISABLE_SRV_ALIVE_CHECK'))
 		{
-			$result->addError(new Error('Can\'t receive information'));
+			$result->addError(
+				new Error(
+					Loc::getMessage('SALE_SRV_BASE_REST_CONNECT_ERROR').' '.$this->getServiceHost(),
+					self::ERROR_SERVICE_UNAVAILABLE
+				)
+			);
 			return $result;
 		}
 
@@ -70,6 +78,7 @@ class RestClient
 		else
 			$additionalParams = Encoding::convertEncodingArray($additionalParams, LANG_CHARSET, "utf-8");
 
+		$additionalParams['version'] = $this->version;
 		$additionalParams['client_id'] = $this->accessSettings['client_id'];
 		$additionalParams['client_secret'] = $this->accessSettings['client_secret'];
 
@@ -92,9 +101,9 @@ class RestClient
 			$answer = false;
 		}
 
-		if (!is_array($answer) || count($answer) == 0)
+		if (!is_array($answer))
 		{
-			$result->addError(new Error('Malformed answer from service. Status: "'.$http->getStatus().'". Result: "'.$postResult.'"', static::ERROR_SERVICE_UNAVAILABLE));
+			$result->addError(new Error(Loc::getMessage('SALE_SRV_BASE_REST_ANSWER_ERROR').' '.$this->getServiceHost().'. (Status: "'.$http->getStatus().'", Result: "'.$postResult.'")', static::ERROR_SERVICE_UNAVAILABLE));
 			$this->setLastUnSuccessCallInfo();
 			return $result;
 		}
@@ -219,24 +228,28 @@ class RestClient
 	{
 		$accessSettings = Option::get('sale', static::SERVICE_ACCESS_OPTION);
 
-		if ($accessSettings != '')
+		if($accessSettings != '')
 		{
-			return unserialize($accessSettings);
+			$accessSettings =  unserialize($accessSettings);
+
+			if($accessSettings)
+				return $accessSettings;
+			else
+				$this->clearAccessSettings();
+		}
+
+		/** @var Result $result */
+		$result = $this->register();
+
+		if($result->isSuccess())
+		{
+			$accessSettings = $result->getData();
+			$this->setAccessSettings($accessSettings);
+			return $accessSettings;
 		}
 		else
 		{
-			/** @var Result $result */
-			$result = $this->register();
-			if ($result->isSuccess())
-			{
-				$accessSettings = $result->getData();
-				$this->setAccessSettings($accessSettings);
-				return $accessSettings;
-			}
-			else
-			{
-				return array();
-			}
+			return array();
 		}
 	}
 

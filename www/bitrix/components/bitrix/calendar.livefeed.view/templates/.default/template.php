@@ -2,7 +2,6 @@
 <?
 $id = $arResult['ID'];
 $event = $arResult['EVENT'];
-
 ?>
 <div class="feed-event-view" id="feed-event-view-cont-<?= $id?>">
 	<div class="feed-calendar-view-icon">
@@ -46,6 +45,7 @@ $event = $arResult['EVENT'];
 
 			<?if (isset($event['RRULE']) && $event['RRULE'] !== ''):?>
 			<?
+			$repeatHTML = '';
 			$RRULE = CCalendarEvent::ParseRRULE($event['RRULE']);
 			switch ($RRULE['FREQ'])
 			{
@@ -80,9 +80,13 @@ $event = $arResult['EVENT'];
 					break;
 			}
 
-			if ($RRULE['UNTIL'] != '' && $RRULE['UNTIL'] != CCalendar::GetMaxDate())
+			if($RRULE['COUNT'] > 0)
 			{
-				$repeatHTML .= '<br>'.GetMessage('EC_RRULE_UNTIL', array('#UNTIL_DATE#' => CCalendar::Date(CCalendar::Timestamp($RRULE['UNTIL']))));
+				$repeatHTML .= ', '.GetMessage('EC_RRULE_COUNT', array('#COUNT#' => $RRULE['COUNT']));
+			}
+			elseif ($RRULE['UNTIL'] != '' && $RRULE['UNTIL'] != CCalendar::GetMaxDate())
+			{
+				$repeatHTML .= '<br>'.GetMessage('EC_RRULE_UNTIL', array('#UNTIL_DATE#' => CCalendar::Date(CCalendar::Timestamp($RRULE['UNTIL']), false)));
 			}
 			?>
 			<tr>
@@ -268,11 +272,17 @@ $event = $arResult['EVENT'];
 
 	<div id="feed-event-stat-link-popup-y-<?= $id?>" class="feed-event-status-popup">
 		<span class="webform-small-button" id="feed-event-decline-2-<?= $id?>"><span class="webform-small-button-left"></span><span class="webform-small-button-text"><?= GetMessage('ECLFV_INVITE_DECLINE2')?></span><span class="webform-small-button-right"></span></span>
+
+		<div id="feed-rec-decline-<?= $id?>" class="feed-event-rec-decline-popup">
+			<div style="margin-bottom: 8px;"><?= GetMessage('ECLFV_REC_DECLINE')?></div>
+			<span class="webform-small-button" id="feed-rec-decline-this-<?= $id?>"><span class="webform-small-button-left"></span><span class="webform-small-button-text"><?= GetMessage('ECLFV_REC_DECLINE_THIS')?></span><span class="webform-small-button-right"></span></span>
+			<span class="webform-small-button" id="feed-rec-decline-next-<?= $id?>"><span class="webform-small-button-left"></span><span class="webform-small-button-text"><?= GetMessage('ECLFV_REC_DECLINE_NEXT')?></span><span class="webform-small-button-right"></span></span>
+			<span class="webform-small-button" id="feed-rec-decline-all-<?= $id?>"><span class="webform-small-button-left"></span><span class="webform-small-button-text"><?= GetMessage('ECLFV_REC_DECLINE_ALL')?></span><span class="webform-small-button-right"></span></span>
+		</div>
 	</div>
 
 	<div id="feed-event-stat-link-popup-n-<?= $id?>" class="feed-event-status-popup">
 		<span class="webform-small-button webform-small-button-accept" id="feed-event-accept-2-<?= $id?>"><span class="webform-small-button-left"></span><span class="webform-small-button-text"><?= GetMessage('ECLFV_INVITE_ACCEPT2')?></span><span class="webform-small-button-right"></span></span>
 	</div>
-
 </div>
 <!--#BX_FEED_EVENT_FOOTER_MESSAGE_END#-->

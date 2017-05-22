@@ -385,6 +385,16 @@ if ($arGadgetParams['CAN_VIEW_PROFILE'])
 					</td>
 				</tr>
 			<?endif?>
+
+			<?if ($USER->GetID() == $arParams["USER_ID"]):?>
+                <tr>
+                    <td class="user-profile-nowrap" style="width: 40%"><?=GetMessage("GD_SONET_USER_DESC_SYNCHRONIZE")?>:</td>
+                    <td style="width: 60%">
+                        <a href="<?=$arParams["G_SONET_USER_LINKS_URL_SYNCHRONIZE"]?>"><?=GetMessage("GD_SONET_USER_DESC_SYNCHRONIZE_SETUP")?></a>
+                    </td>
+                </tr>
+			<?endif?>
+
 			<?if ($USER->GetID() == $arParams["USER_ID"] && $arGadgetParams["OTP"]["IS_ACTIVE"] && $arGadgetParams["OTP"]["ARE_RECOVERY_CODES_ENABLED"]):?>
 			<tr>
 				<td class="user-profile-nowrap" style="width: 40%"><?=GetMessage("GD_SONET_USER_DESC_OTP_CODES")?>:</td>

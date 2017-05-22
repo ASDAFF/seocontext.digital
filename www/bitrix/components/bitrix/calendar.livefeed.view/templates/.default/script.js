@@ -9,6 +9,11 @@
 		this.viewEventUrl = this.viewEventUrl.replace(/#user_id#/ig, this.userId);
 		this.viewEventUrl = this.viewEventUrl.replace(/#event_id#/ig, this.config.eventId);
 
+		if (this.config.EVENT.DATE_FROM && this.config.EVENT.RRULE)
+		{
+			this.viewEventUrl += '&EVENT_DATE=' + BX.formatDate(BX.parseDate(this.config.EVENT.DATE_FROM), BX.message('FORMAT_DATE'));
+		}
+
 		BX.ready(BX.proxy(this.Init, this));
 	};
 
@@ -184,9 +189,11 @@
 
 		ShowUserStatus: function(status)
 		{
-			var inviteCont = BX('feed-event-invite-controls-' + this.id);
-			var _this = this;
-			if (status)
+			var
+				_this = this,
+				inviteCont = BX('feed-event-invite-controls-' + this.id);
+
+			if (status && status != 'H')
 			{
 				var rand = Math.round(Math.random() * 100000);
 				inviteCont.className = 'feed-cal-view-inv-controls' + ' feed-cal-view-inv-controls-' + status.toLowerCase();
@@ -213,7 +220,22 @@
 						}
 						_this.popupAccepted.show();
 					};
-					BX('feed-event-decline-2-' + this.id).onclick = BX.proxy(this.Decline, this);
+
+					if (_this.config.EVENT.RRULE || _this.config.EVENT.RECURRENCE_ID)
+					{
+						BX('feed-rec-decline-' + this.id).style.display = 'block';
+						BX('feed-event-decline-2-' + this.id).style.display = 'none';
+
+						BX('feed-rec-decline-this-' + this.id).onclick = function(){_this.Decline('this');};
+						BX('feed-rec-decline-next-' + this.id).onclick = function(){_this.Decline('next');};
+						BX('feed-rec-decline-all-' + this.id).onclick = function(){_this.Decline('all');};
+					}
+					else
+					{
+						BX('feed-event-decline-2-' + this.id).style.display = '';
+						BX('feed-event-decline-2-' + this.id).onclick = BX.proxy(this.Decline, this);
+						BX('feed-rec-decline-' + this.id).style.display = 'none';
+					}
 				}
 				else if (status == 'N')
 				{
@@ -250,7 +272,7 @@
 			}
 		},
 
-		SetStatus: function(status)
+		SetStatus: function(status, recMode)
 		{
 			var _this = this;
 
@@ -266,7 +288,10 @@
 					event_feed_action: status,
 					sessid: BX.bitrix_sessid(),
 					event_id: this.config.eventId,
-					ajax_params: this.config.AJAX_PARAMS
+					parent_id: this.config.EVENT.PARENT_ID || false,
+					ajax_params: this.config.AJAX_PARAMS,
+					reccurent_mode: recMode || false,
+					current_date_from: this.config.EVENT.DATE_FROM
 				},
 				function(result)
 				{
@@ -305,9 +330,9 @@
 			return this.SetStatus('accept');
 		},
 
-		Decline: function()
+		Decline: function(recMode)
 		{
-			return this.SetStatus('decline');
+			return this.SetStatus('decline', recMode);
 		},
 
 		DeleteEvent: function()

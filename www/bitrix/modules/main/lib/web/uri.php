@@ -136,6 +136,17 @@ class Uri
 	}
 
 	/**
+	 * Sets the password.
+	 * @param string $pass Password,
+	 * @return $this
+	 */
+	public function setPass($pass)
+	{
+		$this->pass = $pass;
+		return $this;
+	}
+
+	/**
 	 * Returns the path.
 	 * @return string
 	 */
@@ -203,6 +214,17 @@ class Uri
 	public function getUser()
 	{
 		return $this->user;
+	}
+
+	/**
+	 * Sets the user.
+	 * @param string $user User.
+	 * @return $this
+	 */
+	public function setUser($user)
+	{
+		$this->user = $user;
+		return $this;
 	}
 
 	/**

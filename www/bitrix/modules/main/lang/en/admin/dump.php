@@ -143,7 +143,6 @@ $MESS["DUMP_MAIN_BXCLOUD_INFO"] = "Bitrix Inc. provides cloud space for three ba
 $MESS["MAIN_DUMP_BXCLOUD_ENC"] = "Encryption cannot be disabled for backups saved to Bitrix Cloud Storage.";
 $MESS["MAIN_DUMP_FROM"] = "from";
 $MESS["DUMP_ERR_BIG_BACKUP"] = "Backup size exceeds your Bitrix Cloud quota. The archive has been saved on the local machine.";
-$MESS["DUMP_BACK"] = "back";
 $MESS["DUMP_RETRY"] = "Try again";
 $MESS["MAIN_DUMP_ERR_DELETE"] = "You cannot manually delete files stored in Bitrix Cloud. The outdated archives are replaced with the new one as soon as you create and upload a new backup.";
 $MESS["ERR_NO_BX_CLOUD"] = "The cloud service support module is not installed";

@@ -705,7 +705,7 @@ class CCalendarConvert
 					'arFields' => $arFields,
 					'bAffectToDav' => false,
 					'attendeesStatuses' => $attendeesStatuses,
-					'bSendInvitations' => false
+					'sendInvitations' => false
 				)
 			);
 			$eventsCount++;

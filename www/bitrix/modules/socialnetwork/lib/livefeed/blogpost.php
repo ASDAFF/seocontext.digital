@@ -1,22 +1,33 @@
 <?php
 namespace Bitrix\Socialnetwork\Livefeed;
 
-use Bitrix\Main;
 use Bitrix\Main\Loader;
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\Config\Option;
 
 Loc::loadMessages(__FILE__);
 
 final class BlogPost extends Provider
 {
 	const PROVIDER_ID = 'BLOG_POST';
+	const TYPE = 'entry';
 
 	public static function getId()
 	{
 		return static::PROVIDER_ID;
 	}
 
-	protected function initSourceFields()
+	public function getEventId()
+	{
+		return array('blog_post', 'blog_post_important', 'blog_post_micro');
+	}
+
+	public function getType()
+	{
+		return static::TYPE;
+	}
+
+	public function initSourceFields()
 	{
 		$postId = $this->entityId;
 
@@ -25,15 +36,22 @@ final class BlogPost extends Provider
 			&& Loader::includeModule('blog')
 		)
 		{
+			$res = \CBlogPost::getList(
+				array(),
+				array(
+					"ID" => $postId
+				)
+			);
 			if (
-				($post = \CBlogPost::getById($postId))
+				($post = $res->fetch())
 				&& (self::canRead(array(
 					'POST' => $post
 				)))
 			)
 			{
+				$this->setSourceFields($post);
 				$this->setSourceDescription($post['DETAIL_TEXT']);
-				$this->setSourceTitle($post['TITLE']);
+				$this->setSourceTitle(truncateText(($post['MICRO'] == 'N' ? $post['TITLE'] : htmlspecialcharsback($post['TITLE'])), 100));
 				$this->setSourceAttachedDiskObjects($this->getAttachedDiskObjects($postId));
 				$this->setSourceDiskObjects($this->getDiskObjects($postId, $this->cloneDiskObjects));
 			}
@@ -103,7 +121,7 @@ final class BlogPost extends Provider
 		return $result;
 	}
 
-	protected function getPermissions($post)
+	protected function getPermissions(array $post)
 	{
 		global $USER;
 
@@ -122,7 +140,7 @@ final class BlogPost extends Provider
 					"NEED_FULL" => true,
 					"USER_ID" => false,
 					"POST_AUTHOR_ID" => $post["AUTHOR_ID"],
-					"PUBLIC" => 'N',
+					"PUBLIC" => false,
 					"LOG_ID" => false
 				));
 
@@ -138,5 +156,20 @@ final class BlogPost extends Provider
 		}
 
 		return $result;
+	}
+
+	public function getLiveFeedUrl()
+	{
+		$pathToPost = Option::get('socialnetwork', 'userblogpost_page', '', SITE_ID);
+		if (
+			!empty($pathToPost)
+			&& ($post = $this->getSourceFields())
+			&& !empty($post)
+		)
+		{
+			$pathToPost = \CComponentEngine::makePathFromTemplate($pathToPost, array("post_id" => $post["ID"], "user_id" => $post["AUTHOR_ID"]));
+		}
+
+		return $pathToPost;
 	}
 }

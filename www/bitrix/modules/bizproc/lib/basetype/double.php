@@ -186,7 +186,7 @@ class Double extends Base
 	 * @param array $request
 	 * @return float|null
 	 */
-	protected static function extractValue(FieldType $fieldType, $field, $request)
+	protected static function extractValue(FieldType $fieldType, array $field, array $request)
 	{
 		$value = parent::extractValue($fieldType, $field, $request);
 

@@ -25,7 +25,7 @@ $arComponentParameters = Array(
 			"PARENT" => "ADDITIONAL_SETTINGS",
 		),
 		"PATH_TO_COPY" => Array(
-			"NAME" => GetMessage("SPOL_PATH_TO_COPY"),
+			"NAME" => GetMessage("SPOD_PATH_TO_COPY"),
 			"TYPE" => "STRING",
 			"MULTIPLE" => "N",
 			"DEFAULT" => "",
@@ -129,6 +129,41 @@ if(CModule::IncludeModule("sale"))
 					"PARENT" => "BASE",
 				);
 		}
+	}
+
+	$statusList = array(GetMessage("SPOD_NOT_CHOSEN"));
+	$listStatusNames = Bitrix\Sale\OrderStatus::getAllStatusesNames(LANGUAGE_ID);
+	foreach($listStatusNames as $key => $data)
+	{
+		$statusList[$key] = $data;
+	}
+
+	$arComponentParameters['PARAMETERS']['RESTRICT_CHANGE_PAYSYSTEM'] = array(
+		"NAME" => GetMessage("SPOD_RESTRICT_CHANGE_PAYSYSTEM"),
+		"TYPE" => "LIST",
+		"VALUES" => $statusList,
+		"MULTIPLE" => "Y",
+		"DEFAULT" => 0,
+		"PARENT" => "ADDITIONAL_SETTINGS",
+		"SIZE" => 5,
+	);
+	
+	
+	if (CBXFeatures::IsFeatureEnabled('SaleAccounts'))
+	{
+		$arComponentParameters['PARAMETERS']['ALLOW_INNER'] = array(
+			"NAME" => GetMessage("SPOD_ALLOW_INNER"),
+			"TYPE" => "CHECKBOX",
+			"DEFAULT" => "N",
+			"PARENT" => "ORDER",
+		);
+
+		$arComponentParameters['PARAMETERS']['ONLY_INNER_FULL'] = array(
+			"NAME" => GetMessage("SPOD_ONLY_INNER_FULL"),
+			"TYPE" => "CHECKBOX",
+			"DEFAULT" => "N",
+			"PARENT" => "ORDER",
+		);
 	}
 }
 

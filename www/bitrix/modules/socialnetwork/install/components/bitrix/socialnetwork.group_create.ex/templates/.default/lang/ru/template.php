@@ -55,4 +55,6 @@ $MESS["SONET_GCE_T_DEST_EXTRANET_ADD_NAME_TITLE"] = "Имя";
 $MESS["SONET_GCE_T_DEST_EXTRANET_ADD_LAST_NAME_TITLE"] = "Фамилия";
 $MESS["SONET_GCE_T_DEST_EXTRANET_ADD_SEND_PASSWORD_TITLE"] = "Отправить данные для входа на указанный e-mail";
 $MESS["SONET_GCE_T_EMAILS_DESCR"] = "Введите адреса через запятую";
+$MESS["SONET_GCE_T_INVITE_MESSAGE_TEXT"] = "Приглашаю вас на корпоративный портал нашей компании. Здесь мы сможем вместе работать над проектами и задачами, управлять документами, планировать встречи и собрания, общаться в блогах и многое другое.";
+$MESS["SONET_GCE_T_AJAX_ERROR"] = "Произошла ошибка при обработке данных формы. Пожалуйста, попробуйте еще раз.";
 ?>

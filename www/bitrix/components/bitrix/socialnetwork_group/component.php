@@ -21,6 +21,7 @@ $arDefaultUrlTemplates404 = array(
 
 	"search" => "search.php",
 	"group" => "group/#group_id#/",
+	"group_general" => "group/#group_id#/general/",
 	"group_edit" => "group/#group_id#/edit/",
 	"group_requests" => "group/#group_id#/requests/",
 	"group_requests_out" => "group/#group_id#/requests_out/",
@@ -154,6 +155,8 @@ $arDefaultUrlTemplatesN404 = array(
 	"group_create" => "page=group_create&user_id=#group_id#",
 
 	"group" => "page=group&group_id=#group_id#",
+	"group_general" => "page=group_general&group_id=#group_id#",
+
 	"group_edit" => "page=group_edit&group_id=#group_id#",
 	"group_requests" => "page=group_requests&group_id=#group_id#",
 	"group_requests_out" => "page=group_requests_out&group_id=#group_id#",
@@ -756,7 +759,6 @@ if(check_bitrix_sessid() || $_SERVER['REQUEST_METHOD'] == "PUT")
 			"CALENDAR_GROUP_IBLOCK_ID" => $arParams["CALENDAR_GROUP_IBLOCK_ID"],
 			"PATH_TO_GROUP_CALENDAR_ELEMENT" => $arResult["PATH_TO_GROUP_CALENDAR"]."?EVENT_ID=#element_id#",
 
-			"TASK_IBLOCK_ID" => $arParams["TASK_IBLOCK_ID"],
 			"PATH_TO_GROUP_TASK_ELEMENT" => $arResult["PATH_TO_GROUP_TASKS_TASK"],
 			"PATH_TO_USER_TASK_ELEMENT" => "",
 			"TASK_FORUM_ID" => ($tasksForumId > 0 ? $tasksForumId : $arParams["TASK_FORUM_ID"]),

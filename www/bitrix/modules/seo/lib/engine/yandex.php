@@ -7,7 +7,10 @@
  */
 namespace Bitrix\Seo\Engine;
 
+use Bitrix\Main\ArgumentNullException;
 use Bitrix\Main\Context;
+use Bitrix\Main\Web\HttpClient;
+use Bitrix\Main\Web\Json;
 use Bitrix\Seo\Engine;
 use Bitrix\Seo\IEngine;
 use Bitrix\Main\Text;
@@ -18,6 +21,11 @@ class Yandex extends Engine\YandexBase implements IEngine
 	const ENGINE_ID = 'yandex';
 
 	const SERVICE_URL = "https://webmaster.yandex.ru/api/v2";
+	const API_BASE_URL = "https://api.webmaster.yandex.net/v3/user/";
+	const API_HOSTS_URL = "hosts/";
+	const API_SUMMARY_URL = "summary/";
+	const API_VERIFICATION_URL = "verification/";
+	const API_ORIGINAL_TEXTS_URL = "original-texts/";
 
 	const HOSTS_SERVICE = "host-list";
 	const HOST_VERIFY = "verify-host";
@@ -37,16 +45,73 @@ class Yandex extends Engine\YandexBase implements IEngine
 	const VERIFIED_STATE_FAILED = "VERIFICATION_FAILED";
 	const VERIFIED_STATE_NEVER_VERIFIED = "NEVER_VERIFIED";
 	const VERIFIED_STATE_IN_PROGRESS = "IN_PROGRESS";
+	
+	private static $verificationTypes = array('DNS','HTML_FILE','META_TAG','WHOIS','TXT_FILE');
 
 	protected $engineId = 'yandex';
 	protected $arServiceList = array();
-
+	private $userId = null;
+	private $hostIds = array();
+	
+	public function __construct()
+	{
+		parent::__construct();
+		
+//		save user ID from auth
+		if(isset($this->engineSettings['AUTH_USER']['id']))
+			$this->userId = $this->engineSettings['AUTH_USER']['id'];
+	}
+	
+	/**
+	 * Construct URL of service for REST request.
+	 * Glue base URL and params: user ID, host ID, service name and additional url-params
+	 * @param null $userId
+	 * @param null $hostId
+	 * @param null $service
+	 * @param null $params
+	 * @return string
+	 */
+	private function getServiceUrlv3($userId = null, $hostId = null, $service = null, $params = null)
+	{
+		$url = self::API_BASE_URL;
+		
+		if($userId)
+			$url .= $userId .'/';
+		if($hostId)
+			$url .= 'hosts/'.$hostId.'/';
+		if($service)
+			$url .= $service;
+		if($params)
+		{
+			if(is_array($params))
+				$params = '?'.http_build_query($params);
+			else
+				$params = '?' . str_replace('?','',$params);
+			
+			$url .= $params;
+		}
+		
+		return $url;
+	}
+	
 	// temporary hack
 	public function getAuthSettings()
 	{
 		return $this->engineSettings['AUTH'];
 	}
+	
+	private function getHostId($domain)
+	{
+//		get saved host ID
+		if(isset($this->hostIds[$domain]) && !empty($this->hostIds[$domain]))
+			return $this->hostIds[$domain];
+		
+//		else get host ID from API
+		$hosts = $this->getFeedsV3();
+		return $hosts[$domain];
+	}
 
+//	todo: deprecated this and other old methods
 	public function getFeeds()
 	{
 		if(!isset($this->arServiceList[self::HOSTS_SERVICE]))
@@ -66,6 +131,33 @@ class Yandex extends Engine\YandexBase implements IEngine
 			{
 				throw new Engine\YandexException($queryResult);
 			}
+		}
+	}
+	
+	public function getFeedsV3()
+	{
+		$serviceUrl = $this->getServiceUrlv3($this->userId, null, self::API_HOSTS_URL);
+		$queryResult = $this->queryV3($serviceUrl, 'GET');
+		
+		if($queryResult->getStatus() == self::HTTP_STATUS_OK && strlen($queryResult->getResult()) > 0)
+		{
+			$resultConverted = array();
+			$result = Json::decode($queryResult->getResult());
+			foreach($result['hosts'] as $host)
+			{
+				$hostUrl = str_replace(array('http://','https://','/'),'',$host['unicode_host_url']);
+				$resultConverted[$hostUrl] = $host;
+//				convert verified status in correct format
+				if($host['verified'])
+					$resultConverted[$hostUrl]['verification'] = self::VERIFIED_STATE_VERIFIED;
+//				save hostId in local var
+				$this->hostIds[$hostUrl] = $host['host_id'];
+			}
+			return $resultConverted;
+		}
+		else
+		{
+			throw new Engine\YandexException($queryResult);
 		}
 	}
 
@@ -378,7 +470,7 @@ EOT;
 			}
 		}
 	}
-
+	
 	public function addSite($domain, $dir = '/')
 	{
 		$domain = ToLower($domain);
@@ -409,6 +501,23 @@ EOT;
 				throw new Engine\YandexException($queryResult);
 			}
 		}
+	}
+	
+	public function addSiteV3($domain, $dir = '/')
+	{
+		$domain = ToLower($domain);
+		$queryDomain = Context::getCurrent()->getRequest()->isHttps() ? 'https://'.$domain : $domain;
+		
+//		create JSON data in correct format
+		$data = array("host_url" => $queryDomain);
+		$data = Json::encode($data);
+		$serviceUrl = $this->getServiceUrlv3($this->userId, null, self::API_HOSTS_URL);
+		$queryResult = $this->queryV3($serviceUrl, 'POST', $data);
+		
+		if($queryResult->getStatus() == self::HTTP_STATUS_CREATED && strlen($queryResult->getResult()) > 0)
+			return array($domain => true);
+		else
+			throw new Engine\YandexException($queryResult);
 	}
 
 	public function verifySite($domain, $bCheck)
@@ -471,7 +580,57 @@ EOT;
 
 		return;
 	}
-
+	
+	/**
+	 * Just checking verify status of site and get UIN for verification
+	 * @param $domain
+	 * @return UIN if site not verified and FALSE if site already verify.
+	 * @throws YandexException
+	 */
+	public function getVerifySiteUinV3($domain)
+	{
+		$domain = ToLower($domain);
+		$hostId = $this->getHostId($domain);
+		
+		$serviceUrl = $this->getServiceUrlv3($this->userId, $hostId, self::API_VERIFICATION_URL);
+		$queryResult = $this->queryV3($serviceUrl, 'GET');
+		
+		if($queryResult->getStatus() == self::HTTP_STATUS_OK && strlen($queryResult->getResult()) > 0)
+		{
+			$result = Json::decode($queryResult->getResult());
+			if($result['verification_state'] != self::VERIFIED_STATE_VERIFIED)
+				return $result['verification_uin'];
+			else
+				return false;	//already verify
+		}
+		else
+		{
+			throw new Engine\YandexException($queryResult);
+		}
+	}
+	
+//	todo: what is site not binded? It seems like first click by 'privazyat' will be bind site, and next - verify
+	public function verifySiteV3($domain, $verType = 'HTML_FILE')
+	{
+		if(!in_array($verType, self::$verificationTypes))
+			return array('error' => array('message' => 'incorrect verification type'));
+			
+		$domain = ToLower($domain);
+		$hostId = $this->getHostId($domain);
+		
+		$serviceUrl = $this->getServiceUrlv3($this->userId, $hostId, self::API_VERIFICATION_URL, array('verification_type' => $verType));
+		$queryResult = $this->queryV3($serviceUrl, 'POST');
+		if($queryResult->getStatus() == self::HTTP_STATUS_OK && strlen($queryResult->getResult()) > 0)
+		{
+			$result = Json::decode($queryResult->getResult());
+			return array($domain => array('verification' => $result['verification_state']));
+		}
+		else
+		{
+			throw new Engine\YandexException($queryResult);
+		}
+	}
+	
 	protected function getServiceDocument()
 	{
 		$queryResult = $this->queryOld(self::SERVICE_URL);
@@ -612,8 +771,15 @@ EOT;
 
 		return false;
 	}
-
-	// TODO: rewrite the whole upper code to use \Bitrix\Main\Web\HttpClient and than kill that implementation
+	
+	/**
+	 * @deprecated by queryV3
+	 * @param $scope
+	 * @param string $method
+	 * @param null $data
+	 * @param bool $skipRefreshAuth
+	 * @return \CHTTP
+	 */
 	protected function queryOld($scope, $method = "GET", $data = null, $skipRefreshAuth = false)
 	{
 		if($this->engineSettings['AUTH'])
@@ -651,6 +817,48 @@ EOT;
 			}
 
 			$http->result = Text\Encoding::convertEncoding($http->result, 'utf-8', LANG_CHARSET);
+
+			return $http;
+		}
+	}
+	
+	/**
+	 * Create HTTP client, set necessary headers and set request
+	 *
+	 * @param $scope - URL of service with additional params, if needed
+	 * @param string $method - may be POST, GET or DELETE
+	 * @param null $data
+	 * @param bool $skipRefreshAuth
+	 * @return HttpClient
+	 */
+	private function queryV3($scope, $method = "GET", $data = null, $skipRefreshAuth = false)
+	{
+		if($this->engineSettings['AUTH'])
+		{
+			$http = new HttpClient();
+			$http->setHeader('Authorization', 'OAuth ' . $this->engineSettings['AUTH']['access_token']);
+			$http->setRedirect(false);
+			switch ($method)
+			{
+				case 'GET':
+					$http->get($scope);
+					break;
+				case 'POST':
+					$http->setHeader('Content-type', 'application/json');
+					$http->post($scope, $data);
+					break;
+				case 'DELETE':
+					break;
+			}
+
+//			todo: what is it??
+			if ($http->getStatus() == 401 && !$skipRefreshAuth)
+			{
+				if ($this->checkAuthExpired())
+				{
+					$this->queryV3($scope, $method, $data, true);
+				}
+			}
 
 			return $http;
 		}

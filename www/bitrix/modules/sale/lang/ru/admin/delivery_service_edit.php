@@ -68,4 +68,7 @@ $MESS ['SALE_DSE_TAB_TRACKING_DESCR'] = "Настройки трэкинга";
 $MESS ['SALE_DSE_TAB_TRACKING_PARAMS'] = "Параметры";
 $MESS ['SALE_DSE_TAB_TRACKING_PARAMS_EMPTY'] = "Дополнительная настройка не требуется";
 $MESS ['SALE_DSE_FORM_ALLOW_EDIT_SHIPMENT'] = "Автоматическое изменение отгрузки, находящейся в первоначальном статусе, при изменении заказа";
+$MESS ['SALE_DSE_REQUIRED_FIELD'] = "Необходимо заполнить поле:";
+$MESS ['SALE_DSE_2DS_EDIT'] = "Вернуться в службу доставки";
+$MESS ['SALE_DSE_BUSINESS_VALUES'] = "Бизнес смыслы";
 ?>

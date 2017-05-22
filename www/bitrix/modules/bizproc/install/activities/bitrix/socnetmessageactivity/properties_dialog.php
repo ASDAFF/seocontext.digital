@@ -3,7 +3,7 @@ if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
 ?>
 
 <tr>
-	<td align="right" width="40%"><span class="adm-required-field"><?= GetMessage("BPSNMA_PD_FROM") ?>:</span></td>
+	<td align="right" width="40%"><?= GetMessage("BPSNMA_PD_FROM") ?>:</td>
 	<td width="60%">
 		<?
 		global $USER;
@@ -29,4 +29,5 @@ if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
 	<td width="60%">
 		<?=CBPDocument::ShowParameterField("text", 'message_text', $arCurrentValues['message_text'], Array('rows'=> 7))?>
 	</td>
+	<input type="hidden" name="message_format" value="<?=htmlspecialcharsbx($arCurrentValues['message_format'])?>">
 </tr>

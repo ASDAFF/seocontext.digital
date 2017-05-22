@@ -61,6 +61,7 @@ function __logOnReload(log_counter)
 
 BitrixLFFilter = function ()
 {
+	this.id = null;
 	this.filterPopup = false;
 	this.currentName = null;
 
@@ -69,17 +70,147 @@ BitrixLFFilter = function ()
 
 	this.obInputContainerName = {};
 	this.obContainerInput = {};
+
+	this.popupMenu = null;
+	this.menuItems = [];
+};
+
+BitrixLFFilter.prototype.initLentaMenu = function(params)
+{
+	if (typeof params.menuItems != 'undefined')
+	{
+		this.menuItems = params.menuItems;
+	}
+};
+
+BitrixLFFilter.prototype.showLentaMenu = function(params)
+{
+	var
+		short = (typeof params.short != 'undefined' && params.short),
+		bindElement = (typeof params.bindElement != 'undefined' ? BX(params.bindElement) : null);
+
+	if (!bindElement)
+	{
+		return false;
+	}
+
+	if (
+		typeof params.siteTemplateId == 'undefined'
+		|| params.siteTemplateId != 'bitrix24'
+	)
+	{
+		BX.addClass(bindElement, "lenta-sort-button-active");
+	}
+
+	this.popupMenu = BX.PopupMenu.create("lenta-sort-popup", bindElement, BX.util.array_merge((!short ? BX.util.array_merge(this.menuItems.preset, this.menuItems.filter) : []), this.menuItems.actions), {
+		offsetTop: (params.siteTemplateId == 'bitrix24' ? -5 : 2),
+		offsetLeft: (params.siteTemplateId == 'bitrix24' ? 17 : 43),
+		angle : true,
+		events : {
+			onPopupClose : function() {
+				if (
+					typeof params.siteTemplateId != 'undefined'
+					|| params.siteTemplateId != 'bitrix24'
+				)
+				{
+					BX.removeClass(bindElement, "lenta-sort-button-active");
+				}
+			}
+		}
+	});
+	this.popupMenu.show();
+
+	return false;
 };
 
 BitrixLFFilter.prototype.initFilter = function(params)
 {
-	__logOnDateChange(document.forms['log_filter'].flt_date_datesel);
-	BX('flt_date_from_span').onclick = function(){
-		BX.calendar({node: this, field: BX('flt_date_from'), bTime: false});
-	};
-	BX('flt_date_to_span').onclick = function(){
-		BX.calendar({node: this, field: BX('flt_date_to'), bTime: false});
-	};
+	var version = (
+		typeof params != 'undefined'
+		&& typeof params.version != 'undefined'
+			? parseInt(params.version)
+			: 0
+	);
+
+	var filterId = (
+		typeof params != 'undefined'
+		&& typeof params.filterId != 'undefined'
+			? params.filterId
+			: 'LIVEFEED'
+	);
+
+	this.id = filterId;
+
+	if (version >= 2)
+	{
+		BX.addCustomEvent("BX.Livefeed:refresh", BX.delegate(function() {
+			BX.Main.filterManager.getById(filterId).getPreset().resetPreset(true);
+			BX.Main.filterManager.getById(filterId).getSearch().clearForm();
+		}, this));
+		BX.addCustomEvent("BX.Main.Filter:beforeApply", BX.delegate(function(eventFilterId, values, ob, filterPromise) {
+
+			if (eventFilterId != filterId)
+			{
+				return;
+			}
+
+			BX.onCustomEvent(window, 'BX.Livefeed.Filter:beforeApply', [values, filterPromise]);
+		}, this));
+		BX.addCustomEvent("BX.Main.Filter:apply", BX.delegate(function(eventFilterId, values, ob, filterPromise, filterParams) {
+			if (eventFilterId != filterId)
+			{
+				return;
+			}
+
+			BX.onCustomEvent(window, 'BX.Livefeed.Filter:apply', [values, filterPromise, filterParams]);
+		}, this));
+		BX.addCustomEvent('BX.Filter.Search:input', BX.delegate(function(eventFilterId, searchString) {
+			if (eventFilterId == filterId)
+			{
+				BX.onCustomEvent(window, 'BX.Livefeed.Filter:searchInput', [ searchString ]);
+			}
+		}));
+		BX.addCustomEvent('BX.Main.Filter:blur', BX.delegate(function(filterObject) {
+			if (
+				filterObject.getParam('FILTER_ID') == filterId
+				&& filterObject.getSearch().getSquares().length <= 0
+				&& filterObject.getSearch().getSearchString().length <= 0
+			)
+			{
+				var pagetitleContainer = BX.findParent(BX(filterId + '_filter_container'), { className: 'pagetitle-wrap'});
+				if (pagetitleContainer)
+				{
+					BX.removeClass(pagetitleContainer, "pagetitle-wrap-filter-opened");
+				}
+			}
+		}));
+
+		if (BX(this.id + '_filter_container'))
+		{
+			var f = BX.delegate(function (event) {
+				var pagetitleContainer = BX.findParent(event.target, { className: 'pagetitle-wrap'});
+				if (
+					pagetitleContainer
+					&& !BX.hasClass(pagetitleContainer, "pagetitle-wrap-filter-opened")
+				)
+				{
+					BX.addClass(pagetitleContainer, "pagetitle-wrap-filter-opened");
+				}
+			}, this);
+
+			BX.bind(BX(this.id + '_filter_container'), 'click', f);
+		}
+	}
+	else
+	{
+		__logOnDateChange(document.forms['log_filter'].flt_date_datesel);
+		BX('flt_date_from_span').onclick = function(){
+			BX.calendar({node: this, field: BX('flt_date_from'), bTime: false});
+		};
+		BX('flt_date_to_span').onclick = function(){
+			BX.calendar({node: this, field: BX('flt_date_to'), bTime: false});
+		};
+	}
 };
 
 BitrixLFFilter.prototype.initDestination = function(params)
@@ -113,6 +244,7 @@ BitrixLFFilter.prototype.initDestination = function(params)
 
 	BX.SocNetLogDestination.init({
 		name : params.name,
+		pathToAjax: (typeof params.pathToAjax != 'undefined' ? params.pathToAjax : false),
 		searchInput : this.obSearchInput[params.name],
 		extranetUser : !!params.extranetUser,
 		departmentSelectDisable : !!params.departmentSelectDisable,
@@ -145,6 +277,7 @@ BitrixLFFilter.prototype.initDestination = function(params)
 		items : params.items,
 		itemsLast : params.itemsLast,
 		itemsSelected : params.itemsSelected,
+		itemsSelectedUndeleted: (typeof params.itemsSelectedUndeleted != 'undefined' ? params.itemsSelectedUndeleted : {}),
 		isCrmFeed : false,
 		useClientDatabase: true,
 		destSort: params.destSort,
@@ -379,6 +512,251 @@ BitrixLFFilter.prototype.__SLFShowExpertModePopup = function(bindObj)
 		})
 	});
 	modalWindow.show();
+};
+
+BitrixLFFilter.prototype.onClickMenuItem = function(params)
+{
+	if (typeof params.menuItem != 'undefined')
+	{
+		BX.toggleClass(params.menuItem, 'lenta-sort-item-selected');
+	}
+	this.popupMenu.close();
+	if (typeof params.href != 'undefined')
+	{
+		top.location.href = params.href;
+	}
+};
+
+BitrixLFFilterDestinationSelectorManager = {
+	controls: {},
+
+	onSelect: function(item, type, search, bUndeleted, name, state)
+	{
+		BX.SocNetLogDestination.obItemsSelected[name] = {};
+		BX.SocNetLogDestination.obItemsSelected[name][item.id] = type;
+
+		var control = BitrixLFFilterDestinationSelectorManager.controls[name];
+		if(control)
+		{
+			control.setData(BX.util.htmlspecialcharsback(item.name), item.id);
+			control.getLabelNode().value = '';
+			control.getLabelNode().blur();
+
+			if (BX.SocNetLogDestination.popupWindow != null)
+			{
+				BX.SocNetLogDestination.popupWindow.close();
+			}
+			if (BX.SocNetLogDestination.popupSearchWindow != null)
+			{
+				BX.SocNetLogDestination.popupSearchWindow.close();
+			}
+		}
+	}
+};
+
+
+BitrixLFFilterDestinationSelector = function ()
+{
+	this.id = "";
+	this.filterId = "";
+	this.settings = {};
+	this.fieldId = "";
+	this.control = null;
+	this.inited = null;
+};
+
+BitrixLFFilterDestinationSelector.create = function(id, settings)
+{
+	var self = new BitrixLFFilterDestinationSelector(id, settings);
+	self.initialize(id, settings);
+	BX.onCustomEvent(window, 'BX.Livefeed.Filter:create', [ id ]);
+	return self;
+};
+
+BitrixLFFilterDestinationSelector.prototype.getSetting = function(name, defaultval)
+{
+	return this.settings.hasOwnProperty(name) ? this.settings[name] : defaultval;
+};
+
+BitrixLFFilterDestinationSelector.prototype.getSearchInput = function()
+{
+	return this.control ? this.control.getLabelNode() : null;
+};
+
+BitrixLFFilterDestinationSelector.prototype.initialize = function(id, settings)
+{
+	this.id = id;
+	this.settings = settings ? settings : {};
+	this.fieldId = this.getSetting("fieldId", "");
+	this.filterId = this.getSetting("filterId", "");
+	this.inited = false;
+	this.opened = null;
+	this.closed = null;
+
+	var initialValue = this.getSetting("initialValue",false);
+	if (!!initialValue)
+	{
+		var initialSettings = {};
+		initialSettings[this.fieldId] = initialValue.itemId;
+		initialSettings[this.fieldId + '_label'] = initialValue.itemName;
+
+		BX.Main.filterManager.getById(this.filterId).getApi().setFields(initialSettings);
+	}
+	BX.addCustomEvent(window, "BX.Main.Filter:customEntityFocus", BX.delegate(this.onCustomEntitySelectorOpen, this));
+	BX.addCustomEvent(window, "BX.Main.Filter:customEntityBlur", BX.delegate(this.onCustomEntitySelectorClose, this));
+	BX.addCustomEvent(window, "BX.Main.Filter:onGetStopBlur", BX.delegate(this.onGetStopBlur, this));
+	BX.addCustomEvent(window, "BX.Main.Selector:beforeInitDialog", BX.delegate(this.onBeforeInitDialog, this));
+	BX.addCustomEvent(window, "BX.SocNetLogDestination:onBeforeSwitchTabFocus", BX.delegate(this.onBeforeSwitchTabFocus, this));
+	BX.addCustomEvent(window, "BX.SocNetLogDestination:onBeforeSelectItemFocus", BX.delegate(this.onBeforeSelectItemFocus, this));
+	BX.addCustomEvent(window, "BX.Main.Filter:customEntityRemove", BX.delegate(this.onCustomEntityRemove, this));
+};
+
+BitrixLFFilterDestinationSelector.prototype.open = function()
+{
+	var name = this.id;
+
+	if (!this.inited)
+	{
+		var input = this.getSearchInput();
+		input.id = input.name;
+
+		BX.addCustomEvent(window, "BX.Main.Selector:afterInitDialog", BX.delegate(function(params) {
+			if (
+				typeof params.id != 'undefined'
+				|| params.id != this.id
+			)
+			{
+				return;
+			}
+
+			this.opened = true;
+			this.closed = false;
+		}, this));
+
+		BX.onCustomEvent(window, 'BX.Livefeed.Filter:openInit', [ {
+			id: this.id,
+			inputId: input.id,
+			containerId: input.id
+		} ]);
+
+		this.inited = true;
+	}
+	else
+	{
+		BX.onCustomEvent(window, 'BX.Livefeed.Filter:open', [ {
+			id: this.id,
+			bindNode: this.control.getField()
+		} ]);
+
+		this.opened = true;
+		this.closed = false;
+	}
+};
+
+BitrixLFFilterDestinationSelector.prototype.close = function()
+{
+	BX.SocNetLogDestination.closeDialog();
+	this.opened = false;
+	this.closed = true;
+};
+
+BitrixLFFilterDestinationSelector.prototype.onCustomEntitySelectorOpen = function(control)
+{
+	var fieldId = control.getId();
+
+	if(this.fieldId !== fieldId)
+	{
+		this.control = null;
+	}
+	else
+	{
+		this.control = control;
+
+		if(this.control)
+		{
+			var current = this.control.getCurrentValues();
+			this.currentUser = { "entityId": current["value"] };
+		}
+
+		BitrixLFFilterDestinationSelectorManager.controls[this.id] = this.control;
+
+		if (!this.opened)
+		{
+			this.open();
+		}
+		else
+		{
+			this.close();
+		}
+	}
+};
+
+BitrixLFFilterDestinationSelector.prototype.onCustomEntitySelectorClose = function(control)
+{
+	if(
+		this.fieldId === control.getId()
+		&& this.inited === true
+	)
+	{
+		this.control = null;
+		this.close();
+	}
+};
+
+BitrixLFFilterDestinationSelector.prototype.onGetStopBlur = function(event, result)
+{
+	if (BX.findParent(event.target, { className: 'bx-lm-box'}))
+	{
+		result.stopBlur = true;
+	}
+};
+
+BitrixLFFilterDestinationSelector.prototype.onCustomEntityRemove = function(control)
+{
+	if(this.fieldId === control.getId())
+	{
+		if (
+			typeof control.hiddenInput != 'undefined'
+			&& typeof control.hiddenInput.value != 'undefined'
+			&& typeof BX.SocNetLogDestination.obItemsSelected[this.id] != 'undefined'
+			&& typeof BX.SocNetLogDestination.obItemsSelected[this.id][control.hiddenInput.value] != 'undefined'
+		)
+		{
+			delete BX.SocNetLogDestination.obItemsSelected[this.id][control.hiddenInput.value];
+		}
+	}
+};
+
+BitrixLFFilterDestinationSelector.prototype.onBeforeSwitchTabFocus = function(ob)
+{
+	if(this.id === ob.id)
+	{
+		ob.blockFocus = true;
+	}
+};
+
+BitrixLFFilterDestinationSelector.prototype.onBeforeSelectItemFocus = function(ob)
+{
+	if(this.id === ob.id)
+	{
+		ob.blockFocus = true;
+	}
+};
+
+BitrixLFFilterDestinationSelector.prototype.onBeforeInitDialog = function(params)
+{
+	if (
+		typeof params.id == 'undefined'
+		|| params.id != this.id
+	)
+	{
+		return;
+	}
+
+	if (this.closed)
+	{
+		params.blockInit = true;
+	}
 };
 
 oLFFilter = new BitrixLFFilter;

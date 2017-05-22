@@ -55,4 +55,6 @@ $MESS["SONET_GCE_T_DEST_EXTRANET_ADD_LAST_NAME_TITLE"] = "Last name";
 $MESS["SONET_GCE_T_DEST_EXTRANET_ADD_SEND_PASSWORD_TITLE"] = "Send log on data to specified e-mail";
 $MESS["SONET_GCE_T_DEST_EXTRANET_SELECTOR"] = "and/or #ACTION# a new";
 $MESS["SONET_GCE_T_EMAILS_DESCR"] = "E-mail addresses, comma separated";
+$MESS["SONET_GCE_T_INVITE_MESSAGE_TEXT"] = "Please join me in our new intranet. This is a place where everyone can collaborate on projects, coordinate tasks and schedules, and build our knowledge base, but it's easy to use, too.";
+$MESS["SONET_GCE_T_AJAX_ERROR"] = "Error processing form data. Please try again.";
 ?>

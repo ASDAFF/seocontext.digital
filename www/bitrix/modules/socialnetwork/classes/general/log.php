@@ -151,7 +151,7 @@ class CAllSocNetLog
 			return false;
 		}
 
-		if (!$USER_FIELD_MANAGER->CheckFields("SONET_LOG", $ID, $arFields))
+		if (!$USER_FIELD_MANAGER->CheckFields("SONET_LOG", $ID, $arFields, (isset($arFields["USER_ID"]) && intval($arFields["USER_ID"]) > 0 ? intval($arFields["USER_ID"]) : false)))
 			return false;
 
 		if (is_set($arFields["URL"]) && is_array($arSiteWorkgroupsPage))

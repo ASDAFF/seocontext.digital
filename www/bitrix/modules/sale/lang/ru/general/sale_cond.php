@@ -37,7 +37,7 @@ $MESS["BT_SALE_COND_GROUP_PRODUCT_PREFIX"] = "в корзине/заказе";
 $MESS["BT_SALE_COND_PRODUCT_GROUP_SELECT_FOUND"] = "есть";
 $MESS["BT_SALE_COND_PRODUCT_GROUP_SELECT_NO_FOUND"] = "отсутствуют";
 $MESS["BT_SALE_COND_PRODUCT_GROUP_SELECT_DEF"] = "...";
-$MESS["BT_SALE_COND_GROUP_SELECT_ALL"] = "всем условия";
+$MESS["BT_SALE_COND_GROUP_SELECT_ALL"] = "всем условиям";
 $MESS["BT_SALE_COND_GROUP_SELECT_ANY"] = "любому из условий";
 $MESS["BT_SALE_COND_GROUP_LOGIC_AND"] = "И";
 $MESS["BT_SALE_COND_GROUP_LOGIC_NOT_AND"] = "И НЕ";
@@ -85,4 +85,6 @@ $MESS["BT_MOD_SALE_COND_BASKET_PRODUCT_ID_LABEL"] = "Товар в корзин�
 $MESS["BT_MOD_SALE_COND_BASKET_PRODUCT_ID_PREFIX"] = "поле Товар корзины";
 $MESS["BT_MOD_SALE_COND_BASKET_PRODUCT_NAME_LABEL"] = "Название товара в корзине";
 $MESS["BT_MOD_SALE_COND_BASKET_PRODUCT_NAME_PREFIX"] = "поле Название товара в корзине";
+$MESS["BT_SALE_COND_GROUP_PAST_ORDER_NAME"] = "Предыдущий оплаченный заказ";
+$MESS["BT_SALE_COND_GROUP_PAST_ORDER_NAME_SUFFIX"] = " (пред. заказ)";
 ?>

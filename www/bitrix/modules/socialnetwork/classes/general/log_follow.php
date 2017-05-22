@@ -342,7 +342,7 @@ class CSocNetLogFollow
 		}
 	}
 
-	function GetExactValueByRating($user_id, $rating_type_id, $rating_entity_id)
+	public static function GetExactValueByRating($user_id, $rating_type_id, $rating_entity_id)
 	{
 		global $DB;
 

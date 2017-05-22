@@ -22,6 +22,20 @@ class File extends Base
 	}
 
 	/**
+	 * Get formats list.
+	 * @return array
+	 */
+	public static function getFormats()
+	{
+		$formats = parent::getFormats();
+		$formats['src'] = array(
+			'callable' =>'formatValueSrc',
+			'separator' => ', ',
+		);
+		return $formats;
+	}
+
+	/**
 	 * Normalize single value.
 	 *
 	 * @param FieldType $fieldType Document field type.
@@ -56,6 +70,21 @@ class File extends Base
 				.'&i='.$value.'&h='.md5($file['SUBDIR']).']'.htmlspecialcharsbx($file['ORIGINAL_NAME']).'[/url]';
 		}
 		return '';
+	}
+
+	/**
+	 * @param FieldType $fieldType
+	 * @param $value
+	 * @return string
+	 */
+	protected static function formatValueSrc(FieldType $fieldType, $value)
+	{
+		$value = (int) $value;
+		$file = \CFile::getFileArray($value);
+		if ($file && $file['SRC'])
+		{
+			return $file['SRC'];
+		}
 	}
 
 	/**

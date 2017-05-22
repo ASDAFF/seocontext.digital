@@ -9,17 +9,15 @@ class CIMRestService extends IRestService
 		return array(
 			'im' => array(
 				'im.chat.add' => array('CIMRestService', 'chatCreate'),
-
 				'im.chat.setOwner' => array('CIMRestService', 'chatSetOwner'),
+				'im.chat.setManager' => array('CIMRestService', 'chatSetManager'),
 				'im.chat.updateColor' => array('CIMRestService', 'chatUpdateColor'),
 				'im.chat.updateTitle' => array('CIMRestService', 'chatUpdateTitle'),
 				'im.chat.updateAvatar' => array('CIMRestService', 'chatUpdateAvatar'),
 				'im.chat.leave' => array('CIMRestService', 'chatUserDelete'),
-
 				'im.chat.user.add' => array('CIMRestService', 'chatUserAdd'),
 				'im.chat.user.delete' => array('CIMRestService', 'chatUserDelete'),
 				'im.chat.user.list' => array('CIMRestService', 'chatUserList'),
-
 				'im.chat.sendTyping' => array('CIMRestService', 'chatSendTyping'),
 
 				'im.message.add' => array('CIMRestService', 'messageAdd'),
@@ -37,6 +35,17 @@ class CIMRestService extends IRestService
 				'imbot.unregister' => array('CIMRestService', 'botUnRegister'),
 				'imbot.update' => array('CIMRestService', 'botUpdate'),
 
+				'imbot.chat.updateColor' => array('CIMRestService', 'chatUpdateColor'),
+				'imbot.chat.updateTitle' => array('CIMRestService', 'chatUpdateTitle'),
+				'imbot.chat.updateAvatar' => array('CIMRestService', 'chatUpdateAvatar'),
+				'imbot.chat.leave' => array('CIMRestService', 'botLeave'),
+				'imbot.chat.user.add' => array('CIMRestService', 'chatUserAdd'),
+				'imbot.chat.user.delete' => array('CIMRestService', 'chatUserDelete'),
+				'imbot.chat.user.list' => array('CIMRestService', 'chatUserList'),
+				'imbot.chat.sendTyping' => array('CIMRestService', 'botSendTyping'),
+
+				'imbot.bot.list' => array('CIMRestService', 'botList'),
+
 				'imbot.message.add' => array('CIMRestService', 'botMessageAdd'),
 				'imbot.message.delete' => array('CIMRestService', 'botMessageDelete'),
 				'imbot.message.update' => array('CIMRestService', 'botMessageUpdate'),
@@ -50,10 +59,10 @@ class CIMRestService extends IRestService
 				'imbot.command.answer' => array('CIMRestService', 'commandAnswer'),
 
 				CRestUtil::EVENTS => array(
-					'OnImBotMessageAdd' => array('im', 'onImBotMessageAdd', array(__CLASS__, 'onBotMessageAdd'), array("category" => \Bitrix\Rest\Sqs::CATEGORY_BOT)),
+					'OnImBotMessageAdd' => array('im', 'onImBotMessageAdd', array(__CLASS__, 'onBotMessageAdd'), array("category" => \Bitrix\Rest\Sqs::CATEGORY_BOT, "sendRefreshToken" => true)),
 					'OnImBotJoinChat' => array('im', 'onImBotJoinChat', array(__CLASS__, 'onBotJoinChat'), array("category" => \Bitrix\Rest\Sqs::CATEGORY_BOT)),
 					'OnImBotDelete' => array('im', 'onImBotDelete', array(__CLASS__, 'onBotDelete'), array("category" => \Bitrix\Rest\Sqs::CATEGORY_BOT)),
-					'OnImCommandAdd' => array('im', 'onImCommandAdd', array(__CLASS__, 'onCommandAdd'), array("category" => \Bitrix\Rest\Sqs::CATEGORY_BOT)),
+					'OnImCommandAdd' => array('im', 'onImCommandAdd', array(__CLASS__, 'onCommandAdd'), array("category" => \Bitrix\Rest\Sqs::CATEGORY_BOT, "sendRefreshToken" => true)),
 				),
 			)
 		);
@@ -181,6 +190,36 @@ class CIMRestService extends IRestService
 		if (!$result)
 		{
 			throw new Bitrix\Rest\RestException("Change owner can only owner or user isn't member in chat", "WRONG_REQUEST", CRestServer::STATUS_WRONG_REQUEST);
+		}
+
+		return true;
+	}
+	
+	public static function chatSetManager($arParams, $n, CRestServer $server)
+	{
+		global $USER;
+
+		$arParams = array_change_key_case($arParams, CASE_UPPER);
+
+		$arParams['CHAT_ID'] = intval($arParams['CHAT_ID']);
+		$arParams['USER_ID'] = intval($arParams['USER_ID']);
+		$arParams['IS_MANAGER'] = isset($arParams['IS_MANAGER']) && $arParams['IS_MANAGER'] == 'N'? false: true;
+
+		if ($arParams['CHAT_ID'] <= 0)
+		{
+			throw new Bitrix\Rest\RestException("Chat ID can't be empty", "CHAT_ID_EMPTY", CRestServer::STATUS_WRONG_REQUEST);
+		}
+
+		if ($arParams['USER_ID'] <= 0)
+		{
+			throw new Bitrix\Rest\RestException("User ID can't be empty", "USER_ID_EMPTY", CRestServer::STATUS_WRONG_REQUEST);
+		}
+		
+		$chat = new CIMChat();
+		$result = $chat->SetManager($arParams['CHAT_ID'], $arParams['USER_ID'], $arParams['IS_MANAGER']);
+		if (!$result)
+		{
+			throw new Bitrix\Rest\RestException("Change manger can only owner or user isn't member in chat", "WRONG_REQUEST", CRestServer::STATUS_WRONG_REQUEST);
 		}
 
 		return true;
@@ -402,6 +441,71 @@ class CIMRestService extends IRestService
 		return true;
 	}
 
+	public static function botLeave($arParams, $n, CRestServer $server)
+	{
+		global $USER;
+
+		$arParams = array_change_key_case($arParams, CASE_UPPER);
+
+		$arParams['CHAT_ID'] = intval($arParams['CHAT_ID']);
+
+		if ($arParams['CHAT_ID'] <= 0)
+		{
+			throw new Bitrix\Rest\RestException("Chat ID can't be empty", "CHAT_ID_EMPTY", CRestServer::STATUS_WRONG_REQUEST);
+		}
+
+		if (CIMChat::GetGeneralChatId() == $arParams['CHAT_ID'])
+		{
+			throw new Bitrix\Rest\RestException("Action unavailable", "ACCESS_ERROR", CRestServer::STATUS_FORBIDDEN);
+		}
+
+		$bots = \Bitrix\Im\Bot::getListCache();
+		$botFound = false;
+		$botId = 0;
+		foreach ($bots as $bot)
+		{
+			if ($bot['APP_ID'] == $server->getAppId())
+			{
+				$botFound = true;
+				$botId = $bot['BOT_ID'];
+				break;
+			}
+		}
+		if (!$botFound)
+		{
+			throw new \Bitrix\Rest\RestException("Bot not found", "BOT_ID_ERROR", \CRestServer::STATUS_WRONG_REQUEST);
+		}
+
+		$CIMChat = new CIMChat();
+		$result = $CIMChat->DeleteUser($arParams['CHAT_ID'], $botId);
+		if (!$result)
+		{
+			throw new Bitrix\Rest\RestException("You don't have access or user isn't member in chat", "WRONG_REQUEST", CRestServer::STATUS_WRONG_REQUEST);
+		}
+
+		return true;
+	}
+
+	public static function botList($arParams, $n, CRestServer $server)
+	{
+		$result = Array();
+		$list = \Bitrix\Im\Bot::getListCache();
+		foreach ($list as $botId => $botData)
+		{
+			if ($botData['TYPE'] == \Bitrix\Im\Bot::TYPE_NETWORK)
+				continue;
+
+			$result[$botId] = Array(
+				'ID' => $botId,
+				'NAME' => \Bitrix\Im\User::getInstance($botId)->getFullName(),
+				'CODE' => $botData['CODE'],
+				'OPENLINE' => $botData['OPENLINE'],
+			);
+		}
+
+		return $result;
+	}
+
 	public static function messageAdd($arParams, $n, CRestServer $server)
 	{
 		global $USER;
@@ -449,9 +553,25 @@ class CIMRestService extends IRestService
 
 			if (isset($arParams['SYSTEM']) && $arParams['SYSTEM'] == 'Y')
 			{
-				$result = \CBitrix24App::getList(array(), array('APP_ID' => $server->getAppId()));
+				$result = \Bitrix\Rest\AppTable::getList(
+					array(
+						'filter' => array(
+							'=CLIENT_ID' => $server->getAppId()
+						),
+						'select' => array(
+							'CODE',
+							'APP_NAME',
+							'APP_NAME_DEFAULT' => 'LANG_DEFAULT.MENU_NAME',
+						)
+					)
+				);
 				$result = $result->fetch();
-				$moduleName = isset($result['APP_NAME'])? $result['APP_NAME']: $result['CODE'];
+				$moduleName = !empty($result['APP_NAME'])
+					? $result['APP_NAME']
+					: (!empty($result['APP_NAME_DEFAULT'])
+						? $result['APP_NAME_DEFAULT']
+						: $result['CODE']
+					);
 
 				$arParams['MESSAGE'] = "[b]".$moduleName."[/b]\n".$arParams['MESSAGE'];
 			}
@@ -553,7 +673,7 @@ class CIMRestService extends IRestService
 
 		if (isset($arParams['ATTACH']))
 		{
-			$message = CIMMessenger::CheckPossibilityUpdateMessage($arParams['ID']);
+			$message = CIMMessenger::CheckPossibilityUpdateMessage(IM_CHECK_UPDATE, $arParams['ID']);
 			if (!$message)
 			{
 				throw new Bitrix\Rest\RestException("Time has expired for modification or you don't have access", "CANT_EDIT_MESSAGE", CRestServer::STATUS_FORBIDDEN);
@@ -594,10 +714,7 @@ class CIMRestService extends IRestService
 				throw new Bitrix\Rest\RestException("Time has expired for modification or you don't have access", "CANT_EDIT_MESSAGE", CRestServer::STATUS_FORBIDDEN);
 			}
 		}
-		else
-		{
-			CIMMessageParam::SendPull($arParams['ID']);
-		}
+		CIMMessageParam::SendPull($arParams['ID'], Array('KEYBOARD', 'ATTACH'));
 
 		return true;
 	}
@@ -770,13 +887,13 @@ class CIMRestService extends IRestService
 
 	public static function botRegister($arParams, $n, CRestServer $server)
 	{
-		$arParams = array_change_key_case($arParams, CASE_UPPER);
-
-		if (!CModule::IncludeModule('rest'))
+		if(!$server->getClientId())
 		{
-			throw new Bitrix\Rest\RestException("Module \"REST\" isn't installed", "BITRIX24_ERROR", CRestServer::STATUS_WRONG_REQUEST);
+			throw new \Bitrix\Rest\AccessException("Application context required");
 		}
-
+		
+		$arParams = array_change_key_case($arParams, CASE_UPPER);
+		
 		$dbRes = \Bitrix\Rest\AppTable::getList(array('filter' => array('=CLIENT_ID' => $server->getAppId())));
 		$arApp = $dbRes->fetch();
 
@@ -833,7 +950,8 @@ class CIMRestService extends IRestService
 			throw new Bitrix\Rest\RestException("Bot code isn't specified", "CODE_ERROR", CRestServer::STATUS_WRONG_REQUEST);
 		}
 
-		$arParams['TYPE'] = isset($arParams['TYPE'])? $arParams['TYPE']: '';
+		$arParams['TYPE'] = in_array($arParams['TYPE'], Array('O', 'B', 'H'))? $arParams['TYPE']: '';
+		$arParams['OPENLINE'] = $arParams['OPENLINE'] == 'Y'? 'Y': 'N';
 
 		$properties = Array();
 		if (isset($arParams['PROPERTIES']['NAME']))
@@ -889,6 +1007,7 @@ class CIMRestService extends IRestService
 			'APP_ID' => $server->getAppId(),
 			'CODE' => $arParams['CODE'],
 			'TYPE' => $arParams['TYPE'],
+			'OPENLINE' => $arParams['OPENLINE'],
 			'MODULE_ID' => 'rest',
 			'PROPERTIES' => $properties
 		));
@@ -913,6 +1032,10 @@ class CIMRestService extends IRestService
 
 	public static function botUnRegister($arParams, $n, CRestServer $server)
 	{
+		if(!$server->getClientId())
+		{
+			throw new \Bitrix\Rest\AccessException("Application context required");
+		}
 		$arParams = array_change_key_case($arParams, CASE_UPPER);
 
 		$bots = \Bitrix\Im\Bot::getListCache();
@@ -936,6 +1059,10 @@ class CIMRestService extends IRestService
 
 	public static function botUpdate($arParams, $n, CRestServer $server)
 	{
+		if(!$server->getClientId())
+		{
+			throw new \Bitrix\Rest\AccessException("Application context required");
+		}
 		$arParams = array_change_key_case($arParams, CASE_UPPER);
 
 		$bots = \Bitrix\Im\Bot::getListCache();
@@ -998,9 +1125,14 @@ class CIMRestService extends IRestService
 			$updateFields['CODE'] = $arParams['FIELDS']['CODE'];
 		}
 
-		if (isset($arParams['FIELDS']['TYPE']) && !empty($arParams['FIELDS']['TYPE']))
+		if (isset($arParams['FIELDS']['TYPE']) && !empty($arParams['FIELDS']['TYPE']) && in_array($arParams['TYPE'], Array('O', 'B', 'H')))
 		{
 			$updateFields['TYPE'] = $arParams['FIELDS']['TYPE'];
+		}
+
+		if (isset($arParams['FIELDS']['OPENLINE']) && !empty($arParams['FIELDS']['OPENLINE']))
+		{
+			$updateFields['OPENLINE'] = $arParams['FIELDS']['OPENLINE'];
 		}
 
 		$properties = Array();
@@ -1105,10 +1237,15 @@ class CIMRestService extends IRestService
 			{
 				throw new Bitrix\Rest\RestException("Bot not found", "BOT_ID_ERROR", CRestServer::STATUS_WRONG_REQUEST);
 			}
-			if ($bots[$arParams['BOT_ID']]['APP_ID'] != $server->getAppId())
+			// TODO bot is network and networkCode not null - access grant
+			if ($server->getAppId() && $bots[$arParams['BOT_ID']]['APP_ID'] != $server->getAppId())
 			{
 				throw new Bitrix\Rest\RestException("Bot was installed by another application", "APP_ID_ERROR", CRestServer::STATUS_WRONG_REQUEST);
 			}
+		}
+		else if (!$server->getAppId())
+		{
+			throw new Bitrix\Rest\RestException("Bot Id can't be empty", "BOT_ID_ERROR", CRestServer::STATUS_WRONG_REQUEST);
 		}
 		else
 		{
@@ -1214,10 +1351,14 @@ class CIMRestService extends IRestService
 			{
 				throw new Bitrix\Rest\RestException("Bot not found", "BOT_ID_ERROR", CRestServer::STATUS_WRONG_REQUEST);
 			}
-			if ($bots[$arParams['BOT_ID']]['APP_ID'] != $server->getAppId())
+			if ($server->getAppId() && $bots[$arParams['BOT_ID']]['APP_ID'] != $server->getAppId())
 			{
 				throw new Bitrix\Rest\RestException("Bot was installed by another application", "APP_ID_ERROR", CRestServer::STATUS_WRONG_REQUEST);
 			}
+		}
+		else if (!$server->getAppId())
+		{
+			throw new Bitrix\Rest\RestException("Bot Id can't be empty", "BOT_ID_ERROR", CRestServer::STATUS_WRONG_REQUEST);
 		}
 		else
 		{
@@ -1236,7 +1377,7 @@ class CIMRestService extends IRestService
 				throw new Bitrix\Rest\RestException("Bot not found", "BOT_ID_ERROR", CRestServer::STATUS_WRONG_REQUEST);
 			}
 		}
-
+	
 		$arParams['MESSAGE_ID'] = intval($arParams['MESSAGE_ID']);
 		if ($arParams['MESSAGE_ID'] <= 0)
 		{
@@ -1246,7 +1387,7 @@ class CIMRestService extends IRestService
 		$message = null;
 		if (isset($arParams['ATTACH']))
 		{
-			$message = CIMMessenger::CheckPossibilityUpdateMessage($arParams['MESSAGE_ID'], $arParams['BOT_ID']);
+			$message = CIMMessenger::CheckPossibilityUpdateMessage(IM_CHECK_UPDATE, $arParams['MESSAGE_ID'], $arParams['BOT_ID']);
 			if (!$message)
 			{
 				throw new Bitrix\Rest\RestException("Time has expired for modification or you don't have access", "CANT_EDIT_MESSAGE", CRestServer::STATUS_FORBIDDEN);
@@ -1282,7 +1423,7 @@ class CIMRestService extends IRestService
 		{
 			if (is_null($message))
 			{
-				$message = CIMMessenger::CheckPossibilityUpdateMessage($arParams['MESSAGE_ID'], $arParams['BOT_ID']);
+				$message = CIMMessenger::CheckPossibilityUpdateMessage(IM_CHECK_UPDATE, $arParams['MESSAGE_ID'], $arParams['BOT_ID']);
 			}
 			if (!$message)
 			{
@@ -1328,21 +1469,20 @@ class CIMRestService extends IRestService
 		if (isset($arParams['MESSAGE']))
 		{
 			$urlPreview = isset($arParams['URL_PREVIEW']) && $arParams['URL_PREVIEW'] == "N"? false: true;
+			$skipConnector = isset($arParams['SKIP_CONNECTOR']) && $arParams['SKIP_CONNECTOR'] == "Y"? true: false;
 
-			$res = CIMMessenger::Update($arParams['MESSAGE_ID'], $arParams['MESSAGE'], $urlPreview, false, $arParams['BOT_ID']);
+			$res = CIMMessenger::Update($arParams['MESSAGE_ID'], $arParams['MESSAGE'], $urlPreview, false, $arParams['BOT_ID'], $skipConnector);
 			if (!$res)
 			{
 				throw new Bitrix\Rest\RestException("Time has expired for modification or you don't have access", "CANT_EDIT_MESSAGE", CRestServer::STATUS_FORBIDDEN);
 			}
 		}
-		else
-		{
-			CIMMessageParam::SendPull($arParams['MESSAGE_ID']);
-		}
+		
+		CIMMessageParam::SendPull($arParams['MESSAGE_ID'], Array('KEYBOARD', 'ATTACH'));
 
 		return true;
 	}
-
+	
 	public static function botMessageDelete($arParams, $n, CRestServer $server)
 	{
 		$arParams = array_change_key_case($arParams, CASE_UPPER);
@@ -1354,10 +1494,14 @@ class CIMRestService extends IRestService
 			{
 				throw new Bitrix\Rest\RestException("Bot not found", "BOT_ID_ERROR", CRestServer::STATUS_WRONG_REQUEST);
 			}
-			if ($bots[$arParams['BOT_ID']]['APP_ID'] != $server->getAppId())
+			if ($server->getAppId() && $bots[$arParams['BOT_ID']]['APP_ID'] != $server->getAppId())
 			{
 				throw new Bitrix\Rest\RestException("Bot was installed by another application", "APP_ID_ERROR", CRestServer::STATUS_WRONG_REQUEST);
 			}
+		}
+		else if (!$server->getAppId())
+		{
+			throw new Bitrix\Rest\RestException("Bot Id can't be empty", "BOT_ID_ERROR", CRestServer::STATUS_WRONG_REQUEST);
 		}
 		else
 		{
@@ -1383,7 +1527,7 @@ class CIMRestService extends IRestService
 			throw new Bitrix\Rest\RestException("Message ID can't be empty", "MESSAGE_ID_ERROR", CRestServer::STATUS_WRONG_REQUEST);
 		}
 
-		$res = CIMMessenger::Delete($arParams['MESSAGE_ID'], $arParams['BOT_ID']);
+		$res = CIMMessenger::Delete($arParams['MESSAGE_ID'], $arParams['BOT_ID'], $arParams['COMPLETE'] == 'Y');
 		if (!$res)
 		{
 			throw new Bitrix\Rest\RestException("Time has expired for modification or you don't have access", "CANT_EDIT_MESSAGE", CRestServer::STATUS_FORBIDDEN);
@@ -1403,7 +1547,7 @@ class CIMRestService extends IRestService
 			{
 				throw new Bitrix\Rest\RestException("Bot not found", "BOT_ID_ERROR", CRestServer::STATUS_WRONG_REQUEST);
 			}
-			if ($bots[$arParams['BOT_ID']]['APP_ID'] != $server->getAppId())
+			if ($server->getAppId() && $bots[$arParams['BOT_ID']]['APP_ID'] != $server->getAppId())
 			{
 				throw new Bitrix\Rest\RestException("Bot was installed by another application", "APP_ID_ERROR", CRestServer::STATUS_WRONG_REQUEST);
 			}
@@ -1458,10 +1602,14 @@ class CIMRestService extends IRestService
 			{
 				throw new Bitrix\Rest\RestException("Bot not found", "BOT_ID_ERROR", CRestServer::STATUS_WRONG_REQUEST);
 			}
-			if ($bots[$arParams['BOT_ID']]['APP_ID'] != $server->getAppId())
+			if ($server->getAppId() && $bots[$arParams['BOT_ID']]['APP_ID'] != $server->getAppId())
 			{
 				throw new Bitrix\Rest\RestException("Bot was installed by another application", "APP_ID_ERROR", CRestServer::STATUS_WRONG_REQUEST);
 			}
+		}
+		else if (!$server->getAppId())
+		{
+			throw new Bitrix\Rest\RestException("Bot Id can't be empty", "BOT_ID_ERROR", CRestServer::STATUS_WRONG_REQUEST);
 		}
 		else
 		{
@@ -1493,6 +1641,11 @@ class CIMRestService extends IRestService
 
 	public static function onCommandAdd($arParams, $arHandler)
 	{
+		if (!$arHandler['APP_CODE'])
+		{
+			throw new Exception('Event is intended for another application');
+		}
+		
 		$arParams = array_change_key_case($arParams, CASE_UPPER);
 
 		$bot = \Bitrix\Im\Bot::getListCache();
@@ -1560,6 +1713,11 @@ class CIMRestService extends IRestService
 
 	public static function onBotMessageAdd($arParams, $arHandler)
 	{
+		if (!$arHandler['APP_CODE'])
+		{
+			throw new Exception('Event is intended for another application');
+		}
+		
 		$arParams = array_change_key_case($arParams, CASE_UPPER);
 
 		$bots = Array();
@@ -1573,7 +1731,10 @@ class CIMRestService extends IRestService
 				$sendBotData['BOT_CODE'] = $botData['CODE'];
 				$bots[$botData['BOT_ID']] = $sendBotData;
 
-				\Bitrix\Im\Bot::startWriting(Array('BOT_ID' => $botData['BOT_ID']), $arParams[2]['DIALOG_ID']);
+				if ($arParams[2]['CHAT_ENTITY_TYPE'] != 'LINES')
+				{
+					\Bitrix\Im\Bot::startWriting(Array('BOT_ID' => $botData['BOT_ID']), $arParams[2]['DIALOG_ID']);
+				}
 			}
 		}
 
@@ -1597,6 +1758,10 @@ class CIMRestService extends IRestService
 				'LAST_NAME' => $fromUser['lastName'],
 				'WORK_POSITION' => $fromUser['workPosition'],
 				'GENDER' => $fromUser['gender'],
+				'IS_BOT' => $fromUser['bot']? 'Y':'N',
+				'IS_CONNECTOR' => $fromUser['connector']? 'Y':'N',
+				'IS_NETWORK' => $fromUser['network']? 'Y':'N',
+				'IS_EXTRANET' => $fromUser['extranet']? 'Y':'N',
 			);
 		}
 		else
@@ -1613,6 +1778,11 @@ class CIMRestService extends IRestService
 
 	public static function onBotJoinChat($arParams, $arHandler)
 	{
+		if (!$arHandler['APP_CODE'])
+		{
+			throw new Exception('Event is intended for another application');
+		}
+		
 		$arParams = array_change_key_case($arParams, CASE_UPPER);
 
 		$bots = Array();
@@ -1663,6 +1833,11 @@ class CIMRestService extends IRestService
 
 	public static function onBotDelete($arParams, $arHandler)
 	{
+		if (!$arHandler['APP_CODE'])
+		{
+			throw new Exception('Event is intended for another application');
+		}
+		
 		$arParams = array_change_key_case($arParams, CASE_UPPER);
 
 		$botCode = "";
@@ -1693,13 +1868,12 @@ class CIMRestService extends IRestService
 
 	public static function commandRegister($arParams, $n, CRestServer $server)
 	{
-		$arParams = array_change_key_case($arParams, CASE_UPPER);
-
-		if (!CModule::IncludeModule('rest'))
+		if(!$server->getClientId())
 		{
-			throw new Bitrix\Rest\RestException("Module \"REST\" isn't installed", "BITRIX24_ERROR", CRestServer::STATUS_WRONG_REQUEST);
+			throw new \Bitrix\Rest\AccessException("Application context required");
 		}
-
+		$arParams = array_change_key_case($arParams, CASE_UPPER);
+		
 		$dbRes = \Bitrix\Rest\AppTable::getList(array('filter' => array('=CLIENT_ID' => $server->getAppId())));
 		$arApp = $dbRes->fetch();
 
@@ -1776,6 +1950,10 @@ class CIMRestService extends IRestService
 
 	public static function commandUnRegister($arParams, $n, CRestServer $server)
 	{
+		if(!$server->getClientId())
+		{
+			throw new \Bitrix\Rest\AccessException("Application context required");
+		}
 		$arParams = array_change_key_case($arParams, CASE_UPPER);
 
 		$commands = \Bitrix\Im\Command::getListCache();
@@ -1799,6 +1977,10 @@ class CIMRestService extends IRestService
 
 	public static function commandUpdate($arParams, $n, CRestServer $server)
 	{
+		if(!$server->getClientId())
+		{
+			throw new \Bitrix\Rest\AccessException("Application context required");
+		}
 		$arParams = array_change_key_case($arParams, CASE_UPPER);
 
 		$bots = \Bitrix\Im\Command::getListCache();
@@ -1877,6 +2059,10 @@ class CIMRestService extends IRestService
 
 	public static function commandAnswer($arParams, $n, CRestServer $server)
 	{
+		if(!$server->getClientId())
+		{
+			throw new \Bitrix\Rest\AccessException("Application context required");
+		}
 		$arParams = array_change_key_case($arParams, CASE_UPPER);
 		$commands = \Bitrix\Im\Command::getListCache();
 		if (isset($arParams['COMMAND_ID']))

@@ -1,5 +1,17 @@
 <?
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
+/** @var CBitrixComponent $this */
+/** @var array $arParams */
+/** @var array $arResult */
+/** @var string $componentPath */
+/** @var string $componentName */
+/** @var string $componentTemplate */
+/** @global CDatabase $DB */
+/** @global CUser $USER */
+/** @global CMain $APPLICATION */
+/** @global CCacheManager $CACHE_MANAGER */
+/** @global CUserTypeManager $USER_FIELD_MANAGER */
+global $CACHE_MANAGER, $USER_FIELD_MANAGER;
 
 if (!CModule::IncludeModule("socialnetwork"))
 {
@@ -10,7 +22,7 @@ if (!CModule::IncludeModule("socialnetwork"))
 $arParams["GROUP_ID"] = IntVal($arParams["GROUP_ID"]);
 $arParams["USER_ID"] = IntVal($arParams["USER_ID"]);
 if ($arParams["USER_ID"] <= 0)
-	$arParams["USER_ID"] = $GLOBALS["USER"]->GetID();
+	$arParams["USER_ID"] = $USER->GetID();
 $arParams["PAGE_ID"] = Trim($arParams["PAGE_ID"]);
 if (StrLen($arParams["PAGE_ID"]) <= 0)
 	$arParams["PAGE_ID"] = "user_features";
@@ -40,8 +52,10 @@ $arResult["FatalError"] = "";
 
 $arResult["arSocNetFeaturesSettings"] = CSocNetAllowed::GetAllowedFeatures();
 
-if (!$GLOBALS["USER"]->IsAuthorized())
+if (!$USER->IsAuthorized())
+{
 	$arResult["NEED_AUTH"] = "Y";
+}
 else
 {
 	if ($arParams["PAGE_ID"] == "user_features" && $arParams["USER_ID"] <= 0)
@@ -54,9 +68,9 @@ else
 		if ($arParams["PAGE_ID"] == "group_features")
 		{
 			$arGroup = CSocNetGroup::GetByID($arParams["GROUP_ID"]);
-			if ($arGroup && ($arGroup["OWNER_ID"] == $GLOBALS["USER"]->GetID() || CSocNetUser::IsCurrentUserModuleAdmin()))
+			if ($arGroup && ($arGroup["OWNER_ID"] == $USER->GetID() || CSocNetUser::IsCurrentUserModuleAdmin()))
 			{
-				$arResult["CurrentUserPerms"] = CSocNetUserToGroup::InitUserPerms($GLOBALS["USER"]->GetID(), $arGroup, CSocNetUser::IsCurrentUserModuleAdmin());
+				$arResult["CurrentUserPerms"] = CSocNetUserToGroup::InitUserPerms($USER->GetID(), $arGroup, CSocNetUser::IsCurrentUserModuleAdmin());
 
 				if ($arResult["CurrentUserPerms"]["UserCanModifyGroup"])
 				{
@@ -69,12 +83,19 @@ else
 						array("ENTITY_ID" => $arResult["Group"]["ID"], "ENTITY_TYPE" => SONET_ENTITY_GROUP)
 					);
 					while ($arResultTmp = $dbResultTmp->GetNext())
+					{
 						$arFeaturesTmp[$arResultTmp["FEATURE"]] = $arResultTmp;
+					}
 
 					foreach ($arResult["arSocNetFeaturesSettings"] as $feature => $arFeature)
 					{
-						if (!is_array($arFeature["allowed"]) || !in_array(SONET_ENTITY_GROUP, $arFeature["allowed"]))
+						if (
+							!is_array($arFeature["allowed"])
+							|| !in_array(SONET_ENTITY_GROUP, $arFeature["allowed"])
+						)
+						{
 							continue;
+						}
 
 						$arResult["Features"][$feature] = array(
 							"FeatureName" => $arFeaturesTmp[$feature]["FEATURE_NAME"],
@@ -101,8 +122,13 @@ else
 							continue;
 						}
 
-						if($feature == "blog" && $arParams["PAGE_ID"] != "group_features")
+						if (
+							$feature == "blog"
+							&& $arParams["PAGE_ID"] != "group_features"
+						)
+						{
 							$arResult["Features"][$feature]["Active"] = true;
+						}
 
 						foreach ($arFeature["operations"] as $op => $arOp)
 						{
@@ -111,10 +137,14 @@ else
 					}
 				}
 				else
+				{
 					$arResult["FatalError"] = GetMessage("SONET_C3_PERMS").".";
+				}
 			}
 			else
+			{
 				$arResult["FatalError"] = GetMessage("SONET_C3_NO_GROUP").".";
+			}
 		}
 		else
 		{
@@ -125,9 +155,9 @@ else
 			{
 				$arResult["User"]["NAME_FORMATTED"] = CUser::FormatName($arParams['NAME_TEMPLATE'], $arResult['User'], $bUseLogin);
 
-				CSocNetUserPerms::InitUserPerms($GLOBALS["USER"]->GetID(), $arResult["User"]["ID"], CSocNetUser::IsCurrentUserModuleAdmin());
+				CSocNetUserPerms::InitUserPerms($USER->GetID(), $arResult["User"]["ID"], CSocNetUser::IsCurrentUserModuleAdmin());
 
-				$arResult["CurrentUserPerms"] = CSocNetUserPerms::InitUserPerms($GLOBALS["USER"]->GetID(), $arResult["User"]["ID"], CSocNetUser::IsCurrentUserModuleAdmin());
+				$arResult["CurrentUserPerms"] = CSocNetUserPerms::InitUserPerms($USER->GetID(), $arResult["User"]["ID"], CSocNetUser::IsCurrentUserModuleAdmin());
 				if ($arResult["CurrentUserPerms"]["Operations"]["modifyuser"])
 				{
 					$arResult["Features"] = array();
@@ -343,5 +373,6 @@ else
 		}
 	}
 }
+
 $this->IncludeComponentTemplate();
 ?>

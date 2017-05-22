@@ -20,7 +20,7 @@ class RightsManager
 
 	/**
 	 * Checks the right to read.
-	 * @param $reportId
+	 * @param int $reportId Id report.
 	 * @return bool
 	 */
 	public function canRead($reportId)
@@ -44,7 +44,7 @@ class RightsManager
 
 	/**
 	 * Checks the right to edit.
-	 * @param $reportId
+	 * @param int $reportId Id report.
 	 * @return bool
 	 */
 	public function canEdit($reportId)
@@ -68,7 +68,7 @@ class RightsManager
 
 	/**
 	 * Checks the right to delete.
-	 * @param $reportId
+	 * @param int $reportId Id report.
 	 * @return bool
 	 */
 	public function canDelete($reportId)
@@ -78,7 +78,7 @@ class RightsManager
 
 	/**
 	 * Checks the right to share.
-	 * @param $reportId
+	 * @param int $reportId Id report.
 	 * @return bool
 	 */
 	public function canShare($reportId)
@@ -129,7 +129,12 @@ class RightsManager
 
 				if(!empty($userData['UF_DEPARTMENT']))
 				{
+					$parentDepartmentList = array();
 					foreach($userData['UF_DEPARTMENT'] as $departmentId)
+						$parentDepartmentList[] = \CIntranetUtils::getIBlockTopSection($departmentId);
+
+					$childrenDepartmentList = \CIntranetUtils::getIBlockSectionChildren($parentDepartmentList);
+					foreach($childrenDepartmentList as $departmentId)
 						$listEntity[] = Sharing::CODE_DEPARTMENT.$departmentId;
 				}
 			}

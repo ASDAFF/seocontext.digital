@@ -5,11 +5,8 @@ namespace Bitrix\Forum\Comments;
 use Bitrix\Forum\Internals\Error\ErrorCollection;
 use \Bitrix\Main\Localization\Loc;
 use \Bitrix\Forum\Internals\Error\Error;
-use \Bitrix\Forum\Comments\TaskEntity;
-use \Bitrix\Main\Loader;
 use \Bitrix\Main\Event;
 use \Bitrix\Main\EventResult;
-use \Bitrix\Main\ArgumentTypeException;
 use \Bitrix\Main\ArgumentException;
 
 Loc::loadMessages(__FILE__);
@@ -77,7 +74,7 @@ class Comment extends BaseObject
 		}
 		if ($result["APPROVED"] != "N")
 		{
-			$result["APPROVED"] = ($this->forum["MODERATION"] != "Y" || $this->getEntity()->canModerate()) ? "Y" : "N";
+			$result["APPROVED"] = ($this->forum["MODERATION"] != "Y" || $this->getEntity()->canModerate($this->getUser()->getId())) ? "Y" : "N";
 		}
 
 		if ($errorCollection->hasErrors())
@@ -160,8 +157,8 @@ class Comment extends BaseObject
 				$this->setComment($mid);
 
 				$event = new Event("forum", "OnAfterCommentAdd", array(
-					$this->entity->getType(),
-					$this->entity->getId(),
+					$this->getEntity()->getType(),
+					$this->getEntity()->getId(),
 					array(
 						"TOPIC_ID" => $this->topic["ID"],
 						"MESSAGE_ID" => $mid,
@@ -191,8 +188,8 @@ class Comment extends BaseObject
 		{
 			$run = true;
 			$fields = array(
-				$this->entity->getType(),
-				$this->entity->getId(),
+				$this->getEntity()->getType(),
+				$this->getEntity()->getId(),
 				array(
 					"TOPIC_ID" => $this->topic["ID"],
 					"MESSAGE_ID" => $this->message["ID"],
@@ -305,8 +302,8 @@ class Comment extends BaseObject
 		{
 			$run = true;
 			$fields = array(
-				$this->entity->getType(),
-				$this->entity->getId(),
+				$this->getEntity()->getType(),
+				$this->getEntity()->getId(),
 				array(
 					"TOPIC_ID" => $this->topic["ID"],
 					"MESSAGE_ID" => $this->message["ID"],
@@ -360,8 +357,8 @@ class Comment extends BaseObject
 		{
 			$run = true;
 			$fields = array(
-				$this->entity->getType(),
-				$this->entity->getId(),
+				$this->getEntity()->getType(),
+				$this->getEntity()->getId(),
 				array(
 					"TOPIC_ID" => $this->topic["ID"],
 					"MESSAGE_ID" => $this->message["ID"],
@@ -384,7 +381,7 @@ class Comment extends BaseObject
 				}
 			}
 			/***************** /Events *****************************************/
-			if ($run && $this->message["APPROVED"] == $fields["PARAMS"]["APPROVED"] || ($mid = \CForumMessage::Update($this->message["ID"], $fields["PARAMS"])) > 0)
+			if ($run && $this->message["APPROVED"] == $fields[2]["PARAMS"]["APPROVED"] || ($mid = \CForumMessage::Update($this->message["ID"], $fields[2]["PARAMS"])) > 0)
 			{
 				$this->setComment($this->message["ID"]);
 				/***************** Event onMessageModerate ***********************/
@@ -428,15 +425,26 @@ class Comment extends BaseObject
 		}
 		else
 		{
-			$result = ($this->entity->canEdit() || (
+			$result = ($this->getEntity()->canEdit($this->getUser()->getId()) || (
 					((int) $this->message["AUTHOR_ID"] > 0) &&
 					((int) $this->message["AUTHOR_ID"] == (int) $this->getUser()->getId()) &&
-					$this->entity->canEditOwn()
+					$this->getEntity()->canEditOwn($this->getUser()->getId())
 				));
 		}
 		return $result;
 	}
 
+	/**
+	 * @return bool
+	 */
+	public function canEditOwn()
+	{
+		return $this->getEntity()->canEditOwn($this->getUser()->getId());
+	}
+
+	/**
+	 * @return bool
+	 */
 	public function canDelete()
 	{
 		return $this->canEdit();
@@ -472,21 +480,20 @@ class Comment extends BaseObject
 	{
 		$forum = $feed->getForum();
 		$comment = new Comment($forum["ID"], $feed->getEntity()->getFullId(), $feed->getUser()->getId());
-		$comment->getEntity()->setPermission($feed->getEntity()->getPermission());
+		$comment->getEntity()->setPermission($feed->getUser()->getId(), $feed->getEntity()->getPermission($feed->getUser()->getId()));
 		$comment->setComment($id);
 		return $comment;
 	}
 	/**
 	 * Creates new
 	 * @param Feed $feed
-	 * @param $id
 	 * @return Comment
 	 */
 	public static function create(Feed $feed)
 	{
 		$forum = $feed->getForum();
 		$comment = new Comment($forum["ID"], $feed->getEntity()->getFullId(), $feed->getUser()->getId());
-		$comment->getEntity()->setPermission($feed->getEntity()->getPermission());
+		$comment->getEntity()->setPermission($feed->getUser()->getId(), $feed->getEntity()->getPermission($feed->getUser()->getId()));
 		return $comment;
 	}
 }

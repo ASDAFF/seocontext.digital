@@ -28,6 +28,7 @@ $MESS["IM_CHAT_JOIN_M"] = "#USER_1_NAME# пригласил в чат #USER_2_NA
 $MESS["IM_CHAT_JOIN_F"] = "#USER_1_NAME# пригласила в чат #USER_2_NAME#";
 $MESS["IM_CHAT_KICK_M"] = "#USER_1_NAME# исключил #USER_2_NAME# из чата";
 $MESS["IM_CHAT_KICK_F"] = "#USER_1_NAME# исключила #USER_2_NAME# из чата";
+$MESS["IM_CHAT_CHANGE_TITLE"] = "Новая тема чата \"#CHAT_TITLE#\"";
 $MESS["IM_CHAT_CHANGE_TITLE_M"] = "#USER_NAME# изменил тему чата на \"#CHAT_TITLE#\"";
 $MESS["IM_CHAT_CHANGE_TITLE_F"] = "#USER_NAME# изменила тему чата на \"#CHAT_TITLE#\"";
 $MESS["IM_CHAT_CHANGE_COLOR_M"] = "#USER_NAME# изменил цвет чата на \"#CHAT_COLOR#\"";
@@ -42,4 +43,7 @@ $MESS["IM_GENERAL_CREATE"] = "Был создан открытый чат";
 $MESS["IM_GENERAL_CREATE_BY_USER"] = "#USER_NAME# приглашает в новый открытый чат";
 $MESS["IM_GENERAL_TITLE"] = "Общий чат";
 $MESS["IM_GENERAL_DESCRIPTION"] = "Общий чат виден всем вашим коллегам. Здесь вы можете обсуждать важные рабочие вопросы, интересные всей компании.";
+$MESS["IM_PERSONAL_DESCRIPTION"] = "В этом чате вы и только вы видите эти сообщения.[br] Публикуйте черновики сообщений, заметки, важные ссылки и файлы, и они будут всегда под рукой.";
+$MESS["IM_PATH_TITLE_TASKS"] = "Перейти к задаче";
+$MESS["IM_PATH_TITLE_SONET"] = "Перейти в группу";
 ?>

@@ -100,6 +100,19 @@ if ($queryType == "M")
 	elseif ($loadResult == "F")
 	{
 		CUpdateClient::AddMessage2Log("Finish - NOUPDATES", "STEP");
+
+		$bIntranet = CModule::IncludeModule('intranet');
+		if ($bIntranet)
+		{
+			CAdminNotify::Add(array(
+				'MODULE_ID' => 'main',
+				'TAG' => 'checklist_cp',
+				'MESSAGE' => GetMessage("SUPC_NOTIFY_CHECKLIST", array("#LANG#" => LANG)),
+				'NOTIFY_TYPE' => CAdminNotify::TYPE_NORMAL,
+				'PUBLIC_SECTION' => 'N',
+			));
+		}
+
 		die("FIN");
 	}
 
@@ -198,7 +211,7 @@ elseif ($queryType == "L")
 		CUpdateClient::AddMessage2Log("Finish - NOUPDATES", "STEP");
 		die("FIN");
 	}
-	
+
 	/*if (!CUpdateClient::GetNextStepLangUpdates($errorMessage, LANG, $arRequestedLangs))
 	{
 		$errorMessage .= "[CL01] ".GetMessage("SUPC_ME_LOAD").". ";

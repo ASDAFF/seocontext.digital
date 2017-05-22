@@ -753,15 +753,7 @@ class CBPHelper
 			if (strlen($strSqlOrderBy) > 0)
 				$strSqlOrderBy .= ", ";
 
-			if(strtoupper($DB->type)=="ORACLE")
-			{
-				if(substr($arSqlOrder[$i], -3)=="ASC")
-					$strSqlOrderBy .= $arSqlOrder[$i]." NULLS FIRST";
-				else
-					$strSqlOrderBy .= $arSqlOrder[$i]." NULLS LAST";
-			}
-			else
-				$strSqlOrderBy .= $arSqlOrder[$i];
+			$strSqlOrderBy .= $arSqlOrder[$i];
 		}
 		// <-- ORDER BY
 
@@ -800,11 +792,11 @@ class CBPHelper
 
 		if (!is_array($documentId))
 			$documentId = trim($documentId);
-		if (empty($documentId))
+		if ($documentId === '')
 			throw new CBPArgumentNullException("documentId");
 
 		$entity = trim($entity);
-		if (strlen($entity) <= 0)
+		if ($entity === '')
 			throw new CBPArgumentNullException("entity");
 
 		return array($moduleId, $entity, $documentId);
@@ -1303,7 +1295,6 @@ class CBPHelper
 							$v = $value;
 							unset($fieldValueTmp[$key]);
 						}
-						require_once($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/interface/init_admin.php");
 						echo CAdminCalendar::CalendarDate($fieldNameName, $v, 19, ($arFieldType["Type"] == "date"));
 						break;
 					default:
@@ -1911,6 +1902,9 @@ class CBPHelper
 
 		foreach ($arUsersDraft as $user)
 		{
+			if (!is_scalar($user))
+				continue;
+
 			if (substr($user, 0, $l) === "user_")
 			{
 				$user = intval(substr($user, $l));

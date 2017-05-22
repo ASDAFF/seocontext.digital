@@ -158,7 +158,7 @@ if (!empty($arError)):
 	if ($arParams["AJAX_CALL"] == "Y"):
 		$res = array("error" => $arError, "note" => $arNote, "id" => $arParams["MID"], "post" => ShowError($arError["title"]));
 		if ($_REQUEST["CONVERT_DATA"] == "Y")
-			array_walk($res, "htmlspecialcharsEx");
+			array_walk($res, "htmlspecialcharsbx");
 		$APPLICATION->RestartBuffer();
 		?><?=CUtil::PhpToJSObject($res)?><?
 		die();
@@ -317,7 +317,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST")
 				$uniqType = 0;
 				foreach ($arParams['VOTE_UNIQUE'] as $k => $v)
 					$uniqType |= intval($v);
-				$uniqType += 5;
 
 				list($uniqDelay, $uniqDelayType) = explode(" ", $arParams['VOTE_UNIQUE_IP_DELAY']);
 

@@ -645,7 +645,15 @@ class MssqlSqlHelper extends SqlHelper
 			{
 				$sourceSelectValues[] = $this->convertToDb($insertFields[$columnName], $tableField);
 				$sourceSelectColumns[] = $quotedName;
-				$targetConnectColumns[] = "source.".$quotedName." = target.".$quotedName;
+				if($insertFields[$columnName] === null)
+				{
+					//can't just compare NULLs
+					$targetConnectColumns[] = "(source.".$quotedName." IS NULL AND target.".$quotedName." IS NULL)";
+				}
+				else
+				{
+					$targetConnectColumns[] = "(source.".$quotedName." = target.".$quotedName.")";
+				}
 			}
 
 			if (isset($updateFields[$columnName]) || array_key_exists($columnName, $updateFields))

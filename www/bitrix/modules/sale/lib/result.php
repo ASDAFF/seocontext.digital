@@ -3,14 +3,21 @@ namespace Bitrix\Sale;
 
 use Bitrix\Main\Entity;
 use Bitrix\Main\Error;
+use Bitrix\Main\ErrorCollection;
 
 class Result extends Entity\Result
 {
 	/** @var  int */
 	protected $id;
 
+	protected $warnings = array();
+
+	/** @var bool */
+	protected $isSuccess = true;
+
 	public function __construct()
 	{
+		$this->warnings = new ErrorCollection();
 		parent::__construct();
 	}
 
@@ -55,7 +62,36 @@ class Result extends Entity\Result
 		/** @var Error $error */
 		foreach ($errors as $error)
 		{
-			$this->addError(ResultWarning::create($error));
+			$this->addWarning(ResultWarning::create($error));
+		}
+	}
+
+	/**
+	 * Adds the error.
+	 *
+	 * @param Error $error
+	 */
+	public function addWarning(Error $error)
+	{
+		$this->warnings[] = $error;
+	}
+
+
+	/**
+	 * Adds the error.
+	 *
+	 * @param Error $error
+	 */
+	public function addError(Error $error)
+	{
+		if ($error instanceof ResultWarning)
+		{
+			static::addWarning($error);
+		}
+		else
+		{
+			$this->isSuccess = false;
+			$this->errors[] = $error;
 		}
 	}
 
@@ -71,6 +107,39 @@ class Result extends Entity\Result
 		{
 			$this->addError(ResultNotice::create($error));
 		}
+	}
+
+	/**
+	 * Returns an array of Error objects.
+	 *
+	 * @return Error[]
+	 */
+	public function getWarnings()
+	{
+		return $this->warnings->toArray();
+	}
+
+	/**
+	 * Returns array of strings with warning messages
+	 *
+	 * @return array
+	 */
+	public function getWarningMessages()
+	{
+		$messages = array();
+
+		foreach($this->getWarnings() as $warning)
+			$messages[] = $warning->getMessage();
+
+		return $messages;
+	}
+
+	/**
+	 * @return bool
+	 */
+	public function hasWarnings()
+	{
+		return (count($this->warnings));
 	}
 
 }

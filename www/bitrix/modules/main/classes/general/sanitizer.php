@@ -475,8 +475,23 @@
 			$segCount = count($seg);
 			for($i=0; $i<$segCount; $i++)
 			{
-				if($seg[$i]['segType'] == 'text' && $this->bHtmlSpecChars)
-					$seg[$i]['value'] = htmlspecialchars($seg[$i]['value'], ENT_QUOTES, LANG_CHARSET, $this->bDoubleEncode);
+				if($seg[$i]['segType'] == 'text')
+				{
+					if (trim($seg[$i]['value']) && ($tp = array_search('table', $openTagsStack)) !== false)
+					{
+						$cellTags = array_intersect(array('td', 'th'), array_keys($this->arHtmlTags));
+						if ($cellTags && !array_intersect($cellTags, array_slice($openTagsStack, $tp+1)))
+						{
+							array_splice($seg, $i, 0, array(array('segType' => 'tag', 'value' => sprintf('<%s>', reset($cellTags)))));
+							$i--; $segCount++;
+
+							continue;
+						}
+					}
+
+					if ($this->bHtmlSpecChars)
+						$seg[$i]['value'] = htmlspecialchars($seg[$i]['value'], ENT_QUOTES, LANG_CHARSET, $this->bDoubleEncode);
+				}
 				elseif($seg[$i]['segType'] == 'tag')
 				{
 					//find tag type (open/close), tag name, attributies
@@ -511,6 +526,60 @@
 						//if allowed
 						else
 						{
+							if (in_array('table', $openTagsStack))
+							{
+								if ($openTagsStack[count($openTagsStack)-1] == 'table')
+								{
+									if (array_key_exists('tr', $this->arHtmlTags) && $seg[$i]['tagName'] != 'tr')
+									{
+										array_splice($seg, $i, 0, array(array('segType' => 'tag', 'tagType' => 'open', 'tagName' => 'tr', 'action' => 'add')));
+										$i++; $segCount++;
+
+										$openTagsStack[] = 'tr';
+									}
+								}
+
+								if ($seg[$i]['tagName'] == 'tr')
+								{
+									for ($j = count($openTagsStack)-1; $j >= 0; $j--)
+									{
+										if (in_array($openTagsStack[$j], array('table', 'thead', 'tfoot', 'tbody')))
+											break;
+
+										array_splice($seg, $i, 0, array(array('segType' => 'tag', 'tagType' => 'close', 'tagName' => $openTagsStack[$j], 'action' => 'add')));
+										$i++; $segCount++;
+
+										array_splice($openTagsStack, $j, 1);
+									}
+								}
+
+								if ($openTagsStack[count($openTagsStack)-1] == 'tr')
+								{
+									$cellTags = array_intersect(array('td', 'th'), array_keys($this->arHtmlTags));
+									if ($cellTags && !in_array($seg[$i]['tagName'], $cellTags))
+									{
+										array_splice($seg, $i, 0, array(array('segType' => 'tag', 'tagType' => 'open', 'tagName' => reset($cellTags), 'action' => 'add')));
+										$i++; $segCount++;
+
+										$openTagsStack[] = 'td';
+									}
+								}
+
+								if (in_array($seg[$i]['tagName'], array('td', 'th')))
+								{
+									for ($j = count($openTagsStack)-1; $j >= 0; $j--)
+									{
+										if ($openTagsStack[$j] == 'tr')
+											break;
+
+										array_splice($seg, $i, 0, array(array('segType' => 'tag', 'tagType' => 'close', 'tagName' => $openTagsStack[$j], 'action'=>'add')));
+										$i++; $segCount++;
+
+										array_splice($openTagsStack, $j, 1);
+									}
+								}
+							}
+
 							//Processing valid tables
 							//if find 'tr','td', etc...
 							if(array_key_exists($seg[$i]['tagName'], $this->arTableTags))
@@ -578,7 +647,10 @@
 								//if this tag don't match last from open tags stack , adding right close tag
 								$tagName = array_pop($openTagsStack);
 								if($seg[$i]['tagName'] != $tagName)
+								{
 									array_splice($seg, $i, 0, array(array('segType'=>'tag', 'tagType'=>'close', 'tagName'=>$tagName, 'action'=>'add')));
+									$segCount++;
+								}
 							}
 						}
 						//if tag unallowed erase it

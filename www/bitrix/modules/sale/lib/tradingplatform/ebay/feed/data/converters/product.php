@@ -30,8 +30,11 @@ class Product extends DataConverter
 		$this->attributesItem = $this->getAttributesItem($this->attributesList, $data);
 		$this->bitrixCategories = $data["CATEGORIES"];
 
+		$myres = "myres\n";
+
 		if(isset($data["OFFERS"]) && is_array($data["OFFERS"]) && !empty($data["OFFERS"]))
 		{
+			$myres .= "OFFERS - ".$data['NAME']."\n";
 			$result = $this->getItemDataOffers($data);
 
 			foreach($data["OFFERS"] as $offer)
@@ -39,8 +42,10 @@ class Product extends DataConverter
 		}
 		else
 		{
+			$myres .= "=".$data['NAME']."\n";
 			$result = $this->getItemData($data);
 		}
+		$myres .= "---------\n";
 
 		return $result;
 	}
@@ -59,7 +64,7 @@ class Product extends DataConverter
 			$result .= "\t\t\t<Attributes>\n";
 
 			foreach($attributies as $attrName => $attrValue)
-				$result .= "\t\t\t\t<Attribute Name=\"".$attrName."\">".htmlspecialcharsbx($attrValue)."</Attribute>\n";
+				$result .= "\t\t\t\t<Attribute Name=\"".\CDataXML::xmlspecialchars($attrName)."\">".\CDataXML::xmlspecialchars($attrValue)."</Attribute>\n";
 
 			$result .= "\t\t\t</Attributes>\n";
 		}
@@ -91,7 +96,7 @@ class Product extends DataConverter
 			$result .= "\t\t\t<VariationVector>\n";
 
 			foreach($this->variationsVector as $ebayAttributeName => $bitrixPropId)
-				$result .= "\t\t\t\t<Name>".$ebayAttributeName."</Name>\n";
+				$result .= "\t\t\t\t<Name>".\CDataXML::xmlspecialchars($ebayAttributeName)."</Name>\n";
 
 			$result .= "\t\t\t</VariationVector>\n";
 		}
@@ -103,7 +108,7 @@ class Product extends DataConverter
 
 		$result .= "\t\t\t</Categories>\n";
 		$result .= "\t\t\t<SharedProductInformation>\n";
-		$result .= "\t\t\t<Title>".$data["NAME"]."</Title>\n";
+		$result .= "\t\t\t<Title>".\CDataXML::xmlspecialchars($data["NAME"])."</Title>\n";
 		$result .= "\t\t\t<Description>\n";
 		$result .= "\t\t\t\t<ProductDescription>\n";
 		$result .= "<![CDATA[\n";
@@ -117,7 +122,7 @@ class Product extends DataConverter
 			$result .= "\t\t\t<Attributes>\n";
 
 			foreach($this->attributesItem as $attrName => $attrValue)
-				$result .= "\t\t\t\t<Attribute Name=\"".$attrName."\">".htmlspecialcharsbx($attrValue)."</Attribute>\n";
+				$result .= "\t\t\t\t<Attribute Name=\"".\CDataXML::xmlspecialchars($attrName)."\">".\CDataXML::xmlspecialchars($attrValue)."</Attribute>\n";
 
 			$result .= "\t\t\t</Attributes>\n";
 		}
@@ -174,7 +179,7 @@ class Product extends DataConverter
 		$result .= "\t\t\t<SKU>".$data["IBLOCK_ID"]."_".$data["ID"]."</SKU>\n";
 		$result .= "\t\t\t<ProductInformation>\n";
 		$result .= "\t\t\t\t<Country>RU</Country>\n";
-		$result .= "\t\t\t\t<Title>".$data["NAME"]."</Title>\n";
+		$result .= "\t\t\t\t<Title>".\CDataXML::xmlspecialchars($data["NAME"])."</Title>\n";
 		$result .= "\t\t\t\t<Description>\n";
 		$result .= "\t\t\t\t\t<ProductDescription>\n";
 		$result .= "<![CDATA[\n";
@@ -191,7 +196,7 @@ class Product extends DataConverter
 			$result .= "\t\t\t\t<Attributes>\n";
 
 			foreach($this->attributesItem as $attrName => $attrValue)
-				$result .= "\t\t\t\t\t<Attribute Name=\"".$attrName."\">".$attrValue."</Attribute>\n";
+				$result .= "\t\t\t\t\t<Attribute Name=\"".\CDataXML::xmlspecialchars($attrName)."\">".\CDataXML::xmlspecialchars($attrValue)."</Attribute>\n";
 
 			$result .= "\t\t\t\t</Attributes>\n";
 		}
@@ -219,13 +224,13 @@ class Product extends DataConverter
 		$result = "\t\t<ListingDetails>\n";
 
 		if(!empty($policy["RETURN"]))
-			$result .= "\t\t\t<ReturnPolicy>".$policy["RETURN"]."</ReturnPolicy>\n";
+			$result .= "\t\t\t<ReturnPolicy>".\CDataXML::xmlspecialchars($policy["RETURN"])."</ReturnPolicy>\n";
 
 		if(!empty($policy["SHIPPING"]))
-			$result .= "\t\t\t<ShippingPolicy>".$policy["SHIPPING"]."</ShippingPolicy>\n";
+			$result .= "\t\t\t<ShippingPolicy>".\CDataXML::xmlspecialchars($policy["SHIPPING"])."</ShippingPolicy>\n";
 
 		if(!empty($policy["PAYMENT"]))
-			$result .= "\t\t\t<PaymentPolicy>".$policy["PAYMENT"]."</PaymentPolicy>\n";
+			$result .= "\t\t\t<PaymentPolicy>".\CDataXML::xmlspecialchars($policy["PAYMENT"])."</PaymentPolicy>\n";
 
 		$result .= "\t\t</ListingDetails>\n";
 		return $result;

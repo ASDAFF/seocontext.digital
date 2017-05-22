@@ -152,7 +152,7 @@ class OrderBuyer
 					<tbody>
 						<tr>
 							<td class="adm-detail-content-cell-l" width="40%">'.Loc::getMessage("SALE_ORDER_BUYER_ORDERCOMMENT").':</td>
-							<td class="adm-detail-content-cell-r">'.(strlen($data["USER_DESCRIPTION"]) > 0 ? htmlspecialcharsbx($data["USER_DESCRIPTION"]) : Loc::getMessage("SALE_ORDER_BUYER_NO")).'</td>
+							<td class="adm-detail-content-cell-r"><pre id="sale-adm-user-description-view" style="color:gray; max-width:800px; overflow:auto;">'.(strlen($data["USER_DESCRIPTION"]) > 0 ? htmlspecialcharsbx($data["USER_DESCRIPTION"]) : Loc::getMessage("SALE_ORDER_BUYER_NO")).'</pre></td>
 						</tr>
 					</tbody>
 				</table>
@@ -235,19 +235,26 @@ class OrderBuyer
 	{
 		$profiles = \CSaleOrderUserProps::DoLoadProfiles($userId);
 
-		if(is_array($profiles))
-			foreach($profiles as $types)
-				foreach($types as $key => $value)
-				{
-					if(isset($value["VALUES_ORIG"]) && !empty($value["VALUES_ORIG"]))
-					{
-						$value["VALUES"] = $value["VALUES_ORIG"];
-						unset($value["VALUES_ORIG"]);
-					}
+		if(!is_array($profiles))
+			return array();
 
-					if($key == $profileId && isset($value["VALUES"]))
+		foreach($profiles as $types)
+		{
+			foreach($types as $key => $value)
+			{
+				if(isset($value["VALUES_ORIG"]) && !empty($value["VALUES_ORIG"]))
+				{
+					$value["VALUES"] = $value["VALUES_ORIG"];
+					unset($value["VALUES_ORIG"]);
+				}
+
+				if(isset($value["VALUES"]))
+				{
+					if($key == $profileId ||  $profileId == 0)
 						return $value["VALUES"];
 				}
+			}
+		}
 
 		return array();
 	}
@@ -341,15 +348,25 @@ class OrderBuyer
 		while($prop = $pRes->fetch())
 		{
 			if(strlen($prop['DEFAULT_VALUE']) > 0)
+			{
 				$result[$prop['ID']] = $prop['DEFAULT_VALUE'];
-			elseif($prop['IS_EMAIL'] == 'Y')
-				$result[$prop['ID']] = $propCollection->getUserEmail()->getValue();
-			elseif($prop['IS_PAYER'] == 'Y')
-				$result[$prop['ID']] = $propCollection->getPayerName()->getValue();
-			elseif($prop['IS_PHONE'] == 'Y')
-				$result[$prop['ID']] = $propCollection->getPhone()->getValue();
-			elseif($prop['IS_ADDRESS'] == 'Y')
-				$result[$prop['ID']] = $propCollection->getAddress()->getValue();
+			}
+			else
+			{
+				$property = null;
+
+				if($prop['IS_EMAIL'] == 'Y')
+					$property = $propCollection->getUserEmail();
+				elseif($prop['IS_PAYER'] == 'Y')
+					$property = $propCollection->getPayerName();
+				elseif($prop['IS_PHONE'] == 'Y')
+					$property = $propCollection->getPhone();
+				elseif($prop['IS_ADDRESS'] == 'Y')
+					$property = $propCollection->getAddress();
+
+				if($property)
+					$result[$prop['ID']] = $property->getValue();
+			}
 		}
 
 		return $result;
@@ -471,14 +488,39 @@ class OrderBuyer
 				if ($readonly && empty($propertyValue))
 					continue;
 
-				$showHtml = (($readonly) ? $property->getViewHtml() : $property->getEditHtml());
 				$p = $property->getProperty();
 
 				if($p['IS_PHONE'] == 'Y' && $readonly)
 				{
-					$showHtml = '<a href="javascript:void(0)" onclick="BX.Sale.Admin.OrderEditPage.desktopMakeCall(\''.$showHtml.'\');">'.
-						htmlspecialcharsbx($showHtml).
-					'</a>';
+					$phoneVal = $property->getValue();
+
+					if($phoneVal != '')
+					{
+						if(!is_array($phoneVal))
+							$phoneVal = array($phoneVal);
+
+						$showHtml = '';
+
+						foreach($phoneVal as $number)
+						{
+							$number = str_replace("'", "", htmlspecialcharsbx($number));
+
+							if(strlen($showHtml) > 0)
+								$showHtml .= ', ';
+
+							$showHtml .= '<a href="javascript:void(0)" onclick="BX.Sale.Admin.OrderEditPage.desktopMakeCall(\''.$number.'\');">'.
+								$number.
+								'</a>';
+						}
+					}
+					else
+					{
+						$showHtml = '';
+					}
+				}
+				else
+				{
+					$showHtml = (($readonly) ? $property->getViewHtml() : $property->getEditHtml());
 				}
 
 				$resultBody .= '

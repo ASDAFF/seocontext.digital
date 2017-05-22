@@ -6,6 +6,13 @@
 /** @global CUser $USER */
 /** @global CMain $APPLICATION */
 
+if(SITE_TEMPLATE_ID === 'bitrix24')
+{
+	$bodyClass = $APPLICATION->GetPageProperty('BodyClass');
+	$APPLICATION->SetPageProperty('BodyClass', ($bodyClass ? $bodyClass.' ' : '').'no-paddings pagetitle-toolbar-field-view');
+}
+
+
 $this->setFrameMode(true);
 
 if (
@@ -68,12 +75,13 @@ if ($arResult["MODE"] == "AJAX")
 			<div class="feed-add-post-destination-wrap feed-add-post-destination-filter" id="sonet-log-filter-created-by">
 				<span id="sonet-log-filter-created-by-item"></span>
 				<span class="feed-add-destination-input-box" style="display: inline-block;">
-					<input type="text" value="" class="feed-add-destination-inp" id="filter-field-created-by">
+					<input type="text" value="" class="feed-add-destination-inp" id="filter-field-created-by" autocomplete="off">
 				</span>
 			</div>
 		</div>
 		<script>
 			oLFFilter.initDestination({
+				pathToAjax: '<?=CUtil::JSEscape($this->getComponent()->getPath())?>/post.ajax.php',
 				userNameTemplate: '<?=CUtil::JSEscape($arParams["NAME_TEMPLATE"])?>',
 				name: 'feed-filter-created-by',
 				inputName: 'filter-field-created-by',
@@ -103,12 +111,13 @@ if ($arResult["MODE"] == "AJAX")
 			<div class="feed-add-post-destination-wrap feed-add-post-destination-filter" id="sonet-log-filter-to">
 				<span id="sonet-log-filter-to-item"></span>
 				<span class="feed-add-destination-input-box" style="display: inline-block;">
-					<input type="text" value="" class="feed-add-destination-inp" id="filter-field-to">
+					<input type="text" value="" class="feed-add-destination-inp" id="filter-field-to" autocomplete="off">
 				</span>
 			</div>
 		</div>
 		<script>
 			oLFFilter.initDestination({
+				pathToAjax: '<?=CUtil::JSEscape($this->getComponent()->getPath())?>/post.ajax.php',
 				userNameTemplate: '<?=CUtil::JSEscape($arParams["NAME_TEMPLATE"])?>',
 				name: 'feed-filter-to',
 				inputName: 'filter-field-to',
@@ -128,6 +137,18 @@ if ($arResult["MODE"] == "AJAX")
 					department : <?=(empty($arResult["TO_DEST"]['LAST']['DEPARTMENT'])? '{}': CUtil::PhpToJSObject($arResult["TO_DEST"]['LAST']['DEPARTMENT']))?>
 				},
 				itemsSelected : <?=(empty($arResult["TO_DEST"]['SELECTED'])? '{}': CUtil::PhpToJSObject($arResult["TO_DEST"]['SELECTED']))?>,
+				itemsSelectedUndeleted : <?=(
+					!empty($arResult["TO_DEST"]['SELECTED'])
+					&& isset($arParams["GROUP_ID"])
+					&& intval($arParams["GROUP_ID"]) > 0
+					&& array_key_exists('SG'.$arParams["GROUP_ID"], $arResult["TO_DEST"]['SELECTED'])
+					&& (
+						empty($arParams["DESTINATION"])
+						|| !in_array('SG'.$arParams["GROUP_ID"], $arParams["DESTINATION"])
+					)
+						? CUtil::PhpToJSObject(array('SG'.intval($arParams["GROUP_ID"])))
+						: '{}'
+				)?>,
 				destSort: <?=(empty($arResult["TO_DEST"]["SORT"]) ? '{}' : CUtil::PhpToJSObject($arResult["TO_DEST"]["SORT"]))?>
 			});
 		</script>
@@ -224,7 +245,7 @@ else
 	if ($arParams["USE_TARGET"] != "N")
 	{
 		$this->SetViewTarget((
-			strpos(SITE_TEMPLATE_ID, "bitrix24") !== false
+				SITE_TEMPLATE_ID === "bitrix24"
 				? (strlen($arParams["PAGETITLE_TARGET"]) > 0 ? $arParams["PAGETITLE_TARGET"] : "pagetitle")
 				: (strlen($arParams["TARGET_ID"]) > 0 ? $arParams["TARGET_ID"] : "sonet_blog_form")
 			),
@@ -235,83 +256,92 @@ else
 	$isCompositeMode = defined("BITRIX24_INDEX_COMPOSITE");
 	$isCompositeMode === false ?: ($dynamicArea = $this->createFrame()->begin(""));
 
-	?><script type="text/javascript">
+	?><script>
+		var lentaMenuItems = {};
 
-		function showLentaMenu(bindElement)
-		{
-			BX.addClass(bindElement, "lenta-sort-button-active");
-			BX.PopupMenu.show("lenta-sort-popup", bindElement, [
+		lentaMenuItems.preset = [
+			{
+				text : "<?=(!empty($arResult["ALL_ITEM_TITLE"]) > 0 ? $arResult["ALL_ITEM_TITLE"] : GetMessageJS("SONET_C30_PRESET_FILTER_ALL"))?>",
+				className : (window.bRefreshed !== undefined && window.bRefreshed ? "lenta-sort-item lenta-sort-item-selected" : "lenta-sort-item<?=(!$arResult["PresetFilterActive"] ? " lenta-sort-item-selected" : "")?>"),
+				href : "<?=CUtil::JSEscape($APPLICATION->GetCurPageParam("preset_filter_id=clearall", array_merge($arResult["PageParamsToClear"], array("preset_filter_id"))))?>"
+			},
+			<?
+			$buttonName = false;
+			if (is_array($arResult["PresetFilters"]))
+			{
+				foreach($arResult["PresetFilters"] as $preset_filter_id => $arPresetFilter)
 				{
-					text : "<?=(!empty($arResult["ALL_ITEM_TITLE"]) > 0 ? $arResult["ALL_ITEM_TITLE"] : GetMessageJS("SONET_C30_PRESET_FILTER_ALL"))?>",
-					className : (window.bRefreshed !== undefined && window.bRefreshed ? "lenta-sort-item lenta-sort-item-selected" : "lenta-sort-item<?=(!$arResult["PresetFilterActive"] ? " lenta-sort-item-selected" : "")?>"),
-					href : "<?=CUtil::JSEscape($APPLICATION->GetCurPageParam("preset_filter_id=clearall", array_merge($arResult["PageParamsToClear"], array("preset_filter_id"))))?>"
+					if ($arResult["PresetFilterActive"] == $preset_filter_id)
+					{
+						$buttonName = $arPresetFilter["NAME"];
+					}
+					?>
+					, {
+						text : "<?=$arPresetFilter["NAME"]?>",
+						className : (window.bRefreshed !== undefined && window.bRefreshed ? "lenta-sort-item" : "lenta-sort-item<?=($arResult["PresetFilterActive"] == $preset_filter_id ? " lenta-sort-item-selected" : "")?>"),
+						href : "<?=CUtil::JSEscape($APPLICATION->GetCurPageParam("preset_filter_id=".$preset_filter_id, array_merge($arResult["PageParamsToClear"], array("preset_filter_id"))))?>"
+					}
+					<?
+				}
+			}
+			?>
+		];
+
+		lentaMenuItems.filter = [
+			{
+				text : "<?=GetMessageJS("SONET_C30_T_FILTER_TITLE")?>...",
+				className : (window.bRefreshed !== undefined && window.bRefreshed ? "lenta-sort-item" : "lenta-sort-item<?=($isFiltered ? " lenta-sort-item-selected" : "")?>"),
+				onclick: function() {
+					this.popupWindow.close();
+					oLFFilter.ShowFilterPopup(BX("lenta-sort-button"));
+				}
+			}
+		];
+
+		lentaMenuItems.actions = [
+			<?
+			if ($arParams["SHOW_FOLLOW"] != "N")
+			{
+				?>
+				{
+					text : "<?=GetMessageJS("SONET_C30_SMART_FOLLOW")?>",
+					className : "lenta-sort-item<?=($arResult["FOLLOW_TYPE"] == "N" ? " lenta-sort-item-selected" : "")?>",
+					onclick: function (event, obItem) {
+						oLFFilter.onClickMenuItem({
+							menuItem: BX(obItem.layout.item),
+							href: "<?=CUtil::JSEscape($APPLICATION->GetCurPageParam("set_follow_type=".($arResult["FOLLOW_TYPE"] == "Y" ? "N" : "Y"), array("set_follow_type")))?>"
+						});
+					}
 				},
 				<?
-				$buttonName = false;
-				if (is_array($arResult["PresetFilters"]))
-				{
-					foreach($arResult["PresetFilters"] as $preset_filter_id => $arPresetFilter)
-					{
-						if ($arResult["PresetFilterActive"] == $preset_filter_id)
-							$buttonName = $arPresetFilter["NAME"];
-						?>{
-							text : "<?=$arPresetFilter["NAME"]?>",
-							className : (window.bRefreshed !== undefined && window.bRefreshed ? "lenta-sort-item" : "lenta-sort-item<?=($arResult["PresetFilterActive"] == $preset_filter_id ? " lenta-sort-item-selected" : "")?>"),
-							href : "<?=CUtil::JSEscape($APPLICATION->GetCurPageParam("preset_filter_id=".$preset_filter_id, array_merge($arResult["PageParamsToClear"], array("preset_filter_id"))))?>"
-						},<?
-					}
-				}
+			}
+
+			if (
+				$arParams["SHOW_EXPERT_MODE"] != "N"
+				&& class_exists('\Bitrix\Socialnetwork\LogViewTable') // socialnetwork 16.5.0
+			)
+			{
 				?>
-				{ delimiter : true },
 				{
-					text : "<?=GetMessageJS("SONET_C30_T_FILTER_TITLE")?>...",
-					className : (window.bRefreshed !== undefined && window.bRefreshed ? "lenta-sort-item" : "lenta-sort-item<?=($isFiltered ? " lenta-sort-item-selected" : "")?>"),
-					onclick: function() {
-						this.popupWindow.close();
-						oLFFilter.ShowFilterPopup(BX("lenta-sort-button"));
+					text : "<?=GetMessageJS("SONET_C30_SMART_EXPERT_MODE")?>",
+					className : "lenta-sort-item<?=($arResult["EXPERT_MODE"] == "Y" ? " lenta-sort-item-selected" : "")?>",
+					onclick: function (event, obItem) {
+						oLFFilter.onClickMenuItem({
+							menuItem: BX(obItem.layout.item),
+							href: "<?=CUtil::JSEscape($APPLICATION->GetCurPageParam("set_expert_mode=".($arResult["EXPERT_MODE"] == "Y" ? "N" : "Y"), array("set_expert_mode")))?>"
+						});
 					}
 				}
 				<?
-				if ($arParams["SHOW_FOLLOW"] != "N")
-				{
-					?>
-					,{ delimiter : true },
-					{
-						text : "<?=GetMessageJS("SONET_C30_SMART_FOLLOW")?>",
-						className : "lenta-sort-item<?=($arResult["FOLLOW_TYPE"] == "N" ? " lenta-sort-item-selected" : "")?>",
-						href : "<?=CUtil::JSEscape($APPLICATION->GetCurPageParam("set_follow_type=".($arResult["FOLLOW_TYPE"] == "Y" ? "N" : "Y"), array("set_follow_type")))?>"
-					}
-					<?
-				}
+			}
+			?>
+		];
 
-				if (
-					$arParams["SHOW_EXPERT_MODE"] != "N"
-					&& class_exists('\Bitrix\Socialnetwork\LogViewTable') // socialnetwork 16.5.0
-				)
-				{
-					?>
-					,{ delimiter : true },
-					{
-						text : "<?=GetMessageJS("SONET_C30_SMART_EXPERT_MODE")?>",
-						className : "lenta-sort-item<?=($arResult["EXPERT_MODE"] == "Y" ? " lenta-sort-item-selected" : "")?>",
-						href : "<?=CUtil::JSEscape($APPLICATION->GetCurPageParam("set_expert_mode=".($arResult["EXPERT_MODE"] == "Y" ? "N" : "Y"), array("set_expert_mode")))?>"
-					}
-					<?
-				}
-				?>
-			],
-			{
-				offsetTop:2,
-				offsetLeft : 43,
-				angle : true,
-				events : {
-					onPopupClose : function() {
-						BX.removeClass(this.bindElement, "lenta-sort-button-active");
-					}
-				}
+		BX.ready(function() {
+			oLFFilter.initLentaMenu({
+				menuItems: lentaMenuItems
 			});
-			return false;
-		}
+		});
 
 		<?
 		if (
@@ -344,43 +374,259 @@ else
 	$isCompositeMode === false ?: $dynamicArea->end();
 	$logCounter = intval($arResult["LOG_COUNTER"]);
 
-	if (strpos(SITE_TEMPLATE_ID, "bitrix24") !== false)
-	{
-		?><a href="" id="lenta-sort-button" class="lenta-sort-button" onclick="return showLentaMenu(this);" onmousedown="BX.addClass(this, 'lenta-sort-button-press')" onmouseup="BX.removeClass(this,'lenta-sort-button-press')"><?
-			?><span class="lenta-sort-button-left"></span><?
-			?><span class="lenta-sort-button-text"><?
-			?><span class="lenta-sort-button-text-internal" id="lenta-button"><?
-				$frame = $this->createFrame("lenta-button", false)->begin(GetMessage("SONET_C30_PRESET_FILTER_ALL"));
-				echo ($buttonName !== false ? $buttonName : GetMessage("SONET_C30_PRESET_FILTER_ALL") );
-				echo ($isFiltered ? " (".GetMessageJS("SONET_C30_T_FILTER_TITLE").")" : "");
-				if ($logCounter > 0 && Bitrix\Main\Page\Frame::isAjaxRequest()):?>
-					<script type="text/javascript">BX("sonet_log_counter_preset").innerHTML="<?=$logCounter?>"</script><?
-				endif;
-				$frame->end();
-			?></span><?
-			if ($buttonName === false || $isCompositeMode):
-				?><span id="sonet_log_counter_preset" class="pagetitle-but-counter"><?=(($logCounter > 0 && $arParams["ENTITY_TYPE"] != SONET_ENTITY_GROUP && !$isCompositeMode) ? $logCounter : "")?></span><?
-			endif;
-			?></span><?
-			?><span class="lenta-sort-button-right"></span><?
-		?></a><?
-	}
-	else
+	if (SITE_TEMPLATE_ID !== "bitrix24")
 	{
 		?><div id="lenta-sort-button" class="feed-filter-btn-wrap">
-		<span class="feed-filter-btn" id="feed_filter_button" onclick="showLentaMenu(this)"><?
+		<span class="feed-filter-btn" id="feed_filter_button"><?
 			?><?=($buttonName !== false ? $buttonName : GetMessage("SONET_C30_PRESET_FILTER_ALL") )?><?=($isFiltered ? " (".GetMessageJS("SONET_C30_T_FILTER_TITLE").")" : "")?><?
 			if ($buttonName === false):
 				?><i id="sonet_log_counter_preset"><?=((intval($arResult["LOG_COUNTER"]) > 0 && $arParams["ENTITY_TYPE"] != SONET_ENTITY_GROUP) ? $arResult["LOG_COUNTER"] : "")?></i><?
 			endif;
 			?></span>
-		</div><?
+		</div>
+		<script>
+			BX.ready(function () {
+				BX.bind(BX('feed_filter_button'), 'click', function() {
+					oLFFilter.showLentaMenu({
+						bindElement: BX('feed_filter_button'),
+						short: false,
+						siteTemplateid: '<?=CUtil::JSEscape(SITE_TEMPLATE_ID)?>'
+					});
+				});
+			});
+		</script>
+
+		<?
 	}
 
 	if ($arParams["USE_TARGET"] != "N")
 	{
 		$this->EndViewTarget();
 	}
+
+	if (SITE_TEMPLATE_ID === "bitrix24")
+	{
+		$this->SetViewTarget('inside_pagetitle', 0);
+		$filterID = (isset($arParams["FILTER_ID"]) ? $arParams["FILTER_ID"] : 'LIVEFEED');
+
+		?><div class="pagetitle-container pagetitle-flexible-space" style="overflow: hidden;" id="<?=htmlspecialcharsbx($filterID)?>_filter_container"><div id="<?=htmlspecialcharsbx($filterID)?>_filter_container_max" class="pagetitle-container-max pagetitle-container-max-rounded"><?
+		$APPLICATION->IncludeComponent(
+			'bitrix:main.ui.filter',
+			'',
+			array(
+				'THEME' => 'ROUNDED',
+				'GRID_ID' => $filterID,
+				'FILTER_ID' => $filterID,
+				'FILTER' => $arResult["Filter"],
+				'FILTER_FIELDS' => array(),
+				'FILTER_PRESETS' => $arResult['PresetFiltersNew'],
+				'ENABLE_LIVE_SEARCH' => true,
+				'ENABLE_LABEL' => true,
+				'COMPACT_STATE' => (
+					empty($arResult["CREATED_BY_DEST"]['SELECTED'])
+					&& (
+						empty($arResult["TO_DEST"]['SELECTED'])
+						|| (
+							isset($arParams['GROUP_ID'])
+							&& intval($arParams['GROUP_ID']) > 0
+						)
+					)
+				),
+				'CONFIG' => array(
+					'AUTOFOCUS' => false,
+					'POPUP_BIND_ELEMENT_SELECTOR' => '#'.htmlspecialcharsbx($filterID).'_filter_container_max'
+				)
+			),
+			$this->getComponent()
+		);
+		?></div></div>
+		<script>
+			BX.ready(function(){
+				oLFFilter.initFilter({
+					version: 2,
+					filterId: '<?=htmlspecialcharsbx($filterID)?>'
+				});
+			});
+		</script>
+		<?
+		foreach($arResult["Filter"] as $filterField)
+		{
+			if (
+				$filterField['type'] == 'custom_entity'
+				&& $filterField['selector']['TYPE'] == 'user'
+			)
+			{
+				$userSelector = $filterField['selector']['DATA'];
+
+				$selectorID = $userSelector['ID'];
+				$fieldID = $userSelector['FIELD_ID'];
+
+				$APPLICATION->IncludeComponent(
+					"bitrix:main.ui.selector",
+					".default",
+					array(
+						'ID' => $selectorID,
+						'ITEMS_SELECTED' => (!empty($arResult["CREATED_BY_DEST"]['SELECTED']) ? $arResult["CREATED_BY_DEST"]['SELECTED'] : array()),
+						'CALLBACK' => array(
+							'select' => 'BitrixLFFilterDestinationSelectorManager.onSelect',
+							'unSelect' => '',
+							'openDialog' => '',
+							'closeDialog' => '',
+							'openSearch' => ''
+						),
+						'OPTIONS' => array(
+							'eventInit' => 'BX.Livefeed.Filter:openInit',
+							'eventOpen' => 'BX.Livefeed.Filter:open',
+							'context' => 'FEED_FILTER_CREATED_BY',
+							'contextCode' => 'U',
+							'useSearch' => 'N',
+							'userNameTemplate' => CUtil::JSEscape($arParams["NAME_TEMPLATE"]),
+							'useClientDatabase' => 'Y',
+							'allowEmailInvitation' => 'N',
+							'enableDepartments' => 'Y',
+							'enableSonetgroups' => 'N',
+							'departmentSelectDisable' => 'Y',
+							'allowAddUser' => 'N',
+							'allowAddCrmContact' => 'N',
+							'allowAddSocNetGroup' => 'N',
+							'allowSearchCrmEmailUsers' => 'N',
+							'allowSearchNetworkUsers' => 'N',
+							'allowSonetGroupsAjaxSearchFeatures' => 'N'
+						)
+					),
+					false,
+					array("HIDE_ICONS" => "Y")
+				);
+				?>
+				<script>
+				BX.ready(
+					function()
+					{
+						BitrixLFFilterDestinationSelector.create(
+							"<?=CUtil::JSEscape($selectorID)?>",
+							{
+								filterId: "<?=CUtil::JSEscape($filterID)?>",
+								fieldId: "<?=CUtil::JSEscape($fieldID)?>"
+							}
+						);
+					}
+				);
+				</script>
+				<?
+			}
+			elseif (
+				$filterField['type'] == 'custom_entity'
+				&& $filterField['selector']['TYPE'] == 'destination'
+			)
+			{
+				$userSelector = $filterField['selector']['DATA'];
+				$selectorID = $userSelector['ID'];
+				$fieldID = $userSelector['FIELD_ID'];
+
+				$APPLICATION->IncludeComponent(
+					"bitrix:main.ui.selector",
+					".default",
+					array(
+						'ID' => $selectorID,
+						'ITEMS_SELECTED' => (!empty($arResult["TO_DEST"]['SELECTED']) ? $arResult["TO_DEST"]['SELECTED'] : array()),
+						'CALLBACK' => array(
+							'select' => 'BitrixLFFilterDestinationSelectorManager.onSelect',
+							'unSelect' => '',
+							'openDialog' => '',
+							'closeDialog' => '',
+							'openSearch' => ''
+						),
+						'OPTIONS' => array(
+							'eventInit' => 'BX.Livefeed.Filter:openInit',
+							'eventOpen' => 'BX.Livefeed.Filter:open',
+							'context' => 'FEED_FILTER_TO',
+							'useSearch' => 'N',
+							'userNameTemplate' => CUtil::JSEscape($arParams["NAME_TEMPLATE"]),
+							'useClientDatabase' => 'Y',
+							'allowEmailInvitation' => (IsModuleInstalled('mail') && IsModuleInstalled('intranet') ? 'Y' : 'N'),
+							'enableDepartments' => 'Y',
+							'enableSonetgroups' => 'Y',
+							'departmentSelectDisable' => 'Y',
+							'allowAddUser' => 'N',
+							'allowAddCrmContact' => 'N',
+							'allowAddSocNetGroup' => 'N',
+							'allowSearchCrmEmailUsers' => 'N',
+							'allowSearchNetworkUsers' => 'N',
+							'allowSonetGroupsAjaxSearchFeatures' => 'N'
+						)
+					),
+					false,
+					array("HIDE_ICONS" => "Y")
+				);
+
+				switch($selectorID)
+				{
+					case 'to':
+						$initialValue = (!empty($arResult['Group'])
+							? array(
+								'itemId' => 'SG'.$arResult['Group']['ID'],
+								'itemName' => $arResult['Group']['~NAME']
+							)
+							: false
+						);
+						break;
+					default:
+						$initialValue = false;
+				}
+
+				?>
+				<script>
+				BX.ready(
+					function()
+					{
+						BitrixLFFilterDestinationSelector.create(
+							"<?=CUtil::JSEscape($selectorID)?>",
+							{
+								filterId: "<?=CUtil::JSEscape($filterID)?>",
+								fieldId: "<?=CUtil::JSEscape($fieldID)?>",
+								initialValue: <?=\CUtil::phpToJSObject($initialValue)?>
+							}
+						);
+					}
+				);
+				</script>
+				<?
+			}
+		}
+
+		$toolbarId = 'LIVEFEED_FILTER_TOOLBAR';
+
+		?><div id="<?=htmlspecialcharsbx($toolbarId)?>" class="pagetitle-container pagetitle-align-right-container"><?
+
+		if (
+			$arParams["SHOW_FOLLOW"] != "N"
+			|| (
+				$arParams["SHOW_EXPERT_MODE"] != "N"
+				&& class_exists('\Bitrix\Socialnetwork\LogViewTable') // socialnetwork 16.5.0
+			)
+		)
+		{
+			?>
+			<div id="feed_filter_button" class="webform-small-button webform-small-button-transparent sonet-filter-menu-settings-icon webform-rounded-cogwheel">
+				<span class="webform-button-icon"></span>
+			</div>
+			<script>
+				BX.ready(function () {
+					BX.bind(BX('feed_filter_button'), 'click', function() {
+						oLFFilter.showLentaMenu({
+							bindElement: BX('feed_filter_button'),
+							short: true,
+							siteTemplateId: '<?=CUtil::JSEscape(SITE_TEMPLATE_ID)?>'
+						});
+					});
+				});
+			</script><?
+		}
+		?></div><?
+		$this->EndViewTarget();
+	}
+
+	$isCompositeMode === false ?: ($dynamicArea = $this->createFrame()->begin(""));
 
 	if (isset($_SESSION["SL_SHOW_FOLLOW_HINT"]))
 	{
@@ -392,5 +638,7 @@ else
 		unset($_SESSION["SL_EXPERT_MODE_HINT"]);
 		?><div class="feed-smart-follow-hint"><?=GetMessage("SONET_C30_EXPERT_MODE_HINT");?></div><?
 	}
+
+	$isCompositeMode === false ?: $dynamicArea->end();
 }
 ?>

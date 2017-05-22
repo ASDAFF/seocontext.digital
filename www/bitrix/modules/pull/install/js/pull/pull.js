@@ -28,6 +28,7 @@
 	_pullWithHeaders = true,
 	_pullCapturePullEvent = false,
 	_pullCapturePullEventStatus = false,
+	_pullGetPullEventFunctionStatus = false,
 	_pullTimeConfig = 0,
 	_pullTimeConfigShared = 0,
 	_pullTimeConst = (new Date(2022, 2, 19)).toUTCString(),
@@ -481,7 +482,7 @@
 				{
 					if (code == 1006 || code == 1008)
 					{
-						BX.localStorage.set('pbws', true, 172800);
+						BX.localStorage.set('pbws', true, 600);
 						_wsSupport = false;
 					}
 					clearTimeout(_updateStateTimeout);
@@ -493,7 +494,7 @@
 				{
 					if (_wsError1006Count >= 5)
 					{
-						BX.localStorage.set('pbws', true, 86400);
+						BX.localStorage.set('pbws', true, 300);
 						_wsSupport = false;
 					}
 					_wsError1006Count++;
@@ -598,7 +599,7 @@
 							{
 								var text = "\n========= PULL ERROR ===========\n"+
 											"Error type: updateState fetch\n"+
-											"Error: "+data.ERROR+"\n"+
+											"Error: "+(data && data.ERROR? data.ERROR: 'unknown')+"\n"+
 											"\n"+
 											"Connect CHANNEL_ID: "+_channelID+"\n"+
 											"Connect WS_PATH: "+_wsPath+"\n"+
@@ -625,7 +626,9 @@
 				if (_WS) _WS.close(1000, "onmessage");
 			}
 		};
-		_WS.onerror = function() {
+		_WS.onerror = function()
+		{
+			_updateStateSend = false;
 			_wsTryReconnect++;
 		};
 	}
@@ -713,7 +716,7 @@
 							{
 								var text = "\n========= PULL ERROR ===========\n"+
 											"Error type: updateState error\n"+
-											"Error: "+data.ERROR+"\n"+
+											"Error: "+(data && data.ERROR? data.ERROR: 'unknown')+"\n"+
 											"\n"+
 											"Connect CHANNEL_ID: "+_channelID+"\n"+
 											"Connect PULL_PATH: "+_pullPath+"\n"+
@@ -775,7 +778,7 @@
 											{
 												var text = "\n========= PULL ERROR ===========\n"+
 															"Error type: updateState fetch\n"+
-															"Error: "+data.ERROR+"\n"+
+															"Error: "+(data && data.ERROR? data.ERROR: 'unknown')+"\n"+
 															"\n"+
 															"Connect CHANNEL_ID: "+_channelID+"\n"+
 															"Connect PULL_PATH: "+_pullPath+"\n"+
@@ -1124,17 +1127,13 @@
 				{
 					if (typeof(console) == 'object')
 					{
-						var text = "\n========= PULL ERROR ===========\n"+
-									"Error type: onPullEvent onfailure\n"+
-									"Error event: "+JSON.stringify(e)+"\n"+
-									"\n"+
-									"Message MODULE_ID: "+message[i].module_id+"\n"+
-									"Message COMMAND: "+message[i].command+"\n"+
-									"Message PARAMS: "+message[i].params+"\n"+
-									"\n"+
-									"Message array: "+JSON.stringify(message[i])+"\n"+
-									"================================\n";
-						console.log(text);
+						console.log(
+							"\n========= PULL ERROR ===========\n"+
+							"Error type: onPullEvent onfailure\n"+
+							"Error event: ", e, "\n"+
+							"Message: ", message[i], "\n"+
+							"================================\n"
+						);
 						BX.debug(e);
 					}
 				}
@@ -1302,8 +1301,8 @@
 
 		if (!_pullCapturePullEvent && status)
 		{
-			_pullCapturePullEventStatus = true;
 			_pullCapturePullEvent = true;
+			_pullCapturePullEventStatus = true;
 			BX.addCustomEvent("onPullOnlineEvent", function(command,params) {
 				if (_pullCapturePullEventStatus)
 				{
@@ -1315,6 +1314,10 @@
 				{
 					console.log('onPullEvent',module_id,command,params);
 				}
+				if (_pullGetPullEventFunctionStatus)
+				{
+					console.log('BX.onCustomEvent(window, "onPullEvent-'+module_id+'", ["'+command+'", '+JSON.stringify(params)+']);');
+				}
 			});
 			return 'Capture "Pull Event" started.';
 		}
@@ -1323,6 +1326,14 @@
 			_pullCapturePullEventStatus = status;
 			return 'Capture "Pull Event" is '+(status? 'ON': 'OFF');
 		}
+	}
+	
+	BX.PULL.getPullEventFunction = function(status)
+	{
+		_pullGetPullEventFunctionStatus = typeof(status) == 'boolean'? status: true;
+		BX.PULL.capturePullEvent(_pullGetPullEventFunctionStatus);
+		
+		return 'Get "Pull Event" function is '+(_pullGetPullEventFunctionStatus? 'ON': 'OFF');
 	}
 
 
@@ -1391,10 +1402,7 @@
 					result = true;
 				else if (BX.browser.IsChrome() && navigator.appVersion.substr(navigator.appVersion.indexOf('Chrome/')+7, 2) >= 28)
 					result = true;
-				else if ((!BX.browser.IsChrome() && BX.browser.IsSafari())
-					&& (navigator.appVersion.substr(navigator.appVersion.indexOf('Version/')+8, 1) >= 6
-					|| navigator.appVersion.substr(navigator.appVersion.indexOf(' OS ')+4, 1) >= 8)//Detecting iOS version
-				)
+				else if (!BX.browser.IsChrome() && BX.browser.IsSafari())
 					result = true;
 			}
 			else if (BX.browser.DetectIeVersion() >= 10 && !BX.browser.IsAndroid())

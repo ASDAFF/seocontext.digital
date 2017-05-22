@@ -176,15 +176,101 @@ class HttpClient
 	 *
 	 * @param string $url Absolute URI eg. "http://user:pass @ host:port/path/?query".
 	 * @param array|string|resource $postData Entity of POST/PUT request. If it's resource handler then data will be read directly from the stream.
+	 * @param boolean $multipart Whether or not to use multipart/form-data encoding. If true, method accepts file as a resource or as an array with keys 'resource' (or 'content') and optionally 'filename' and 'contentType'
 	 * @return string|bool Response entity string or false on error. Note, it's empty string if outputStream is set.
 	 */
-	public function post($url, $postData = null)
+	public function post($url, $postData = null, $multipart = false)
 	{
+		if ($multipart)
+		{
+			$postData = $this->prepareMultipart($postData);
+		}
+
 		if($this->query(self::HTTP_POST, $url, $postData))
 		{
 			return $this->getResult();
 		}
 		return false;
+	}
+
+	/**
+	 * Performs multipart/form-data encoding.
+	 * Accepts file as a resource or as an array with keys 'resource' (or 'content') and optionally 'filename' and 'contentType'
+	 *
+	 * @param array|string|resource $postData Entity of POST/PUT request
+	 * @return string
+	 */
+	protected function prepareMultipart($postData)
+	{
+		if (is_array($postData))
+		{
+			$boundary = 'BXC'.md5(rand().time());
+			$this->setHeader('Content-type', 'multipart/form-data; boundary='.$boundary);
+
+			$data = '';
+
+			foreach ($postData as $k => $v)
+			{
+				$data .= '--'.$boundary."\r\n";
+
+				if ((is_resource($v) && get_resource_type($v) === 'stream') || is_array($v))
+				{
+					$filename = $k;
+					$contentType = 'application/octet-stream';
+
+					if (is_array($v))
+					{
+						$content = '';
+
+						if (isset($v['resource']) && is_resource($v['resource']) && get_resource_type($v['resource']) === 'stream')
+						{
+							$resource = $v['resource'];
+							$content = stream_get_contents($resource);
+						}
+						else
+						{
+							if (isset($v['content']))
+							{
+								$content = $v['content'];
+							}
+							else
+							{
+								$this->error["MULTIPART"] = "File `{$k}` not found for multipart upload";
+								trigger_error($this->error["MULTIPART"], E_USER_WARNING);
+							}
+						}
+
+						if (isset($v['filename']))
+						{
+							$filename = $v['filename'];
+						}
+
+						if (isset($v['contentType']))
+						{
+							$contentType = $v['contentType'];
+						}
+					}
+					else
+					{
+						$content = stream_get_contents($v);
+					}
+
+					$data .= 'Content-Disposition: form-data; name="'.$k.'"; filename="'.$filename.'"'."\r\n";
+					$data .= 'Content-Type: '.$contentType."\r\n\r\n";
+					$data .= $content."\r\n";
+				}
+				else
+				{
+					$data .= 'Content-Disposition: form-data; name="'.$k.'"'."\r\n\r\n";
+					$data .= $v."\r\n";
+				}
+			}
+
+			$data .= '--'.$boundary."--\r\n";
+			$postData = $data;
+		}
+
+		return $postData;
 	}
 
 	/**

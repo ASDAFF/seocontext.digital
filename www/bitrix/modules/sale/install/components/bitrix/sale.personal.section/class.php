@@ -1,8 +1,21 @@
 <?php
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true) die();
 
+use \Bitrix\Main\Localization\Loc;
+
+Loc::loadMessages(__FILE__);
+
 class PersonalOrderSection extends CBitrixComponent
 {
+	public function onPrepareComponentParams($params)
+	{
+		if (!isset($params['MAIN_CHAIN_NAME']))
+		{
+			$params['MAIN_CHAIN_NAME'] = Loc::getMessage("SPS_CHAIN_MAIN");
+		}
+		return $params;
+	}
+	
 	public function executeComponent()
 	{
 		$sectionsList = array();
@@ -12,8 +25,8 @@ class PersonalOrderSection extends CBitrixComponent
 		$defaultUrlTemplates404 = array(
 			"orders" => "orders/",
 			"account" => "account/",
-			"profile" => "profile/",
-			"profile_detail" => "profile/#ID#",
+			"profile" => "profiles/",
+			"profile_detail" => "profiles/#ID#",
 			"private" => "private/",
 			"subscribe" => "subscribe/",
 			"index" => "index.php",
@@ -160,6 +173,9 @@ class PersonalOrderSection extends CBitrixComponent
 				}
 			}
 		}
+
+		if ($componentPage == "index" && $this->getTemplateName() !== "")
+			$componentPage = "template";
 
 		$this->includeComponentTemplate($componentPage);
 	}

@@ -11,12 +11,12 @@ define("BLOG_PERMS_MODERATE", "T");	/* CAN READ ALL OBJECT, CAN WRITE OWN OBJECT
 define("BLOG_PERMS_FULL", "W");	/* CAN READ ALL OBJECT, CAN WRITE ALL OBJECTS */
 
 $GLOBALS["AR_BLOG_PERMS"] = array(
-	"D" => GetMessage("BLI_P_D"),
-	"I" => GetMessage("BLI_P_I"),
-	"K" => GetMessage("BLI_P_K"),
-	"P" => GetMessage("BLI_P_P"),
-	"T" => GetMessage("BLI_P_T"),
-	"W" => GetMessage("BLI_P_W")
+	BLOG_PERMS_DENY => GetMessage("BLI_P_D"),
+	BLOG_PERMS_READ => GetMessage("BLI_P_I"),
+	BLOG_PERMS_PREMODERATE => GetMessage("BLI_P_K"),
+	BLOG_PERMS_WRITE => GetMessage("BLI_P_P"),
+	BLOG_PERMS_MODERATE => GetMessage("BLI_P_T"),
+	BLOG_PERMS_FULL => GetMessage("BLI_P_W")
 );
 $GLOBALS["AR_BLOG_PERMS_EVERYONE"] = array(
 	"D" => GetMessage("BLI_P_D"),
@@ -42,7 +42,6 @@ $GLOBALS["AR_BLOG_COMMENT_PERMS"] = array(
 
 define("BLOG_PERMS_POST", "P");
 define("BLOG_PERMS_COMMENT", "C");
-
 
 define("BLOG_PUBLISH_STATUS_DRAFT", "D");
 define("BLOG_PUBLISH_STATUS_READY", "K");

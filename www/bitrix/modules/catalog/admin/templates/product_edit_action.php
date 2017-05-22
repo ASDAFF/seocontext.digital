@@ -101,32 +101,37 @@ if ($USER->CanDoOperation('catalog_price'))
 					$barcodeMultiply = 'N';
 				if(isset($_REQUEST["AR_BARCODE_ID"]) && ($barcodeMultiply == 'Y'))
 				{
-					$countBarCode = 0;
-					$arBarCodeResult = array();
-					$dbAmount = CCatalogStoreControlUtil::getQuantityInformation($PRODUCT_ID);
-					if(is_object($dbAmount) && ($arAmount = $dbAmount->Fetch()))
+					$row = Catalog\ProductTable::getRowById($PRODUCT_ID);
+					if (!empty($row) && $row['BARCODE_MULTI'] == 'N')
 					{
-						$dbBarCode = CCatalogStoreBarCode::GetList(array(), array("PRODUCT_ID" => $PRODUCT_ID), false, false, array("ID", "BARCODE", "PRODUCT_ID", "STORE_ID"));
-						while($arBarCode = $dbBarCode->Fetch())
+						$countBarCode = 0;
+						$arBarCodeResult = array();
+						$dbAmount = CCatalogStoreControlUtil::getQuantityInformation($PRODUCT_ID);
+						if (is_object($dbAmount) && ($arAmount = $dbAmount->Fetch()))
 						{
-							$arBarCodeResult[] = $arBarCode;
-							if($arBarCode["STORE_ID"] != 0)
-								$countBarCode++;
-						}
-						if(($arAmount["SUM"] + $arAmount["RESERVED"] != 0) || ($countBarCode > 0))
-						{
-							$strWarning .= GetMessage("C2IT_ERROR_USE_MULTIBARCODE", array("#COUNT#" => ($arAmount["SUM"] - $countBarCode)));
-							$barcodeMultiply = 'N';
-							unset($_REQUEST["AR_BARCODE_ID"]);
-						}
-						else
-						{
-							foreach($arBarCodeResult as $barCode)
+							$dbBarCode = CCatalogStoreBarCode::GetList(array(), array("PRODUCT_ID" => $PRODUCT_ID), false, false, array("ID", "BARCODE", "PRODUCT_ID", "STORE_ID"));
+							while ($arBarCode = $dbBarCode->Fetch())
 							{
-								CCatalogStoreBarCode::Delete($barCode["ID"]);
+								$arBarCodeResult[] = $arBarCode;
+								if ($arBarCode["STORE_ID"] != 0)
+									$countBarCode++;
+							}
+							if (($arAmount["SUM"] + $arAmount["RESERVED"] != 0) || ($countBarCode > 0))
+							{
+								$strWarning .= GetMessage("C2IT_ERROR_USE_MULTIBARCODE", array("#COUNT#" => ($arAmount["SUM"] - $countBarCode)));
+								$barcodeMultiply = 'N';
+								unset($_REQUEST["AR_BARCODE_ID"]);
+							}
+							else
+							{
+								foreach ($arBarCodeResult as $barCode)
+								{
+									CCatalogStoreBarCode::Delete($barCode["ID"]);
+								}
 							}
 						}
 					}
+					unset($row);
 				}
 				elseif(isset($_REQUEST["AR_BARCODE_ID"]) && is_array($_REQUEST["AR_BARCODE_ID"]) && $barcodeMultiply != 'Y')
 				{
@@ -281,9 +286,14 @@ if ($USER->CanDoOperation('catalog_price'))
 				}
 				unset($currentRatio, $ratioIterator, $ratioFilter);
 				if ($newRatio)
+				{
+					$arMeasureRatio['IS_DEFAULT'] = 'Y';
 					CCatalogMeasureRatio::add($arMeasureRatio);
+				}
 				else
+				{
 					CCatalogMeasureRatio::update($currentRatioID, $arMeasureRatio);
+				}
 				unset($currentRatioID, $newRatio, $arMeasureRatio);
 
 				$intCountBasePrice = count($arCatalogBasePrices);

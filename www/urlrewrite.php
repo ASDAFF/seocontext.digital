@@ -19,28 +19,34 @@ $arUrlRewrite = array(
 		"PATH" => "/desktop_app/router.php",
 	),
 	array(
-		"CONDITION" => "#^/company/partners/#",
-		"RULE" => "",
-		"ID" => "bitrix:news",
-		"PATH" => "/company/partners/index.php",
-	),
-	array(
 		"CONDITION" => "#^/company/licenses/#",
 		"RULE" => "",
 		"ID" => "bitrix:news",
 		"PATH" => "/company/licenses/index.php",
 	),
 	array(
-		"CONDITION" => "#^/company/vacancy/#",
+		"CONDITION" => "#^/company/partners/#",
 		"RULE" => "",
 		"ID" => "bitrix:news",
-		"PATH" => "/company/vacancy/index.php",
+		"PATH" => "/company/partners/index.php",
+	),
+	array(
+		"CONDITION" => "#^/stssync/calendar/#",
+		"RULE" => "",
+		"ID" => "bitrix:stssync.server",
+		"PATH" => "/bitrix/services/stssync/calendar/index.php",
 	),
 	array(
 		"CONDITION" => "#^/company/reviews/#",
 		"RULE" => "",
 		"ID" => "bitrix:news",
 		"PATH" => "/company/reviews/index.php",
+	),
+	array(
+		"CONDITION" => "#^/company/vacancy/#",
+		"RULE" => "",
+		"ID" => "bitrix:news",
+		"PATH" => "/company/vacancy/index.php",
 	),
 	array(
 		"CONDITION" => "#^/company/staff/#",

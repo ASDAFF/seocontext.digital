@@ -48,6 +48,10 @@ if (CLI && defined('BX_CRONTAB')) // start from cron_events.php
 				"ITEM_ID" => LOCK_FILE,
 				"DESCRIPTION" => GetMessage('AUTO_LOCK_EXISTS_ERR', array('#DATETIME#' => ConvertTimeStamp($time))),
 			));
+
+			foreach(GetModuleEvents("main", "OnAutoBackupUnknownError", true) as $arEvent)
+				ExecuteModuleEventEx($arEvent, array(array('TIME' => $time)));
+
 			unlink(LOCK_FILE) || RaiseErrorAndDie('Can\'t delete file: '.LOCK_FILE, 2);
 		}
 	}
@@ -73,7 +77,7 @@ if (!CLI) // hit from bitrixcloud service
 {
 	if ((!$backup_secret_key =  CPasswordStorage::Get('backup_secret_key')) || $backup_secret_key != $_REQUEST['secret_key'])
 	{
-#	echo $backup_secret_key."\n"; COption::SetOptionInt('main', 'dump_auto_enable'.'_auto', 2); # debug
+#		echo $backup_secret_key."\n"; COption::SetOptionInt('main', 'dump_auto_enable'.'_auto', 2); # debug
 		RaiseErrorAndDie('Secret key is incorrect', 10);
 	}
 	elseif ($_REQUEST['check_auth'])
@@ -88,6 +92,16 @@ if (!CLI) // hit from bitrixcloud service
 	session_id(md5($backup_secret_key));
 	session_start();
 	$NS =& $_SESSION['BX_DUMP_STATE'];
+
+	if ($NS['TIMESTAMP'] && ($i = IntOption('dump_max_exec_time_sleep')) > 0)
+	{
+		if (time() - $NS['TIMESTAMP'] < $i)
+		{
+			sleep(3);
+			echo 'NEXT';
+			exit(0);
+		}
+	}
 }
 
 if (!file_exists(DOCUMENT_ROOT.'/bitrix/backup'))
@@ -192,6 +206,10 @@ if (!$NS['step'])
 	}
 	else
 		$NS['site_path_list'] = array('s1' => DOCUMENT_ROOT);
+
+
+	foreach(GetModuleEvents("main", "OnAutoBackupStart", true) as $arEvent)
+		ExecuteModuleEventEx($arEvent, array($NS));
 
 	ShowBackupStatus('Backup started to file: '.$NS['arc_name']);
 }
@@ -648,6 +666,10 @@ CEventLog::Add(array(
 	"ITEM_ID" => $NS['arc_name'],
 	"DESCRIPTION" => $info,
 ));
+
+foreach(GetModuleEvents("main", "OnAutoBackupSuccess", true) as $arEvent)
+	ExecuteModuleEventEx($arEvent, array($NS));
+
 $NS = array();
 if (defined('LOCK_FILE'))
 	unlink(LOCK_FILE) || RaiseErrorAndDie('Can\'t delete file: '.LOCK_FILE, 1000);
@@ -680,7 +702,14 @@ function ShowBackupStatus($str)
 
 function haveTime()
 {
-	if (!CLI && time() - START_TIME > 30)
+	static $timeout;
+	if (!$timeout)
+	{
+		$timeout = IntOption('dump_max_exec_time', 30);
+		if ($timeout < 5)
+			$timeout = 5;
+	}
+	if (!CLI && time() - START_TIME > $timeout)
 		return false;
 	return true;
 }
@@ -688,6 +717,7 @@ function haveTime()
 function RaiseErrorAndDie($strError, $errCode = 0, $ITEM_ID = '')
 {
 	global $DB, $NS;
+	$NS0 = $NS;
 	$NS = array(); 
 	session_write_close();
 
@@ -709,6 +739,9 @@ function RaiseErrorAndDie($strError, $errCode = 0, $ITEM_ID = '')
 			"ITEM_ID" => $ITEM_ID,
 			"DESCRIPTION" => "[".$errCode."] ".$strError,
 		));
+
+		foreach(GetModuleEvents("main", "OnAutoBackupError", true) as $arEvent)
+			ExecuteModuleEventEx($arEvent, array(array_merge($NS0, array('ERROR' => $strError, 'ERROR_CODE' => $errCode, 'ITEM_ID' => $ITEM_ID))));
 	}
 	die();
 }
@@ -720,6 +753,7 @@ function CheckPoint()
 	
 	global $NS;
 	$NS['WORK_TIME'] = microtime(1) - START_TIME;
+	$NS['TIMESTAMP'] = time();
 	session_write_close();
 	echo "NEXT";
 	exit(0);

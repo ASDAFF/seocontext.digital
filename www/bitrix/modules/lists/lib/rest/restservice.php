@@ -114,9 +114,22 @@ class RestService extends \IRestService
 		if(!empty($params['SOCNET_GROUP_ID']))
 			$params['SOCNET_GROUP_ID'] = intval($params['SOCNET_GROUP_ID']);
 		if(empty($params['IBLOCK_ID']))
+		{
 			$params['IBLOCK_ID'] = false;
+			if(empty($params['IBLOCK_CODE']))
+				self::checkIblockTypePermission($params);
+			else
+			{
+				self::getIblocksData($params);
+				if(empty($params['IBLOCK_ID']))
+					throw new AccessException();
+			}
+		}
+		else
+		{
+			self::checkIblockPermission($params);
+		}
 
-		self::checkIblockPermission($params);
 		$listIblock = self::getIblocksData($params);
 
 		if(!empty($listIblock))
@@ -226,7 +239,7 @@ class RestService extends \IRestService
 		$listIblock = self::getIblocksData($params);
 		if(empty($listIblock))
 			throw new RestException('Iblock not found', self::ERROR_IBLOCK_NOT_FOUND);
-		self::checkIblockPermission($params);
+		self::checkElementPermission($params);
 
 		$fields = array();
 		if(!empty($params['FIELD_ID']))
@@ -449,7 +462,11 @@ class RestService extends \IRestService
 
 		list($listElement, $elementSelect, $elementFields,
 			$elementProperty, $queryObject) = self::getElementsData($params, $n);
-		self::checkElementPermission($params);
+
+		if(empty($params['ELEMENT_ID']) && empty($params['ELEMENT_CODE']))
+			self::checkListElementPermission($params);
+		else
+			self::checkElementPermission($params);
 
 		if(!empty($listElement))
 			return self::setNavData(array_values($listElement), $queryObject);
@@ -476,7 +493,7 @@ class RestService extends \IRestService
 
 		list($listElement, $elementSelect, $elementFields,
 			$elementProperty, $queryObject) = self::getElementsData($params, $n);
-		if(empty($listElement))
+		if(empty($listElement) || empty($elementFields))
 			throw new RestException('Element not found.', self::ERROR_SAVE_ELEMENT);
 		self::checkElementPermission($params);
 
@@ -663,8 +680,7 @@ class RestService extends \IRestService
 		$userId = $USER->getID();
 		$element['MODIFIED_BY'] = $userId;
 		unset($element['TIMESTAMP_X']);
-
-		$params['ENABLED_BIZPROC'] = Loader::includeModule('bizproc') && ($params['BIZPROC'] === 'Y');
+		$params['ENABLED_BIZPROC'] = Loader::includeModule('bizproc') && \CBPRuntime::isFeatureEnabled() && ($params['BIZPROC'] === 'Y');
 		$bizprocParameters = array();
 		$documentStates = array();
 		$params['TEMPLATES_ON_STARTUP'] = false;
@@ -856,7 +872,7 @@ class RestService extends \IRestService
 		if(preg_match("/^(G|G:|E|E:)/", $fields["TYPE"]))
 		{
 			$fields['LINK_IBLOCK_ID'] = intval($fields['LINK_IBLOCK_ID']);
-			$blocks = \CLists::getIBlocks($params['IBLOCK_TYPE_ID'], !$params['CAN_EDIT_IBLOCK'], $params['SOCNET_GROUP_ID']);
+			$blocks = \CLists::getIBlocks($params['IBLOCK_TYPE_ID'], 'Y', $params['SOCNET_GROUP_ID']);
 
 			if(substr($fields['TYPE'], 0, 1) == 'G')
 				unset($blocks[$params['IBLOCK_ID']]);
@@ -918,7 +934,8 @@ class RestService extends \IRestService
 		return $fields;
 	}
 
-	private static function checkIblockPermission(&$params)
+
+	private static function checkIblockPermission($params)
 	{
 		global $USER;
 		$listPerm = \CListPermissions::checkAccess(
@@ -935,29 +952,40 @@ class RestService extends \IRestService
 			throw new AccessException();
 		}
 
-		$params['CAN_EDIT_IBLOCK'] = $listPerm >= \CListPermissions::IS_ADMIN
-			|| ($params['IBLOCK_ID'] && \CIBlockRights::userHasRightTo(
-					$params['IBLOCK_ID'], $params['IBLOCK_ID'], 'iblock_edit'));
-		$params['CAN_ADMIN'] = $listPerm >= \CListPermissions::IS_ADMIN;
+		return true;
+	}
 
+	private static function checkIblockTypePermission($params)
+	{
+		global $USER;
+		$listPerm = \CListPermissions::checkAccess(
+			$USER, $params['IBLOCK_TYPE_ID'], false, $params['SOCNET_GROUP_ID']);
+		if($listPerm < 0)
+		{
+			throw new AccessException();
+		}
+		elseif($listPerm <= \CListPermissions::ACCESS_DENIED)
+		{
+			throw new AccessException();
+		}
 		return true;
 	}
 
 	private function checkElementPermission(array &$params)
 	{
 		global $USER;
+
+		$params['ELEMENT_ID'] = intval($params['ELEMENT_ID']);
 		$listPerm = \CListPermissions::checkAccess(
 			$USER, $params['IBLOCK_TYPE_ID'], $params['IBLOCK_ID'], $params['SOCNET_GROUP_ID']);
 		if($listPerm < 0)
 		{
 			throw new AccessException();
 		}
-		elseif(($params['ELEMENT_ID'] && $listPerm < \CListPermissions::CAN_READ
+		elseif(($params['ELEMENT_ID'] > 0 && $listPerm < \CListPermissions::CAN_READ
 			&& !\CIBlockElementRights::userHasRightTo($params['IBLOCK_ID'], $params['ELEMENT_ID'], 'element_read'))
-			|| (!$params['ELEMENT_ID'] && $listPerm < \CListPermissions::CAN_READ
+			|| ($params['ELEMENT_ID'] == 0 && $listPerm < \CListPermissions::CAN_READ
 				&& !\CIBlockSectionRights::userHasRightTo($params['IBLOCK_ID'], 0, 'section_element_bind'))
-			|| (!$params['ELEMENT_ID'] && $listPerm < \CListPermissions::CAN_READ
-				&& !\CIBlockElementRights::userHasRightTo($params['IBLOCK_ID'], $params['IBLOCK_ID'], 'element_read'))
 		)
 		{
 			throw new AccessException();
@@ -983,6 +1011,26 @@ class RestService extends \IRestService
 		return true;
 	}
 
+	private static function checkListElementPermission(array $params)
+	{
+		global $USER;
+		$listPerm = \CListPermissions::checkAccess(
+			$USER, $params['IBLOCK_TYPE_ID'], $params['IBLOCK_ID'], $params['SOCNET_GROUP_ID']);
+		if($listPerm < 0)
+		{
+			throw new AccessException();
+		}
+		elseif($listPerm < \CListPermissions::CAN_READ
+			&& !(
+				\CIBlockRights::userHasRightTo($params['IBLOCK_ID'], $params['IBLOCK_ID'], 'element_read')
+				|| \CIBlockSectionRights::userHasRightTo($params['IBLOCK_ID'], 0, 'section_element_bind')
+			)
+		)
+		{
+			throw new AccessException();
+		}
+	}
+
 	private static function getIblocksData(&$params)
 	{
 		$listIblock = array();
@@ -992,7 +1040,7 @@ class RestService extends \IRestService
 			'ID' => $params['IBLOCK_ID'] ? $params['IBLOCK_ID'] : '',
 			'CODE' => $params['IBLOCK_CODE'] ? $params['IBLOCK_CODE'] : '',
 			'ACTIVE' => 'Y',
-			'CHECK_PERMISSIONS' => ($params['CAN_ADMIN'] || $params['SOCNET_GROUP_ID']) ? 'N' : 'Y',
+			'CHECK_PERMISSIONS' => ($params['SOCNET_GROUP_ID']) ? 'N' : 'Y',
 		);
 		if($params['SOCNET_GROUP_ID'])
 			$filter['=SOCNET_GROUP_ID'] = $params['SOCNET_GROUP_ID'];
@@ -1037,7 +1085,8 @@ class RestService extends \IRestService
 			'IBLOCK_ID' => $params['IBLOCK_ID'],
 			'ID' => $params['ELEMENT_ID'] ? $params['ELEMENT_ID'] : '',
 			'CODE' => $params['ELEMENT_CODE'] ? $params['ELEMENT_CODE'] : '',
-			'SHOW_NEW' => ($params['CAN_FULL_EDIT_ELEMENT'] ? 'Y' : 'N')
+			'SHOW_NEW' => ($params['CAN_FULL_EDIT_ELEMENT'] ? 'Y' : 'N'),
+			'CHECK_PERMISSIONS' => 'Y'
 		), false, self::getNavData($n), $elementSelect);
 		$elementFields = array();
 		$elementProperty = array();

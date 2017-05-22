@@ -75,7 +75,7 @@ class CIBlockResult extends CDBResult
 		global $DB;
 		$res = parent::Fetch();
 
-		if(!is_object($this))
+		if(!isset($this) || !is_object($this))
 			return $res;
 
 		$arUpdate = array();

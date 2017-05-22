@@ -19,7 +19,9 @@ abstract class Provider
 	const PERMISSION_FULL = 'W';
 
 	protected $entityId = 0;
+	protected $logId = 0;
 	protected $sourceFields = array();
+	protected $siteId = false;
 
 	protected $cloneDiskObjects = false;
 	protected $sourceDescription = '';
@@ -37,9 +39,29 @@ abstract class Provider
 		return get_called_class();
 	}
 
+	public function setSiteId($siteId)
+	{
+		$this->siteId = $siteId;
+	}
+
+	public function getSiteId()
+	{
+		return $this->siteId;
+	}
+
 	public static function getId()
 	{
 		return 'BASE';
+	}
+
+	public function getEventId()
+	{
+		return false;
+	}
+
+	public function getType()
+	{
+		return false;
 	}
 
 	final private static function getProvider($entityType)
@@ -65,6 +87,7 @@ abstract class Provider
 		if ($provider)
 		{
 			$provider->setEntityId($params['ENTITY_ID']);
+			$provider->setSiteId(isset($params['SITE_ID']) ? $params['SITE_ID'] : SITE_ID);
 			if (
 				isset($params['CLONE_DISK_OBJECTS'])
 				&& $params['CLONE_DISK_OBJECTS'] === true
@@ -77,29 +100,8 @@ abstract class Provider
 		return $provider;
 	}
 
-	protected function initSourceFields()
+	public function initSourceFields()
 	{
-	}
-
-	public static function getData(array $params)
-	{
-		$result = array();
-		$provider = self::getProvider($params['ENTITY_TYPE']);
-
-		if ($provider)
-		{
-			if ($params['RESULT_TYPE'] == self::DATA_RESULT_TYPE_SOURCE)
-			{
-				$result = $provider->getSourceData($params);
-			}
-		}
-
-		return $result;
-	}
-
-	protected function getSourceData(array $params)
-	{
-		return array();
 	}
 
 	public static function canRead($params)
@@ -110,6 +112,153 @@ abstract class Provider
 	protected function getPermissions(array $entity)
 	{
 		return self::PERMISSION_DENY;
+	}
+
+	protected function getLogId()
+	{
+		$result = false;
+
+		if (intval($this->logId) > 0)
+		{
+			$result = intval($this->logId);
+		}
+		else
+		{
+			$eventId = $this->getEventId();
+
+			if (!empty($eventId))
+			{
+				if ($this->getType() == 'entry')
+				{
+					$res = \CSocNetLog::getList(
+						array(),
+						array(
+							'SOURCE_ID' => $this->entityId,
+							'EVENT_ID' => $eventId
+						),
+						false,
+						array('nTopCount' => 1),
+						array('ID')
+					);
+
+					if (
+						($logEntry = $res->fetch())
+						&& (intval($logEntry['ID']) > 0)
+					)
+					{
+						$result = $this->logId = intval($logEntry['ID']);
+					}
+				}
+				elseif ($this->getType() == 'comment')
+				{
+					$res = \CSocNetLogComments::getList(
+						array(),
+						array(
+							'SOURCE_ID' => $this->entityId,
+							'EVENT_ID' => $eventId
+						),
+						false,
+						array('nTopCount' => 1),
+						array('ID', 'LOG_ID')
+					);
+
+					if (
+						($logEntry = $res->fetch())
+						&& (intval($logEntry['LOG_ID']) > 0)
+					)
+					{
+						$result = $this->logId = intval($logEntry['LOG_ID']);
+					}
+				}
+			}
+		}
+
+		return $result;
+	}
+
+	public function getSonetGroupsAvailable($feature = false, $operation = false)
+	{
+		global $USER;
+
+		$result = array();
+
+		$logRights = $this->getLogRights();
+		if (
+			!empty($logRights)
+			&& is_array($logRights)
+		)
+		{
+			foreach($logRights as $groupCode)
+			{
+				if (preg_match('/^SG(\d+)/', $groupCode, $matches))
+				{
+					$result[] = $matches[1];
+				}
+			}
+		}
+
+		if (
+			!empty($result)
+			&& !!$feature
+			&& !!$operation
+		)
+		{
+			$availability = \CSocNetFeaturesPerms::canPerformOperation(
+				$USER->getId(),
+				SONET_ENTITY_GROUP,
+				$result,
+				$feature,
+				$operation
+			);
+			foreach ($result as $key => $groupId)
+			{
+				if (
+					!isset($availability[$groupId])
+					|| !$availability[$groupId]
+				)
+				{
+					unset($result[$key]);
+				}
+			}
+		}
+		$result = array_unique($result);
+
+		return $result;
+	}
+
+	public function getLogRights()
+	{
+		$result = array();
+		$logId = $this->getLogId();
+
+		if ($logId  > 0)
+		{
+			$result = $this->getLogRightsEntry();
+		}
+
+		return $result;
+	}
+
+	protected function getLogRightsEntry()
+	{
+		$result = array();
+
+		if ($this->logId > 0)
+		{
+			$res = \CSocNetLogRights::getList(
+				array(),
+				array(
+					'LOG_ID' => $this->logId
+				)
+			);
+
+			while ($right = $res->fetch())
+			{
+				$result[] = $right['GROUP_CODE'];
+			}
+		}
+
+		return $result;
 	}
 
 	final protected function setEntityId($entityId)
@@ -125,6 +274,11 @@ abstract class Provider
 	final protected function setSourceFields(array $fields)
 	{
 		$this->sourceFields = $fields;
+	}
+
+	final protected function getSourceFields()
+	{
+		return $this->sourceFields;
 	}
 
 	final protected function setSourceDescription($description)
@@ -219,7 +373,13 @@ abstract class Provider
 	{
 		global $USER;
 
-		return \Bitrix\Disk\Driver::getInstance()->getUserFieldManager()->cloneUfValuesFromAttachedObject($values, $USER->getId());
+		$result = array();
+		if (Loader::includeModule('disk'))
+		{
+			$result = \Bitrix\Disk\Driver::getInstance()->getUserFieldManager()->cloneUfValuesFromAttachedObject($values, $USER->getId());
+		}
+
+		return $result;
 	}
 
 	public function getDiskObjects($entityId, $clone = false)
@@ -338,4 +498,8 @@ abstract class Provider
 		return $text;
 	}
 
+	public function getLiveFeedUrl()
+	{
+		return '';
+	}
 }

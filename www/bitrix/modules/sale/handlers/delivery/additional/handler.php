@@ -2,11 +2,12 @@
 
 namespace Sale\Handlers\Delivery;
 
-use Bitrix\Main\Config\Option;
+use Bitrix\Main\Error;
 use Bitrix\Main\Loader;
 use Bitrix\Main\IO\File;
 use Bitrix\Sale\Shipment;
 use Bitrix\Main\Page\Asset;
+use Bitrix\Main\Config\Option;
 use Bitrix\Main\SystemException;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\ArgumentNullException;
@@ -22,10 +23,11 @@ Loc::loadMessages(__FILE__);
 Loader::registerAutoLoadClasses(
 	'sale',
 	array(
+		'Sale\Handlers\Delivery\Additional\Action' => 'handlers/delivery/additional/action.php',
 		'Sale\Handlers\Delivery\AdditionalProfile' => 'handlers/delivery/additional/profile.php',
 		'Sale\Handlers\Delivery\Additional\Location' => 'handlers/delivery/additional/location.php',
 		'Sale\Handlers\Delivery\Additional\CacheManager' => 'handlers/delivery/additional/cache.php',
-		'Sale\Handlers\Delivery\Additional\RestClient' => 'handlers/delivery/additional/restclient.php',
+		'Sale\Handlers\Delivery\Additional\RestClient' => 'handlers/delivery/additional/restclient.php'
 	)
 );
 
@@ -40,6 +42,12 @@ class AdditionalHandler extends Base
 	protected $serviceType = "";
 	protected static $canHasProfiles = true;
 	protected static $whetherAdminExtraServicesShow = true;
+	protected $trackingClass = '\Sale\Handlers\Delivery\AdditionalTracking';
+	protected $trackingTitle = '';
+	protected $trackingDescription = '';
+	protected $profilesListFull = null;
+	protected $extraServicesList = null;
+
 
 	const LOGO_FILE_ID_OPTION = 'handlers_dlv_add_lgotip';
 
@@ -60,6 +68,11 @@ class AdditionalHandler extends Base
 
 		if(strlen($this->serviceType) <= 0)
 			throw new ArgumentNullException('initParams[SERVICE_TYPE]');
+
+		if($initParams['CONFIG']['MAIN']['SERVICE_TYPE'] == "RUSPOST")
+			$this->setTrackingClass('\Bitrix\Sale\Delivery\Tracking\RusPost');
+		elseif(empty($this->config['MAIN']['TRACKING_TITLE']))
+			$this->trackingClass = '';
 
 		if(intval($this->id) <= 0)
 		{
@@ -180,9 +193,34 @@ class AdditionalHandler extends Base
 			$res = $client->getDeliveryList();
 
 			if($res->isSuccess())
+			{
 				$result = $res->getData();
+			}
 			else
-				$result = array(array("ERROR" => "Can't receive supported services list data"));
+			{
+				$errors = array();
+				$notes = array();
+				
+				/** @var Error $error */
+				foreach($res->getErrorCollection() as $error)
+				{
+					$message = $error->getMessage();
+
+					if($message == 'verification_needed. License check failed.')
+						$notes[$error->getCode()] = Loc::getMessage('SALE_DLVRS_ADD_LIST_LICENSE_WRONG');
+					else
+						$errors[$error->getCode()] = $message;
+				}
+
+				if(!empty($errors))
+					$result = array("ERRORS" => $errors);
+
+				if(!empty($notes))
+					$result['NOTES'] = $notes;
+
+				if(empty($errors) && empty($notes))
+					$errors[] = Loc::getMessage('SALE_DLVRS_ADD_LIST_RECEIVE_ERROR');
+			}
 		}
 
 		return $result;
@@ -264,24 +302,53 @@ class AdditionalHandler extends Base
 		return $result;
 	}
 
+	public function getTrackingStatuses(array $trackingNumbers = array())
+	{
+		$result = array();
+		$client = new RestClient();
+		$res = $client->getTrackingStatuses(
+			$this->serviceType,
+			AdditionalProfile::extractConfigValues($this->getConfig()),
+			$trackingNumbers
+		);
+
+		if($res->isSuccess())
+		{
+			$data = $res->getData();
+
+			if(!empty($data['STATUSES']) && is_array($data['STATUSES']))
+				$result = $data['STATUSES'];
+		}
+
+		return $result;
+	}
+
+	public function getTrackingClassTitle()
+	{
+		return !empty($this->config['MAIN']['TRACKING_TITLE']) ? $this->config['MAIN']['TRACKING_TITLE'] : '';
+	}
+
+	public function getTrackingClassDescription()
+	{
+		return !empty($this->config['MAIN']['TRACKING_DESCRIPTION']) ? $this->config['MAIN']['TRACKING_DESCRIPTION'] : '';
+	}
+
 	/**
 	 * @return array All profile fields.
 	 */
 	public function getProfilesListFull()
 	{
-		static $result = null;
-
-		if($result === null)
+		if($this->profilesListFull === null)
 		{
-			$result = array();
+			$this->profilesListFull = array();
 			$client = new RestClient();
 			$res = $client->getDeliveryProfilesList($this->serviceType);
 
 			if($res->isSuccess())
-				$result = $res->getData();
+				$this->profilesListFull = $res->getData();
 		}
 
-		return $result;
+		return $this->profilesListFull;
 	}
 
 	/**
@@ -338,6 +405,9 @@ class AdditionalHandler extends Base
 		{
 			foreach($profiles as $profileType => $pFields)
 			{
+				if(isset($pFields['DEFAULT_INSTALL_SKIP']) && $pFields['DEFAULT_INSTALL_SKIP'] == 'Y')
+					continue;
+
 				$profile = $srv->getProfileDefaultParams($profileType, $pFields);
 				$res = Manager::add($profile);
 
@@ -418,6 +488,24 @@ class AdditionalHandler extends Base
 				}
 
 				break;
+
+			case "MAX_SIZE":
+
+				$p = array();
+				if(isset($params['MAX_SIZE']) && intval($params['MAX_SIZE']) > 0)	$p['MAX_SIZE'] = $params['MAX_SIZE'];
+
+				if(!empty($p))
+				{
+					$fields = array(
+						"SERVICE_ID" => $profileId,
+						"CLASS_NAME" => '\Bitrix\Sale\Delivery\Restrictions\ByMaxSize',
+						"SERVICE_TYPE" => \Bitrix\Sale\Services\Base\RestrictionManager::SERVICE_TYPE_SHIPMENT,
+						"PARAMS" => $p
+					);
+				}
+
+				break;
+
 		}
 
 		if(!empty($fields))
@@ -429,14 +517,24 @@ class AdditionalHandler extends Base
 	 * @param array $fields
 	 * @return array
 	 */
-	protected function getProfileDefaultParams($type, array $fields)
+	protected function 	getProfileDefaultParams($type, array $fields)
 	{
-		return array(
+		if(isset($fields["ACTIVE"]))
+			$active = $fields["ACTIVE"];
+		else
+			$active = $this->active ? "Y" : "N";
+
+		if(isset($fields["SORT"]))
+			$sort = $fields["SORT"];
+		else
+			$sort = $this->sort;
+
+		$result = array(
 			"CODE" => "",
 			"PARENT_ID" => $this->id,
 			"NAME" => $fields["NAME"],
-			"ACTIVE" => $this->active ? "Y" : "N",
-			"SORT" => $this->sort,
+			"ACTIVE" => $active,
+			"SORT" => $sort,
 			"DESCRIPTION" => $fields["DESCRIPTION"],
 			"CLASS_NAME" => '\Sale\Handlers\Delivery\AdditionalProfile',
 			"CURRENCY" => $this->currency,
@@ -444,11 +542,18 @@ class AdditionalHandler extends Base
 				"MAIN" => array(
 					"PROFILE_TYPE" => $type,
 					"NAME" => $fields["NAME"],
-					"DESCRIPTION" => $fields["DESCRIPTION"],
-					"MODE" => $fields["MODE"]
+					"DESCRIPTION" => $fields["DESCRIPTION"]
 				)
 			)
 		);
+
+		if(!empty($fields["MODE"]))
+			$result['CONFIG']['MAIN']["MODE"] = $fields["MODE"];
+
+		if(!empty($fields['DEFAULT']['MAIN']))
+			$result['CONFIG']['MAIN'] = array_merge($result['CONFIG']['MAIN'], $fields['DEFAULT']['MAIN']);
+
+		return $result;
 	}
 
 	public function getAdminMessage()
@@ -464,7 +569,7 @@ class AdditionalHandler extends Base
 		if(strlen($message) > 0)
 		{
 			$result = array(
-				'MESSAGE' => $message,
+				"DETAILS" => $message,
 				"TYPE" => "ERROR",
 				"HTML" => true
 			);
@@ -481,7 +586,8 @@ class AdditionalHandler extends Base
 	public function execAdminAction()
 	{
 		$result = new \Bitrix\Sale\Result();
-		Asset::getInstance()->addJs("/bitrix/js/sale/additional_delivery.js", true);
+		Asset::getInstance()->addJs("/bitrix/js/main/core/core.js");
+		Asset::getInstance()->addJs("/bitrix/js/sale/additional_delivery.js");
 		Asset::getInstance()->addString('<link rel="stylesheet" type="text/css" href="/bitrix/css/sale/additional_delivery.css">');
 		return $result;
 	}
@@ -533,6 +639,7 @@ class AdditionalHandler extends Base
 
 		$eventManager = \Bitrix\Main\EventManager::getInstance();
 		$eventManager->registerEventHandler('sale', 'onSaleDeliveryExtraServicesClassNamesBuildList' , 'sale', '\Sale\Handlers\Delivery\AdditionalHandler', 'onSaleDeliveryExtraServicesClassNamesBuildList');
+		$eventManager->registerEventHandler('sale', 'onSaleDeliveryTrackingClassNamesBuildList', 'sale', '\Sale\Handlers\Delivery\AdditionalHandler', 'onSaleDeliveryTrackingClassNamesBuildList');
 
 		return parent::install();
 	}
@@ -566,25 +673,35 @@ class AdditionalHandler extends Base
 
 		$eventManager = \Bitrix\Main\EventManager::getInstance();
 		$eventManager->unRegisterEventHandler('sale', 'onSaleDeliveryExtraServicesClassNamesBuildList' , 'sale', '\Sale\Handlers\Delivery\AdditionalHandler', 'onSaleDeliveryExtraServicesClassNamesBuildList');
+		$eventManager->unRegisterEventHandler('sale', 'onSaleDeliveryTrackingClassNamesBuildList' , 'sale', '\Sale\Handlers\Delivery\AdditionalHandler', 'onSaleDeliveryTrackingClassNamesBuildList');
 
 		return parent::install();
 	}
 
+	public static function onSaleDeliveryTrackingClassNamesBuildList()
+	{
+		return new \Bitrix\Main\EventResult(
+			\Bitrix\Main\EventResult::SUCCESS,
+			array(
+				'\Sale\Handlers\Delivery\AdditionalTracking' => '/bitrix/modules/sale/handlers/delivery/additional/tracking.php'
+			),
+			'sale'
+		);
+	}
+
 	public function getEmbeddedExtraServicesList()
 	{
-		static $result = null;
-
-		if($result === null)
+		if($this->extraServicesList === null)
 		{
-			$result = array();
+			$this->extraServicesList = array();
 			$client = new RestClient();
 			$res = $client->getDeliveryExtraServices($this->serviceType);
 
 			if($res->isSuccess())
-				$result = $res->getData();
+				$this->extraServicesList = $res->getData();
 		}
 
-		return $result;
+		return $this->extraServicesList;
 	}
 
 	public static function onSaleDeliveryExtraServicesClassNamesBuildList()
@@ -603,5 +720,11 @@ class AdditionalHandler extends Base
 	{
 		$client = new RestClient();
 		return $client->isServerAlive();
+	}
+
+	public function getTrackingUrlTempl()
+	{
+		$config = \Sale\Handlers\Delivery\AdditionalProfile::extractConfigValues($this->getConfig());
+		return !empty($config["MAIN"]["TRACKING_URL_TEMPL"]) ? $config["MAIN"]["TRACKING_URL_TEMPL"] : '';
 	}
 }

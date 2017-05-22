@@ -109,18 +109,19 @@ class DiscountCouponTable extends Main\Entity\DataManager
 			)),
 			'CREATED_BY_USER' => new Main\Entity\ReferenceField(
 				'CREATED_BY_USER',
-				'Bitrix\Main\User',
+				'\Bitrix\Main\User',
 				array('=this.CREATED_BY' => 'ref.ID')
 			),
 			'MODIFIED_BY_USER' => new Main\Entity\ReferenceField(
 				'MODIFIED_BY_USER',
-				'Bitrix\Main\User',
+				'\Bitrix\Main\User',
 				array('=this.MODIFIED_BY' => 'ref.ID')
 			),
 			'DISCOUNT' => new Main\Entity\ReferenceField(
 				'DISCOUNT',
-				'Bitrix\Catalog\Discount',
-				array('=this.DISCOUNT_ID' => 'ref.ID')
+				'\Bitrix\Catalog\Discount',
+				array('=this.DISCOUNT_ID' => 'ref.ID'),
+				array('join_type' => 'LEFT')
 			)
 		);
 	}

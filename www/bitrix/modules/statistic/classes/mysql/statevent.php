@@ -61,7 +61,7 @@ class CStatEvent extends CAllStatEvent
 			}
 			$MONEY = round($MONEY,2);
 
-			$arr = CStatEvent::DecodeGid($PARAM);
+			$arr = CStatEvent::DecodeGID($PARAM);
 			$SESSION_ID		= intval($arr["SESSION_ID"]);
 			$GUEST_ID		= intval($arr["GUEST_ID"]);
 			$COUNTRY_ID		= $arr["COUNTRY_ID"];

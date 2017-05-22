@@ -10,62 +10,45 @@
 
 	var BX = window.BX;
 
-	BX.desktop = function (params)
+	BX.desktop = function ()
 	{
-		params = params || {};
-
 		this.apiReady = typeof(BXDesktopSystem) != "undefined" || typeof(BXDesktopWindow) != "undefined";
 		this.clientVersion = 0;
 
 		this.disableLogin = false;
 
 		this.autorun = null;
-		this.focusTimeout = null;
 		this.lastSetIcon = null;
 		this.showNotifyId = {};
-		this.popupConfirm = null;
 		this.htmlWrapperHead = null;
-		this.tryCheckConnect = {};
 
 		this.topmostWindow = null;
 		this.topmostWindowTimeout = null;
-
-		this.content = null;
-		this.contentFullWindow = true;
-		this.contentBodyWindow = false;
-		this.contentMenu = null;
-		this.contentAvatar = null;
-		this.contentTab = null;
-		this.contentTabContent = null;
-
-		this.currentTab = '';
-		this.currentTabTarget = '';
-		this.lastTab = '';
-		this.lastTabTarget = '';
-
+		
 		this.path = {};
 		this.path.mainUserOptions = '/desktop_app/options.ajax.php';
 		this.path.pathToAjax = '/desktop_app/im.ajax.php';
+		this.path.pathToPull = '/desktop_app/pull.ajax.php';
 
 		this.tabItems = {};
 		this.tabRedrawTimeout = null;
-		this.userInfo = {id: 0, name: '', gender: 'M', avatar: '', profile: ''};
 
 		this.syncStatus = null;
 		this.syncPauseBlock = false;
 
-		/* sizes */
-		this.width = 914;
-		this.height = 454;
-		this.initWidth = 914;
-		this.initHeight = 454;
-		this.minWidth = 515;
-		this.minHeight = 454;
+		this.inited = false;
+		this.sizeInited = false;
 
+		/* sizes */
+
+		this.minWidth = 515;
+		this.minHeight = 384;
+		
 		this.timeoutDelayOfLogout = null;
 
+		this.eventHandlers = {};
+
 		this.addCustomEvent("bxImLogoutInit", BX.delegate(function(terminate, reason) {
-			this.onCustomEventForTab(TAB_CP, "bxImLogoutStart", []);
 			this.logout(terminate, reason, true);
 		}, this));
 
@@ -98,49 +81,17 @@
 		}, this));
 	};
 
-	BX.desktop.prototype.init = function ()
+	BX.desktop.prototype.init = function (params)
 	{
-		if (BX('workarea-content'))
+		params = params || {};
+		if (this.inited)
 		{
-			this.contentFullWindow = true;
-			this.contentBodyWindow = true;
-			this.content = BX('workarea-content');
-
-			if (this.content.offsetWidth < this.minWidth)
-				BX.style(this.content, 'width', this.minWidth+'px');
-
-			if (this.content.offsetHeight < this.minHeight)
-				BX.style(this.content, 'height', this.minHeight+'px');
+			return true;
 		}
-		else if (BX('bx-desktop-placeholder'))
-		{
-			this.contentFullWindow = false;
-			this.content = BX('bx-desktop-placeholder');
-
-			if (this.content.offsetWidth < this.minWidth)
-				BX.style(this.content, 'width', this.minWidth+'px');
-
-			if (this.content.offsetHeight < this.minHeight)
-				BX.style(this.content, 'height', this.minHeight+'px');
-		}
-		else
-		{
-			this.content = BX.create('div', {attrs: {id: 'bx-desktop-placeholder'}});
-			document.body.insertBefore(this.content, document.body.firstChild);
-		}
-
-		if (this.ready() && !this.enableInVersion(29))
-		{
-			BX.PULL.tryConnectSet(null, false);
-			this.notSupported();
-			this.apiReady = false;
-			this.disableLogin = true;
-
-			return false;
-		}
-
+		this.inited = true;
+		
 		this.setWindowResizable(true);
-		this.setWindowMinSize({ Width: this.minWidth, Height: this.minHeight });
+		this.setWindowMinSize({ Width: BX.MessengerWindow.minWidth, Height: BX.MessengerWindow.minHeight });
 
 		if (this.ready())
 		{
@@ -163,18 +114,13 @@
 				BX.addClass(document.body, 'im-desktop-content');
 			});
 		}
-		BX.desktop.addTab({
-			id: 'exit',
-			title: BX.message('BXD_LOGOUT'),
-			order: 1100,
-			target: false,
-			events: {
-				open: BX.delegate(function(){
-					this.logout(false, 'exit_tab');
-				}, this)
-			}
-		});
-
+		BX.addCustomEvent("onMessengerWindowInit", BX.delegate(function() {
+			this.userInfo = BX.MessengerWindow.getUserInfo();
+			this.contentMenu = BX.MessengerWindow.contentMenu;
+			this.content = BX.MessengerWindow.content;
+			BX.onCustomEvent(window, 'onDesktopInit', [this]);
+			BX.desktop.onCustomEvent("onDesktopInit", [this]);
+		}, this));
 		BX.addCustomEvent("onPullRevisionUp", function(newRevision, oldRevision) {
 			BX.PULL.closeConfirm();
 			console.log('NOTICE: Window reload, becouse PULL REVISION UP ('+oldRevision+' -> '+newRevision+')');
@@ -251,37 +197,10 @@
 				this.logout(true, 'exit_event');
 			}, this));
 		}
-
-		BX.bind(window, "resize", BX.delegate(function(){
-			this.adjustSize();
-		}, this));
-
+		
 		this.addCustomEvent("BXChangeTab", BX.delegate(function(tabId) {
 			this.changeTab(tabId)
 		}, this));
-
-
-		/*
-		if (BX.browser.IsMac())
-		{
-			this.addCustomEvent("BXForegroundChanged", BX.delegate(function(focus)
-			{
-				clearTimeout(this.focusTimeout);
-				this.focusTimeout = setTimeout(BX.delegate(function(){
-
-				}, this), focus? 500: 0);
-			}, this));
-		}
-		else if (this.ready())
-		{
-			BX.bind(window, "blur", BX.delegate(function(){
-
-			}, this));
-			BX.bind(window, "focus", BX.delegate(function(){
-
-			}, this));
-		}
-		*/
 
 		this.addCustomEvent("BXTrayConstructMenu", BX.delegate(function() {
 			this.onCustomEvent('main','BXTrayMenu', [])
@@ -291,9 +210,6 @@
 		}, this));
 
 		this.addCustomEvent("BXFileStorageSyncPauseChanged", BX.delegate(this.onSyncStatusChanged, this));
-
-		BX.onCustomEvent(window, 'onDesktopInit', [this]);
-		BX.desktop.onCustomEvent("onDesktopInit", [this]);
 	}
 
 	BX.desktop.prototype.notSupported = function ()
@@ -307,6 +223,7 @@
 			BX.create("div", { props : { className : "bx-desktop-update-box-text" }, html: BX.message('BXD_NEED_UPDATE')}),
 			BX.create("div", { props : { className : "bx-desktop-update-box-btn" }, events : { click :  BX.delegate(function(){this.checkUpdate(true)}, this)}, html: BX.message('BXD_NEED_UPDATE_BTN')})
 		]});
+		
 		BX.ready(function(){
 			document.body.innerHTML = '';
 			document.body.appendChild(updateContent);
@@ -399,31 +316,6 @@
 
 	BX.desktop.prototype.logout = function (terminate, reason, skipCheck)
 	{
-		if (typeof(BXDesktopSystem) == "undefined" || typeof(BXDesktopWindow) == "undefined")
-		{
-			location.href = '/?logout=yes';
-			return true;
-		}
-
-		if (false && !skipCheck && this.getContextWindow() === TAB_CP && this.getNetworkAuthorizeStatus()) // todo enable in future
-		{
-			this.timeoutDelayOfLogout = setTimeout(BX.delegate(function(){
-				this.logout(terminate, reason, true);
-			}, this), 2000)
-
-			this.onCustomEventForTab(TAB_B24NET, "bxImLogoutInit", [terminate, reason]);
-
-			this.addCustomEvent("bxImLogoutStart", BX.delegate(function() {
-				clearTimeout(this.timeoutDelayOfLogout);
-			}, this));
-
-			this.addCustomEvent("bxImLogoutEnd", BX.delegate(function(terminate, reason) {
-				this.logout(terminate, reason, true);
-			}, this));
-
-			return false;
-		}
-
 		terminate = terminate == true;
 
 		this.apiReady = false;
@@ -438,12 +330,7 @@
 			{
 				if (reason)
 					console.log('Logout reason: '+reason);
-
-				if (false && this.getContextWindow() === TAB_B24NET)  // todo enable in future
-				{
-					this.onCustomEventForTab(TAB_CP, "bxImLogoutEnd", [terminate, reason]);
-				}
-
+				
 				if (terminate)
 					BXDesktopSystem.Shutdown();
 				else
@@ -453,12 +340,7 @@
 			{
 				if (reason)
 					console.log('Logout reason (fail): '+reason);
-
-				if (false && this.getContextWindow() === TAB_B24NET) // todo enable in future
-				{
-					this.onCustomEventForTab(TAB_CP, "bxImLogoutEnd", [terminate, reason]);
-				}
-
+				
 				if (terminate)
 					BXDesktopSystem.Shutdown();
 				else
@@ -505,17 +387,34 @@
 	BX.desktop.prototype.addCustomEvent = function(eventName, eventHandler)
 	{
 		if (!this.ready()) return false;
-
-		window.addEventListener(eventName, function (e)
+		var realHandler = function (e)
 		{
 			var arEventParams = [];
 			for(var i in e.detail)
 				arEventParams.push(e.detail[i]);
 
 			eventHandler.apply(window, arEventParams);
-		});
+		};
+
+		if(!this.eventHandlers[eventName])
+			this.eventHandlers[eventName] = [];
+
+		this.eventHandlers[eventName].push(realHandler);
+		window.addEventListener(eventName, realHandler);
 
 		return true;
+	}
+
+	BX.desktop.prototype.removeCustomEvents = function(eventName)
+	{
+		if(!this.eventHandlers[eventName])
+			return false;
+
+		this.eventHandlers[eventName].forEach(function(eventHandler)
+		{
+			window.removeEventListener(eventName, eventHandler);
+		});
+		this.eventHandlers[eventName] = [];
 	}
 
 	BX.desktop.prototype.onCustomEvent = function(windowTarget, eventName, arEventParams)
@@ -555,15 +454,7 @@
 
 		return true;
 	}
-
-	BX.desktop.prototype.onCustomEventForTab = function(tabIdTarget, eventName, arEventParams)
-	{
-		if (!this.enableInVersion(35)) // TODO need new function from Desktop 27
-			return true;
-
-		return true;
-	}
-
+	
 	BX.desktop.prototype.findWindow = function (name)
 	{
 		if (!this.ready()) return null;
@@ -613,7 +504,10 @@
 
 		important = important === true;
 
-		BXDesktopSystem.SetIconBadge(count+'', important);
+		if (this.isActiveWindow())
+		{
+			BXDesktopSystem.SetIconBadge(count + '', important);
+		}
 
 		return true;
 	}
@@ -643,99 +537,11 @@
 		return false;
 	}
 
-
-
 	BX.desktop.prototype.flashIcon = function (voiced)
 	{
 		if (!this.ready()) return false;
 
 		BXDesktopSystem.FlashIcon(voiced == true);
-
-		return true;
-	}
-
-	BX.desktop.prototype.checkInternetConnection = function (successCallback, failureCallback, tryCount, tryName)
-	{
-		if (typeof(successCallback) != 'function')
-		{
-			successCallback = function ()
-			{
-				if (typeof(BXIM) != 'undefined')
-				{
-					BXIM.messenger.connectionStatus('online', false);
-				}
-			};
-		}
-
-		if (typeof(failureCallback) != 'function')
-			failureCallback = function() {};
-
-		if (typeof(tryCount) != "number")
-			tryCount = 1;
-
-		if (!tryName && tryCount > 1)
-			tryName = +new Date();
-
-		if (typeof(BXIM) != 'undefined')
-		{
-			BXIM.messenger.connectionStatus('connecting');
-		}
-
-		BX.ajax({
-			url: '//www.bitrixsoft.com/200.ok.'+(+new Date),
-			method: 'GET',
-			dataType: 'html',
-			skipAuthCheck: true,
-			skipBxHeader: true,
-			timeout: 1,
-			onsuccess: function(data){
-				if (data == 'OK')
-				{
-					console.log('Checking internet connection... success!');
-					delete BX.desktop.tryCheckConnect[tryName];
-					successCallback();
-				}
-				else
-				{
-					if (typeof(BXIM) != 'undefined')
-					{
-						BXIM.messenger.connectionStatus('offline');
-					}
-					console.log('Checking internet connection... failure!');
-					if (tryCount == 1)
-					{
-						delete BX.desktop.tryCheckConnect[tryName];
-						failureCallback();
-					}
-					else
-					{
-						if (typeof(BXIM) != 'undefined')
-						{
-							BXIM.messenger.connectionStatus('connecting');
-						}
-						clearTimeout(BX.desktop.tryCheckConnect[tryName]);
-						BX.desktop.tryCheckConnect[tryName] = setTimeout(function(){
-							BX.desktop.checkInternetConnection(successCallback, failureCallback, tryCount-1, tryName)
-						}, 5000);
-					}
-				}
-			},
-			onfailure: function(){
-				console.log('Checking internet connection... failure!');
-				if (tryCount == 1)
-				{
-					delete BX.desktop.tryCheckConnect[tryName];
-					failureCallback();
-				}
-				else
-				{
-					clearTimeout(BX.desktop.tryCheckConnect[tryName]);
-					BX.desktop.tryCheckConnect[tryName] = setTimeout(function(){
-						BX.desktop.checkInternetConnection(successCallback, failureCallback, tryCount-1, tryName)
-					}, 5000);
-				}
-			}
-		});
 
 		return true;
 	}
@@ -767,48 +573,7 @@
 
 	BX.desktop.prototype.adjustSize = function (width, height)
 	{
-		var innerWidth = 0;
-		var innerHeight = 0;
-
-		if (this.contentBodyWindow)
-		{
-			innerHeight = Math.max(window.innerHeight-BX.pos(BX.desktop.content).top-20, this.initHeight);
-			innerWidth = BX.desktop.content.innerWidth;
-		}
-		else if (this.contentFullWindow)
-		{
-			innerWidth = window.innerWidth;
-			innerHeight = window.innerHeight;
-		}
-		else
-		{
-			try {
-				BX.style(document.body, 'height', window.innerHeight+'px');
-			}
-			catch (e)
-			{
-				setTimeout(function(){
-					BX.desktop.adjustSize(width, height);
-				}, 500);
-			}
-			innerWidth = Math.max(this.content.offsetWidth, this.minWidth);
-			innerHeight = Math.max(this.content.offsetHeight, this.minHeight);
-		}
-
-		if ((!width || !height) && (innerHeight < this.minHeight || innerWidth < this.minWidth))
-		{
-			if (this.ready())
-				BXDesktopWindow.SetProperty("clientSize", { Width: this.width, Height: this.height});
-			return false;
-		}
-
-		this.width = width? width: innerWidth;
-		this.height = height? height: innerHeight;
-
-		BX.style(this.contentMenu, 'height', this.height+'px');
-		BX.style(this.contentTabContent, 'height', this.height+'px');
-
-		return true;
+		return BX.MessengerWindow.adjustSize(width, height);
 	}
 
 	BX.desktop.prototype.resize = function ()
@@ -838,17 +603,17 @@
 		}
 
 		return true;
-	}
+	};
 
 	BX.desktop.prototype.onSyncStatusChanged = function (status)
 	{
 		this.syncPause(status, true);
-	}
+	};
 
 	BX.desktop.prototype.getSyncStatus = function ()
 	{
 		return this.syncStatus;
-	}
+	};
 
 	BX.desktop.prototype.windowCommand = function (windowTarget, command)
 	{
@@ -856,7 +621,7 @@
 
 		if (arguments.length == 1)
 		{
-			command = windowTarget
+			command = windowTarget;
 			windowTarget = window;
 		}
 
@@ -873,7 +638,21 @@
 			}
 			else if (command == "close")
 			{
-				windowTarget.BXDesktopWindow.ExecuteCommand("close");
+				if (windowTarget.opener)
+				{
+					if (windowTarget.name.indexOf('topmost')>=0 || windowTarget.name.indexOf('notif')>=0)
+					{
+						windowTarget.BXDesktopWindow.ExecuteCommand("close");
+					}
+					else 
+					{
+						windowTarget.close();
+					}
+				}
+				else 
+				{
+					windowTarget.BXDesktopWindow.ExecuteCommand("hide");
+				}
 			}
 		}
 		catch(e)
@@ -883,7 +662,7 @@
 		}
 
 		return true;
-	}
+	};
 
 	BX.desktop.prototype.openTopmostWindow = function(html, js, bodyClass)
 	{
@@ -1055,13 +834,13 @@
 		clipboardTextArea.focus();
 		document.execCommand("paste");
 		var text = clipboardTextArea.value;
-
+		
 		if (typeof (callback) == 'function')
 		{
 			var textNew = callback(clipboardTextArea.value);
 			if (typeof (textNew) != 'undefined')
 				text = clipboardTextArea.value = textNew;
-
+			
 			clipboardTextArea.selectionStart = 0;
 			document.execCommand("copy");
 		}
@@ -1187,40 +966,6 @@
 		return true;
 	};
 
-	BX.desktop.prototype.openConfirm = function(text, buttons, modal)
-	{
-		if (this.popupConfirm != null)
-			this.popupConfirm.destroy();
-
-		if (typeof(text) == "object")
-			text = '<div class="bx-desktop-confirm-title">'+text.title+'</div>'+text.message;
-
-		modal = modal !== false;
-		if (typeof(buttons) == "undefined" || typeof(buttons) == "object" && buttons.length <= 0)
-		{
-			buttons = [new BX.PopupWindowButton({
-				text : BX.message('BXD_CONFIRM_CLOSE'),
-				className : "popup-window-button-decline",
-				events : { click : function(e) { this.popupWindow.close(); BX.PreventDefault(e) } }
-			})];
-		}
-		this.popupConfirm = new BX.PopupWindow('bx-desktop-confirm', null, {
-			zIndex: 200,
-			autoHide: buttons === false,
-			buttons : buttons,
-			closeByEsc: buttons === false,
-			overlay : modal,
-			events : { onPopupClose : function() { this.destroy() }, onPopupDestroy : BX.delegate(function() { this.popupConfirm = null }, this)},
-			content : BX.create("div", { props : { className : (buttons === false? " bx-desktop-confirm-without-buttons": "bx-desktop-confirm") }, html: text})
-		});
-		this.popupConfirm.show();
-		BX.bind(this.popupConfirm.popupContainer, "click", BX.PreventDefault);
-		BX.bind(this.popupConfirm.contentContainer, "click", BX.PreventDefault);
-		BX.bind(this.popupConfirm.overlay.element, "click", BX.PreventDefault);
-
-		return true;
-	};
-
 	BX.desktop.prototype.log = function (filename, text)
 	{
 		if (!this.ready()) return false;
@@ -1275,7 +1020,7 @@
 
 		BXDesktopWindow.SetProperty("clientSize", params);
 		if (params.Width && params.Height)
-			this.adjustSize(params.Width, params.Height);
+			BX.MessengerWindow.adjustSize(params.Width, params.Height);
 
 		return true;
 	}
@@ -1288,8 +1033,8 @@
 		if (!params.Width || !params.Height)
 			return false;
 
-		this.minWidth = params.Width;
-		this.minHeight = params.Height;
+		BX.MessengerWindow.minWidth = params.Width;
+		BX.MessengerWindow.minHeight = params.Height;
 
 		BXDesktopWindow.SetProperty("minClientSize", params);
 
@@ -1344,276 +1089,27 @@
 	/* Interface */
 	BX.desktop.prototype.addSeparator = function (params)
 	{
-		params.type = 'separator';
-		params.id = 'sep'+(+new Date())
-		this.tabItems[params.id] = params;
-
-		this.drawTabs();
+		return BX.MessengerWindow.addSeparator(params);
 	}
 
 	BX.desktop.prototype.addTab = function (params)
 	{
-		if (!params || !params.id || !params.title)
-			return false;
-
-		if (!params.order)
-			params.order = 500;
-
-		params.hide = params.hide? true: false;
-
-		if (parseInt(params.badge) > 0)
-		{
-			params.badge = parseInt(params.badge);
-		}
-		else
-		{
-			params.badge = 0;
-		}
-
-		if (!params.initContent || !BX.type.isDomNode(params.initContent))
-			params.initContent = null;
-
-		if (!params.events)
-			params.events = {};
-
-		if (typeof(params.target) == 'undefined')
-			params.target = params.id;
-
-		if (!params.events.open)
-			params.events.open = function() {}
-
-		if (!params.events.close)
-			params.events.close = function() {}
-
-		if (!params.events.init)
-			params.events.init = function() {}
-
-		params.type = 'item';
-
-		this.tabItems[params.id] = params;
-
-		this.drawTabs();
-	}
-
-	BX.desktop.prototype.drawTabs = function (force)
-	{
-		if (!force)
-		{
-			clearTimeout(this.tabRedrawTimeout);
-			this.tabRedrawTimeout = setTimeout(BX.delegate(function(){
-				this.drawTabs(true);
-			}, this), 100);
-
-			return true;
-		}
-		if (!this.contentTabContent)
-		{
-			if (!this.drawAppearance())
-				return false;
-		}
-
-		this.contentTab.innerHTML = '';
-		var arTabs = BX.util.objectSort(this.tabItems, 'order', 'asc');
-		for (var i = 0; i < arTabs.length; i++)
-		{
-			this.drawTab(arTabs[i]);
-		}
-		BX.onCustomEvent(this, 'OnDesktopTabsInit');
-		if (this.currentTab == '')
-		{
-			if (arTabs[0].id == 'exit')
-			{
-				if (typeof(arTabs[1]) != 'undefined')
-				{
-					this.changeTab(arTabs[1].id);
-				}
-			}
-			else
-			{
-				this.changeTab(arTabs[0].id);
-			}
-		}
-
-		this.updateTabBadge();
-
-		return true;
-	}
-
-	BX.desktop.prototype.drawTab = function (params)
-	{
-		if (params.type == 'separator')
-		{
-			this.contentTab.appendChild(
-				BX.create('div', { attrs : { 'data-id' : params.id, id: 'bx-desktop-sep-'+params.id}, props : { className : "bx-desktop-separator"}})
-			);
-		}
-		else
-		{
-			this.contentTab.appendChild(
-				BX.create('div', { attrs : { 'data-id' : params.id, id: 'bx-desktop-tab-'+params.id, title: params.title}, props : { className : "bx-desktop-tab bx-desktop-tab-"+params.id+(this.currentTab == params.id? ' bx-desktop-tab-active': '')+(params.hide? ' bx-desktop-tab-hide': '') }, children: [
-					BX.create('span', { props : { className : "bx-desktop-tab-counter" }, html: params.badge > 0? '<span class="bx-desktop-tab-counter-digit">'+(params.badge > 50? '50+': params.badge)+'</span>': ''}),
-					BX.create('div', { props : { className : "bx-desktop-tab-icon bx-desktop-tab-icon-"+params.id }})
-				]})
-			);
-
-			if (!BX('bx-desktop-tab-content-'+params.id) && params.id == params.target)
-			{
-				this.contentTabContent.appendChild(
-					BX.create('div', { attrs : { 'data-id': params.id, id: 'bx-desktop-tab-content-'+params.id}, props : { className : "bx-desktop-tab-content bx-desktop-tab-content-"+params.id+(this.currentTab == params.id? ' bx-desktop-tab-content-active': '') }, children: params.initContent? [params.initContent]: []})
-				);
-				params.events.init();
-			}
-		}
-		return true;
-	}
-
-	BX.desktop.prototype.drawAppearance = function ()
-	{
-		if (!this.content)
-			return false;
-
-		this.content.innerHTML = '';
-		this.content.appendChild(
-			BX.create("div", { props : { className : 'bx-desktop-appearance'}, style: {minHeight: this.minHeight+'px'}, children: [
-				this.contentMenu = BX.create("div", { props : { className : 'bx-desktop-appearance-menu'}, children: [
-					this.contentAvatar = BX.create("div", { props : { className : 'bx-desktop-appearance-avatar'}}),
-					this.contentTab = BX.create("div", { props : { className : 'bx-desktop-appearance-tab'}})
-				]}),
-				this.contentTabContent = BX.create("div", { props : { className : 'bx-desktop-appearance-content'}})
-			]})
-		);
-
-		BX.bindDelegate(this.contentTab, "click", {className: 'bx-desktop-tab'}, BX.delegate(function(event){
-			this.changeTab(event, false);
-			BX.PreventDefault(event);
-		}, this));
-		this.adjustSize();
-
-		return true;
+		return BX.MessengerWindow.addTab(params);
 	}
 
 	BX.desktop.prototype.changeTab = function (tabId, force)
 	{
-		force = typeof(force) == 'undefined'? true: force;
-
-		if (typeof(tabId) == 'object')
-		{
-			if (!BX.proxy_context)
-			{
-				return false;
-			}
-			tabId = BX.proxy_context.getAttribute('data-id');
-		}
-		if (!force && this.currentTab == tabId)
-		{
-			tabId = this.lastTab;
-		}
-		if (!this.tabItems[tabId])
-			return false;
-		if (this.tabItems[tabId].target)
-		{
-			var fireEvent = false;
-			if (!force || this.currentTab != tabId)
-			{
-				this.lastTab = this.currentTab;
-				this.lastTabTarget = this.currentTabTarget;
-				this.currentTab = this.tabItems[tabId].id;
-				this.currentTabTarget = this.tabItems[tabId].target;
-
-				fireEvent = true;
-			}
-
-			if (BX('bx-desktop-tab-'+this.lastTab))
-				BX.removeClass(BX('bx-desktop-tab-'+this.lastTab), 'bx-desktop-tab-active');
-
-			if (BX('bx-desktop-tab-'+tabId))
-				BX.addClass(BX('bx-desktop-tab-'+tabId), 'bx-desktop-tab-active');
-
-			if (BX('bx-desktop-tab-content-'+this.lastTab))
-			{
-				BX.removeClass(BX('bx-desktop-tab-content-'+this.lastTab), 'bx-desktop-tab-content-active');
-			}
-			else if (BX('bx-desktop-tab-content-'+this.lastTabTarget))
-			{
-				BX.removeClass(BX('bx-desktop-tab-content-'+this.lastTabTarget), 'bx-desktop-tab-content-active');
-			}
-
-			if (BX('bx-desktop-tab-content-'+this.currentTab))
-			{
-				BX.addClass(BX('bx-desktop-tab-content-'+this.currentTab), 'bx-desktop-tab-content-active');
-			}
-			else if (BX('bx-desktop-tab-content-'+this.currentTabTarget))
-			{
-				BX.addClass(BX('bx-desktop-tab-content-'+this.currentTabTarget), 'bx-desktop-tab-content-active');
-			}
-
-			if (fireEvent)
-			{
-				if (this.tabItems[this.lastTab])
-				{
-					this.tabItems[this.lastTab].events.close();
-				}
-
-				if (this.tabItems[this.currentTab])
-				{
-					BX.onCustomEvent(this, 'OnDesktopTabChange', [this.currentTab, this.lastTab]);
-					this.tabItems[this.currentTab].events.open();
-				}
-
-			}
-		}
-		else
-		{
-			this.tabItems[tabId].events.open();
-		}
-
-		return true;
+		return BX.MessengerWindow.changeTab(tabId, force);
 	}
 
 	BX.desktop.prototype.closeTab = function (tabId)
 	{
-		tabId = tabId || this.getCurrentTab();
-
-		if (!this.tabItems[tabId] || this.getCurrentTab() != tabId)
-			return false;
-
-		if (this.tabItems[tabId].target != this.currentTabTarget)
-		{
-			this.changeTab(tabId, false);
-		}
-		else
-		{
-			if (BX('bx-desktop-tab-'+this.currentTab))
-				BX.removeClass(BX('bx-desktop-tab-'+this.currentTab), 'bx-desktop-tab-active');
-
-			if (BX('bx-desktop-tab-'+this.lastTab))
-				BX.addClass(BX('bx-desktop-tab-'+this.lastTab), 'bx-desktop-tab-active');
-
-			var lastTab = this.lastTab;
-			this.lastTab = this.currentTab;
-			this.currentTab = lastTab;
-		}
+		return BX.MessengerWindow.closeTab(tabId);
 	}
 
 	BX.desktop.prototype.setTabBadge = function (tabId, value)
 	{
-		if (!this.tabItems[tabId])
-			return false;
-
-		value = parseInt(value);
-		this.tabItems[tabId].badge = value>0? value: 0;
-
-		if (value > 50)
-			value = '50+';
-
-		if (BX('bx-desktop-tab-'+tabId))
-		{
-			var counter = BX.findChild(BX('bx-desktop-tab-'+tabId), {className : "bx-desktop-tab-counter"}, true);
-			if (counter)
-				counter.innerHTML = value? '<span class="bx-desktop-tab-counter-digit">'+value+'</span>': '';
-		}
-
-		this.updateTabBadge();
+		return BX.MessengerWindow.setTabBadge(tabId, value);
 	}
 
 	BX.desktop.prototype.updateTabBadge = function ()
@@ -1622,10 +1118,10 @@
 			return false;
 
 		var value = 0;
-		for (var tabId in this.tabItems)
+		for (var tabId in BX.MessengerWindow.tabItems)
 		{
-			if (this.tabItems[tabId].badge)
-				value += this.tabItems[tabId].badge;
+			if (BX.MessengerWindow.tabItems[tabId].badge)
+				value += BX.MessengerWindow.tabItems[tabId].badge;
 		}
 
 		if (value <= 0)
@@ -1638,37 +1134,7 @@
 
 	BX.desktop.prototype.setTabContent = function (tabId, content)
 	{
-		if (!this.tabItems[tabId])
-			return false;
-
-		if (BX('bx-desktop-tab-content-'+tabId))
-		{
-			if (BX.type.isDomNode(content))
-			{
-				BX('bx-desktop-tab-content-'+tabId).innerHTML = '';
-				BX('bx-desktop-tab-content-'+tabId).appendChild(content);
-			}
-			else
-			{
-				BX('bx-desktop-tab-content-'+tabId).innerHTML = content;
-			}
-		}
-		else
-		{
-			this.tabItems[tabId].initContent = content;
-		}
-
-		return true;
-	}
-
-	BX.desktop.prototype.getCurrentTab = function ()
-	{
-		return this.currentTab;
-	}
-
-	BX.desktop.prototype.getCurrentTabTarget = function ()
-	{
-		return this.currentTabTarget;
+		return BX.MessengerWindow.setTabContent(tabId, content);
 	}
 
 	BX.desktop.prototype.isActiveWindow = function ()
@@ -1678,6 +1144,7 @@
 
 		return BXDesktopSystem.IsActiveTab();
 	}
+	
 	BX.desktop.prototype.getActiveWindow = function ()
 	{
 		if (!this.ready())
@@ -1685,13 +1152,7 @@
 
 		return BXDesktopSystem.ActiveTab();
 	}
-	BX.desktop.prototype.getNetworkAuthorizeStatus = function ()
-	{
-		if (!this.enableInVersion(35))
-			return true;
-
-		return true; // TODO need new function from Desktop 27
-	}
+	
 	BX.desktop.prototype.getContextWindow = function ()
 	{
 		if (!this.ready())
@@ -1713,6 +1174,7 @@
 			}
 		}
 	}
+	
 	BX.desktop.prototype.setActiveWindow = function (windowId)
 	{
 		if (!this.ready())
@@ -1731,63 +1193,9 @@
 		}
 	}
 
-	BX.desktop.prototype.setUserInfo = function (params)
-	{
-		if (!this.userInfo)
-		{
-			if (!params || !params.id || !params.name)
-				return false;
-		}
-
-		if (params)
-		{
-			if (!params.gender)
-				params.gender = 'M';
-
-			if (!params.avatar || !params.profile)
-				params.avatar = '';
-
-			this.userInfo = params;
-		}
-
-		if (!this.contentAvatar)
-		{
-			if (!this.drawAppearance())
-				return false;
-		}
-
-		var events = {};
-
-		if (this.userInfo.onclick)
-		{
-			events.click = function(e){
-				BX.desktop.userInfo.onclick();
-				return BX.PreventDefault(e);
-			}
-		}
-
-		this.contentAvatar.innerHTML = '';
-		this.contentAvatar.appendChild(
-			BX.create('a', { attrs : { href : this.userInfo.profile, title : BX.util.htmlspecialcharsback(this.userInfo.name), target: "_blank" }, props : { className : "bx-desktop-avatar" }, events: events, children: [
-				BX.create('img', { attrs : { src : this.userInfo.avatar, style: (BX.MessengerCommon.isBlankAvatar(this.userInfo.avatar)? 'background-color: '+this.userInfo.color: '')}, props : { className : "bx-desktop-avatar-img bx-desktop-avatar-img-default" }})
-			]})
-		);
-
-		return true;
-	}
-
-	BX.desktop.prototype.updateUserInfo = function (params)
-	{
-		for (var i in params)
-		{
-			this.userInfo[i] = params[i];
-		}
-		return this.setUserInfo(this.userInfo);
-	}
-
 	BX.desktop.prototype.getUserInfo = function()
 	{
-		return this.userInfo;
+		return BX.MessengerWindow.getUserInfo();
 	}
 
 	BX.desktop = new BX.desktop();

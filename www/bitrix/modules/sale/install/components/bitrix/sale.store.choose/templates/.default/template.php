@@ -92,7 +92,14 @@
 				<div class="block_change_store">
 					<div><b><?=Loc::getMessage('SALE_SSC_STORE_EXPORT')?>:</b></div>
 					<div id="store_name<?=$arParams["INDEX"]?>"><?=$arResult["STORES"][$arDefaultStore["ID"]]['TITLE']?></div>
-					<span id="change_store<?=$arParams["INDEX"]?>" class="change_store"><?=Loc::getMessage('SALE_SSC_CHANGE')?></span>
+					<?
+					if ($arParams["FORM"] !== "view")
+					{
+						?>
+						<span id="change_store<?=$arParams["INDEX"]?>" class="change_store"><?=Loc::getMessage('SALE_SSC_CHANGE')?></span>
+						<?
+					}
+					?>
 				</div>
 			</div>
 

@@ -338,7 +338,7 @@ $tabControl->BeginNextTab();
 			{
 				if (is_dir($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/lang/".$arLang['LANGUAGE_ID']))
 				{
-					?><option value="<?= $arLang['LANGUAGE_ID'] ?>"<?if ($arLang['LANGUAGE_ID']==$language_id) echo " selected";?>><?= $arLang['LANGUAGE_ID'] ?></option><?
+					?><option value="<?=htmlspecialcharsbx($arLang['LANGUAGE_ID']); ?>"<?if ($arLang['LANGUAGE_ID']==$language_id) echo " selected";?>><?= $arLang['LANGUAGE_ID'] ?></option><?
 				}
 			}
 			?>
@@ -370,11 +370,11 @@ $tabControl->BeginNextTab();
 		<?
 		foreach ($arrTransEncoding as $_k => $v)
 		{
-			?><option value="<?= $_k ?>"<?if ($_k==$encoding) echo " selected";?>><?= $v ?></option><?
+			?><option value="<?=htmlspecialcharsbx($_k); ?>"<?if ($_k==$encoding) echo " selected";?>><?= $v ?></option><?
 		}
 		?>
 		</select>
-		<script language="JavaScript">
+		<script type="text/javascript">
 			function EncodeClicked()
 			{
 				document.form1.encoding.disabled = !document.form1.convert_encoding.checked;
@@ -414,7 +414,7 @@ $tabControl->BeginNextTab();
 			$rsLang = CLanguage::GetList($by="sort", $order="desc");
 			while ($arLang = $rsLang->Fetch())
 			{
-				?><option value="<?= $arLang['LANGUAGE_ID'] ?>"<?if ($arLang['LANGUAGE_ID']==$language_id) echo " selected";?>><?= $arLang['LANGUAGE_ID'] ?></option><?
+				?><option value="<?=htmlspecialcharsbx($arLang['LANGUAGE_ID']); ?>"<?if ($arLang['LANGUAGE_ID']==$language_id) echo " selected";?>><?= $arLang['LANGUAGE_ID'] ?></option><?
 			}
 			?>
 		</select>
@@ -441,7 +441,7 @@ $tabControl->BeginNextTab();
 		<?
 		foreach ($arrTransEncoding as $_k => $v)
 		{
-			?><option value="<?= $_k ?>"<?if ($_k==$encoding) echo " selected";?>><?= $v ?></option><?
+			?><option value="<?=htmlspecialcharsbx($_k); ?>"<?if ($_k==$encoding) echo " selected";?>><?= $v ?></option><?
 		}
 		?>
 		</select>

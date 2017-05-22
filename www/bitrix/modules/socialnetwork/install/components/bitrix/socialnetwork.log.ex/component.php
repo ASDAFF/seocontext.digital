@@ -13,6 +13,8 @@ if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
 /** @global CUserTypeManager $USER_FIELD_MANAGER */
 global $CACHE_MANAGER, $USER_FIELD_MANAGER;
 
+use Bitrix\Main\Loader;
+
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/components/bitrix/socialnetwork.log.ex/include.php");
 
 CPageOption::SetOptionString("main", "nav_page_in_session", "N");
@@ -27,7 +29,7 @@ $pathToUser = COption::GetOptionString("main", "TOOLTIP_PATH_TO_USER", false, SI
 $pathToUser = ($pathToUser ? $pathToUser : SITE_DIR."company/personal/user/#user_id#/");
 
 $folderUsers = COption::GetOptionString("socialnetwork", "user_page", false, SITE_ID);
-$folderUsers = ($folderUsers ? $folderUsers : SITE_DIR."company/personal/");
+$folderUsers = ($folderUsers ? $folderUsers : (CModule::IncludeModule('extranet') && CExtranet::IsExtranetSite() ? SITE_DIR."contacts/personal/" : SITE_DIR."company/personal/"));
 
 $folderWorkgroups = COption::GetOptionString("socialnetwork", "workgroups_page", false, SITE_ID);
 $folderWorkgroups = ($folderWorkgroups ? $folderWorkgroups : SITE_DIR."workgroups/");
@@ -271,9 +273,9 @@ $bUseLogin = $arParams['SHOW_LOGIN'] != "N" ? true : false;
 if (StrLen($arParams["ENTITY_TYPE"]) <= 0)
 	$arParams["ENTITY_TYPE"] = Trim($_REQUEST["flt_entity_type"]);
 
-$arParams["AVATAR_SIZE_COMMON"] = (isset($arParams["AVATAR_SIZE_COMMON"]) && intval($arParams["AVATAR_SIZE_COMMON"]) > 0) ? intval($arParams["AVATAR_SIZE_COMMON"]) : 58;
-$arParams["AVATAR_SIZE"] = (isset($arParams["AVATAR_SIZE"]) && intval($arParams["AVATAR_SIZE"]) > 0) ? intval($arParams["AVATAR_SIZE"]) : 50;
-$arParams["AVATAR_SIZE_COMMENT"] = (isset($arParams["AVATAR_SIZE_COMMENT"]) && intval($arParams["AVATAR_SIZE_COMMENT"]) > 0) ? intval($arParams["AVATAR_SIZE_COMMENT"]) : 39;
+$arParams["AVATAR_SIZE_COMMON"] = (isset($arParams["AVATAR_SIZE_COMMON"]) && intval($arParams["AVATAR_SIZE_COMMON"]) > 0) ? intval($arParams["AVATAR_SIZE_COMMON"]) : 100;
+$arParams["AVATAR_SIZE"] = (isset($arParams["AVATAR_SIZE"]) && intval($arParams["AVATAR_SIZE"]) > 0) ? intval($arParams["AVATAR_SIZE"]) : 100;
+$arParams["AVATAR_SIZE_COMMENT"] = (isset($arParams["AVATAR_SIZE_COMMENT"]) && intval($arParams["AVATAR_SIZE_COMMENT"]) > 0) ? intval($arParams["AVATAR_SIZE_COMMENT"]) : 100;
 
 $arParams["USE_COMMENTS"] = (isset($arParams["USE_COMMENTS"]) ? $arParams["USE_COMMENTS"] : "N");
 $arParams["COMMENTS_IN_EVENT"] = (isset($arParams["COMMENTS_IN_EVENT"]) && intval($arParams["COMMENTS_IN_EVENT"]) > 0 ? $arParams["COMMENTS_IN_EVENT"] : "3");
@@ -285,15 +287,20 @@ CSocNetLogComponent::processDateTimeFormatParams($arParams);
 $arResult["AJAX_CALL"] = array_key_exists("logajax", $_REQUEST);
 $arResult["bReload"] = ($arResult["AJAX_CALL"] && $_REQUEST["RELOAD"] == "Y");
 
-$arParams["SET_LOG_COUNTER"] = (
+$arResult["SHOW_UNREAD"] = $arParams["SHOW_UNREAD"] = (
 	$USER->IsAuthorized()
 	&& $arParams["LOG_ID"] <= 0
-	&& (
-		!$arResult["AJAX_CALL"] 
-		|| $arResult["bReload"]
-	) 
-		? "Y" 
+		? "Y"
 		: "N"
+);
+$arParams["SET_LOG_COUNTER"] = (
+	$arResult["SHOW_UNREAD"] == "Y"
+	&& (
+		!$arResult["AJAX_CALL"]
+		|| $arResult["bReload"]
+	)
+	? "Y"
+	: "N"
 );
 $arParams["SET_LOG_PAGE_CACHE"] = ($arParams["LOG_ID"] <= 0 ? "Y" : "N");
 
@@ -302,8 +309,6 @@ if (IsModuleInstalled("webdav") || IsModuleInstalled("disk"))
 	$arParams["COMMENT_PROPERTY"][] = "UF_SONET_COM_DOC";
 
 $arParams["COMMENT_PROPERTY"][] = "UF_SONET_COM_URL_PRV";
-
-$arResult["SHOW_UNREAD"] = $arParams["SHOW_UNREAD"] = ($arParams["SET_LOG_COUNTER"] == "Y" ? "Y" : "N");
 
 $arPresetFilters = $arResultPresetFilters = false;
 $user_id = IntVal($USER->GetID());
@@ -314,7 +319,9 @@ if (
 {
 	$arPresetFilters = CUserOptions::GetOption("socialnetwork", "~log_filter_".SITE_ID, $user_id);
 	if (!is_array($arPresetFilters))
+	{
 		$arPresetFilters = CUserOptions::GetOption("socialnetwork", "~log_filter", $user_id);
+	}
 }
 
 $bGetComments = (
@@ -348,7 +355,9 @@ if (
 )
 {
 	if(array_key_exists("preset_filter_id", $_REQUEST))
+	{
 		CUserOptions::DeleteOption("socialnetwork", "~log_".$arParams["ENTITY_TYPE"]."_".($arParams["ENTITY_TYPE"] == SONET_ENTITY_GROUP ? $arParams["GROUP_ID"] : $arParams["USER_ID"]));
+	}
 
 	$arResultPresetFilters = CSocNetLogComponent::ConvertPresetToFilters($arPresetFilters, $arParams);
 
@@ -677,7 +686,13 @@ if (IsModuleInstalled("photogallery"))
 		&& CModule::IncludeModule("iblock")
 	)
 	{
-		$dbRes = CIBlock::GetList(array(), array("SITE_ID" => SITE_ID, "CODE" => "user_photogallery"));
+		$dbRes = CIBlock::GetList(
+			array(),
+			array(
+				"SITE_ID" => SITE_ID,
+				"=CODE" => "user_photogallery"
+			)
+		);
 		if ($arRes = $dbRes->Fetch())
 		{
 			$arParams["PHOTO_USER_IBLOCK_ID"] = $arRes["ID"];
@@ -689,7 +704,13 @@ if (IsModuleInstalled("photogallery"))
 		&& CModule::IncludeModule("forum")
 	)
 	{
-		$dbRes = CForumNew::GetListEx(array(), array("SITE_ID" => SITE_ID, "XML_ID" => "PHOTOGALLERY_COMMENTS"));
+		$dbRes = CForumNew::GetListEx(
+			array(),
+			array(
+				"SITE_ID" => SITE_ID,
+				"XML_ID" => "PHOTOGALLERY_COMMENTS"
+			)
+		);
 		if ($arRes = $dbRes->Fetch())
 		{
 			$arParams["PHOTO_FORUM_ID"] = $arRes["ID"];
@@ -707,6 +728,7 @@ if (IsModuleInstalled("photogallery"))
 $bCurrentUserIsAdmin = CSocNetUser::IsCurrentUserModuleAdmin();
 
 $arResult["TZ_OFFSET"] = CTimeZone::GetOffset();
+$arResult["FILTER_ID"] = "LIVEFEED".(!empty($arParams["GROUP_ID"]) ? '_SG'.$arParams["GROUP_ID"] : '');
 
 CSocNetTools::InitGlobalExtranetArrays();
 
@@ -734,6 +756,15 @@ if (
 		elseif ($arParams["ENTITY_TYPE"] == SONET_ENTITY_GROUP)
 		{
 			$arResult["Group"] = CSocNetGroup::GetByID($arParams["GROUP_ID"]);
+			if (
+				$arResult["Group"]['OPENED'] == 'Y'
+				&& $USER->IsAuthorized()
+				&& !$bCurrentUserIsAdmin
+				&& !in_array(CSocNetUserToGroup::GetUserRole($user_id, $arResult["Group"]["ID"]), array(SONET_ROLES_OWNER, SONET_ROLES_MODERATOR, SONET_ROLES_USER))
+			)
+			{
+				$arResult["Group"]['READ_ONLY'] = 'Y';
+			}
 		}
 	}
 
@@ -770,6 +801,7 @@ if (
 			$arFilter["!USER_ID"] = $USER->GetID();
 			$arResult["IS_FILTERED"] = true;
 			$arParams["SET_LOG_COUNTER"] = $arParams["SET_LOG_PAGE_CACHE"] = "N";
+			$arResult["SHOW_UNREAD"] = $arParams["SHOW_UNREAD"] = "N";
 			$arParams["USE_FOLLOW"] = "N";
 		}
 		elseif($arParams["DISPLAY"] === "mine")
@@ -777,14 +809,19 @@ if (
 			$arFilter["USER_ID"] = $USER->GetID();
 			$arResult["IS_FILTERED"] = true;
 			$arParams["SET_LOG_COUNTER"] = $arParams["SET_LOG_PAGE_CACHE"] = "N";
+			$arResult["SHOW_UNREAD"] = $arParams["SHOW_UNREAD"] = "N";
 			$arParams["USE_FOLLOW"] = "N";
 		}
 		elseif($arParams["DISPLAY"] === "my")
 		{
 			$arAccessCodes = $USER->GetAccessCodes();
 			foreach($arAccessCodes as $i => $code)
+			{
 				if(!preg_match("/^(U|D|DR)/", $code)) //Users and Departments
+				{
 					unset($arAccessCodes[$i]);
+				}
+			}
 			$arFilter["LOG_RIGHTS"] = $arAccessCodes;
 			$arParams["SET_LOG_PAGE_CACHE"] = "N";
 			$arParams["USE_FOLLOW"] = "N";
@@ -794,6 +831,7 @@ if (
 			$arFilter["USER_ID"] = intval($arParams["DISPLAY"]);
 			$arResult["IS_FILTERED"] = true;
 			$arParams["SET_LOG_COUNTER"] = $arParams["SET_LOG_PAGE_CACHE"] = "N";
+			$arResult["SHOW_UNREAD"] = $arParams["SHOW_UNREAD"] = "N";
 			$arParams["USE_FOLLOW"] = "N";
 		}
 	}
@@ -801,6 +839,17 @@ if (
 	if (!empty($arParams["DESTINATION"]))
 	{
 		$arFilter["LOG_RIGHTS"] = $arParams["DESTINATION"];
+
+		if (count($arParams["DESTINATION"]) == 1)
+		{
+			foreach($arParams["DESTINATION"] as $code)
+			{
+				if(preg_match("/^U(\d+)$/", $code, $matches))
+				{
+					$arFilter["!USER_ID"] =  $matches[1];
+				}
+			}
+		}
 	}
 	elseif (intval($arParams["GROUP_ID"]) > 0)
 	{
@@ -808,9 +857,11 @@ if (
 		$ENTITY_ID = $arParams["GROUP_ID"];
 
 		$arFilter["LOG_RIGHTS"] = "SG".intval($arParams["GROUP_ID"]);
+		$arFilter["LOG_RIGHTS_SG"] = "OSG".intval($arParams["GROUP_ID"]).'_'.($USER->IsAuthorized() ? SONET_ROLES_AUTHORIZED : SONET_ROLES_ALL);
 		$arParams["SET_LOG_PAGE_CACHE"] = "Y";
 		$arParams["USE_FOLLOW"] = "N";
 		$arParams["SET_LOG_COUNTER"] = "N";
+		$arResult["SHOW_UNREAD"] = $arParams["SHOW_UNREAD"] = "N";
 	}
 	elseif (intval($arParams["TO_USER_ID"]) > 0)
 	{
@@ -856,6 +907,7 @@ if (
 		$arFilter["!EVENT_ID"] = $arParams["!EXACT_EVENT_ID"];
 		$arResult["IS_FILTERED"] = true;
 		$arParams["SET_LOG_COUNTER"] = $arParams["SET_LOG_PAGE_CACHE"] = "N";
+		$arResult["SHOW_UNREAD"] = $arParams["SHOW_UNREAD"] = "N";
 		$arParams["USE_FOLLOW"] = "N";
 	}
 	if (isset($arParams["EXACT_EVENT_ID"]))
@@ -863,6 +915,7 @@ if (
 		$arFilter["EVENT_ID"] = array($arParams["EXACT_EVENT_ID"]);
 		$arResult["IS_FILTERED"] = true;
 		$arParams["SET_LOG_COUNTER"] = $arParams["SET_LOG_PAGE_CACHE"] = "N";
+		$arResult["SHOW_UNREAD"] = $arParams["SHOW_UNREAD"] = "N";
 		$arParams["USE_FOLLOW"] = "N";
 	}
 	elseif (is_array($arParams["EVENT_ID"]))
@@ -876,6 +929,7 @@ if (
 
 			$arResult["IS_FILTERED"] = true;
 			$arParams["SET_LOG_COUNTER"] = $arParams["SET_LOG_PAGE_CACHE"] = "N";
+			$arResult["SHOW_UNREAD"] = $arParams["SHOW_UNREAD"] = "N";
 			$arParams["USE_FOLLOW"] = "N";
 		}
 	}
@@ -884,12 +938,14 @@ if (
 		$arFilter["EVENT_ID"] = CSocNetLogTools::FindFullSetByEventID($arParams["EVENT_ID"]);
 		$arResult["IS_FILTERED"] = true;
 		$arParams["SET_LOG_COUNTER"] = $arParams["SET_LOG_PAGE_CACHE"] = "N";
+		$arResult["SHOW_UNREAD"] = $arParams["SHOW_UNREAD"] = "N";
 		$arParams["USE_FOLLOW"] = "N";
 	}
 	elseif ($preset_filter_id == "extranet")
 	{
 		$arResult["IS_FILTERED"] = true;
 		$arParams["SET_LOG_COUNTER"] = $arParams["SET_LOG_PAGE_CACHE"] = "N";
+		$arResult["SHOW_UNREAD"] = $arParams["SHOW_UNREAD"] = "N";
 		$arParams["USE_FOLLOW"] = "N";
 	}
 
@@ -906,12 +962,15 @@ if (
 
 		$arResult["IS_FILTERED"] = true;
 		$arParams["SET_LOG_COUNTER"] = $arParams["SET_LOG_PAGE_CACHE"] = "N";
+		$arResult["SHOW_UNREAD"] = $arParams["SHOW_UNREAD"] = "N";
 		$arParams["USE_FOLLOW"] = "N";
 		unset($arFilter["!USER_ID"]);
 	}
 
 	if (IntVal($arParams["GROUP_ID"]) > 0)
+	{
 		$arResult["IS_FILTERED"] = true;
+	}
 
 	if ($arParams["FLT_ALL"] == "Y")
 		$arFilter["ALL"] = "Y";
@@ -984,6 +1043,7 @@ if (
 	{
 		$arFilter[">=LOG_DATE"] = $arParams["LOG_DATE_FROM"];
 		$arParams["SET_LOG_COUNTER"] = $arParams["SET_LOG_PAGE_CACHE"] = "N";
+		$arResult["SHOW_UNREAD"] = $arParams["SHOW_UNREAD"] = "N";
 		$arParams["USE_FOLLOW"] = "N";
 		$arResult["IS_FILTERED"] = true;
 	}
@@ -1000,6 +1060,7 @@ if (
 	{
 		$arFilter["<=LOG_DATE"] = ConvertTimeStamp(MakeTimeStamp($arParams["LOG_DATE_TO"], CSite::GetDateFormat("SHORT"))+86399, "FULL");
 		$arParams["SET_LOG_COUNTER"] = $arParams["SET_LOG_PAGE_CACHE"] = "N";
+		$arResult["SHOW_UNREAD"] = $arParams["SHOW_UNREAD"] = "N";
 		$arParams["USE_FOLLOW"] = "N";
 		$arResult["IS_FILTERED"] = true;
 	}
@@ -1007,6 +1068,136 @@ if (
 	{
 		$arFilter["<=LOG_DATE"] = "NOW";
 		unset($_REQUEST["flt_date_to"]);
+	}
+
+	if (
+		SITE_TEMPLATE_ID === 'bitrix24'
+		&& isset($_REQUEST['useBXMainFilter'])
+		&& $_REQUEST['useBXMainFilter'] == 'Y'
+		&& intval($arParams["LOG_ID"]) <= 0
+	)
+	{
+		$filtered = false;
+		$filterOption = new \Bitrix\Main\UI\Filter\Options($arResult["FILTER_ID"]);
+		$filterData = $filterOption->getFilter();
+
+		if (
+			!empty($filterData["CREATED_BY_ID"])
+			&& preg_match('/^U(\d+)$/', $filterData["CREATED_BY_ID"], $matches)
+		)
+		{
+			$filtered = true;
+			$arFilter["USER_ID"] = intval($matches[1]);
+
+			if (intval($matches[1]) > 0)
+			{
+				\Bitrix\Main\FinderDestTable::merge(array(
+					"CONTEXT" => "FEED_FILTER_CREATED_BY",
+					"CODE" => 'U'.intval($matches[1])
+				));
+			}
+		}
+
+		if (!empty($filterData["TO"]))
+		{
+			if (preg_match('/^U(\d+)$/', $filterData["TO"], $matches))
+			{
+				$arFilter["LOG_RIGHTS"] = 'U'.intval($matches[1]);
+				if (empty($arFilter["USER_ID"]))
+				{
+					$arFilter["!USER_ID"] = intval($matches[1]);
+				}
+			}
+			elseif (preg_match('/^SG(\d+)$/', $filterData["TO"], $matches))
+			{
+				$arFilter["LOG_RIGHTS"] = 'SG'.intval($matches[1]);
+			}
+			elseif (preg_match('/^DR(\d+)$/', $filterData["TO"], $matches))
+			{
+				$arFilter["LOG_RIGHTS"] = 'DR'.intval($matches[1]);
+			}
+
+			$filtered = !empty($arFilter["LOG_RIGHTS"]);
+
+			if (!empty($arFilter["LOG_RIGHTS"]))
+			{
+				\Bitrix\Main\FinderDestTable::merge(array(
+					"CONTEXT" => "FEED_FILTER_TO",
+					"CODE" => $arFilter["LOG_RIGHTS"]
+				));
+			}
+		}
+
+		if (
+			!empty($filterData["EXACT_EVENT_ID"])
+			&& !is_array($filterData["EXACT_EVENT_ID"])
+		)
+		{
+			$filtered = true;
+			$arFilter["EVENT_ID"] = array($filterData["EXACT_EVENT_ID"]);
+		}
+
+		if (
+			!empty($filterData["EVENT_ID"])
+			&& is_array($filterData["EVENT_ID"])
+		)
+		{
+			$filtered = true;
+			$arFilter["EVENT_ID"] = $filterData["EVENT_ID"];
+		}
+
+		if (
+			!empty($filterData["FAVORITES_USER_ID"])
+			&& $filterData["FAVORITES_USER_ID"] == 'Y'
+		)
+		{
+			$filtered = true;
+			$arFilter[">FAVORITES_USER_ID"] = 0;
+		}
+
+		if (
+			!empty($filterData["EXTRANET"])
+			&& $filterData["EXTRANET"] == 'Y'
+			&& Loader::includeModule('extranet')
+		)
+		{
+			$filtered = true;
+			$arFilter["SITE_ID"] = \CExtranet::getExtranetSiteID();
+			$arFilter["!EVENT_ID"] = array("lists_new_element", "tasks", "timeman_entry", "report", "crm_activity_add");
+		}
+
+		if (!empty($filterData["DATE_CREATE_from"]))
+		{
+			$filtered = true;
+			$arFilter[">=LOG_DATE"] = $filterData["DATE_CREATE_from"];
+		}
+
+		if (!empty($filterData["DATE_CREATE_to"]))
+		{
+			$filtered = true;
+			$arFilter["<=LOG_DATE"] = ConvertTimeStamp(MakeTimeStamp($filterData["DATE_CREATE_to"], CSite::getDateFormat("SHORT")) + 86399, "FULL");
+		}
+
+		if (!empty($filterData["FIND"]))
+		{
+			$filtered = true;
+
+			$operation = \Bitrix\Socialnetwork\LogIndexTable::getEntity()->fullTextIndexEnabled("CONTENT") ? '*' : '*%';
+			$arFilter[$operation."CONTENT"] = \Bitrix\Socialnetwork\Item\LogIndex::prepareToken($filterData["FIND"]);
+		}
+
+		if ($filtered)
+		{
+			$arParams["SET_LOG_COUNTER"] = $arParams["SET_LOG_PAGE_CACHE"] = "N";
+			$arResult["SHOW_UNREAD"] = $arParams["SHOW_UNREAD"] = "N";
+			$arParams["USE_FOLLOW"] = "N";
+			$arResult["IS_FILTERED"] = true;
+		}
+	}
+	elseif (SITE_TEMPLATE_ID === 'bitrix24')
+	{
+		$filterOption = new \Bitrix\Main\UI\Filter\Options($arResult["FILTER_ID"]);
+		$filterOption->reset();
 	}
 
 	if ($arParams["IS_CRM"] == "Y")
@@ -1017,10 +1208,12 @@ if (
 		if (strlen($arParams["CRM_ENTITY_TYPE"]) > 0)
 		{
 			$arParams["SET_LOG_COUNTER"] = $arParams["SET_LOG_PAGE_CACHE"] = "N";
+			$arResult["SHOW_UNREAD"] = $arParams["SHOW_UNREAD"] = "N";
 		}
 		elseif($preset_filter_top_id)
 		{
 			$arParams["SET_LOG_COUNTER"] = "N";
+			$arResult["SHOW_UNREAD"] = $arParams["SHOW_UNREAD"] = "N";
 		}
 		$arParams["CRM_EXTENDED_MODE"] = ($arParams["CRM_EXTENDED_MODE"] == "Y" ? "Y" : "N");
 	}
@@ -1074,6 +1267,7 @@ if (
 	{
 		$arOrder = array("LOG_DATE"	=> "DESC");
 	}
+	$arOrder["ID"] = "DESC";
 
 	$events = GetModuleEvents("socialnetwork", "OnBuildSocNetLogOrder");
 	while ($arEvent = $events->Fetch())
@@ -1091,6 +1285,7 @@ if (
 	{
 		$arFilter[">FAVORITES_USER_ID"] = 0;
 		$arParams["SET_LOG_COUNTER"] = $arParams["SET_LOG_PAGE_CACHE"] = "N";
+		$arResult["SHOW_UNREAD"] = $arParams["SHOW_UNREAD"] = "N";
 	}
 
 	$arParams["NAME_TEMPLATE"] = $arParams["NAME_TEMPLATE_WO_NOBR"];
@@ -1194,9 +1389,19 @@ if (
 		}
 
 		$arListParams = array(
-			"CHECK_RIGHTS" => "Y",
-			"CHECK_VIEW" => "Y"
+			"CHECK_RIGHTS" => "Y"
 		);
+
+		if (
+			$arParams["LOG_ID"] <= 0
+			&& (
+				empty($filterData)
+				|| empty($filterData['EVENT_ID'])
+			)
+		)
+		{
+			$arListParams["CHECK_VIEW"] = "Y";
+		}
 	}
 
 	if (
@@ -1220,6 +1425,11 @@ if (
 		&& (
 			CExtranet::IsExtranetSite()
 			|| $preset_filter_id == 'extranet'
+			|| (
+				!empty($filterData)
+				&& !empty($filterData["EXTRANET"])
+				&& $filterData["EXTRANET"] == 'Y'
+			)
 		)
 	)
 	{
@@ -1328,22 +1538,6 @@ if (
 	{
 		$arSelectFields[] = "LOG_DATE_TS";
 	}
-/*
-	if (
-		!$arResult["IS_FILTERED"]
-		&& (
-			!isset($arListParams["IS_CRM"])
-			|| $arListParams["IS_CRM"] != "Y"
-		)
-	)
-	{
-		$arFilter["__INNER_FILTER"] = array(
-			"LOGIC" => "OR",
-			"!COMMENTS_COUNT" => 0,
-			"!EVENT_ID" => "tasks"
-		);
-	}
-*/
 
 	$arTmpEventsNew = array();
 	$arResult["arLogTmpID"] = array();
@@ -1531,6 +1725,8 @@ if (
 		$dateLastPage = ConvertTimeStamp($arResult["dateLastPageTS"], "FULL");
 	}
 
+	$arResult["dateLastPageId"] = $arTmpEvent["ID"];
+
 	$arResult["WORKGROUPS_PAGE"] = $folderWorkgroups;
 
 	if (
@@ -1548,10 +1744,6 @@ if (
 			$bEmptyCounter = true;
 			$arResult["LOG_COUNTER"] = 0;
 		}
-	}
-	else
-	{
-		$arParams["SHOW_UNREAD"] = "N";
 	}
 
 	if (

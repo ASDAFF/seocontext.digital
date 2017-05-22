@@ -339,7 +339,7 @@ else
 					}
 					else
 					{
-						?><input type="text" id="TAGS" tabindex="4" name="TAGS" size="30" value="<?=$arResult["PostToShow"]["CategoryText"]?>">
+						?><input type="text" id="TAGS" tabindex="4" name="TAGS" size="30" value="<?=htmlspecialcharsbx($arResult["PostToShow"]["CategoryText"])?>">
 						<?
 					}?>
 			</span>

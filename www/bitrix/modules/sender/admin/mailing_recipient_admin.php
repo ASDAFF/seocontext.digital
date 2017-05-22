@@ -182,13 +182,13 @@ $oFilter = new CAdminFilter(
 				<?
 				$arr = array();
 				$mailingChainDb = \Bitrix\Sender\MailingChainTable::getList(array(
-					'select' => array('REFERENCE'=>'SUBJECT','REFERENCE_ID'=>'ID'),
+					'select' => array('SUBJECT', 'TITLE', 'ID'),
 					'filter' => array('MAILING_ID' => $MAILING_ID)
 				));
 				while($arMailingChain = $mailingChainDb->fetch())
 				{
-					$arr['reference'][] = $arMailingChain['REFERENCE'];
-					$arr['reference_id'][] = $arMailingChain['REFERENCE_ID'];
+					$arr['reference'][] = $arMailingChain['TITLE'] ? $arMailingChain['TITLE'] : $arMailingChain['SUBJECT'];
+					$arr['reference_id'][] = $arMailingChain['ID'];
 				}
 				echo SelectBoxFromArray("find_mailing_chain_id", $arr, $ID, false, "");
 				?>

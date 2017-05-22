@@ -217,14 +217,8 @@ class Message
 			$text = $this->removeForwardHead($text);
 
 		// TODO: TextParser
-		$text = preg_replace_callback('/\[tr\](.(?!\[tr\]))*?\[\/tr\]/is', function($matches)
-		{
-			return preg_match('/\[td\].*?\[\/td\]/is', $matches[0]) ? $matches[0] : '';
-		}, $text);
-		$text = preg_replace_callback('/\[table\](.(?!\[table\]))*?\[\/table\]/is', function($matches)
-		{
-			return preg_match('/\[tr\].*?\[\/tr\]/is', $matches[0]) ? $matches[0] : '';
-		}, $text);
+		$text = preg_replace('/\[tr\]\s*\[\/tr\]/is', '', $text);
+		$text = preg_replace('/\[table\]\s*\[\/table\]/is', '', $text);
 
 		$text = trim($text);
 		$text = preg_replace('/(\s*\n){2,}/', "\n\n", $text);
@@ -605,8 +599,7 @@ class Message
 
 		do
 		{
-			$result = preg_replace('/\[tr\](.(?!\[tr\]))+?\[\/tr\]/is', '', $result, -1, $n1);
-			$result = preg_replace('/\[([busi]|img|table|tr|quote|url|size|color|font|list)(=.+?)?\]\[\/\1\]/is', '', $result, -1, $n2);
+			$result = preg_replace('/\[([busi]|img|table|tr|td|th|quote|url|size|color|font|list)(=.+?)?\]\[\/\1\]/is', '', $result, -1, $n2);
 		}
 		while ($n1+$n2 > 0);
 

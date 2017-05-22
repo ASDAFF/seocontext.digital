@@ -65,7 +65,23 @@ if (intval($shipmentId) > 0)
 	$allowUpdate = in_array($shipment->getField("STATUS_ID"), $allowedDeliveryStatusesUpdate);
 	$allowView = in_array($shipment->getField("STATUS_ID"), $allowedDeliveryStatusesView);
 	$allowDelete = in_array($shipment->getField("STATUS_ID"), $allowedDeliveryStatusesDelete);
+}
 
+$isUserResponsible = false;
+$isAllowCompany = false;
+
+if ($saleModulePermissions == 'P')
+{
+	$userCompanyList = \Bitrix\Sale\Services\Company\Manager::getUserCompanyList($USER->GetID());
+
+	$isUserResponsible = ($saleOrder->getField('RESPONSIBLE_ID') == $USER->GetID() || $shipment->getField('RESPONSIBLE_ID') == $USER->GetID());
+
+	$isAllowCompany = (in_array($saleOrder->getField('COMPANY_ID'), $userCompanyList) || in_array($shipment->getField('COMPANY_ID'), $userCompanyList));
+
+	if (!$isUserResponsible && !$isAllowCompany)
+	{
+		LocalRedirect("/bitrix/admin/sale_order.php?lang=".LANGUAGE_ID.GetFilterParams("filter_", false));
+	}
 }
 
 if ($request->get('delete') == 'Y' && check_bitrix_sessid())
@@ -165,14 +181,11 @@ if ($request->isPost() && ($save || $refresh) && check_bitrix_sessid())
 else
 {
 	$new = true;
-	if ($shipmentId > 0)
+	if ($shipmentId > 0 && $shipment)
 	{
-		$shipment = $saleOrder->getShipmentCollection()->getItemById($shipmentId);
-		if ($shipment)
-			$new = false;
-		else
-			LocalRedirect("/bitrix/admin/sale_order_shipment.php?lang=".$lang.GetFilterParams("filter_", false));
+		$new = false;
 	}
+
 	if ($new)
 	{
 		$shipment = $saleOrder->getShipmentCollection()->createItem();
@@ -180,7 +193,7 @@ else
 	}
 }
 
-if (!$shipment || (!$allowView && !$allowUpdate)|| Order::isLocked($orderId))
+if (!$shipment || (!$allowView && !$allowUpdate) || Order::isLocked($orderId))
 	LocalRedirect("/bitrix/admin/sale_order_shipment.php?lang=".$lang.GetFilterParams("filter_", false));
 
 if ($shipmentId)
@@ -318,6 +331,14 @@ foreach ($dirs as $dir)
 }
 $context = new CAdminContextMenu($aMenu);
 $context->Show();
+
+// Problem block
+?><div id="sale-adm-order-problem-block"><?
+if($shipmentId > 0 && $shipment->getField("MARKED") == "Y")
+{
+	echo \Bitrix\Sale\Helpers\Admin\Blocks\OrderMarker::getViewForEntity($saleOrder->getId(), $shipmentId);
+}
+?></div><?
 
 if(!empty($errors))
 	CAdminMessage::ShowMessage(implode("<br>\n", $errors));

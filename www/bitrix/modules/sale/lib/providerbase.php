@@ -53,6 +53,17 @@ abstract class ProviderBase
 
 	/**
 	 * @param $key
+	 */
+	protected static function resetReservationPool($key)
+	{
+		if (isset(static::$reservationPool[$key]))
+		{
+			unset(static::$reservationPool[$key]);
+		}
+	}
+
+	/**
+	 * @param $key
 	 * @param BasketItem $item
 	 * @return float|null
 	 */
@@ -99,6 +110,17 @@ abstract class ProviderBase
 			static::$quantityPool[$key] = new Internals\Pool();
 
 		return static::$quantityPool[$key];
+	}
+
+	/**
+	 * @param $key
+	 */
+	protected static function resetQuantityPool($key)
+	{
+		if (isset(static::$quantityPool[$key]))
+		{
+			unset(static::$quantityPool[$key]);
+		}
 	}
 
 	/**
@@ -158,17 +180,24 @@ abstract class ProviderBase
 		if (!$r->isSuccess())
 		{
 			$result->addErrors($r->getErrors());
-			return $result;
 		}
+		elseif ($r->hasWarnings())
+		{
+			$result->addWarnings($r->getWarnings());
+		}
+
+		static::refreshMarkers($order);
 
 		return $result;
 	}
 
 	/**
 	 * @param Order $order
+	 *
 	 * @return Result
 	 * @throws NotImplementedException
 	 * @throws NotSupportedException
+	 * @throws ObjectNotFoundException
 	 * @throws SystemException
 	 */
 	private static function applyPoolReservation(Order $order)
@@ -371,7 +400,18 @@ abstract class ProviderBase
 
 			$r = static::shipShipment($shipment);
 			if (!$r->isSuccess())
+			{
 				$result->addErrors($r->getErrors());
+			}
+			elseif ($r->hasWarnings())
+			{
+				$result->addWarnings($r->getWarnings());
+				EntityMarker::addMarker($order, $shipment, $r);
+				if (!$shipment->isSystem())
+				{
+					$shipment->setField('MARKED', 'Y');
+				}
+			}
 		}
 
 //		$result->setData($resultProductData);
@@ -527,7 +567,10 @@ abstract class ProviderBase
 					if (!$r->isSuccess())
 					{
 						$result->addErrors($r->getErrors());
-						return $result;
+					}
+					elseif ($r->hasWarnings())
+					{
+						$result->addWarnings($r->getWarnings());
 					}
 				}
 				elseif ($action == static::POOL_ACTION_RESERVATION)
@@ -545,25 +588,21 @@ abstract class ProviderBase
 							$canReserve = $reservationData['CAN_RESERVE'];
 						}
 					}
+					elseif ($r->hasWarnings())
+					{
+						$result->addWarnings($r->getWarnings());
+					}
 					else
 					{
 						$result->addErrors($r->getErrors());
 					}
-
-					if (!$result->isSuccess())
-					{
-						return $result;
-					}
-
-//						// not implemented yet
-//						if ($quantity < 0 && $reservedQuantity != $quantity)
-//							throw new NotImplementedException();
-//
-//						if ($canReserve)
-//							$order->setFieldNoDemand('RESERVED', $shipmentCollection->isReserved() ? "Y" : "N");
 				}
 			}
 		}
+
+		static::resetQuantityPool($order->getInternalId());
+
+		static::resetReservationPool($order->getInternalId());
 
 		return $result;
 	}
@@ -696,7 +735,7 @@ abstract class ProviderBase
 
 									if ($quantity > $allBarcodeQuantity)
 									{
-										$result->addError(new ResultError(Loc::getMessage('SALE_PROVIDER_SHIPMENT_SHIPPED_LESS_QUANTITY', array(
+										$result->addWarning(new ResultWarning(Loc::getMessage('SALE_PROVIDER_SHIPMENT_SHIPPED_LESS_QUANTITY', array(
 											'#PRODUCT_NAME#' => $providerBasketItem['BASKET_ITEM']->getField('NAME')
 										)), 'SALE_PROVIDER_SHIPMENT_SHIPPED_LESS_QUANTITY'));
 
@@ -704,7 +743,7 @@ abstract class ProviderBase
 									}
 									elseif ($quantity < $allBarcodeQuantity)
 									{
-										$result->addError(new ResultError(Loc::getMessage('SALE_PROVIDER_SHIPMENT_SHIPPED_MORE_QUANTITY', array(
+										$result->addWarning(new ResultWarning(Loc::getMessage('SALE_PROVIDER_SHIPMENT_SHIPPED_MORE_QUANTITY', array(
 											'#PRODUCT_NAME#' => $providerBasketItem['BASKET_ITEM']->getField('NAME')
 										)), 'SALE_PROVIDER_SHIPMENT_SHIPPED_MORE_QUANTITY'));
 
@@ -723,28 +762,9 @@ abstract class ProviderBase
 								$needShip = $shipment->needShip();
 								if ($oldException = $APPLICATION->GetException())
 								{
-									if ($needShip === false)
+									if ($needShip === true)
 									{
-										/** @var Result $resultShipment */
-										$resultShipment = $shipment->setField('MARKED', 'Y');
-										if (!$resultShipment->isSuccess())
-										{
-											$result->addErrors($resultShipment->getErrors());
-										}
-
-										$oldErrorText = $shipment->getField('REASON_MARKED');
-										$oldErrorText .= (strval($oldErrorText) != '' ? "\n" : ""). $oldException->GetString();
-
-										/** @var Result $resultShipment */
-										$resultShipment = $shipment->setField('REASON_MARKED', $oldErrorText);
-										if (!$resultShipment->isSuccess())
-										{
-											$result->addErrors($resultShipment->getErrors());
-										}
-									}
-									else
-									{
-										$result->addError( new ResultError($oldException->GetString(), $oldException->GetID()) );
+										$result->addWarning( new ResultWarning($oldException->GetString(), $oldException->GetID()) );
 									}
 								}
 
@@ -834,6 +854,10 @@ abstract class ProviderBase
 						if (!isset($shippedList[$basketCode])
 							|| (array_key_exists("RESULT", $shippedList[$basketCode]) && $shippedList[$basketCode]['RESULT'] === false))
 						{
+							if ($needShip && $shipment->isShipped())
+							{
+								$correct = true;
+							}
 							continue;
 						}
 
@@ -913,7 +937,7 @@ abstract class ProviderBase
 
 		if ($correct === true)
 		{
-			$shipment->setField('DEDUCTED', $needShip? 'N' : 'Y');
+			$shipment->setFieldNoDemand('DEDUCTED', $needShip? 'N' : 'Y');
 		}
 
 		if (!empty($result)
@@ -1090,9 +1114,11 @@ abstract class ProviderBase
 	/**
 	 * @param Basket $basketCollection
 	 * @param array $select
-	 * @param BasketItem $refreshItem
+	 * @param BasketItem|null $refreshItem
+	 *
 	 * @return array
 	 * @throws NotSupportedException
+	 * @throws ObjectNotFoundException
 	 */
 	public static function getProductData(Basket $basketCollection, array $select = array(), BasketItem $refreshItem = null)
 	{
@@ -1294,6 +1320,7 @@ abstract class ProviderBase
 	 * @return Result
 	 * @throws NotSupportedException
 	 * @throws ObjectNotFoundException
+	 * @throws \Bitrix\Main\ArgumentOutOfRangeException
 	 */
 	public static function tryShipment(Shipment $shipment)
 	{
@@ -1432,7 +1459,7 @@ abstract class ProviderBase
 							$resultList[$bundleParentBasketCode] = new Result();
 						}
 
-						$resultList[$bundleParentBasketCode]->addError(new ResultError('Bundle child item not found'));
+						$resultList[$bundleParentBasketCode]->addError(new ResultError('Bundle child item not found', 'SALE_PROVIDER_SHIPMENT_SHIPPED_BUNDLE_CHILD_ITEM_NOT_FOUND'));
 					}
 
 				}
@@ -1502,6 +1529,7 @@ abstract class ProviderBase
 
 	/**
 	 * @param ShipmentItemCollection $shipmentItemCollection
+	 *
 	 * @return array
 	 */
 	protected static function getBundleIndexFromShipmentItemCollection(ShipmentItemCollection $shipmentItemCollection)
@@ -1534,8 +1562,10 @@ abstract class ProviderBase
 
 		return $bundleIndexList;
 	}
+
 	/**
-	 * @param \Bitrix\Sale\ShipmentItemCollection $shipmentItemCollection
+	 * @param ShipmentItemCollection $shipmentItemCollection
+	 *
 	 * @return array
 	 */
 	protected static function getBasketFromShipmentItemCollection(ShipmentItemCollection $shipmentItemCollection)
@@ -1664,8 +1694,8 @@ abstract class ProviderBase
 
 	/**
 	 * @param ShipmentItemCollection $shipmentItemCollection
-	 * @return array
-	 * @throws SystemException
+	 *
+	 * @return Result
 	 */
 	protected static function getStoreDataFromShipmentItemCollection(ShipmentItemCollection $shipmentItemCollection)
 	{
@@ -1733,7 +1763,8 @@ abstract class ProviderBase
 
 	/**
 	 * @param Basket $basketCollection
-	 * @param BasketItem $refreshItem
+	 * @param BasketItem|null $refreshItem
+	 *
 	 * @return array
 	 */
 	protected static function makeArrayFromBasketCollection(Basket $basketCollection, BasketItem $refreshItem = null)
@@ -1784,6 +1815,12 @@ abstract class ProviderBase
 		return $basketList;
 	}
 
+	/**
+	 * @param Shipment $shipment
+	 *
+	 * @return Result
+	 * @throws ObjectNotFoundException
+	 */
 	public static function tryReserveShipment(Shipment $shipment)
 	{
 		$result = new Result();
@@ -1801,6 +1838,10 @@ abstract class ProviderBase
 				if (!$r->isSuccess())
 				{
 					$result->addErrors($r->getErrors());
+				}
+				elseif ($r->hasWarnings())
+				{
+					$result->addWarnings($r->getWarnings());
 				}
 			}
 			catch(\Exception $e)
@@ -1837,6 +1878,18 @@ abstract class ProviderBase
 			throw new ObjectNotFoundException('Entity "ShipmentItemCollection" not found');
 		}
 
+		/** @var ShipmentCollection $shipmentCollection */
+		if (!($shipmentCollection = $shipment->getCollection()))
+		{
+			throw new ObjectNotFoundException('Entity "ShipmentCollection" not found');
+		}
+
+		/** @var Order $order */
+		if (!($order = $shipmentCollection->getOrder()))
+		{
+			throw new ObjectNotFoundException('Entity "Order" not found');
+		}
+
 		/** @var ShipmentItem $shipmentItem */
 		foreach ($shipmentItemCollection as $shipmentItem)
 		{
@@ -1845,6 +1898,15 @@ abstract class ProviderBase
 			if (!$r->isSuccess())
 			{
 				$result->addErrors($r->getErrors());
+				EntityMarker::addMarker($order, $shipment, $r);
+				if (!$shipment->isSystem())
+				{
+					$shipment->setField('MARKED', 'Y');
+				}
+			}
+			elseif ($r->hasWarnings())
+			{
+				$result->addWarnings($r->getWarnings());
 			}
 		}
 
@@ -1911,6 +1973,16 @@ abstract class ProviderBase
 
 		/** @var Result $r */
 		$r = static::tryReserveBasketItem($basketItem, $needQuantity);
+		if (!$r->isSuccess())
+		{
+			$result->addErrors($r->getErrors());
+			return $result;
+		}
+		elseif ($r->hasWarnings())
+		{
+			$result->addWarnings($r->getWarnings());
+			return $result;
+		}
 
 		$availableQuantityData = $r->getData();
 		if (array_key_exists('AVAILABLE_QUANTITY', $availableQuantityData))
@@ -1919,7 +1991,9 @@ abstract class ProviderBase
 		}
 		else
 		{
-			$result->addError( new ResultError(Loc::getMessage('PROVIDER_RESERVE_SHIPMENT_ITEM_WRONG_AVAILABLE_QUANTITY'), 'PROVIDER_RESERVE_SHIPMENT_ITEM_WRONG_AVAILABLE_QUANTITY') );
+			$result->addWarning( new ResultWarning(Loc::getMessage('SALE_PROVIDER_RESERVE_SHIPMENT_ITEM_WRONG_AVAILABLE_QUANTITY', array(
+				'#PRODUCT_NAME#' => $basketItem->getField('NAME')
+			)), 'SALE_PROVIDER_RESERVE_SHIPMENT_ITEM_WRONG_AVAILABLE_QUANTITY') );
 			return $result;
 		}
 
@@ -1932,18 +2006,15 @@ abstract class ProviderBase
 		{
 			$canReserve = $availableQuantityData['QUANTITY_TRACE'];
 		}
-		if (!$r->isSuccess())
-		{
-			$result->addErrors($r->getErrors());
-//			return $result;
-		}
 
 		if ($canReserve)
 		{
 			if ($r->isSuccess() && ($needQuantity > 0) && ($needQuantity > $availableQuantity)
 				/*|| ($needReserved < 0) && ($availableQuantity < $needReserved) */)
 			{
-				$result->addError(new ResultError(Loc::getMessage("SALE_PROVIDER_RESERVE_SHIPMENT_ITEM_QUANTITY_NOT_ENOUGH"), "SALE_PROVIDER_RESERVE_SHIPMENT_ITEM_QUANTITY_NOT_ENOUGH"));
+				$result->addWarning(new ResultWarning(Loc::getMessage("SALE_PROVIDER_RESERVE_SHIPMENT_ITEM_QUANTITY_NOT_ENOUGH", array(
+					'#PRODUCT_NAME#' => $basketItem->getField('NAME')
+				)), "SALE_PROVIDER_RESERVE_SHIPMENT_ITEM_QUANTITY_NOT_ENOUGH"));
 				return $result;
 			}
 
@@ -1977,7 +2048,7 @@ abstract class ProviderBase
 
 	/**
 	 * @param ShipmentItem $shipmentItem
-	 * @return float|int|null
+	 * @return Result
 	 * @throws NotSupportedException
 	 * @throws SystemException
 	 */
@@ -2036,6 +2107,11 @@ abstract class ProviderBase
 		$r = static::tryReserveBasketItem($basketItem, -1 * $quantity);
 		if ($r->isSuccess())
 		{
+			if ($r->hasWarnings())
+			{
+				$result->addWarnings($r->getWarnings());
+			}
+
 			$availableQuantityData = $r->getData();
 			if (array_key_exists('AVAILABLE_QUANTITY', $availableQuantityData))
 			{
@@ -2100,7 +2176,7 @@ abstract class ProviderBase
 	/**
 	 * @param BasketItem $basketItem
 	 * @param $quantity
-	 * @return float|int|null
+	 * @return Result
 	 * @throws NotSupportedException
 	 */
 	protected static function tryReserveBasketItem(BasketItem $basketItem, $quantity)
@@ -2146,9 +2222,9 @@ abstract class ProviderBase
 			}
 			else
 			{
-				$result->addError(new ResultWarning(Loc::getMessage('SALE_PROVIDER_BASKET_ITEM_WRONG_AVAILABLE_QUANTITY', array(
+				$result->addWarning(new ResultWarning(Loc::getMessage('SALE_PROVIDER_BASKET_ITEM_WRONG_AVAILABLE_QUANTITY', array(
 					'#PRODUCT_NAME#' => $basketItem->getField('NAME')
-				)), 'SALE_PROVIDER_BASKET_ITEM_WRONG_AVAILABLE_QUANTITY'));
+				)), 'PROVIDER_BASKET_ITEM_WRONG_AVAILABLE_QUANTITY'));
 				return $result;
 			}
 
@@ -2160,6 +2236,10 @@ abstract class ProviderBase
 			if (!$r->isSuccess())
 			{
 				$result->addErrors($r->getErrors());
+			}
+			elseif ($r->hasWarnings())
+			{
+				$result->addWarnings($r->getWarnings());
 			}
 
 			$availableQuantity -= floatval($poolQuantity);
@@ -2264,6 +2344,8 @@ abstract class ProviderBase
 								throw new ObjectNotFoundException('Entity "ShipmentCollection" not found');
 							}
 
+							$result->addWarning(new ResultWarning($ex->GetString(), $ex->GetID()));
+
 							/** @var Shipment $shipment */
 							foreach ($shipmentCollection as $shipment)
 							{
@@ -2275,23 +2357,16 @@ abstract class ProviderBase
 
 								if($shipmentItemCollection->getItemByBasketCode($basketItem->getBasketCode()))
 								{
+									EntityMarker::addMarker($order, $shipment, $result);
 									if (!$shipment->isSystem())
 									{
 										$shipment->setField('MARKED', 'Y');
-										$oldErrorText = $shipment->getField('REASON_MARKED');
-										$shipment->setField('REASON_MARKED', $oldErrorText.(strval($oldErrorText) != '' ? "\n" : ""). $ex->GetString());
 									}
-									else
-									{
-										$order->setField('MARKED', 'Y');
-										$oldErrorText = $order->getField('REASON_MARKED');
-										$order->setField('REASON_MARKED', $oldErrorText.(strval($oldErrorText) != '' ? "\n" : ""). $ex->GetString());
-									}
-
 								}
 							}
 						}
 					}
+
 					return $result;
 				}
 				else
@@ -2323,17 +2398,12 @@ abstract class ProviderBase
 
 								if($shipmentItemCollection->getItemByBasketCode($basketItem->getBasketCode()))
 								{
+									$result->addWarning(new ResultWarning($ex->GetString(), $ex->GetID()));
+									
+									EntityMarker::addMarker($order, $shipment, $result);
 									if (!$shipment->isSystem())
 									{
 										$shipment->setField('MARKED', 'Y');
-										$oldErrorText = $shipment->getField('REASON_MARKED');
-										$shipment->setField('REASON_MARKED', $oldErrorText.(strval($oldErrorText) != '' ? "\n" : ""). $ex->GetString());
-									}
-									else
-									{
-										$order->setField('MARKED', 'Y');
-										$oldErrorText = $order->getField('REASON_MARKED');
-										$order->setField('REASON_MARKED', $oldErrorText.(strval($oldErrorText) != '' ? "\n" : ""). $ex->GetString());
 									}
 								}
 							}
@@ -2462,9 +2532,14 @@ abstract class ProviderBase
 
 								if($shipmentItemCollection->getItemByBasketCode($basketItem->getBasketCode()))
 								{
-									$shipment->setField('MARKED', 'Y');
-									$oldErrorText = $shipment->getField('REASON_MARKED');
-									$shipment->setField('REASON_MARKED', $oldErrorText.(strval($oldErrorText) != '' ? "\n" : ""). $ex->GetString());
+									$r = new Result();
+									$r->addError(new ResultError($ex->GetString(), $ex->GetID()));
+
+									EntityMarker::addMarker($order, $shipment, $r);
+									if (!$shipment->isSystem())
+									{
+										$shipment->setField('MARKED', 'Y');
+									}
 
 								}
 							}
@@ -3211,7 +3286,7 @@ abstract class ProviderBase
 					$resultProductData = $provider::GetProductData($data);
 					if ($ex = $APPLICATION->GetException())
 					{
-						$result->addError( new ResultWarning($ex->GetString(), $ex->GetID()) );
+						$result->addWarning( new ResultWarning($ex->GetString(), $ex->GetID()) );
 					}
 				}
 
@@ -3228,7 +3303,7 @@ abstract class ProviderBase
 
 				if ($ex = $APPLICATION->GetException())
 				{
-					$result->addError( new ResultWarning($ex->GetString(), $ex->GetID()) );
+					$result->addWarning( new ResultWarning($ex->GetString(), $ex->GetID()) );
 				}
 			}
 		}
@@ -3746,6 +3821,136 @@ abstract class ProviderBase
 			static::$trustData = array();
 		}
 
+	}
+
+	/**
+	 * @param Order $order
+	 *
+	 * @throws ObjectNotFoundException
+	 */
+	protected static function refreshMarkers(Order $order)
+	{
+		if ($order->getId() == 0)
+		{
+			return;
+		}
+
+		if (!$shipmentCollection = $order->getShipmentCollection())
+		{
+			throw new ObjectNotFoundException('Entity "ShipmentCollection" not found');
+		}
+
+		if (!$paymentCollection = $order->getPaymentCollection())
+		{
+			throw new ObjectNotFoundException('Entity "PaymentCollection" not found');
+		}
+
+		if (!$basket = $order->getBasket())
+		{
+			throw new ObjectNotFoundException('Entity "Basket" not found');
+		}
+
+		$markList = array();
+
+		$markerEntityList = array();
+
+		$filter = array(
+			'filter' => array(
+				'=ORDER_ID' => $order->getId(),
+				'!=SUCCESS' => EntityMarker::ENTITY_SUCCESS_CODE_DONE
+			),
+			'select' => array('ID', 'ENTITY_TYPE', 'ENTITY_ID', 'CODE', 'SUCCESS'),
+			'order' => array('ID' => 'DESC')
+		);
+		$res = EntityMarker::getList($filter);
+		while($markerData = $res->fetch())
+		{
+			if (!empty($markList[$markerData['ENTITY_TYPE']])
+				&& !empty($markList[$markerData['ENTITY_TYPE']][$markerData['ENTITY_ID']])
+				&& $markerData['CODE'] == $markList[$markerData['ENTITY_TYPE']][$markerData['ENTITY_ID']]
+			)
+			{
+				continue;
+			}
+
+			if ($markerData['SUCCESS'] != EntityMarker::ENTITY_SUCCESS_CODE_DONE)
+			{
+				$markList[$markerData['ENTITY_TYPE']][$markerData['ENTITY_ID']][] = $markerData['CODE'];
+			}
+			
+			if ($poolItemSuccess = EntityMarker::getPoolItemSuccess($order, $markerData['ID'], $markerData['ENTITY_TYPE'], $markerData['ENTITY_ID'], $markerData['CODE']))
+			{
+				if ($poolItemSuccess == EntityMarker::ENTITY_SUCCESS_CODE_DONE)
+				{
+					foreach ($markList[$markerData['ENTITY_TYPE']][$markerData['ENTITY_ID']] as $markerIndex => $markerCode)
+					{
+						if ($markerData['CODE'] == $markerCode)
+						{
+							unset($markList[$markerData['ENTITY_TYPE']][$markerData['ENTITY_ID']][$markerIndex]);
+						}
+					}
+
+					if (empty($markList[$markerData['ENTITY_TYPE']][$markerData['ENTITY_ID']]))
+					{
+						unset($markList[$markerData['ENTITY_TYPE']][$markerData['ENTITY_ID']]);
+					}
+				}
+			}
+
+			if (empty($markList[$markerData['ENTITY_TYPE']]))
+			{
+				unset($markList[$markerData['ENTITY_TYPE']]);
+			}
+		}
+
+		if (!empty($markList))
+		{
+			foreach ($markList as $markEntityType => $markEntityList)
+			{
+				foreach ($markEntityList as $markEntityId => $markEntityCodeList)
+				{
+					if (empty($markEntityCodeList))
+					{
+						if (($entity = EntityMarker::getEntity($order, $markEntityType, $markEntityId)) && ($entity instanceof \IEntityMarker))
+						{
+							if ($entity->canMarked())
+							{
+								$markedField = $entity->getMarkField();
+								$entity->setField($markedField, 'N');
+							}
+						}
+					}
+				}
+			}
+		}
+
+		if (empty($markList) && !EntityMarker::hasErrors($order))
+		{
+			if ($shipmentCollection->isMarked())
+			{
+				/** @var Shipment $shipment */
+				foreach ($shipmentCollection as $shipment)
+				{
+					if ($shipment->isMarked())
+					{
+						$shipment->setField('MARKED', 'N');
+					}
+				}
+			}
+			if ($paymentCollection->isMarked())
+			{
+				/** @var Payment $payment */
+				foreach ($paymentCollection as $payment)
+				{
+					if ($payment->isMarked())
+					{
+						$payment->setField('MARKED', 'N');
+					}
+				}
+			}
+
+			$order->setField('MARKED', 'N');
+		}
 	}
 
 	/**

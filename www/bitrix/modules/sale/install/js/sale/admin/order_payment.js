@@ -462,6 +462,18 @@ BX.Sale.Admin.OrderPayment.prototype.showReturnWindow = function(action)
 									this.changeNotPaidStatus('NO');
 									this.initNotPaidPopup();
 									BX.Sale.Admin.OrderEditPage.callFieldsUpdaters(result.RESULT);
+
+									if(typeof result.MARKERS != 'undefined')
+									{
+										var node = BX('sale-adm-order-problem-block');
+										if(node)
+											node.innerHTML = result.MARKERS;
+									}
+
+									if (result.WARNING && result.WARNING.length > 0)
+									{
+										BX.Sale.Admin.OrderEditPage.showDialog(result.WARNING);
+									}
 								}
 							}, this)
 						};
@@ -508,6 +520,18 @@ BX.Sale.Admin.OrderPayment.prototype.showReturnWindow = function(action)
 									this.changeNotPaidStatus('NO');
 									this.initNotPaidPopup();
 									BX.Sale.Admin.OrderEditPage.callFieldsUpdaters(result.RESULT);
+
+									if(typeof result.MARKERS != 'undefined')
+									{
+										var node = BX('sale-adm-order-problem-block');
+										if(node)
+											node.innerHTML = result.MARKERS;
+									}
+
+									if (result.WARNING && result.WARNING.length > 0)
+									{
+										BX.Sale.Admin.OrderEditPage.showDialog(result.WARNING);
+									}
 								}
 							}, this)
 						};
@@ -599,6 +623,18 @@ BX.Sale.Admin.OrderPayment.prototype.showWindowPaidPayment = function()
 									this.changePaidStatus('YES');
 									this.initPaidPopup();
 									BX.Sale.Admin.OrderEditPage.callFieldsUpdaters(result.RESULT);
+
+									if(typeof result.MARKERS != 'undefined')
+									{
+										var node = BX('sale-adm-order-problem-block');
+										if(node)
+											node.innerHTML = result.MARKERS;
+									}
+
+									if (result.WARNING && result.WARNING.length > 0)
+									{
+										BX.Sale.Admin.OrderEditPage.showDialog(result.WARNING);
+									}
 								}
 							}, this)
 						};
@@ -880,6 +916,107 @@ BX.Sale.Admin.OrderPayment.prototype.getCreateOrderFieldsUpdaters = function()
 	return {
 		"PRICE": BX.Sale.Admin.OrderPayment.prototype.setPrice
 	};
+};
+
+BX.Sale.Admin.OrderPayment.prototype.showCreateCheckWindow = function(paymentId)
+{
+	ShowWaitWindow();
+	var request = {
+		'action': 'addCheckPayment',
+		'paymentId': paymentId,
+		'callback' : BX.proxy(function(result)
+		{
+			CloseWaitWindow();
+			if (result.ERROR && result.ERROR.length > 0)
+			{
+				BX.Sale.Admin.OrderEditPage.showDialog(result.ERROR);
+			}
+			else
+			{
+				var text = result.HTML;
+
+				var dlg = new BX.CAdminDialog({
+					'content': text,
+					'title': BX.message('PAYMENT_CASHBOX_CHECK_ADD_WINDOW_TITLE'),
+					'resizable': false,
+					'draggable': false,
+					'height': '200',
+					'width': '516',
+					'buttons': [
+						{
+							title: top.BX.message('JS_CORE_WINDOW_SAVE'),
+							id: 'saveCheckBtn',
+							name: 'savebtn',
+							className: top.BX.browser.IsIE() && top.BX.browser.IsDoctype() && !top.BX.browser.IsIE10() ? '' : 'adm-btn-save'
+						},
+						{
+							title: top.BX.message('JS_CORE_WINDOW_CANCEL'),
+							id: 'cancelCheckBtn',
+							name: 'cancel'
+						}
+					]
+				});
+				dlg.Show();
+
+				BX.bind(BX("cancelCheckBtn"), 'click', BX.delegate(
+					function()
+					{
+						dlg.Close();
+						dlg.DIV.parentNode.removeChild(dlg.DIV);
+					}
+				),this );
+
+				BX.bind(BX("saveCheckBtn"), 'click', BX.delegate(
+					function()
+					{
+						ShowWaitWindow();
+						var paymentId = BX('checkPaymentId').value;
+						var subRequest = {
+							typeId : BX('checkTypeSelect').value,
+							shipmentId : BX('checkShipmentSelect').value,
+							orderId : BX('checkOrderId').value,
+							paymentId : paymentId,
+							action: 'saveCheck',
+							sessid: BX.bitrix_sessid()
+						};
+
+						BX.ajax(
+						{
+							method: 'post',
+							dataType: 'json',
+							url: '/bitrix/admin/sale_order_ajax.php',
+							data: subRequest,
+							onsuccess: function(saveResult)
+							{
+								CloseWaitWindow();
+								if (saveResult.ERROR && saveResult.ERROR.length > 0)
+								{
+									BX.Sale.Admin.OrderEditPage.showDialog(saveResult.ERROR);
+								}
+								else 
+								{
+									BX('PAYMENT_CHECK_LIST_ID_' + paymentId).innerHTML = saveResult.CHECK_LIST_HTML;
+									if (BX('PAYMENT_CHECK_LIST_ID_SHORT_VIEW' + paymentId) !== undefined && BX('PAYMENT_CHECK_LIST_ID_SHORT_VIEW' + paymentId) !== null)
+									{
+										BX('PAYMENT_CHECK_LIST_ID_SHORT_VIEW' + paymentId).innerHTML = saveResult.CHECK_LIST_HTML;
+									}
+
+									dlg.Close();
+									dlg.DIV.parentNode.removeChild(dlg.DIV);
+								}
+							},
+							onfailure: function(data)
+							{
+								CloseWaitWindow();
+							}
+						});
+					}
+				),this);
+			}
+		}, this)
+	};
+
+	BX.Sale.Admin.OrderAjaxer.sendRequest(request, true);
 };
 
 BX.namespace("BX.Sale.Admin.GeneralPayment");

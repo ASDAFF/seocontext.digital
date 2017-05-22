@@ -4,7 +4,9 @@ namespace Bitrix\Sale\Delivery\Restrictions;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Sale\Internals\CollectableEntity;
 use Bitrix\Sale\Internals\DeliveryPaySystemTable;
+use Bitrix\Sale\Internals\Entity;
 use Bitrix\Sale\Internals\PaySystemInner;
+use Bitrix\Sale\Order;
 use Bitrix\Sale\PaySystem;
 
 Loc::loadMessages(__FILE__);
@@ -46,15 +48,26 @@ class ByPaySystem extends Base
 		return empty($diff);
 	}
 
-	protected static function extractParams(CollectableEntity $shipment)
+	protected static function extractParams(Entity $entity)
 	{
 		$result = array();
 
-		/** @var \Bitrix\Sale\ShipmentCollection $collection */
-		$collection = $shipment->getCollection();
+		if ($entity instanceof CollectableEntity)
+		{
+			/** @var \Bitrix\Sale\ShipmentCollection $collection */
+			$collection = $entity->getCollection();
 
-		/** @var \Bitrix\Sale\Order $order */
-		$order = $collection->getOrder();
+			/** @var \Bitrix\Sale\Order $order */
+			$order = $collection->getOrder();
+		}
+		elseif ($entity instanceof Order)
+		{
+			/** @var \Bitrix\Sale\Order $order */
+			$order = $entity;
+		}
+
+		if (!$order)
+			return $result;
 
 		/** @var \Bitrix\Sale\Payment $payment */
 		foreach($order->getPaymentCollection() as $payment)

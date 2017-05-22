@@ -18,7 +18,7 @@ Loc::loadMessages(__FILE__);
 class Basket
 	extends BasketBase
 {
-	/** @var null|int */
+	/** @var null|array */
 	private $bundleIndex = null;
 
 	/** @var bool */
@@ -61,14 +61,7 @@ class Basket
 		foreach($this as $originalItem)
 		{
 			$item = $basket->createItem($originalItem->getField("MODULE"), $originalItem->getProductId());
-			$item->setFields(
-				array_intersect_key(
-					$originalItem->getFields()->getValues(),
-					array_flip(
-						$item->getSettableFields()
-					)
-				)
-			);
+			$item->initFields($originalItem->getFields()->getValues());
 		}
 
 		return $basket;
@@ -76,7 +69,7 @@ class Basket
 
 	/**
 	 * @param $siteId
-	 * @return static
+	 * @return Basket
 	 */
 	public static function create($siteId)
 	{
@@ -109,7 +102,7 @@ class Basket
 	 * @internal
 	 *
 	 * @param Internals\CollectableEntity $basketItem
-	 * @return bool
+	 * @return void
 	 */
 	public function addItem(Internals\CollectableEntity $basketItem)
 	{
@@ -123,7 +116,6 @@ class Basket
 		{
 			$order->onBasketModify(EventActions::ADD, $basketItem);
 		}
-
 	}
 
 	/**
@@ -138,6 +130,7 @@ class Basket
 	 */
 	public function onItemModify(Internals\CollectableEntity $item, $name = null, $oldValue = null, $value = null)
 	{
+		/** @var \Bitrix\Sale\BasketItem $item */
 		$result = new Result();
 		if ($name == "QUANTITY")
 		{
@@ -157,7 +150,6 @@ class Basket
 			}
 			else
 			{
-
 				if ($item->getField('SUBSCRIBE') === 'Y')
 				{
 					$availableQuantity = $value;
@@ -184,8 +176,8 @@ class Basket
 			$checkQuantity = $oldValue + $availableQuantity;
 
 			if ($value != 0
-				&& (($deltaQuantity > 0) && ($checkQuantity < $value)   // plus
-				|| ($deltaQuantity < 0) && ($checkQuantity > $value)))   // minus
+				&& (($deltaQuantity > 0) && (roundEx($checkQuantity, SALE_VALUE_PRECISION) < roundEx($value, SALE_VALUE_PRECISION))   // plus
+				|| ($deltaQuantity < 0) && (roundEx($checkQuantity, SALE_VALUE_PRECISION) > roundEx($value, SALE_VALUE_PRECISION))))   // minus
 			{
 				$mess = ($deltaQuantity > 0) ? Loc::getMessage('SALE_BASKET_AVAILABLE_FOR_PURCHASE_QUANTITY',
 																array(
@@ -205,7 +197,7 @@ class Basket
 
 			if (!$this->getOrder() || $this->getOrder()->getId() == 0)
 			{
-				if ($item->getField("CUSTOM_PRICE") != "Y" && !$item->isBundleChild())
+				if ($item->getField("CUSTOM_PRICE") != "Y" && !$item->isBundleChild() && $value > 0)
 				{
 					$r = static::refreshData(array("PRICE"), $item);
 					if (!$r->isSuccess())
@@ -215,8 +207,6 @@ class Basket
 					}
 				}
 			}
-
-
 
 			if ($deltaQuantity != 0 && $item->isBundleParent())
 			{
@@ -357,6 +347,9 @@ class Basket
 				{
 					if ($item)
 					{
+						if ($k == "NAME" && $item->getField('NAME') != '')
+							continue;
+
 						if ($k == "PRICE" && $item->isCustomPrice())
 						{
 							$v = $item->getPrice();
@@ -415,6 +408,11 @@ class Basket
 				$discount->setBasketItemData($key, $value);
 
 			$isBundleParent = (bool)($item && $item->isBundleParent());
+
+			if (empty($value1))
+			{
+				$value1['CAN_BUY'] = 'N';
+			}
 
 			/** @var Result $r */
 			$r = $item->setFields($value1);
@@ -501,7 +499,6 @@ class Basket
 				$result->addErrors($r->getErrors());
 			}
 		}
-
 		return $result;
 	}
 
@@ -567,12 +564,11 @@ class Basket
 		$basket = static::create($siteId);
 
 		$basket->setFUserId($fUserId);
-		$basket->setSiteId($siteId);
 
 		$basket->loadForFUserId = true;
 
 		/** @var Basket $collection */
-		return $basket->loadFromDB(array(
+		return $basket->loadFromDb(array(
 										"FUSER_ID" => $fUserId,
 										"=LID" => $siteId,
 										"ORDER_ID" => null
@@ -581,7 +577,7 @@ class Basket
 
 	/**
 	 * @param BasketItemBase $basketItem
-	 * @return bool
+	 * @return Basket
 	 */
 	public static function loadBundleChild(BasketItemBase $basketItem)
 	{
@@ -601,7 +597,7 @@ class Basket
 				}
 			}
 
-			return $collection->loadFromDB(array(
+			return $collection->loadFromDb(array(
 											"SET_PARENT_ID" => $basketItem->getId(),
 											"TYPE" => false
 										));
@@ -613,7 +609,8 @@ class Basket
 
 	/**
 	 * @param array $filter
-	 * @return Basket|static
+	 *
+	 * @return Basket
 	 */
 	protected function loadFromDb(array $filter)
 	{
@@ -888,7 +885,7 @@ class Basket
 
 		$isNew = ($order && $order->isNew()) ? true : false;
 
-		if ($order && !$isNew)
+		if ($order && !$isNew && $order->getId() > 0)
 		{
 			$filter['ORDER_ID'] = $order->getId();
 		}
@@ -1067,6 +1064,12 @@ class Basket
 							'PRODUCT_ID' => $v['PRODUCT_ID'],
 						)
 					);
+
+					EntityMarker::deleteByFilter(array(
+						 '=ORDER_ID' => $order->getId(),
+						 '=ENTITY_TYPE' => EntityMarker::ENTITY_TYPE_BASKET_ITEM,
+						 '=ENTITY_ID' => $k,
+					 ));
 				}
 
 			}
@@ -1370,7 +1373,7 @@ class Basket
 	public static function deleteOld($days)
 	{
 		$expired = new Main\Type\DateTime();
-		$expired->add('-'.$days.'days');
+		$expired->add('-'.$days.' days');
 		$expiredValue = $expired->format('Y-m-d H:i:s');
 
 		/** @var Main\DB\Connection $connection */
@@ -1467,23 +1470,26 @@ class Basket
 		static::deleteOld($days);
 
 		Fuser::deleteOld($days);
+		$speed = intval($speed);
+		$result = "\\Bitrix\\Sale\\Basket::deleteOldAgent(".intval(Main\Config\Option::get("sale", "delete_after", "30")).");";
 
-		global $pPERIOD;
-		if(intval($speed) > 0)
-			$pPERIOD = $speed;
-		else
-			$pPERIOD = 3*60*60;
+		if ($speed > 0)
+		{
+			\CAgent::AddAgent($result, "sale", "N", $speed, "", "Y");
+			$result = "";
+		}
 
 		if (isset($tmpUser))
 		{
 			unset($GLOBALS["USER"]);
 		}
 
-		return "\\Bitrix\\Sale\\Basket::deleteOldAgent(".intval(Main\Config\Option::get("sale", "delete_after", "30")).", ".IntVal($speed).");";
+		return $result;
 	}
 
 	/**
 	 * @return Result
+	 * @throws Main\ObjectNotFoundException
 	 */
 	public function verify()
 	{
@@ -1496,6 +1502,13 @@ class Basket
 			if (!$r->isSuccess())
 			{
 				$result->addErrors($r->getErrors());
+
+				/** @var Order $order */
+				if ($order = $this->getOrder())
+				{
+					EntityMarker::addMarker($order, $basketItem, $r);
+					$order->setField('MARKED', 'Y');
+				}
 			}
 		}
 		return $result;

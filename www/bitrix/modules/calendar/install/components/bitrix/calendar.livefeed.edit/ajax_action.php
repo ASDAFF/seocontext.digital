@@ -64,14 +64,16 @@ if (check_bitrix_sessid() && CModule::IncludeModule("calendar"))
 
 			foreach($users as $user)
 			{
+				$userSettings = CCalendarUserSettings::Get($user['USER_ID']);
 				$userIds[] = $user['USER_ID'];
 				$result['entries'][] = array(
-						'type' => 'user',
-						'id' => $user['USER_ID'],
-						'name' => CCalendar::GetUserName($user),
-						'status' => $user['USER_ID'] == $curUserId ? 'h' : '',
-						'url' => CCalendar::GetUserUrl($user['USER_ID']),
-						'avatar' => CCalendar::GetUserAvatarSrc($user)
+					'type' => 'user',
+					'id' => $user['USER_ID'],
+					'name' => CCalendar::GetUserName($user),
+					'status' => $user['USER_ID'] == $curUserId ? 'h' : '',
+					'url' => CCalendar::GetUserUrl($user['USER_ID']),
+					'avatar' => CCalendar::GetUserAvatarSrc($user),
+					'strictStatus' => $userSettings['denyBusyInvitation']
 				);
 			}
 		}

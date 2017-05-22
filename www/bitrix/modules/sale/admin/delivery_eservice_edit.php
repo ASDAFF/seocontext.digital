@@ -243,7 +243,7 @@ $manager = new ExtraServices\Manager(array($fields), $deliveryService->getCurren
 			</select>
 		<?else:?>
 			<input type="text" name="CLASS_NAME_DISABLED" value="<?=$fields["CLASS_NAME"]::getClassTitle()?>" readonly>
-			<input type="hidden" name="CLASS_NAME" value="<?=$fields["CLASS_NAME"]?>">
+			<input type="hidden" name="CLASS_NAME" value="<?=htmlspecialcharsbx($fields["CLASS_NAME"])?>">
 		<?endif;?>
 	</td>
 </tr>

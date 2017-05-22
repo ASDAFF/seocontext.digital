@@ -1,6 +1,8 @@
 <?
-use Bitrix\Main\Loader,
+use Bitrix\Main,
+	Bitrix\Main\Loader,
 	Bitrix\Main\Localization\Loc,
+	Bitrix\Main\EventResult,
 	Bitrix\Sale;
 
 if (!Loader::includeModule('catalog'))
@@ -98,25 +100,19 @@ class CSaleBasketFilter
 
 class CSaleCondCtrl extends CGlobalCondCtrl
 {
-	public static function GetClassName()
-	{
-		return __CLASS__;
-	}
 }
 
 class CSaleCondCtrlComplex extends CGlobalCondCtrlComplex
 {
-	public static function GetClassName()
-	{
-		return __CLASS__;
-	}
 }
 
 class CSaleCondCtrlGroup extends CGlobalCondCtrlGroup
 {
-	public static function GetClassName()
+	public static function GetControlDescr()
 	{
-		return __CLASS__;
+		$description = parent::GetControlDescr();
+		$description['SORT'] = 100;
+		return $description;
 	}
 
 	public static function GetShowIn($arControls)
@@ -130,11 +126,11 @@ class CSaleCondCtrlBasketGroup extends CSaleCondCtrlGroup
 	public static function GetControlID()
 	{
 		return array(
+			'CondBsktSubGroup',
 			'CondBsktCntGroup',
 			'CondBsktAmtGroup',
 			'CondBsktProductGroup',
-			'CondBsktRowGroup',
-			'CondBsktSubGroup'
+			'CondBsktRowGroup'
 		);
 	}
 
@@ -145,7 +141,8 @@ class CSaleCondCtrlBasketGroup extends CSaleCondCtrlGroup
 		if (empty($controls) || !is_array($controls))
 			return false;
 		$result = array();
-		foreach ($controls as &$controlId)
+		$sort = 200;
+		foreach ($controls as $controlId)
 		{
 			$result[] = array(
 				'ID' => $controlId,
@@ -156,10 +153,12 @@ class CSaleCondCtrlBasketGroup extends CSaleCondCtrlGroup
 				'Parse' => array($className, 'Parse'),
 				'Generate' => array($className, 'Generate'),
 				'ApplyValues' => array($className, 'ApplyValues'),
-				'InitParams' => array($className, 'InitParams')
+				'InitParams' => array($className, 'InitParams'),
+				'SORT' => $sort,
 			);
+			$sort++;
 		}
-		unset($controlId, $controls, $className);
+		unset($controlId, $sort, $controls, $className);
 		return $result;
 	}
 
@@ -1026,9 +1025,11 @@ class CSaleCondCtrlBasketGroup extends CSaleCondCtrlGroup
 
 class CSaleCondCtrlBasketFields extends CSaleCondCtrlComplex
 {
-	public static function GetClassName()
+	public static function GetControlDescr()
 	{
-		return __CLASS__;
+		$description = parent::GetControlDescr();
+		$description['SORT'] = 300;
+		return $description;
 	}
 
 	public static function GetControlShow($arParams)
@@ -1178,7 +1179,7 @@ class CSaleCondCtrlBasketFields extends CSaleCondCtrlComplex
 				'LOGIC' => static::GetLogic(array(BT_COND_LOGIC_EQ, BT_COND_LOGIC_NOT_EQ)),
 				'JS_VALUE' => array(
 					'type' => 'dialog',
-					'popup_url' =>  '/bitrix/admin/cat_product_search_dialog.php',
+					'popup_url' =>  '/bitrix/tools/sale/product_search_dialog.php',
 					'popup_params' => array(
 						'lang' => LANGUAGE_ID,
 						'caller' => 'discount_rules'
@@ -1320,9 +1321,11 @@ class CSaleCondCtrlBasketFields extends CSaleCondCtrlComplex
 
 class CSaleCondCtrlOrderFields extends CSaleCondCtrlComplex
 {
-	public static function GetClassName()
+	public static function GetControlDescr()
 	{
-		return __CLASS__;
+		$description = parent::GetControlDescr();
+		$description['SORT'] = 300;
+		return $description;
 	}
 
 	public static function GetControlShow($arParams)
@@ -1337,7 +1340,7 @@ class CSaleCondCtrlOrderFields extends CSaleCondCtrlComplex
 		);
 		foreach ($arControls as &$arOneControl)
 		{
-			if ('CondSaleOrderSumm' == $arOneControl['ID'])
+			if ('ORDER_PRICE' == $arOneControl['FIELD'])
 			{
 				$arJSControl = array(
 					array(
@@ -1389,7 +1392,7 @@ class CSaleCondCtrlOrderFields extends CSaleCondCtrlComplex
 					)
 				);
 			}
-			if ('CondSaleOrderWeight' == $arOneControl['ID'])
+			if ('ORDER_WEIGHT' == $arOneControl['FIELD'])
 			{
 				$arOne['control'][] = Loc::getMessage('BT_MOD_SALE_COND_MESS_WEIGHT_UNIT');
 			}
@@ -1521,38 +1524,63 @@ class CSaleCondCtrlOrderFields extends CSaleCondCtrlComplex
 			if (isset(static::$arInitParams['SITE_ID']))
 				$arFilter['LID'] = static::$arInitParams['SITE_ID'];
 		}
-		$rsPersonTypes = CSalePersonType::GetList(array(), $arFilter, false, false, array('ID', 'NAME', 'LIDS'));
+		$rsPersonTypes = CSalePersonType::GetList(
+			array('SORT' => 'ASC', 'NAME' => 'ASC'),
+			$arFilter,
+			false,
+			false,
+			array('ID', 'NAME', 'LIDS', 'SORT')
+		);
 		while ($arPersonType = $rsPersonTypes->Fetch())
 		{
-			$arPersonType['ID'] = intval($arPersonType['ID']);
-			$arSalePersonTypes[$arPersonType['ID']] = $arPersonType['NAME'].'('.implode(' ', $arPersonType['LIDS']).')';
+			$id = (int)$arPersonType['ID'];
+			$arSalePersonTypes[$id] = $arPersonType['NAME'].' ('.implode(' ', $arPersonType['LIDS']).')';
+			unset($id);
 		}
+		unset($arPersonType, $rsPersonTypes);
 
 		$arSalePaySystemList = array();
 		$arFilter = array();
-		$rsPaySystems = CSalePaySystem::GetList(array(), $arFilter, false, false, array('ID', 'NAME'));
+		$rsPaySystems = CSalePaySystem::GetList(
+			array('SORT' => 'ASC', 'NAME' => 'ASC'),
+			$arFilter,
+			false,
+			false,
+			array('ID', 'NAME', 'SORT')
+		);
 		while ($arPaySystem = $rsPaySystems->Fetch())
-		{
 			$arSalePaySystemList[$arPaySystem['ID']] = $arPaySystem['NAME'];
-		}
+		unset($arPaySystem, $rsPaySystems);
 
 		$linearDeliveryList = array();
 		$deliveryList = array();
+		$groupIds = array();
+		$iterator = Sale\Delivery\Services\Table::getList(array(
+			'select' => array('ID', 'CLASS_NAME'),
+			'filter' => array('=CLASS_NAME' => '\Bitrix\Sale\Delivery\Services\Group')
+		));
+		while ($row = $iterator->fetch())
+			$groupIds[] = (int)$row['ID'];
+		unset($row, $iterator);
+
 		$deliveryIterator = Sale\Delivery\Services\Table::getList(array(
-			'select' => array('ID', 'CODE', 'NAME', 'PARENT_ID'),
-			'order' => array('PARENT_ID' => 'ASC', 'SORT' =>'ASC', 'NAME' => 'ASC')
+			'select' => array('ID', 'CODE', 'NAME', 'PARENT_ID', 'SORT', 'CLASS_NAME'),
+			'order' => array('ID' => 'ASC')
 		));
 		while ($delivery = $deliveryIterator->fetch())
 		{
+			if ($delivery['CLASS_NAME'] == '\Bitrix\Sale\Delivery\Services\Group')
+				continue;
 			$deliveryId = (int)$delivery['ID'];
 			$parentId = (int)$delivery['PARENT_ID'];
-			if ($parentId > 0)
+			if ($parentId > 0 && !in_array($parentId, $groupIds))
 			{
 				if (isset($deliveryList[$parentId]))
 				{
 					$deliveryList[$parentId]['PROFILES'][$deliveryId] = array(
 						'ID' => $deliveryId,
 						'TITLE' => $delivery['NAME'],
+						'SORT' => (int)$delivery['SORT']
 					);
 				}
 			}
@@ -1561,15 +1589,18 @@ class CSaleCondCtrlOrderFields extends CSaleCondCtrlComplex
 				$deliveryList[$deliveryId] = array(
 					'ID' => $deliveryId,
 					'TITLE' => $delivery['NAME'],
+					'SORT' => (int)$delivery['SORT'],
 					'PROFILES' => array()
 				);
 			}
 			unset($parentId, $deliveryId);
 		}
 		unset($delivery, $deliveryIterator);
+		unset($groupIds);
 		if (!empty($deliveryList))
 		{
-			foreach ($deliveryList as &$delivery)
+			Main\Type\Collection::sortByColumn($deliveryList, array('SORT' => SORT_ASC, 'TITLE' => SORT_ASC, 'ID' => SORT_ASC));
+			foreach ($deliveryList as $delivery)
 			{
 				if (empty($delivery['PROFILES']))
 				{
@@ -1577,9 +1608,11 @@ class CSaleCondCtrlOrderFields extends CSaleCondCtrlComplex
 				}
 				else
 				{
-					foreach ($delivery['PROFILES'] as $profile)
-						$linearDeliveryList[$profile['ID']] = $profile['TITLE'];
-					unset($profile);
+					$profileList = $delivery['PROFILES'];
+					Main\Type\Collection::sortByColumn($profileList, array('SORT' => SORT_ASC, 'TITLE' => SORT_ASC, 'ID' => SORT_ASC));
+					foreach ($profileList as $profile)
+						$linearDeliveryList[$profile['ID']] = $delivery['TITLE'].': '.$profile['TITLE'];
+					unset($profile, $profileList);
 				}
 			}
 			unset($delivery);
@@ -1716,11 +1749,172 @@ class CSaleCondCtrlOrderFields extends CSaleCondCtrlComplex
 	}
 }
 
+class CSaleCondCtrlPastOrder extends CSaleCondCtrlOrderFields
+{
+	public static function GetControlDescr()
+	{
+		$description = parent::GetControlDescr();
+		$description['SORT'] = 330;
+		return $description;
+	}
+
+	public static function onBuildDiscountConditionInterfaceControls()
+	{
+		return new EventResult(
+			EventResult::SUCCESS,
+			static::getControlDescr(),
+			'sale'
+		);
+	}
+
+	public static function checkPastOrder($currentOrder, $callable)
+	{
+		if(!is_callable($callable))
+		{
+			return false;
+		}
+
+		if(empty($currentOrder['USER_ID']))
+		{
+			return false;
+		}
+
+		$orderUserId = (int)$currentOrder['USER_ID'];
+		$pastOrder = static::getPastOrder($orderUserId);
+
+		if (!$pastOrder)
+		{
+			return false;
+		}
+
+		if (!$pastOrder->isPaid())
+		{
+			return false;
+		}
+
+		return call_user_func_array($callable, array(static::convertToArray($pastOrder)));
+	}
+
+	private static function convertToArray(Sale\Order $order)
+	{
+		$orderData = array(
+			'ID' => $order->getId(),
+			'USER_ID' => $order->getUserId(),
+			'SITE_ID' => $order->getSiteId(),
+			'LID' => $order->getSiteId(), // compatibility only
+			'ORDER_PRICE' => $order->getPrice(),
+			'ORDER_WEIGHT' => $order->getBasket()->getWeight(),
+			'CURRENCY' => $order->getCurrency(),
+			'PERSON_TYPE_ID' => $order->getPersonTypeId(),
+			'RECURRING_ID' => $order->getField('RECURRING_ID'),
+			'BASKET_ITEMS' => array(),
+			'PRICE_DELIVERY' => 0,
+			'PRICE_DELIVERY_DIFF' => 0,
+			'CUSTOM_PRICE_DELIVERY' => 'N',
+			'SHIPMENT_CODE' => 0,
+			'SHIPMENT_ID' => 0,
+			'ORDER_PROP' => array(),
+			'DELIVERY_ID' => array(),
+			'PAY_SYSTEM_ID' => array(),
+		);
+
+		/** @var Sale\Shipment $shipment */
+		foreach ($order->getShipmentCollection() as $shipment)
+		{
+			if (!$shipment->isShipped())
+			{
+				continue;
+			}
+
+			$orderData['DELIVERY_ID'][] = (int)$shipment->getDeliveryId();
+		}
+
+		/** @var Sale\Payment $payment */
+		foreach ($order->getPaymentCollection() as $payment)
+		{
+			if ($payment->isInner())
+			{
+				continue;
+			}
+
+			$orderData['PAY_SYSTEM_ID'][] = (int)$payment->getPaymentSystemId();
+		}
+
+		return $orderData;
+	}
+
+	private static function getPastOrder($userId)
+	{
+		$orderData = \Bitrix\Sale\Internals\OrderTable::getList(
+			array(
+				'select' => array('ID'),
+				'filter' => array(
+					'=CANCELED' => 'N',
+					'=USER_ID' => $userId
+				),
+				'order' => array('ID' => 'DESC'),
+				'limit' => 1
+
+			)
+		)->fetch();
+
+		if (empty($orderData['ID']))
+		{
+			return null;
+		}
+
+		return \Bitrix\Sale\Order::load($orderData['ID']);
+	}
+
+	public static function Generate($arOneCondition, $arParams, $arControl, $arSubs = false)
+	{
+		$code = parent::Generate($arOneCondition, $arParams, $arControl, $arSubs);
+
+		return static::GetClassName() . "::checkPastOrder({$arParams['ORDER']}, function({$arParams['ORDER']}){
+			return {$code}; 		
+		})";
+	}
+
+	public static function GetControlShow($arParams)
+	{
+		$controlShow = parent::GetControlShow($arParams);
+		$controlShow['label'] = Loc::getMessage('BT_SALE_COND_GROUP_PAST_ORDER_NAME');
+
+		return $controlShow;
+	}
+
+	public static function GetControls($strControlID = false)
+	{
+		$controls = array();
+		foreach (parent::GetControls() as $control)
+		{
+			$control['ID'] = 'Past' . $control['ID'];
+			$control['PREFIX'] = $control['PREFIX'] . Loc::getMessage("BT_SALE_COND_GROUP_PAST_ORDER_NAME_SUFFIX");
+
+			if (in_array($control['FIELD'], array('PAY_SYSTEM_ID', 'DELIVERY_ID')))
+			{
+				$control['MULTIPLE'] = 'Y';
+			}
+
+			$controls[$control['ID']] = $control;
+		}
+
+		if(!$strControlID)
+		{
+			return $controls;
+		}
+
+		return isset($controls[$strControlID])? $controls[$strControlID] : false;
+	}
+}
+
 class CSaleCondCtrlCommon extends CSaleCondCtrlComplex
 {
-	public static function GetClassName()
+	public static function GetControlDescr()
 	{
-		return __CLASS__;
+		$description = parent::GetControlDescr();
+		$description['SORT'] = 2000;
+		return $description;
 	}
 
 	public static function GetControlShow($arParams)
@@ -2073,4 +2267,3 @@ class CSaleCondTree extends CGlobalCondTree
 			$this->executeModule[$control['EXECUTE_MODULE']] = true;
 	}
 }
-?>

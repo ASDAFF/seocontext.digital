@@ -3,7 +3,6 @@ namespace Bitrix\Catalog\Helpers\Admin;
 
 use Bitrix\Main,
 	Bitrix\Iblock,
-	Bitrix\Currency,
 	Bitrix\Catalog;
 
 class IblockPriceChanger
@@ -28,7 +27,7 @@ class IblockPriceChanger
 	 * Set of parameters which was set in CAdminDialog
 	 *
 	 * @param array $userDialogParams		Dialog's parameter.
-	 * @return array
+	 * @return array|bool
 	 */
 	public function setUserDialogParams(array $userDialogParams)
 	{
@@ -69,7 +68,8 @@ class IblockPriceChanger
 	 */
 	private function collectAllSectionsElements(&$productsIdList)
 	{
-		$resultAllElementsList = \CIBlockElement::GetList(
+		/** @noinspection PhpMethodOrClassCallIsNotCaseSensitiveInspection */
+		$resultAllElementsList = \CIBlockElement::getList(
 			array(),
 			array(
 				"SECTION_ID"=>$productsIdList['SECTIONS'],
@@ -82,10 +82,12 @@ class IblockPriceChanger
 			false,
 			false,
 			array('ID'));
-		while ($subSectionsResult = $resultAllElementsList->Fetch())
+		/** @noinspection PhpMethodOrClassCallIsNotCaseSensitiveInspection */
+		while ($subSectionsResult = $resultAllElementsList->fetch())
 		{
 			$productsIdList['ELEMENTS'][] = $subSectionsResult['ID'];
 		}
+		unset($subSectionsResult, $resultAllElementsList);
 		unset( $productsIdList['SECTIONS'] );
 	}
 
@@ -225,7 +227,8 @@ class IblockPriceChanger
 			$this->collectAllSectionsElements($productsIdList);
 		}
 
-		if (\CCatalogSku::GetInfoByProductIBlock($this->iblockId))
+		/** @noinspection PhpMethodOrClassCallIsNotCaseSensitiveInspection */
+		if (\CCatalogSku::getInfoByProductIBlock($this->iblockId))
 		{
 			$priceElementsListSplitedByType = $this->collectPriceSkuElementsId($productsIdList);
 		}
@@ -237,119 +240,123 @@ class IblockPriceChanger
 			"select" => array('*', 'ELEMENT_NAME' => 'ELEMENT.NAME', 'ELEMENT_IBLOCK_ID' => 'ELEMENT.IBLOCK_ID'),
 			"filter" => $this->initFilterParams()
 		);
-		$elementsCPriceList = array();
-		$boolRecalc = false;
-		$basePriceId = null;
 
-		$groupResult = Catalog\GroupTable::getList(
-			array(
-				"select" => array('ID'),
-				"filter" => array('BASE'=>'Y')
-			)
-		);
-		while($group = $groupResult->fetch())
-		{
-			$basePriceId = $group['ID'];
-		}
+		$group = Catalog\GroupTable::getList(array(
+			'select' => array('ID'),
+			'filter' => array('=BASE'=>'Y')
+		))->fetch();
+		$basePriceId = (!empty($group) ? $group['ID'] : null);
+		unset($group);
 
 		foreach ($priceElementsListSplitedByType as $typeElements => $priceElementsIdList)
 		{
 			$priceElementsIdList = array_chunk($priceElementsIdList, 500);
 			foreach ($priceElementsIdList as $productIdList)
 			{
-				$parameters['filter']['=PRODUCT_ID'] = $productIdList;
+				$parameters['filter']['@PRODUCT_ID'] = $productIdList;
 
 				$cpriceResult = Catalog\PriceTable::getList($parameters);
+
+				$elementsCPriceList = array();
 
 				while ($elementCPrice = $cpriceResult->fetch())
 				{
 					if ($this->userDialogParams['PRICE_TYPE'] == $elementCPrice['CATALOG_GROUP_ID'])
 					{
-						$elementsCPriceList[(int)$elementCPrice['PRODUCT_ID']]['TARGET'] = $elementCPrice;
+						$elementsCPriceList[] = array(
+							'TARGET' => $elementCPrice
+						);
 					}
 					elseif ($this->userDialogParams['INITIAL_PRICE_TYPE'] == $elementCPrice['CATALOG_GROUP_ID'])
 					{
-						$elementsCPriceList[(int)$elementCPrice['PRODUCT_ID']]['INITIAL'] = $elementCPrice;
+						$elementsCPriceList[] = array(
+							'INITIAL' => $elementCPrice
+						);
 					}
 				}
 
-				foreach ($elementsCPriceList as $elementCPrice)
+				if (!empty($elementsCPriceList))
 				{
-					if (empty($elementCPrice['TARGET']))
+					foreach ($elementsCPriceList as $elementCPrice)
 					{
-						if (!empty($elementCPrice['INITIAL']))
+						if (empty($elementCPrice['TARGET']))
 						{
-							$newPriceElement = $elementCPrice['INITIAL'];
-							$newPriceElement['PRICE'] = $this->calculateResultPrice($newPriceElement['PRICE']);
-
-							if ($newPriceElement['PRICE'] > 0)
+							if (!empty($elementCPrice['INITIAL']))
 							{
-								$newPriceElement['CATALOG_GROUP_ID'] = $this->userDialogParams['PRICE_TYPE'];
-								unset($newPriceElement['ID']);
-								\CPrice::Add( $newPriceElement );
+								$newPriceElement = $elementCPrice['INITIAL'];
+								$newPriceElement['PRICE'] = $this->calculateResultPrice($newPriceElement['PRICE']);
+
+								if ($newPriceElement['PRICE'] > 0)
+								{
+									$newPriceElement['CATALOG_GROUP_ID'] = $this->userDialogParams['PRICE_TYPE'];
+									unset($newPriceElement['ID']);
+									/** @noinspection PhpMethodOrClassCallIsNotCaseSensitiveInspection */
+									\CPrice::add($newPriceElement);
+								}
 							}
 						}
+						else
+						{
+							if ($elementCPrice['INITIAL']['PRICE'] > 0)
+							{
+								$elementCPrice['TARGET']['PRICE'] = $elementCPrice['INITIAL']['PRICE'];
+							}
+
+							$elementCPrice['TARGET']['PRICE'] = $this->calculateResultPrice($elementCPrice['TARGET']['PRICE']);
+
+							if ($elementCPrice['TARGET']['PRICE'] <= 0)
+							{
+								$result->addError(
+									new Main\Error("IBLIST_CHPRICE_ERROR_WRONG_VALUE_" . $typeElements,
+										array(
+											"#ID#" => $elementCPrice['TARGET']['PRODUCT_ID'],
+											"#NAME#" => $elementCPrice['TARGET']['ELEMENT_NAME'],
+										)
+									)
+								);
+								continue;
+							}
+
+							if (!is_null($elementCPrice['TARGET']['EXTRA_ID']))
+							{
+								$result->addError(
+									new Main\Error("IBLIST_CHPRICE_ERROR_PRICE_WITH_EXTRA_" . $typeElements,
+										array(
+											"#ID#" => $elementCPrice['TARGET']['PRODUCT_ID'],
+											"#NAME#" => $elementCPrice['TARGET']['ELEMENT_NAME'],
+										)
+									)
+								);
+								continue;
+							}
+
+							if ($elementCPrice['TARGET']['CATALOG_GROUP_ID'] === $basePriceId && !is_null($elementCPrice['INITIAL']['EXTRA_ID']))
+							{
+								$result->addError(
+									new Main\Error("IBLIST_CHPRICE_ERROR_BASE_FROM_EXTRA_" . $typeElements,
+										array(
+											"#ID#" => $elementCPrice['TARGET']['PRODUCT_ID'],
+											"#NAME#" => $elementCPrice['TARGET']['ELEMENT_NAME'],
+										)
+									)
+								);
+								continue;
+							}
+
+							$boolRecalc = ($elementCPrice['TARGET']['CATALOG_GROUP_ID'] === $basePriceId);
+
+							/** @noinspection PhpMethodOrClassCallIsNotCaseSensitiveInspection */
+							\CPrice::update($elementCPrice['TARGET']['ID'], $elementCPrice['TARGET'], $boolRecalc);
+							unset($boolRecalc);
+						}
+						Iblock\PropertyIndex\Manager::updateElementIndex($elementCPrice['TARGET']['ELEMENT_IBLOCK_ID'], $elementCPrice['TARGET']['PRODUCT_ID']);
 					}
-					else
-					{
-						if ($elementCPrice['INITIAL']['PRICE'] > 0)
-						{
-							$elementCPrice['TARGET']['PRICE'] = $elementCPrice['INITIAL']['PRICE'];
-						}
-
-						$elementCPrice['TARGET']['PRICE'] = $this->calculateResultPrice($elementCPrice['TARGET']['PRICE']);
-
-						if ($elementCPrice['TARGET']['PRICE'] <= 0)
-						{
-							$result->addError(
-								new Main\Error("IBLIST_CHPRICE_ERROR_WRONG_VALUE_".$typeElements,
-									array(
-										"#ID#" => $elementCPrice['TARGET']['PRODUCT_ID'],
-										"#NAME#" => $elementCPrice['TARGET']['ELEMENT_NAME'],
-									)
-								)
-							);
-							continue;
-						}
-
-						if (!is_null($elementCPrice['TARGET']['EXTRA_ID']))
-						{
-							$result->addError(
-								new Main\Error("IBLIST_CHPRICE_ERROR_PRICE_WITH_EXTRA_".$typeElements,
-									array(
-										"#ID#" => $elementCPrice['TARGET']['PRODUCT_ID'],
-										"#NAME#" => $elementCPrice['TARGET']['ELEMENT_NAME'],
-									)
-								)
-							);
-							continue;
-						}
-
-						if ($elementCPrice['TARGET']['CATALOG_GROUP_ID'] === $basePriceId && !is_null($elementCPrice['INITIAL']['EXTRA_ID']))
-						{
-							$result->addError(
-								new Main\Error("IBLIST_CHPRICE_ERROR_BASE_FROM_EXTRA_".$typeElements,
-									array(
-										"#ID#" => $elementCPrice['TARGET']['PRODUCT_ID'],
-										"#NAME#" => $elementCPrice['TARGET']['ELEMENT_NAME'],
-									)
-								)
-							);
-							continue;
-						}
-
-						if ($elementCPrice['TARGET']['CATALOG_GROUP_ID'] === $basePriceId)
-						{
-							$boolRecalc = true;
-						}
-
-						\CPrice::Update($elementCPrice['TARGET']['ID'], $elementCPrice['TARGET'], $boolRecalc);
-					}
-					Iblock\PropertyIndex\Manager::updateElementIndex($elementCPrice['TARGET']['ELEMENT_IBLOCK_ID'], $elementCPrice['TARGET']['PRODUCT_ID']);
+					unset($elementCPrice);
 				}
-				unset($elementsCPriceList, $elementCPrice);
+				unset($elementsCPriceList);
 			}
-			\CCatalogSku::ClearCache();
+			/** @noinspection PhpMethodOrClassCallIsNotCaseSensitiveInspection */
+			\CCatalogSku::clearCache();
 		}
 		return $result;
 	}

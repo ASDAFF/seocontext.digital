@@ -229,7 +229,7 @@ if($_SERVER["REQUEST_METHOD"]=="POST" && ($_REQUEST["save"] <> '' || $_REQUEST["
 	if($strError == '')
 	{
 		if($arParams['SEND_INFO'] == 'Y')
-			$obUser->SendUserInfo($arResult["ID"], SITE_ID, GetMessage("ACCOUNT_UPDATE"), true);
+			$obUser->SendUserInfo($arResult["ID"], SITE_ID, GetMessage("main_profile_update"), true);
 
 		$bOk = true;
 	}

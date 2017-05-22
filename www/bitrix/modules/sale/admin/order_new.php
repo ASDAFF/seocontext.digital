@@ -194,6 +194,14 @@ if ($saleModulePermissions >= "W" && isset($_REQUEST['unlock']) && 'Y' == $_REQU
 // include functions
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/sale/general/admin_tool.php");
 
+
+$callbackList = array(
+	'CALLBACK_FUNC',
+	'ORDER_CALLBACK_FUNC',
+	'CANCEL_CALLBACK_FUNC',
+	'PAY_CALLBACK_FUNC',
+	'PRODUCT_PROVIDER_CLASS'
+);
 /*****************************************************************************/
 /**************************** SAVE ORDER *************************************/
 /*****************************************************************************/
@@ -703,10 +711,59 @@ if (
 
 		foreach ($arOrderProductPrice as &$arItem)
 		{
+			if ($arItem['BASKET_ID'] > 0)
+			{
+				$basketIdList[] = $arItem['BASKET_ID'];
+			}
+			else
+			{
+				if (empty($arItem['BASKET_ID']) && empty($arItem['ID']))
+				{
+					foreach ($callbackList as $callbackName)
+					{
+						$arItem[$callbackName] = '';
+					}
+				}
+			}
 			$arItem["ID_TMP"] = $arItem["ID"];
 			unset($arItem["ID"]);
 		}
 		unset($arItem);
+
+		if (!empty($basketIdList))
+		{
+			$basketRes = Sale\Basket::getList(
+				array(
+					'filter' => array(
+						'=ID' => $basketIdList
+					),
+					'select' => array(
+						'ID',
+						'CALLBACK_FUNC',
+						'ORDER_CALLBACK_FUNC',
+						'CANCEL_CALLBACK_FUNC',
+						'PAY_CALLBACK_FUNC',
+						'PRODUCT_PROVIDER_CLASS'
+					)
+				)
+			);
+			while($data = $basketRes->fetch())
+			{
+				$basketList[$data['ID']] = $data;
+			}
+		
+			foreach ($arOrderProductPrice as &$itemData)
+			{
+				if (!empty($basketList[$itemData['BASKET_ID']]))
+				{
+					foreach ($callbackList as $callbackName)
+					{
+						$itemData[$callbackName] = $basketList[$itemData['BASKET_ID']][$callbackName];
+					}
+				}
+			}
+			unset($itemData);
+		}
 
 		$tmpOrderId = ($ID == 0) ? 0 : $ID;
 
@@ -2264,7 +2321,7 @@ if ((!isset($LID) OR $LID == "") AND (defined('BX_PUBLIC_MODE') OR BX_PUBLIC_MOD
 	$arSitesShop = array();
 	$arSitesTmp = array();
 	$rsSites = CSite::GetList($by="id", $order="asc", array("ACTIVE" => "Y"));
-	while ($arSite = $rsSites->Fetch())
+	while ($arSite = $rsSites->GetNext())
 	{
 		$site = COption::GetOptionString("sale", "SHOP_SITE_".$arSite["ID"], "");
 		if ($arSite["ID"] == $site)
@@ -2707,7 +2764,7 @@ if ($ID > 0)
 {
 	$arSitesShop = array();
 	$rsSites = CSite::GetList($by="id", $order="asc", array("ACTIVE" => "Y"));
-	while ($arSite = $rsSites->Fetch())
+	while ($arSite = $rsSites->GetNext())
 	{
 		$site = COption::GetOptionString("sale", "SHOP_SITE_".$arSite["ID"], "");
 		if ($arSite["ID"] == $site)
@@ -3166,6 +3223,12 @@ if ((isset($_REQUEST["PRODUCT"]) AND is_array($_REQUEST["PRODUCT"]) AND !empty($
 
 		if ($arParent)
 			$arElementId[] = $arParent["ID"];
+
+		foreach ($callbackList as $callbackName)
+		{
+			$arBasketItem[$callbackName] = '';
+		}
+
 	}
 }
 elseif (isset($ID) AND $ID > 0)
@@ -4097,7 +4160,7 @@ $tabControl->BeginCustomField("BASKET_CONTAINER", GetMessage("NEWO_BASKET_CONTAI
 		$settingsTemplate = CUtil::JSEscape($settingsTemplate);
 	?>
 	<br>
-	<input type="hidden" id="userColumns" name="userColumns" value="<?=CUtil::JSEscape($strUserColumns)?>" />
+	<input type="hidden" id="userColumns" name="userColumns" value="<?=htmlspecialcharsbx($strUserColumns)?>" />
 	<input type="hidden" id="ids" name="ids" value="<?=$IDs?>" />
 
 
@@ -4933,7 +4996,7 @@ $tabControl->BeginCustomField("BASKET_CONTAINER", GetMessage("NEWO_BASKET_CONTAI
 						store_id = params.store_id || '0';
 
 					var popup = new BX.CDialog({
-						content_url: '/bitrix/admin/cat_product_search_dialog.php?lang='+lang+'&LID='+site_id+'&caller=' + caller + '&func_name='+callback+'&STORE_FROM_ID='+store_id,
+						content_url: '/bitrix/tools/sale/product_search_dialog.php?lang='+lang+'&LID='+site_id+'&caller=' + caller + '&func_name='+callback+'&STORE_FROM_ID='+store_id,
 						height: Math.max(500, window.innerHeight-400),
 						width: Math.max(800, window.innerWidth-400),
 						draggable: true,

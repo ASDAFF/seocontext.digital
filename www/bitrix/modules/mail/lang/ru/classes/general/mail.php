@@ -62,5 +62,6 @@ $MESS ['MAIL_ERR_API_LONG_PASSWORD'] = "Слишком длинный парол
 $MESS ['MAIL_ERR_API_DOMAIN_OCCUPIED'] = "Домен уже используется";
 $MESS ['MAIL_ERR_API_BAD_DOMAIN'] = "Недопустимое имя домена";
 $MESS ['MAIL_ERR_API_PROHIBITED_DOMAIN'] = "Доменное имя запрещено для подключения";
+$MESS ['MAIL_ERR_ENTRY_NOT_FOUND'] = "Ссылка недействительна";
 
 ?>

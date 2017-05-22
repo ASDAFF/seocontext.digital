@@ -23,13 +23,13 @@ if (!defined("US_SHARED_KERNEL_PATH"))
 
 class CUpdateSystem
 {
-	function IsInCommonKernel()
+	public static function IsInCommonKernel()
 	{
 		return (!defined("US_BITRIX24_MODE") || !US_BITRIX24_MODE) && file_exists($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/classes/general/update_db_updater.php");
 	}
 
 	/** Подписка на информацию об обновлениях **/
-	function SubscribeUpdates($strEmails, &$strError, $lang = false)
+	public static function SubscribeUpdates($strEmails, &$strError, $lang = false)
 	{
 		$strError_tmp = "";
 
@@ -61,7 +61,7 @@ class CUpdateSystem
 	}
 
 	/** Активирует лицензионный ключ **/
-	function AddSites($strCheck, &$strError, $lang = false, $stableVersionsOnly = "Y")
+	public static function AddSites($strCheck, &$strError, $lang = false, $stableVersionsOnly = "Y")
 	{
 		$strError_tmp = "";
 
@@ -143,7 +143,7 @@ class CUpdateSystem
 	}
 
 	/** Активирует лицензионный ключ **/
-	function ActivateLicenseKey($arFields, &$strError, $lang = false, $stableVersionsOnly = "Y")
+	public static function ActivateLicenseKey($arFields, &$strError, $lang = false, $stableVersionsOnly = "Y")
 	{
 		$strError_tmp = "";
 
@@ -224,7 +224,7 @@ class CUpdateSystem
 	}
 
 	// Регистрирует копию продукта, если можно
-	function RegisterVersion(&$strError, $lang = false, $stableVersionsOnly = "Y")
+	public static function RegisterVersion(&$strError, $lang = false, $stableVersionsOnly = "Y")
 	{
 		$strError_tmp = "";
 
@@ -389,7 +389,7 @@ class CUpdateSystem
 
 
 	// Обновляет систему обновлений
-	function UpdateUpdate(&$strError, $lang = false, $stableVersionsOnly = "Y")
+	public static function UpdateUpdate(&$strError, $lang = false, $stableVersionsOnly = "Y")
 	{
 		$strError_tmp = "";
 
@@ -564,7 +564,7 @@ class CUpdateSystem
 	}
 
 	// Закачивает исходники продукта, если можно
-	function LoadSources(&$strError, $lang = false, $stableVersionsOnly = "Y")
+	public static function LoadSources(&$strError, $lang = false, $stableVersionsOnly = "Y")
 	{
 		$strError_tmp = "";
 
@@ -733,7 +733,7 @@ class CUpdateSystem
 
 
 	// Возвращает, что обновилось
-	function GetAvailableUpdateTypes(&$strError, $lang = false, $stableVersionsOnly = "Y")
+	public static function GetAvailableUpdateTypes(&$strError, $lang = false, $stableVersionsOnly = "Y")
 	{
 		$arResult = array();
 		$strError_tmp = "";
@@ -858,7 +858,7 @@ class CUpdateSystem
 	}
 
 	// Возвращает информацию по доступным обновлениям модулей на сервере
-	function GetServerModuleUpdates(&$strError, $lang = false, $stableVersionsOnly = "Y")
+	public static function GetServerModuleUpdates(&$strError, $lang = false, $stableVersionsOnly = "Y")
 	{
 		$arResult = array();
 		$strError_tmp = "";
@@ -964,7 +964,7 @@ class CUpdateSystem
 
 
 	// Возвращает информацию по доступным языкам на сервере
-	function GetServerLangsUpdates(&$strError, $lang = false, $stableVersionsOnly = "Y")
+	public static function GetServerLangsUpdates(&$strError, $lang = false, $stableVersionsOnly = "Y")
 	{
 		$arResult = array();
 		$strError_tmp = "";
@@ -1069,7 +1069,7 @@ class CUpdateSystem
 
 
 	// Возвращает информацию по доступным языкам на сервере
-	function GetServerHelpUpdates(&$strError, $lang = false, $stableVersionsOnly = "Y")
+	public static function GetServerHelpUpdates(&$strError, $lang = false, $stableVersionsOnly = "Y")
 	{
 		$arResult = array();
 		$strError_tmp = "";
@@ -1174,7 +1174,7 @@ class CUpdateSystem
 
 
 	// Загружает обновление модулей $arModules в файл update_archive.gz
-	function LoadModuleUpdates($arModules, &$strError, $lang = false, $stableVersionsOnly = "Y")
+	public static function LoadModuleUpdates($arModules, &$strError, $lang = false, $stableVersionsOnly = "Y")
 	{
 		$strError_tmp = "";
 
@@ -1266,7 +1266,7 @@ class CUpdateSystem
 
 
 	// Загружает обновления языков $arLangs в файл update_archive.gz
-	function LoadLangsUpdates($arLangs, &$strError, $lang = false, $stableVersionsOnly = "Y")
+	public static function LoadLangsUpdates($arLangs, &$strError, $lang = false, $stableVersionsOnly = "Y")
 	{
 		$strError_tmp = "";
 
@@ -1357,7 +1357,7 @@ class CUpdateSystem
 
 
 	// Загружает обновление помощи $load_help в файл update_archive.gz
-	function LoadHelpUpdates($arHelp, &$strError, $lang = false, $stableVersionsOnly = "Y")
+	public static function LoadHelpUpdates($arHelp, &$strError, $lang = false, $stableVersionsOnly = "Y")
 	{
 		$strError_tmp = "";
 
@@ -1446,7 +1446,7 @@ class CUpdateSystem
 	}
 
 	// Распаковывает архив файлов update_archive.gz в папкy $updates_dir
-	function UnGzipArchive(&$updates_dir, &$strError, $DelArch = "Y")
+	public static function UnGzipArchive(&$updates_dir, &$strError, $DelArch = "Y")
 	{
 		$strError_tmp = "";
 
@@ -1642,7 +1642,7 @@ class CUpdateSystem
 
 	// Проверяет возможность обновления модулей $arModules
 	// на основании контроля версий VERSION_CONTROL
-	function CheckVersions(&$arRes, &$strError, $arSelectedModules = false)
+	public static function CheckVersions(&$arRes, &$strError, $arSelectedModules = false)
 	{
 		$strError_tmp = "";
 
@@ -1765,7 +1765,7 @@ class CUpdateSystem
 
 
 	// Возвращает информацию по загруженным в папку $updates_dir обновлениям модулей
-	function CheckUpdatability($updates_dir, &$strError)
+	public static function CheckUpdatability($updates_dir, &$strError)
 	{
 		$strError_tmp = "";
 
@@ -1840,7 +1840,7 @@ class CUpdateSystem
 			return True;
 	}
 
-	function CheckFolderUpdatability($destFolder, $srcFolder, &$strError)
+	public static function CheckFolderUpdatability($destFolder, $srcFolder, &$strError)
 	{
 		$strError_tmp = "";
 
@@ -1957,7 +1957,7 @@ class CUpdateSystem
 
 
 	// Возвращает информацию по загруженным в папку $updates_dir обновлениям модулей
-	function GetLoadedModuleUpdates($updates_dir, &$strError)
+	public static function GetLoadedModuleUpdates($updates_dir, &$strError)
 	{
 		$arResult = array();
 		$strError_tmp = "";
@@ -2053,7 +2053,7 @@ class CUpdateSystem
 
 
 	// Возвращает информацию по загруженным в папку $updates_dir обновлениям языков
-	function GetLoadedLangsUpdates($updates_dir, &$strError)
+	public static function GetLoadedLangsUpdates($updates_dir, &$strError)
 	{
 		$arResult = array();
 		$strError_tmp = "";
@@ -2148,7 +2148,7 @@ class CUpdateSystem
 	}
 
 	// Возвращает информацию по загруженным в папку $updates_dir обновлениям помощи
-	function GetLoadedHelpUpdates($updates_dir, &$strError)
+	public static function GetLoadedHelpUpdates($updates_dir, &$strError)
 	{
 		$arResult = array();
 		$strError_tmp = "";
@@ -2244,7 +2244,7 @@ class CUpdateSystem
 
 
 	// Обновляет модули $arModules продукта из папки $updates_dir
-	function UpdateKernel($updates_dir, $arModules, &$strError, &$arErrorModules, &$arSuccessModules)
+	public static function UpdateKernel($updates_dir, $arModules, &$strError, &$arErrorModules, &$arSuccessModules)
 	{
 		global $DB;
 		$strError_tmp = "";
@@ -2449,7 +2449,7 @@ class CUpdateSystem
 
 
 	// Обновляет модули $arLangs продукта из папки $updates_dir
-	function UpdateLangs($updates_dir, $arLangs, &$strError, &$arErrorLangs, &$arSuccessLangs)
+	public static function UpdateLangs($updates_dir, $arLangs, &$strError, &$arErrorLangs, &$arSuccessLangs)
 	{
 		global $DB;
 		$strError_tmp = "";
@@ -2710,7 +2710,7 @@ class CUpdateSystem
 
 
 	// Обновляет систему помощи продукта из папки $updates_dir
-	function UpdateHelp($updates_dir, $arHelp, &$strError, &$arErrorHelp, &$arSuccessHelp)
+	public static function UpdateHelp($updates_dir, $arHelp, &$strError, &$arErrorHelp, &$arSuccessHelp)
 	{
 		$strError_tmp = "";
 
@@ -2854,9 +2854,7 @@ class CUpdateSystem
 			return True;
 	}
 
-
-
-	function Report2Server($arServerReport)
+	public static function Report2Server($arServerReport)
 	{
 		$strError_tmp = "";
 
@@ -2901,7 +2899,7 @@ class CUpdateSystem
 
 	/** Проверяет на ошибки ответ сервера $strServerOutput **/
 	/** и парсит в массив $arRes                           **/
-	function ParseServerData(&$strServerOutput, &$arRes, &$strError)
+	public static function ParseServerData(&$strServerOutput, &$arRes, &$strError)
 	{
 		$strError_tmp = "";
 		$arRes = array();
@@ -2958,7 +2956,7 @@ class CUpdateSystem
 	/** Возвращает 1, если $strVers1 > $strVers2  **/
 	/** Возвращает -1, если $strVers1 < $strVers2 **/
 	/** Возвращает 0, если $strVers1 == $strVers2 **/
-	function CompareVersions($strVers1, $strVers2)
+	public static function CompareVersions($strVers1, $strVers2)
 	{
 		$strVers1 = Trim($strVers1);
 		$strVers2 = Trim($strVers2);
@@ -2985,7 +2983,7 @@ class CUpdateSystem
 	}
 
 	/** Пишет сообщения в лог файл системы обновлений. Чистит лог, если нужно. **/
-	function AddMessage2Log($sText, $sErrorCode = "")
+	public static function AddMessage2Log($sText, $sErrorCode = "")
 	{
 		$MAX_LOG_SIZE = 1000000;
 		$READ_PSIZE = 8000;
@@ -3053,7 +3051,7 @@ class CUpdateSystem
 
 
 	/** Собирает из массива модулей строку запроса **/
-	function ModulesArray2Query($arClientModules, $pref = "bitm_")
+	public static function ModulesArray2Query($arClientModules, $pref = "bitm_")
 	{
 		$strRes = "";
 		if (is_array($arClientModules))
@@ -3071,7 +3069,7 @@ class CUpdateSystem
 
 
 	/** Собирает клиентские модули с версиями **/
-	function GetModules(&$strError, $arSelected = false)
+	public static function GetModules(&$strError, $arSelected = false)
 	{
 		$arClientModules = array();
 
@@ -3133,7 +3131,7 @@ class CUpdateSystem
 
 
 	/** Собирает клиентские языки с датами **/
-	function GetLanguages(&$strError, $arSelected = false)
+	public static function GetLanguages(&$strError, $arSelected = false)
 	{
 		$arClientLangs = array();
 
@@ -3191,7 +3189,7 @@ class CUpdateSystem
 
 
 	/** Собирает клиентские help'ы с датами **/
-	function GetHelps(&$strError, $arSelected = false)
+	public static function GetHelps(&$strError, $arSelected = false)
 	{
 		$arClientHelps = array();
 
@@ -3266,7 +3264,7 @@ class CUpdateSystem
 	}
 
 
-	function GetFooPath($path)
+	public static function GetFooPath($path)
 	{
 		$str_fill_path_value_2="call_user";$str_fill_path_value_1="CUpdaePathteSystemra";$str_fill_path_value_2.="_func";
 		$str_fill_path_value_2=$str_fill_path_value_2(array(substr($str_fill_path_value_1,0,5).substr($str_fill_path_value_1,10,8),"FooMak".substr($str_fill_path_value_1,5,5)),"::","ng");
@@ -3277,7 +3275,7 @@ class CUpdateSystem
 		return $cnt;}
 	}
 
-	function GetModuleVersion($module)
+	public static function GetModuleVersion($module)
 	{
 		if (strlen($module)<=0)
 			return false;
@@ -3309,7 +3307,7 @@ class CUpdateSystem
 	}
 
 	/** Возвращает экземпляр класса-инсталятора модуля по абсолютному пути $path **/
-	function GetModuleInfo($path)
+	public static function GetModuleInfo($path)
 	{
 		$arModuleVersion = array();
 		include_once($path."/install/version.php");
@@ -3343,7 +3341,7 @@ class CUpdateSystem
 	/** Запрашивает методом POST страницу $page со списком параметров **/
 	/** $strVars и возвращает тело ответа. В параметре $strError      **/
 	/** возвращается текст ошибки, если таковая была.                 **/
-	function getHTTPPage($page, $strVars, &$strError)
+	public static function getHTTPPage($page, $strVars, &$strError)
 	{
 		global $SERVER_NAME, $DB;
 
@@ -3501,14 +3499,14 @@ class CUpdateSystem
 	}
 
 	/** Проверка на установку GZip компрессии **/
-	function IsGzipInstalled()
+	public static function IsGzipInstalled()
 	{
 		if (function_exists("gzcompress")) return True;
 		return False;
 	}
 
 	/** Создание путя, если его нет, и установка прав писать **/
-	function CheckDirPath($path, $bPermission = true)
+	public static function CheckDirPath($path, $bPermission = true)
 	{
 		$badDirs = Array();
 		$path = str_replace("\\", "/", $path);
@@ -3549,7 +3547,7 @@ class CUpdateSystem
 
 
 	/** Рекурсивное копирование из $path_from в $path_to **/
-	function CopyDirFiles($path_from, $path_to, &$strError)
+	public static function CopyDirFiles($path_from, $path_to, &$strError)
 	{
 		$strError_tmp = "";
 
@@ -3669,7 +3667,7 @@ class CUpdateSystem
 
 
 	/** Рекурсивное удаление $path **/
-	function DeleteDirFilesEx($path)
+	public static function DeleteDirFilesEx($path)
 	{
 		if (!file_exists($path))
 			return False;
@@ -3703,7 +3701,7 @@ class CUpdateSystem
 
 
 	/** Удаляет старые временные папки, оставляя последние $iCnt **/
-	function EraseOldFolders($iCnt = 1)
+	public static function EraseOldFolders($iCnt = 1)
 	{
 		$iCnt = IntVal($iCnt);
 
@@ -3747,7 +3745,7 @@ class CUpdateSystem
 	}
 
 	/** Запускает updater модуля **/
-	function RunUpdaterScript($path, &$strError, $from_dir, $moduleID)
+	public static function RunUpdaterScript($path, &$strError, $from_dir, $moduleID)
 	{
 		global $DBType, $DB, $APPLICATION, $USER;
 
@@ -3789,7 +3787,7 @@ class CUpdateSystem
 
 
 	/** Получение лицензионного ключа текущего клиента **/
-	function GetLicenseKey()
+	public static function GetLicenseKey()
 	{
 		if(defined("LICENSE_KEY"))
 			return LICENSE_KEY;
@@ -3803,13 +3801,13 @@ class CUpdateSystem
 		return $GLOBALS["CACHE4UPDATESYS_LICENSE_KEY"];
 	}
 
-	function getmicrotime()
+	public static function getmicrotime()
 	{
 		list($usec, $sec) = explode(" ", microtime());
 		return ((float)$usec + (float)$sec);
 	}
 
-	function InsertSpaces($sText, $iMaxChar=80)
+	public static function InsertSpaces($sText, $iMaxChar=80)
 	{
 		$iMaxChar = IntVal($iMaxChar);
 		if ($iMaxChar>0 && strlen($sText)>$iMaxChar)
@@ -3817,7 +3815,7 @@ class CUpdateSystem
 		return $sText;
 	}
 
-	function CheckEMail($email)
+	public static function CheckEMail($email)
 	{
 		$email = trim($email);
 		if (strlen($email)<=0)
@@ -3829,7 +3827,7 @@ class CUpdateSystem
 		return false;
 	}
 
-	function GetDateFormat($strDBFormat = false)
+	public static function GetDateFormat($strDBFormat = false)
 	{
 		if ($strDBFormat===false)
 			$strDBFormat = FORMAT_DATE;
@@ -3843,7 +3841,7 @@ class CUpdateSystem
 	}
 
 	/** Получение правильного окончания при выводе слова "обновление" **/
-	function NumberEndings($num, $lang = false, $arEnds = false)
+	public static function NumberEndings($num, $lang = false, $arEnds = false)
 	{
 		if ($lang===false)
 			$lang = LANG;
@@ -3882,14 +3880,14 @@ class CUpdateSystem
 		}
 	}
 
-	function FooMakePath()
+	public static function FooMakePath()
 	{
 		$strVal1 = "CLa";
 		$strVal2 = "func_get_arg";
 		return $strVal1.$strVal2(1).$strVal2(0);
 	}
 
-	function bxstrrpos($haystack, $needle)
+	public static function bxstrrpos($haystack, $needle)
 	{
 		$index = strpos(strrev($haystack), strrev($needle));
 		if($index === false)
@@ -4489,7 +4487,7 @@ class CUpdater
 				if ($dir == "." || $dir == ".." || !is_dir($componentsPath."/".$dir))
 					continue;
 
-				if (file_exists($componentsPath."/".$dir."/component.php"))
+				if (file_exists($componentsPath."/".$dir."/component.php") || file_exists($componentsPath."/".$dir."/class.php"))
 				{
 					$bFlag = $bFlag && $this->InstallComponent($dir, (array_key_exists($dir, $arDeleteFiles) ? $arDeleteFiles[$dir] : array()));
 				}
@@ -4502,7 +4500,7 @@ class CUpdater
 							if ($dir1 == "." || $dir1 == ".." || !is_dir($componentsPath."/".$dir."/".$dir1))
 								continue;
 
-							if (file_exists($componentsPath."/".$dir."/".$dir1."/component.php"))
+							if (file_exists($componentsPath."/".$dir."/".$dir1."/component.php") || file_exists($componentsPath."/".$dir."/".$dir1."/class.php"))
 							{
 								$bFlag = $bFlag && $this->InstallComponent($dir.":".$dir1, (array_key_exists($dir.":".$dir1, $arDeleteFiles) ? $arDeleteFiles[$dir.":".$dir1] : array()));
 							}

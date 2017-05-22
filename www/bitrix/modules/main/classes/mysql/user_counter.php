@@ -19,19 +19,27 @@ class CUserCounter extends CAllUserCounter
 			AND CODE = '".$DB->ForSQL($code)."'
 		");
 
-		if ($rs->Fetch())
+		if ($cntVal = $rs->Fetch())
 		{
 			$ssql = "";
 			if ($tag != "")
 				$ssql = ", TAG = '".$DB->ForSQL($tag)."'";
 
-			$DB->Query("
-				UPDATE b_user_counter SET
-				CNT = ".$value." ".$ssql."
-				WHERE USER_ID = ".$user_id."
-				AND SITE_ID = '".$DB->ForSQL($site_id)."'
-				AND CODE = '".$DB->ForSQL($code)."'
-			");
+			if($cntVal['CNT'] != $value)
+			{
+				$DB->Query("
+					UPDATE b_user_counter SET
+					CNT = " . $value . " " . $ssql . ",
+					SENT = 0
+					WHERE USER_ID = " . $user_id . "
+					AND SITE_ID = '" . $DB->ForSQL($site_id) . "'
+					AND CODE = '" . $DB->ForSQL($code) . "'
+				");
+			}
+			else
+			{
+				$sendPull = false;
+			}
 		}
 		else
 		{

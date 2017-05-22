@@ -10,6 +10,8 @@ use Bitrix\Main\SiteTable;
 use Bitrix\Main\Config\Option;
 use Bitrix\Sale\SalesZone;
 use Bitrix\Sale;
+use Bitrix\Main\Localization\Loc;
+
 
 $SALE_RIGHT = $APPLICATION->GetGroupRight($module_id);
 if ($SALE_RIGHT>="R") :
@@ -150,6 +152,7 @@ if (CBXFeatures::IsFeatureEnabled('SaleCCards') && COption::GetOptionString($mod
 $aTabs[] = array("DIV" => "edit3", "TAB" => GetMessage("SALE_TAB_3"), "ICON" => "sale_settings", "TITLE" => GetMessage("SALE_TAB_3_TITLE"));
 $aTabs[] = array("DIV" => "edit4", "TAB" => GetMessage("MAIN_TAB_RIGHTS"), "ICON" => "sale_settings", "TITLE" => GetMessage("MAIN_TAB_TITLE_RIGHTS"));
 $aTabs[] = array("DIV" => "edit8", "TAB" => GetMessage("SALE_TAB_AUTO"), "ICON" => "sale_settings", "TITLE" => GetMessage("SALE_TAB_AUTO_TITLE"));
+$aTabs[] = array("DIV" => "edit9", "TAB" => GetMessage("SALE_TAB_ARCHIVE"), "ICON" => "sale_settings", "TITLE" => GetMessage("SALE_TAB_ARCHIVE_TITLE"));
 
 $tabControl = new CAdminTabControl("tabControl", $aTabs);
 
@@ -668,6 +671,67 @@ if ($_SERVER['REQUEST_METHOD'] == "POST" && strlen($Update) > 0 && $SALE_RIGHT =
 		}
 		unset($useSaleDiscountOnly);
 
+		Option::set("sale", "regular_archive_active", $_POST['archive_regular_accept']);
+		Option::set("sale", "archive_blocked_order", $_POST['archive_blocked_order_accept']);
+		if ((int)($_POST['archive_period']))
+			$filter['PERIOD'] = (int)($_POST['archive_period']);
+		else
+			$filter['PERIOD'] = 365;	
+		
+		if ($_POST['archive_blocked_order_accept'] !== 'Y')
+		{
+			$filterValues['LOCKED_BY'] = null;
+			$filterValues['DATE_LOCK'] = null;
+		}
+
+		if (isset($_POST['archive_status_id']))
+			$filter["STATUS_ID"] = $_POST['archive_status_id'];
+
+		if (isset($_POST['archive_site']))
+			$filter["LID"] = $_POST['archive_site'];
+
+		if (strlen($_POST['archive_payed']))
+			$filter["=PAYED"] = $_POST['archive_payed'];
+
+		if (strlen($_POST['archive_canceled']))
+			$filter["=CANCELED"] = $_POST['archive_canceled'];
+
+		if (strlen($_POST['archive_deducted']))
+			$filter["=DEDUCTED"] = $_POST['archive_deducted'];
+		
+		if ((int)($_POST['archive_limit']))
+			$archiveLimit = (int)$_POST['archive_limit'];
+		else
+			$archiveLimit = 10;
+
+		Option::set('sale', 'archive_limit', $archiveLimit, '');
+
+		if ((int)($_POST['archive_time_limit']))
+			$archiveTimeLimit = (int)$_POST['archive_time_limit'];
+		else
+			$archiveTimeLimit = 5;
+
+		Option::set('sale', 'archive_time_limit', $archiveTimeLimit, '');
+
+		$filter = serialize($filter);
+		Option::set("sale", "archive_params", $filter);
+
+		if (isset($_POST['archive_regular_accept']))
+		{
+			CAgent::AddAgent("\\Bitrix\\Sale\\Archive\\Manager::archiveOnAgent(".$archiveLimit.",".$archiveTimeLimit.");", "sale", "N", 24*60*60, "", "Y");
+		}
+		else
+		{
+			$agentsList = CAgent::GetList(array("ID"=>"DESC"), array(
+				"MODULE_ID" => "sale",
+				"NAME" => "\\Bitrix\\Sale\\Archive\\Manager::archiveOnAgent(%",
+			));
+			while($agent = $agentsList->Fetch())
+			{
+				CAgent::Delete($agent["ID"]);
+			}
+		}
+
 		ob_start();
 		require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/admin/group_rights.php");
 		ob_end_clean();
@@ -727,14 +791,23 @@ if ($_SERVER['REQUEST_METHOD'] == "POST" && strlen($Update) > 0 && $SALE_RIGHT =
 				'sale'
 			);
 		}
+
+		COption::SetOptionString("sale", "allow_pay_status", $ALLOW_PAY_STATUS);
+		COption::SetOptionString("sale", "allow_guest_order_view", $ALLOW_GUEST_ORDER_VIEW);
+		$ALLOW_GUEST_ORDER_VIEW_PATH = is_array($ALLOW_GUEST_ORDER_VIEW_PATH) ? $ALLOW_GUEST_ORDER_VIEW_PATH : array();
+		COption::SetOptionString("sale", "allow_guest_order_view_paths", serialize($ALLOW_GUEST_ORDER_VIEW_PATH));
+		$ALLOW_GUEST_ORDER_VIEW_STATUS = is_array($ALLOW_GUEST_ORDER_VIEW_STATUS) ? $ALLOW_GUEST_ORDER_VIEW_STATUS : array();
+		COption::SetOptionString("sale", "allow_guest_order_view_status", serialize($ALLOW_GUEST_ORDER_VIEW_STATUS));
 	}
 }
 
+$statusesWithoutNoChange = array();
 $arStatuses = array("" => GetMessage("SMO_STATUS"));
 $dbStatus = CSaleStatus::GetList(Array("SORT" => "ASC"), Array("LID" => LANGUAGE_ID), false, false, Array("ID", "NAME", "SORT"));
 while ($arStatus = $dbStatus->GetNext())
 {
 	$arStatuses[$arStatus["ID"]] = "[".$arStatus["ID"]."] ".$arStatus["NAME"];
+	$statusesWithoutNoChange[$arStatus["ID"]] = "[".$arStatus["ID"]."] ".$arStatus["NAME"];
 }
 
 $delieryStatuses = array("" => GetMessage("SMO_STATUS"));
@@ -1045,7 +1118,84 @@ $tabControl->BeginNextTab();
 			<input type="text" size="40" value="<?=htmlspecialcharsbx(COption::GetOptionString("sale", "sale_ps_fail_path", ""))?>" name="sale_ps_fail_path">
 		</td>
 	</tr>
-	<!-- end of ps success and fail paths -->
+	<tr>
+		<td>
+			<?=Main\Localization\Loc::getMessage("SALE_ALLOW_PAY_STATUS")?>:
+		</td>
+		<td>
+			<?
+			$val = \Bitrix\Main\Config\Option::get("sale", "allow_pay_status", Sale\OrderStatus::getInitialStatus());
+			?>
+			<select name="ALLOW_PAY_STATUS">
+				<?
+				foreach($statusesWithoutNoChange as $statusID => $statusName)
+				{
+					?><option value="<?=$statusID?>"<?if ($val == $statusID) echo " selected";?>><?=$statusName?></option><?
+				}
+				?>
+			</select>
+		</td>
+	</tr>
+	<!-- start of order guest view -->
+	<tr class="heading" id="guest_order_view_block">
+		<td colspan="2"><a name="section_guest_order_view"></a><?=GetMessage('SALE_ALLOW_GUEST_ORDER_VIEW_TITLE')?></td>
+	</tr>
+	<tr>
+		<td>
+			<?=Main\Localization\Loc::getMessage("SALE_ALLOW_GUEST_ORDER_VIEW")?>:
+		</td>
+		<td>
+			<?
+			$val = \Bitrix\Main\Config\Option::get("sale", "allow_guest_order_view", 'N');
+			?>
+			<input type="checkbox" value="Y" name="ALLOW_GUEST_ORDER_VIEW" <?=(($val == 'N' || empty($val)) ?: "checked")?> onChange="showAllowGuestOrderViewPaths(this)">
+		</td>
+	</tr>
+	<tr class="sale_allow_guest_order_view" <?=($val === "Y") ? "" : "style=\"display:none\""?>>
+		<td valign="top">
+			<?= Main\Localization\Loc::getMessage("SALE_ORDER_GUEST_VIEW_STATUS")?>
+		</td>
+		<td>
+			<?
+			$guestStatuses = \Bitrix\Main\Config\Option::get("sale", "allow_guest_order_view_status", "");
+			$guestStatuses = (strlen($guestStatuses) > 0) ?  unserialize($guestStatuses) : array();
+			$statusList = (array_slice($arStatuses,1));
+			?>
+
+			<select name="ALLOW_GUEST_ORDER_VIEW_STATUS[]" multiple size="3">
+				<?foreach($statusList as $id => $name):?>
+					<option value="<?=$id?>" <?=(in_array($id, $guestStatuses) ? "selected" : "")?>>
+						<?=htmlspecialcharsbx($name)?>
+					</option>
+				<?endforeach?>
+			</select>
+		</td>
+	</tr>
+	<?
+	$paths = unserialize(\Bitrix\Main\Config\Option::get("sale", "allow_guest_order_view_paths"));
+	foreach($siteList as $site)
+	{
+		?>
+		<tr class="sale_allow_guest_order_view" <?=($val === "Y") ? "" : "style=\"display:none\""?>>
+			<td>
+				<?=Main\Localization\Loc::getMessage("SALE_ALLOW_GUEST_ORDER_VIEW_PATH", array("#SITE_ID#" => $site["ID"]))?>:
+			</td>
+			<td>
+				<input type="text" size="40" value="<?=htmlspecialcharsbx($paths[$site["ID"]])?>" name="ALLOW_GUEST_ORDER_VIEW_PATH[<?=htmlspecialcharsbx($site['ID'])?>]">
+			</td>
+		</tr>
+		<?
+	}
+	?>
+	<tr class="sale_allow_guest_order_view" <?=($val === "Y") ? "" : "style=\"display:none\""?>>
+		<td>
+			<?=Main\Localization\Loc::getMessage("SALE_ALLOW_GUEST_ORDER_VIEW_EXAMPLE")?>:
+		</td>
+		<td>
+			/personal/orders/#order_id#
+		</td>
+	</tr>
+	<!-- end of order guest view -->
 	<tr class="heading">
 		<td colspan="2"><a name="section_reservation"></a><?=GetMessage('BX_SALE_SETTINGS_SECTION_RESERVATION')?></td>
 	</tr>
@@ -1103,28 +1253,21 @@ $tabControl->BeginNextTab();
 			<input type="checkbox" name="get_discount_percent_from_base_price" id="get_discount_percent_from_base_price_Y" value="Y"<? echo ($currentSettings['get_discount_percent_from_base_price'] == 'Y' ? ' checked' : ''); ?>>
 		</td>
 	</tr>
-	<?
-	if ($currentSettings['use_sale_discount_only'] != 'Y')
-	{
-	?>
-		<tr>
-			<td width="40%"><? echo GetMessage('BX_SALE_SETTINGS_OPTION_DISCOUNT_APPLY_MODE'); ?></td>
-			<td width="60%">
-				<select name="discount_apply_mode">
-				<?
-				$modeList = Sale\Discount::getApplyModeList(true);
-				foreach ($modeList as $modeId => $modeTitle)
-				{
-					?><option value="<?=$modeId; ?>"<?=($modeId == $currentSettings['discount_apply_mode'] ? ' selected' : ''); ?>><?=htmlspecialcharsex($modeTitle); ?></option><?
-				}
-				unset($modeTitle, $modeId, $modeList);
-				?>
-				</select>
-			</td>
-		</tr>
-	<?
-	}
-	?>
+	<tr id="tr_discount_apply_mode" style="display: <?=($currentSettings['use_sale_discount_only'] == 'Y' ? 'none' : 'table-row'); ?>">
+		<td width="40%"><? echo GetMessage('BX_SALE_SETTINGS_OPTION_DISCOUNT_APPLY_MODE'); ?></td>
+		<td width="60%">
+			<select name="discount_apply_mode" style="max-width: 300px;">
+			<?
+			$modeList = Sale\Discount::getApplyModeList(true);
+			foreach ($modeList as $modeId => $modeTitle)
+			{
+				?><option value="<?=$modeId; ?>"<?=($modeId == $currentSettings['discount_apply_mode'] ? ' selected' : ''); ?>><?=htmlspecialcharsbx($modeTitle); ?></option><?
+			}
+			unset($modeTitle, $modeId, $modeList);
+			?>
+			</select>
+		</td>
+	</tr>
 
 	<!-- Recommended products -->
 	<tr class="heading">
@@ -1238,9 +1381,6 @@ $tabControl->BeginNextTab();
 		<?
 	}
 	?>
-	<tr class="heading">
-		<td colspan="2"><?=GetMessage("SMO_ORDER_OPTIONS")?></td>
-	</tr>
 	<tr>
 		<td colspan="2">
 			<?
@@ -1255,7 +1395,7 @@ $tabControl->BeginNextTab();
 			$aTabs2 = Array();
 			foreach($siteList as $val)
 			{
-				$aTabs2[] = Array("DIV"=>"reminder".$val["ID"], "TAB" => "[".$val["ID"]."] ".($val["NAME"]), "TITLE" => "[".$val["ID"]."] ".($val["NAME"]));
+				$aTabs2[] = Array("DIV"=>"reminder".$val["ID"], "TAB" => "[".$val["ID"]."] ".htmlspecialcharsbx($val["NAME"]), "TITLE" => "[".htmlspecialcharsbx($val["ID"])."] ".htmlspecialcharsbx($val["NAME"]));
 			}
 			$tabControl2 = new CAdminViewTabControl("tabControl2", $aTabs2);
 			$tabControl2->Begin();
@@ -1393,6 +1533,22 @@ function showAccountNumberAdditionalFields(templateID)
 	}
 }
 
+function showAllowGuestOrderViewPaths(target)
+{
+	var allowPaths = document.getElementsByClassName('sale_allow_guest_order_view');
+	for (id in allowPaths)
+	{
+		if (target.checked)
+		{
+			allowPaths[id].style.display = 'table-row';
+		}
+		else
+		{
+			allowPaths[id].style.display = 'none';
+		}
+	}
+}
+
 function showDateExample(period)
 {
 	if (period == 0)
@@ -1424,8 +1580,8 @@ function allowAutoDelivery(value)
 		<td><select name="site" id="WEIGHT_site_id"<? if(COption::GetOptionString($module_id, "WEIGHT_different_set", "N") != "Y") echo " disabled=\"disabled\""; ?> OnChange="selectSite(this.value, 'WEIGHT')">
 			<?
 				for($i = 0; $i < $siteCount; $i++)
-					echo "<option value=\"".($siteList[$i]["ID"])."\">".($siteList[$i]["NAME"])."</option>";
-			?></select><input type="hidden" name="WEIGHT_current_site" id="WEIGHT_current_site" value="<?=($siteList[0]["ID"]);?>" /></td>
+					echo "<option value=\"".htmlspecialcharsbx($siteList[$i]["ID"])."\">".htmlspecialcharsbx($siteList[$i]["NAME"])."</option>";
+			?></select><input type="hidden" name="WEIGHT_current_site" id="WEIGHT_current_site" value="<?=htmlspecialcharsbx($siteList[0]["ID"]);?>" /></td>
 	</tr>
 	<tr>
 		<td valign="top" colspan="2">
@@ -1437,7 +1593,7 @@ function allowAutoDelivery(value)
 			</tr>
 			<tr>
 				<td width="40%" class="adm-detail-content-cell-l"><?echo GetMessage("SMO_PAR_SITE_WEIGHT_UNIT_SALE")?></td>
-				<td width="60%" class="adm-detail-content-cell-r"><select name="weight_unit_tmp[<?=$siteList[$i]["ID"]?>]" OnChange="setWeightValue(this)">
+				<td width="60%" class="adm-detail-content-cell-r"><select name="weight_unit_tmp[<?=htmlspecialcharsbx($siteList[$i]["ID"])?>]" OnChange="setWeightValue(this)">
 						<option selected="selected"></option><?
 					$arUnitList = CSaleMeasure::GetList("W");
 					foreach ($arUnitList as $key => $arM)
@@ -1452,11 +1608,11 @@ function allowAutoDelivery(value)
 			</tr>
 			<tr>
 				<td class="adm-detail-content-cell-l"><?=GetMessage('SMO_PAR_WEIGHT_UNIT')?></td>
-				<td class="adm-detail-content-cell-r"><input type="text" name="weight_unit[<?=$siteList[$i]["ID"]?>]" size="5" value="<?=htmlspecialcharsbx(COption::GetOptionString($module_id, "weight_unit", GetMessage('SMO_PAR_WEIGHT_UNIT_GRAMM'), $siteList[$i]["ID"]))?>" /></td>
+				<td class="adm-detail-content-cell-r"><input type="text" name="weight_unit[<?=htmlspecialcharsbx($siteList[$i]["ID"])?>]" size="5" value="<?=htmlspecialcharsbx(COption::GetOptionString($module_id, "weight_unit", GetMessage('SMO_PAR_WEIGHT_UNIT_GRAMM'), $siteList[$i]["ID"]))?>" /></td>
 			</tr>
 			<tr>
 				<td class="adm-detail-content-cell-l"><?=GetMessage('SMO_PAR_WEIGHT_KOEF')?></td>
-				<td class="adm-detail-content-cell-r"><input type="text" name="weight_koef[<?=$siteList[$i]["ID"]?>]" size="5" value="<?=htmlspecialcharsbx(COption::GetOptionString($module_id, "weight_koef", "1", $siteList[$i]["ID"]))?>" /></td>
+				<td class="adm-detail-content-cell-r"><input type="text" name="weight_koef[<?=htmlspecialcharsbx($siteList[$i]["ID"])?>]" size="5" value="<?=htmlspecialcharsbx(COption::GetOptionString($module_id, "weight_koef", "1", $siteList[$i]["ID"]))?>" /></td>
 			</tr>
 			</table>
 			</div>
@@ -1474,8 +1630,8 @@ function allowAutoDelivery(value)
 		<td><select name="site" id="ADDRESS_site_id"<? if(COption::GetOptionString($module_id, "ADDRESS_different_set", "N") != "Y") echo " disabled=\"disabled\""; ?> onChange="selectSite(this.value, 'ADDRESS')">
 			<?
 				for($i = 0; $i < $siteCount; $i++)
-					echo "<option value=\"".($siteList[$i]["ID"])."\">".($siteList[$i]["NAME"])."</option>";
-			?></select><input type="hidden" name="ADDRESS_current_site" id="ADDRESS_current_site" value="<?=($siteList[0]["ID"]);?>" /></td>
+					echo "<option value=\"".htmlspecialcharsbx($siteList[$i]["ID"])."\">".htmlspecialcharsbx($siteList[$i]["NAME"])."</option>";
+			?></select><input type="hidden" name="ADDRESS_current_site" id="ADDRESS_current_site" value="<?=htmlspecialcharsbx($siteList[0]["ID"]);?>" /></td>
 	</tr>
 	<tr>
 		<td colspan="2" valign="top">
@@ -1493,14 +1649,14 @@ for ($i = 0; $i < $siteCount; $i++):
 
 	if ($location_zip == 0) $location_zip = '';
 ?>
-		<div  id="par_ADDRESS_<?=($siteList[$i]["ID"])?>" style="display: <?=($i == 0 ? "inline" : "none");?>">
+		<div  id="par_ADDRESS_<?=htmlspecialcharsbx($siteList[$i]["ID"])?>" style="display: <?=($i == 0 ? "inline" : "none");?>">
 		<table cellpadding="0" cellspacing="2" border="0" width="60%" align="center">
 			<tr class="heading">
 				<td align="center" colspan="2"><?echo GetMessage("SMO_PAR_SITE_ADRES")?></td>
 			</tr>
 			<tr>
 				<td width="40%" class="adm-detail-content-cell-l"><?echo GetMessage("SMO_LOCATION_ZIP");?></td>
-				<td width="60%" class="adm-detail-content-cell-r"><input type="text" name="location_zip[<?=$siteList[$i]["ID"]?>]" value="<?=htmlspecialcharsbx($location_zip)?>" size="5" /></td>
+				<td width="60%" class="adm-detail-content-cell-r"><input type="text" name="location_zip[<?=htmlspecialcharsbx($siteList[$i]["ID"])?>]" value="<?=htmlspecialcharsbx($location_zip)?>" size="5" /></td>
 			</tr>
 			<tr>
 				<td class="adm-detail-content-cell-l"><?=GetMessage("SMO_LOCATION_SHOP_CITY").":";?></td>
@@ -1524,7 +1680,7 @@ for ($i = 0; $i < $siteCount; $i++):
 
 					<?else:?>
 
-						<select name="location[<?=$siteList[$i]["ID"]?>]">
+						<select name="location[<?=htmlspecialcharsbx($siteList[$i]["ID"])?>]">
 							<option value=''></option>
 							<?$dbLocationList = CSaleLocation::GetList(
 								Array(
@@ -1566,8 +1722,8 @@ for ($i = 0; $i < $siteCount; $i++):
 					<?=GetMessage("SMO_LOCATION_SALES_ZONE").":";?>
 					<script type="text/javascript">
 						BX.ready( function(){
-							BX.bind(BX("sales_zone_countries_<?=$siteList[$i]["ID"]?>"), 'change', BX.Sale.Options.onCountrySelect);
-							BX.bind(BX("sales_zone_regions_<?=$siteList[$i]["ID"]?>"), 'change', BX.Sale.Options.onRegionSelect);
+							BX.bind(BX("sales_zone_countries_<?=htmlspecialcharsbx($siteList[$i]["ID"])?>"), 'change', BX.Sale.Options.onCountrySelect);
+							BX.bind(BX("sales_zone_regions_<?=htmlspecialcharsbx($siteList[$i]["ID"])?>"), 'change', BX.Sale.Options.onRegionSelect);
 						});
 					</script>
 				</td>
@@ -1589,9 +1745,9 @@ for ($i = 0; $i < $siteCount; $i++):
 								<th><?=GetMessage("SMO_LOCATION_COUNTRIES")?></th>
 								<th><?=GetMessage("SMO_LOCATION_REGIONS")?></th>
 								<th><?=GetMessage("SMO_LOCATION_CITIES")?></th>
-							<tr></tr>
+							</tr><tr>
 							<td>
-								<select id="sales_zone_countries_<?=$siteList[$i]["ID"]?>" name="sales_zone_countries[<?=$siteList[$i]["ID"]?>][]" multiple size="10" class="sale-options-location-mselect">
+								<select id="sales_zone_countries_<?=htmlspecialcharsbx($siteList[$i]["ID"])?>" name="sales_zone_countries[<?=htmlspecialcharsbx($siteList[$i]["ID"])?>][]" multiple size="10" class="sale-options-location-mselect">
 									<option value=''<?=in_array("", $sales_zone_countries) ? " selected" : ""?>><?=GetMessage("SMO_LOCATION_ALL")?></option>
 									<option value='NULL'<?=in_array("NULL", $sales_zone_countries) ? " selected" : ""?>><?=GetMessage("SMO_LOCATION_NO_COUNTRY")?></option>
 									<?$dbCountryList = CSaleLocation::GetCountryList(array("NAME_LANG"=>"ASC"))?>
@@ -1600,7 +1756,7 @@ for ($i = 0; $i < $siteCount; $i++):
 									<? endwhile; ?>
 								</select>
 								</td><td>
-								<select id="sales_zone_regions_<?=$siteList[$i]["ID"]?>" name="sales_zone_regions[<?=$siteList[$i]["ID"]?>][]" multiple size="10" class="sale-options-location-mselect">
+								<select id="sales_zone_regions_<?=htmlspecialcharsbx($siteList[$i]["ID"])?>" name="sales_zone_regions[<?=htmlspecialcharsbx($siteList[$i]["ID"])?>][]" multiple size="10" class="sale-options-location-mselect">
 									<option value=''<?=in_array("", $sales_zone_regions) ? " selected" : ""?>><?=GetMessage("SMO_LOCATION_ALL")?></option>
 									<option value='NULL'<?=in_array("NULL", $sales_zone_regions) ? " selected" : ""?>><?=GetMessage("SMO_LOCATION_NO_REGION")?></option>
 									<?if(!in_array("", $sales_zone_countries)):?>
@@ -1612,7 +1768,7 @@ for ($i = 0; $i < $siteCount; $i++):
 								</select>
 							</td><td>
 
-							<select id="sales_zone_regions_<?=$siteList[$i]["ID"]?>" name="sales_zone_regions[<?=$siteList[$i]["ID"]?>][]" multiple size="10" class="sale-options-location-mselect">
+							<select id="sales_zone_regions_<?=htmlspecialcharsbx($siteList[$i]["ID"])?>" name="sales_zone_regions[<?=htmlspecialcharsbx($siteList[$i]["ID"])?>][]" multiple size="10" class="sale-options-location-mselect">
 								<option value=''<?=in_array("", $sales_zone_regions) ? " selected" : ""?>><?=GetMessage("SMO_LOCATION_ALL")?></option>
 								<option value='NULL'<?=in_array("NULL", $sales_zone_regions) ? " selected" : ""?>><?=GetMessage("SMO_LOCATION_NO_REGION")?></option>
 								<?if(!in_array("", $sales_zone_countries)):?>
@@ -1623,7 +1779,7 @@ for ($i = 0; $i < $siteCount; $i++):
 								<?endif;?>
 							</select>
 						</td><td>
-							<select id="sales_zone_cities_<?=$siteList[$i]["ID"]?>" name="sales_zone_cities[<?=$siteList[$i]["ID"]?>][]" multiple size="10" class="sale-options-location-mselect">
+							<select id="sales_zone_cities_<?=htmlspecialcharsbx($siteList[$i]["ID"])?>" name="sales_zone_cities[<?=htmlspecialcharsbx($siteList[$i]["ID"])?>][]" multiple size="10" class="sale-options-location-mselect">
 								<option value=''<?=in_array("", $sales_zone_cities) ? " selected" : ""?>><?=GetMessage("SMO_LOCATION_ALL")?></option>
 								<?if(!in_array("", $sales_zone_regions)):?>
 									<?$arCities = SalesZone::getCities($sales_zone_countries, $sales_zone_regions, LANGUAGE_ID);?>
@@ -1722,7 +1878,7 @@ endfor;
 			?>
 			<tr>
 				<td valign="top">
-					[<a href="site_edit.php?LID=<?=$val["ID"]?>&lang=<?=LANGUAGE_ID?>" title="<?=GetMessage("SALE_SITE_ALT")?>"><?echo $val["ID"] ?></a>] <?echo ($val["NAME"]) ?>
+					[<a href="site_edit.php?LID=<?=htmlspecialcharsbx($val["ID"])?>&lang=<?=LANGUAGE_ID?>" title="<?=GetMessage("SALE_SITE_ALT")?>"><?echo htmlspecialcharsbx($val["ID"]) ?></a>] <?echo htmlspecialcharsbx($val["NAME"]) ?>
 				</td>
 				<td valign="top">
 
@@ -1759,7 +1915,7 @@ endfor;
 						$userGroupList[] = $arGroup;
 					}
 					?>
-					<select name="SITE_USER_GROUPS_<?= $val["ID"] ?>[]" multiple size="5">
+					<select name="SITE_USER_GROUPS_<?=htmlspecialcharsbx($val["ID"]) ?>[]" multiple size="5">
 						<?
 						for ($i = 0, $intCount = count($userGroupList); $i < $intCount; $i++)
 						{
@@ -2039,6 +2195,170 @@ endfor;
 			</td>
 		</tr>
 	<?endforeach;?>
+	<?$tabControl->BeginNextTab();?>
+	<?
+	$filterValues = Option::get('sale', 'archive_params');
+	$filterValues = unserialize($filterValues);
+	?>
+	<tr>
+		<td>
+			<label for="ORDER_ARCHIVE_REGULAR_ACCEPT"><?echo GetMessage("SALE_ORDER_ARCHIVE_ACCEPT")?>:</label>
+		</td>
+		<td>
+			<input type="checkbox" name="archive_regular_accept" id="ORDER_ARCHIVE_REGULAR_ACCEPT" value="Y" <?if(Option::get('sale', 'regular_archive_active')) echo" checked";?>>
+		</td>
+	</tr>
+	<tr>
+		<td>
+			<label for="archive_limit"><?=GetMessage("SALE_ORDER_ARCHIVE_LIMIT_BY_HIT")?>:</label>
+		</td>
+		<td>
+			<input type="text" name="archive_limit" value="<?=(int)(Option::get('sale', 'archive_limit')) ? (int)(Option::get('sale', 'archive_limit')) : 10?>" size="5" id="archive_limit">
+		</td>
+	</tr>
+	<tr>
+		<td><label for="archive_time_limit"><?=Loc::getMessage("SALE_ORDER_ARCHIVE_MAX_TIME_BY_HIT")?>:</label></td>
+		<td>
+			<input type="text"
+				   name="archive_time_limit"
+				   value="<?=(int)(Option::get('sale', 'archive_time_limit')) ? (int)(Option::get('sale', 'archive_time_limit')) : 5?>"
+				   size="5"
+				   id="archive_time_limit">
+			<?echo Loc::getMessage("SALE_ORDER_ARCHIVE_SEC")?>
+		</td>
+	</tr>
+	<?
+	if (
+		Option::get('sale', 'regular_archive_active', false) === false
+		&& Option::get('sale', 'archive_time_limit', false) === false
+	)
+	{
+		?>
+		<tr>
+			<td align="center" colspan="2">
+				<a href="sale_archive.php"><?= Loc::getMessage("SALE_ORDER_ARCHIVE_FIRST_START_NOTE")?></a>
+			</td>
+		</tr>
+		<?
+	}
+	?>
+	<tr class="heading">
+		<td colspan="2"><?=GetMessage("SALE_ORDER_ARCHIVE_TITLE")?></td>
+	</tr>
+	<tr>
+		<td><label for="archive_period"><?=GetMessage("SALE_ORDER_ARCHIVE_PERIOD")?>:</label></td>
+		<td><input type="text" name="archive_period" value="<?=(int)$filterValues['PERIOD'] ? (int)$filterValues['PERIOD'] : 365?>" size="5" id="archive_period"></td>
+	</tr>
+	<tr>
+		<td valign="top"><label for="archive_blocked_order_accept"><?echo Loc::getMessage("ARCHIVE_BLOCKED_ORDER_ACCEPT")?>:</label></td>
+		<td>
+			<input type="checkbox" name="archive_blocked_order_accept" id="archive_blocked_order_accept" value="Y" <?if(Option::get("sale", "archive_blocked_order") === "Y") echo "checked"?>>
+		</td>
+	</tr>
+	<?
+	if (count($siteList) > 1)
+	{
+	?>
+		<tr valign="top">
+			<td><label for="archive_site"><?=Loc::getMessage("SALE_LANG")?>:</label></td>
+			<td>
+				<select name="archive_site[]" id="archive_site" multiple size="<?=(count($siteList) < 5) ? count($siteList) : 5?>">
+					<?
+						foreach($siteList as $site)
+						{
+							?>
+							<option
+								value="<?= htmlspecialcharsbx($site['ID']) ?>"
+								<?
+									if (
+										(is_array($filterValues['LID'])	&& in_array($site['ID'], $filterValues['LID']))
+										|| empty($filterValues['LID'])
+									)
+										echo " selected"
+								?>
+							>
+								<?=htmlspecialcharsbx($site['NAME'])?>
+							</option>
+							<?
+						}
+					?>
+				</select>
+			</td>
+		</tr>
+	<?
+	}
+	?>
+	<tr>
+		<td valign="top"><?echo Loc::getMessage("SALE_ORDER_ARCHIVE_STATUS")?>:</td>
+		<td>
+			<select name="archive_status_id[]" multiple size="3">
+				<?
+				$statusesList = \Bitrix\Sale\OrderStatus::getStatusesUserCanDoOperations(
+					$USER->GetID(),
+					array('view')
+				);
+
+				$allStatusNames = \Bitrix\Sale\OrderStatus::getAllStatusesNames();
+
+				foreach($statusesList as  $statusCode)
+				{
+					if (!$statusName = $allStatusNames[$statusCode])
+						continue;
+					?>
+					<option
+						value="<?= htmlspecialcharsbx($statusCode) ?>"
+						<?
+							if (
+								(is_array($filterValues['STATUS_ID']) && in_array($statusCode, $filterValues['STATUS_ID']))
+								|| empty($filterValues['STATUS_ID'])
+							)
+								echo " selected"
+						?>
+					>
+						[<?= htmlspecialcharsbx($statusCode) ?>] <?= htmlspecialcharsbx($statusName) ?>
+					</option>
+					<?
+				}
+				?>
+			</select>
+		</td>
+	</tr>
+	<tr>
+		<td>
+			<label for="ORDER_ARCHIVE_PAYED"><?echo GetMessage("SALE_ORDER_ARCHIVE_PAYED")?>:</label>
+		</td>
+		<td>
+			<select name="archive_payed" id="ORDER_ARCHIVE_PAYED">
+				<option value="" selected><?echo Loc::getMessage("SALE_ORDER_ARCHIVE_ALL")?></option>
+				<option value="Y"<?if($filterValues['=PAYED'] == "Y") echo " selected"?>><?echo Loc::getMessage("SALE_ORDER_ARCHIVE_YES")?></option>
+				<option value="N"<?if($filterValues['=PAYED'] == 'N') echo " selected"?>><?echo Loc::getMessage("SALE_ORDER_ARCHIVE_NO")?></option>
+			</select>
+		</td>
+	</tr>
+	<tr>
+		<td>
+			<label for="ORDER_ARCHIVE_CANCELED"><?echo GetMessage("SALE_ORDER_ARCHIVE_CANCELED")?>:</label>
+		</td>
+		<td>
+			<select name="archive_canceled" id="ORDER_ARCHIVE_CANCELED">
+				<option value="" selected><?echo Loc::getMessage("SALE_ORDER_ARCHIVE_ALL")?></option>
+				<option value="Y"<?if($filterValues['=CANCELED'] == "Y") echo " selected"?>><?echo Loc::getMessage("SALE_ORDER_ARCHIVE_YES")?></option>
+				<option value="N"<?if($filterValues['=CANCELED'] == 'N') echo " selected"?>><?echo Loc::getMessage("SALE_ORDER_ARCHIVE_NO")?></option>
+			</select>
+		</td>
+	</tr>
+	<tr>
+		<td>
+			<label for="ORDER_ARCHIVE_DEDUCTED"><?echo GetMessage("SALE_ORDER_ARCHIVE_DEDUCTED")?>:</label>
+		</td>
+		<td>
+			<select name="archive_deducted" id="ORDER_ARCHIVE_DEDUCTED">
+				<option value="" selected><?echo Loc::getMessage("SALE_ORDER_ARCHIVE_ALL")?></option>
+				<option value="Y"<?if($filterValues['=DEDUCTED'] == "Y") echo " selected"?>><?echo Loc::getMessage("SALE_ORDER_ARCHIVE_YES")?></option>
+				<option value="N"<?if($filterValues['=DEDUCTED'] == 'N') echo " selected"?>><?echo Loc::getMessage("SALE_ORDER_ARCHIVE_NO")?></option>
+			</select>
+		</td>
+	</tr>
 <?$tabControl->Buttons();?>
 <script type="text/javascript">
 function RestoreDefaults()
@@ -2172,6 +2492,14 @@ function RestoreDefaults()
 		obDiscount.Show();
 		return false;
 	}
+	function showApplyDiscountMode()
+	{
+		var modeList = BX('tr_discount_apply_mode'),
+			showMode = BX('use_sale_discount_only_Y');
+		if (!BX.type.isElementNode(modeList) || !BX.type.isElementNode(showMode))
+			return;
+		BX.style(modeList, 'display', (showMode.checked ? 'none' : 'table-row'));
+	}
 	BX.ready( function(){
 		BX.message["SMO_LOCATION_JS_GET_DATA_ERROR"] = "<?=GetMessage("SMO_LOCATION_JS_GET_DATA_ERROR")?>";
 		BX.message["SMO_LOCATION_ALL"] = "<?=GetMessage("SMO_LOCATION_ALL")?>";
@@ -2179,12 +2507,15 @@ function RestoreDefaults()
 		BX.message["SMO_LOCATION_NO_REGION"] = "<?=GetMessage("SMO_LOCATION_NO_REGION")?>";
 
 		var discountReindex = BX('sale_discount_reindex'),
-			basketDiscount = BX('sale_basket_discount');
+			basketDiscount = BX('sale_basket_discount'),
+			showMode = BX('use_sale_discount_only_Y');
 
 		if (!!discountReindex)
 			BX.bind(discountReindex, 'click', showDiscountReindex);
 		if (!!basketDiscount)
 			BX.bind(basketDiscount, 'click', showBasketDiscountConvert);
+		if (BX.type.isElementNode(showMode))
+			BX.bind(showMode, 'click', showApplyDiscountMode);
 
 		toggleTrackingAuto();
 	});

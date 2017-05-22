@@ -3,6 +3,8 @@ IncludeModuleLangFile(__FILE__);
 
 $GLOBALS["SONET_FEATURES_CACHE"] = array();
 
+use Bitrix\Socialnetwork\Integration;
+
 class CAllSocNetFeatures
 {
 	/***************************************/
@@ -187,15 +189,7 @@ class CAllSocNetFeatures
 
 		$ID = IntVal($ID);
 
-		$arFields1 = array();
-		foreach ($arFields as $key => $value)
-		{
-			if (substr($key, 0, 1) == "=")
-			{
-				$arFields1[substr($key, 1)] = $value;
-				unset($arFields[$key]);
-			}
-		}
+		$arFields1 = \Bitrix\Socialnetwork\Util::getEqualityFields($arFields);
 
 		if (!CSocNetFeatures::CheckFields("UPDATE", $arFields, $ID))
 			return false;
@@ -206,13 +200,7 @@ class CAllSocNetFeatures
 				return false;
 
 		$strUpdate = $DB->PrepareUpdate("b_sonet_features", $arFields);
-
-		foreach ($arFields1 as $key => $value)
-		{
-			if (strlen($strUpdate) > 0)
-				$strUpdate .= ", ";
-			$strUpdate .= $key."=".$value." ";
-		}
+		\Bitrix\Socialnetwork\Util::processEqualityFieldsToUpdate($arFields1, $strUpdate);
 
 		if (strlen($strUpdate) > 0)
 		{
@@ -298,6 +286,23 @@ class CAllSocNetFeatures
 		else
 		{
 			$r = CSocNetFeatures::Add(array("ENTITY_TYPE" => $type, "ENTITY_ID" => $id, "FEATURE" => $feature, "FEATURE_NAME" => $featureName, "ACTIVE" => $active, "=DATE_UPDATE" => $GLOBALS["DB"]->CurrentTimeFunction(), "=DATE_CREATE" => $GLOBALS["DB"]->CurrentTimeFunction()));
+		}
+
+		if (
+			$feature == 'chat'
+			&& $active == 'Y'
+		)
+		{
+			$chatData = Integration\Im\Chat\Workgroup::getChatData(Array(
+				'group_id' => $id,
+				'skipAvailabilityCheck' => true
+			));
+			if (empty($chatData[$id]) || intval($chatData[$id]) <= 0)
+			{
+				Integration\Im\Chat\Workgroup::createChat(Array(
+					'group_id' => $id
+				));
+			}
 		}
 
 		if (!$r)
@@ -470,19 +475,19 @@ class CAllSocNetFeatures
 
 	public static function GetActiveFeatures($type, $id)
 	{
-		global $arSocNetAllowedEntityTypes;
+		global $arSocNetAllowedEntityTypes, $APPLICATION;
 
 		$type = Trim($type);
 		if ((StrLen($type) <= 0) || !in_array($type, $arSocNetAllowedEntityTypes))
 		{
-			$GLOBALS["APPLICATION"]->ThrowException(GetMessage("SONET_GF_ERROR_NO_ENTITY_TYPE"), "ERROR_EMPTY_TYPE");
+			$APPLICATION->ThrowException(GetMessage("SONET_GF_ERROR_NO_ENTITY_TYPE"), "ERROR_EMPTY_TYPE");
 			return false;
 		}
 
 		$id = IntVal($id);
 		if ($id <= 0)
 		{
-			$GLOBALS["APPLICATION"]->ThrowException(GetMessage("SONET_GF_EMPTY_ENTITY_ID"), "ERROR_EMPTY_ENTITY_ID");
+			$APPLICATION->ThrowException(GetMessage("SONET_GF_EMPTY_ENTITY_ID"), "ERROR_EMPTY_ENTITY_ID");
 			return false;
 		}
 
@@ -501,12 +506,18 @@ class CAllSocNetFeatures
 		{
 			$dbResult = CSocNetFeatures::GetList(Array(), Array("ENTITY_ID" => $id, "ENTITY_TYPE" => $type));
 			while ($arResult = $dbResult->GetNext())
+			{
 				$arFeatures[$arResult["FEATURE"]] = array("ACTIVE" => $arResult["ACTIVE"], "FEATURE_NAME" => $arResult["FEATURE_NAME"]);
+			}
 
 			if (!array_key_exists("SONET_FEATURES_CACHE", $GLOBALS) || !is_array($GLOBALS["SONET_FEATURES_CACHE"]))
+			{
 				$GLOBALS["SONET_FEATURES_CACHE"] = array();
+			}
 			if (!array_key_exists($type, $GLOBALS["SONET_FEATURES_CACHE"]) || !is_array($GLOBALS["SONET_FEATURES_CACHE"][$type]))
+			{
 				$GLOBALS["SONET_FEATURES_CACHE"][$type] = array();
+			}
 
 			$GLOBALS["SONET_FEATURES_CACHE"][$type][$id] = $arFeatures;
 		}
@@ -523,7 +534,10 @@ class CAllSocNetFeatures
 				continue;
 			}
 
-			if (array_key_exists($feature, $arFeatures) && ($arFeatures[$feature]["ACTIVE"] == "N"))
+			if (
+				(array_key_exists($feature, $arFeatures) && ($arFeatures[$feature]["ACTIVE"] == "N"))
+				|| (!array_key_exists($feature, $arFeatures) && ($feature == 'chat'))
+			)
 			{
 				continue;
 			}
@@ -534,21 +548,21 @@ class CAllSocNetFeatures
 		return $arReturn;
 	}
 
-	public static function GetActiveFeaturesNames($type, $id)
+	public static function getActiveFeaturesNames($type, $id)
 	{
-		global $arSocNetAllowedEntityTypes;
+		global $arSocNetAllowedEntityTypes, $APPLICATION, $CACHE_MANAGER;
 
 		$type = Trim($type);
 		if ((StrLen($type) <= 0) || !in_array($type, $arSocNetAllowedEntityTypes))
 		{
-			$GLOBALS["APPLICATION"]->ThrowException(GetMessage("SONET_GF_ERROR_NO_ENTITY_TYPE"), "ERROR_EMPTY_TYPE");
+			$APPLICATION->ThrowException(GetMessage("SONET_GF_ERROR_NO_ENTITY_TYPE"), "ERROR_EMPTY_TYPE");
 			return false;
 		}
 
 		$id = IntVal($id);
 		if ($id <= 0)
 		{
-			$GLOBALS["APPLICATION"]->ThrowException(GetMessage("SONET_GF_EMPTY_ENTITY_ID"), "ERROR_EMPTY_ENTITY_ID");
+			$APPLICATION->ThrowException(GetMessage("SONET_GF_EMPTY_ENTITY_ID"), "ERROR_EMPTY_ENTITY_ID");
 			return false;
 		}
 
@@ -579,8 +593,8 @@ class CAllSocNetFeatures
 				$cache->StartDataCache($cache_time, $cache_id, $cache_path);
 				if (defined("BX_COMP_MANAGED_CACHE"))
 				{
-					$GLOBALS["CACHE_MANAGER"]->StartTagCache($cache_path);
-					$GLOBALS["CACHE_MANAGER"]->RegisterTag("sonet_features_".$type."_".$id);
+					$CACHE_MANAGER->StartTagCache($cache_path);
+					$CACHE_MANAGER->RegisterTag("sonet_features_".$type."_".$id);
 				}
 
 				$dbResult = CSocNetFeatures::GetList(Array(), Array("ENTITY_ID" => $id, "ENTITY_TYPE" => $type));
@@ -589,7 +603,7 @@ class CAllSocNetFeatures
 					$arFeatures[$arResult["FEATURE"]] = array("ACTIVE" => $arResult["ACTIVE"], "FEATURE_NAME" => $arResult["FEATURE_NAME"]);
 					if (defined("BX_COMP_MANAGED_CACHE"))
 					{
-						$GLOBALS["CACHE_MANAGER"]->RegisterTag("sonet_feature_".$arResult["ID"]);
+						$CACHE_MANAGER->RegisterTag("sonet_feature_".$arResult["ID"]);
 					}
 				}
 
@@ -598,7 +612,7 @@ class CAllSocNetFeatures
 				);
 				if(defined("BX_COMP_MANAGED_CACHE"))
 				{
-					$GLOBALS["CACHE_MANAGER"]->EndTagCache();
+					$CACHE_MANAGER->EndTagCache();
 				}
 				$cache->EndDataCache($arCacheData);
 			}
@@ -616,7 +630,7 @@ class CAllSocNetFeatures
 			$GLOBALS["SONET_FEATURES_CACHE"][$type][$id] = $arFeatures;
 		}
 
-		$arSocNetFeaturesSettings = CSocNetAllowed::GetAllowedFeatures();
+		$arSocNetFeaturesSettings = CSocNetAllowed::getAllowedFeatures();
 		foreach ($arSocNetFeaturesSettings as $feature => $arr)
 		{
 			if (
@@ -627,8 +641,13 @@ class CAllSocNetFeatures
 				continue;
 			}
 
-			if (array_key_exists($feature, $arFeatures) && ($arFeatures[$feature]["ACTIVE"] == "N"))
+			if (
+				array_key_exists($feature, $arFeatures)
+				&& ($arFeatures[$feature]["ACTIVE"] == "N")
+			)
+			{
 				continue;
+			}
 
 			$arReturn[$feature] = $arFeatures[$feature]["FEATURE_NAME"];
 		}

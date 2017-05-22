@@ -189,6 +189,7 @@ class SubscribeTable extends Entity\DataManager
 	 * Handler OnSaleOrderSaved to unsubscribe when ordering.
 	 *
 	 * @param Event $event Object event.
+	 * @return void
 	 * @throws \Bitrix\Main\ArgumentException
 	 */
 	public static function onSaleOrderSaved(Event $event)
@@ -342,9 +343,10 @@ class SubscribeTable extends Entity\DataManager
 			.' and ('.$helper->quote('DATE_TO').' is null or '.$helper->quote('DATE_TO').' > '
 			.$helper->getCurrentDateTimeFunction().')'
 		);
-		
+
 		if(!static::$agentNoticeCreated)
 		{
+			$t = DateTime::createFromTimestamp(time() + static::AGENT_TIME_OUT);
 			static::$agentNoticeCreated = true;
 			\CAgent::addAgent(
 				'Bitrix\Catalog\SubscribeTable::sendNotice();',
@@ -353,7 +355,10 @@ class SubscribeTable extends Entity\DataManager
 				static::AGENT_INTERVAL,
 				'',
 				'Y',
-				date('d.m.Y H:i:s', time() + static::AGENT_TIME_OUT)
+				$t->toString(),
+				100,
+				false,
+				false
 			);
 		}
 
@@ -369,7 +374,7 @@ class SubscribeTable extends Entity\DataManager
 	public static function runAgentToSendRepeatedNotice($productId)
 	{
 		$productId = intval($productId);
-		if(!$productId)
+		if(!$productId || (string)Option::get('catalog', 'subscribe_repeated_notify') != 'Y')
 		{
 			return false;
 		}
@@ -384,6 +389,7 @@ class SubscribeTable extends Entity\DataManager
 
 		if(!static::$agentRepeatedNoticeCreated)
 		{
+			$t = DateTime::createFromTimestamp(time() + static::AGENT_TIME_OUT);
 			static::$agentRepeatedNoticeCreated = true;
 			\CAgent::addAgent(
 				'Bitrix\Catalog\SubscribeTable::sendRepeatedNotice();',
@@ -392,7 +398,10 @@ class SubscribeTable extends Entity\DataManager
 				static::AGENT_INTERVAL,
 				'',
 				'Y',
-				date('d.m.Y H:i:s', time() + static::AGENT_TIME_OUT)
+				$t->toString(),
+				100,
+				false,
+				false
 			);
 		}
 
@@ -534,8 +543,7 @@ class SubscribeTable extends Entity\DataManager
 			static::runAgentToSendNotice($productId);
 		}
 		elseif(static::$oldProductAvailable[$productId]['AVAILABLE'] == ProductTable::STATUS_YES
-			&& $fields['AVAILABLE'] == ProductTable::STATUS_NO
-			&& (string)Option::get('catalog', 'subscribe_repeated_notify') == 'Y')
+			&& $fields['AVAILABLE'] == ProductTable::STATUS_NO)
 		{
 			static::runAgentToSendRepeatedNotice($productId);
 		}
@@ -545,24 +553,30 @@ class SubscribeTable extends Entity\DataManager
 		return true;
 	}
 
+	/**
+	 * Return true, if the last update products was completed less than self::AGENT_TIME_OUT seconds ago.
+	 *
+	 * @return bool
+	 */
 	protected static function checkLastUpdate()
 	{
 		$lastUpdate = ProductTable::getList(
 			array(
 				'select' => array('TIMESTAMP_X'),
-				'order' => array('TIMESTAMP_X' => 'desc'),
+				'order' => array('TIMESTAMP_X' => 'DESC'),
 				'limit' => 1
 			)
 		)->fetch();
-		if((!empty($lastUpdate)) && (time() - $lastUpdate['TIMESTAMP_X']->getTimestamp() < static::AGENT_TIME_OUT))
+		if (empty($lastUpdate) || !($lastUpdate['TIMESTAMP_X'] instanceof DateTime))
 			return true;
 
-		return false;
+		return (time() - $lastUpdate['TIMESTAMP_X']->getTimestamp() < static::AGENT_TIME_OUT);
 	}
 
 	protected static function getSubscriptionsData()
 	{
 		global $DB;
+
 		$filter = array(
 			'=NEED_SENDING' => 'Y',
 			'!=PRODUCT.SUBSCRIBE' => 'N',
@@ -572,6 +586,24 @@ class SubscribeTable extends Entity\DataManager
 				array('>DATE_TO' => date($DB->dateFormatToPHP(\CLang::getDateFormat('FULL')), time()))
 			)
 		);
+
+		/* Compatibility with the sale subscribe option */
+		$notifyOption = Option::get('sale', 'subscribe_prod');
+		$notify = array();
+		if(strlen($notifyOption) > 0)
+			$notify = unserialize($notifyOption);
+		if(is_array($notify))
+		{
+			$listSiteId = array();
+			foreach($notify as $siteId => $data)
+			{
+				if($data['use'] != 'Y')
+					$listSiteId[] = $siteId;
+			}
+			if($listSiteId)
+				$filter['!=SITE_ID'] = $listSiteId;
+		}
+
 		$listSubscribe = static::getList(array(
 			'select'=>array(
 				'ID',
@@ -602,6 +634,15 @@ class SubscribeTable extends Entity\DataManager
 
 	protected static function prepareDataForNotice(array $listSubscribe, $eventName)
 	{
+		/* Preparation of data for the mail template */
+		$currentApplication = Application::getInstance();
+		$context = $currentApplication->getContext();
+		$protocol = ($context->getRequest()->isHttps() ? 'https://' : 'http://');
+		$serverName = (defined('SITE_SERVER_NAME') && SITE_SERVER_NAME != '' ? SITE_SERVER_NAME : (string)Option::get('main', 'server_name', ''));
+		if ($serverName == '')
+			$serverName = $context->getServer()->getServerName();
+		unset($context, $currentApplication);
+
 		$itemIdGroupByIblock = array();
 		foreach($listSubscribe as $key => $subscribeData)
 			$itemIdGroupByIblock[$subscribeData['IBLOCK_ID']][$subscribeData['ITEM_ID']] = $subscribeData['ITEM_ID'];
@@ -628,20 +669,7 @@ class SubscribeTable extends Entity\DataManager
 			if(!empty($detailPageUrlGtoupByItemId[$subscribeData['ITEM_ID']]))
 				$subscribeData['DETAIL_PAGE_URL'] = $detailPageUrlGtoupByItemId[$subscribeData['ITEM_ID']];
 
-			/* Preparation of data for the mail template */
-			global $APPLICATION;
-			if($APPLICATION->isHTTPS())
-				$proto = "https://";
-			else
-				$proto = "http://";
-			if(defined('SITE_SERVER_NAME') && strlen(SITE_SERVER_NAME) > 0)
-				$serverName = SITE_SERVER_NAME;
-			else
-				$serverName = Option::get('main', 'server_name', '');
-			if (strlen($serverName) <= 0)
-				$serverName = $_SERVER['SERVER_NAME'];
-
-			$cardProduct = $proto.$serverName.$subscribeData['DETAIL_PAGE_URL'];
+			$cardProduct = $protocol.$serverName.$subscribeData['DETAIL_PAGE_URL'];
 			$subscribeData['EVENT_NAME'] = $eventName;
 			$subscribeData['USER_NAME'] = $subscribeData['USER_NAME'] ?
 				$subscribeData['USER_NAME'] : Loc::getMessage('EMAIL_TEMPLATE_USER_NAME');
@@ -653,7 +681,7 @@ class SubscribeTable extends Entity\DataManager
 				'action' => 'BUY', 'id' => $subscribeData['PRODUCT_ID']));
 			$subscribeData['CHECKOUT_URL_PARAMETERS'] = \CHTTP::urlAddParams('', array(
 				'action' => 'BUY', 'id' => $subscribeData['PRODUCT_ID']));
-			$subscribeData['UNSUBSCRIBE_URL'] = \CHTTP::urlAddParams($proto.$serverName.'/personal/subscribe/',
+			$subscribeData['UNSUBSCRIBE_URL'] = \CHTTP::urlAddParams($protocol.$serverName.'/personal/subscribe/',
 				array('unSubscribe' => 'Y', 'subscribeId' => $subscribeData['ID'],
 					'userContact' => $subscribeData['USER_CONTACT'], 'productId' => $subscribeData['PRODUCT_ID']));
 			$subscribeData['UNSUBSCRIBE_URL_PARAMETERS'] = \CHTTP::urlAddParams('',

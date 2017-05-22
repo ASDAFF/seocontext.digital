@@ -2,8 +2,11 @@
 
 use Bitrix\Main\Localization\Loc;
 
-$APPLICATION->SetTitle(Loc::getMessage("SPS_TITLE_MAIN"));
-$APPLICATION->AddChainItem(Loc::getMessage("SPS_CHAIN_MAIN"), $arResult['SEF_FOLDER']);
+
+if (strlen($arParams["MAIN_CHAIN_NAME"]) > 0)
+{
+	$APPLICATION->AddChainItem(htmlspecialcharsbx($arParams["MAIN_CHAIN_NAME"]), $arResult['SEF_FOLDER']);
+}
 
 $theme = Bitrix\Main\Config\Option::get("main", "wizard_eshop_bootstrap_theme_id", "blue", SITE_ID);
 
@@ -83,7 +86,7 @@ if ($arParams['SHOW_CONTACT_PAGE'] === 'Y')
 	);
 }
 
-$customPagesList = json_decode(htmlspecialchars_decode($arParams['CUSTOM_PAGES']));
+$customPagesList = CUtil::JsObjectToPhp($arParams['~CUSTOM_PAGES']);
 if ($customPagesList)
 {
 	foreach ($customPagesList as $page)
@@ -113,9 +116,9 @@ else
 					<div class="col-lg-4 col-md-6 col-sm-12 col-xs-12">
 						<div class="sale-personal-section-index-block bx-theme-<?=$theme?>">
 							<a class="sale-personal-section-index-block-link" href="<?=htmlspecialcharsbx($blockElement['path'])?>">
-							<span class="sale-personal-section-index-block-ico">
-								<?=$blockElement['icon']?>
-							</span>
+								<span class="sale-personal-section-index-block-ico">
+									<?=$blockElement['icon']?>
+								</span>
 								<h2 class="sale-personal-section-index-block-name">
 									<?=htmlspecialcharsbx($blockElement['name'])?>
 								</h2>

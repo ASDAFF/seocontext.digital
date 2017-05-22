@@ -1,7 +1,8 @@
 <?
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true) die();
 
-use Bitrix\Main\Loader;
+use Bitrix\Main,
+	Bitrix\Main\Loader;
 
 global $USER_FIELD_MANAGER, $APPLICATION;
 
@@ -18,11 +19,6 @@ if (!function_exists("getStringCatalogStoreAmount"))
 			$message = GetMessage("LOT_OF_GOOD");
 		return $message;
 	}
-}
-if (!Loader::includeModule('catalog'))
-{
-	ShowError(GetMessage('CATALOG_MODULE_NOT_INSTALL'));
-	return;
 }
 
 if (!isset($arParams['CACHE_TIME']))
@@ -54,34 +50,42 @@ if (isset($arParams['SCHEDULE']) && $arParams['SCHEDULE'] == 'Y')
 	$arParams['FIELDS'][] = "SCHEDULE";
 $arParams['SHOW_EMPTY_STORE'] = (isset($arParams['SHOW_EMPTY_STORE']) && $arParams['SHOW_EMPTY_STORE'] == 'N' ? 'N' : 'Y');
 
-if ($arParams["ELEMENT_ID"] <= 0 && $arParams["ELEMENT_CODE"] != '')
-{
-	$res = CIBlockElement::GetList(
-		array(),
-		array('=CODE' => $arParams['ELEMENT_CODE']),
-		false,
-		false,
-		array('ID')
-	);
-	if ($elementId = $res->Fetch())
-		$arParams["ELEMENT_ID"] = $elementId['ID'];
-}
-
-$siteId             = \Bitrix\Main\Application::getInstance()->getContext()->getSite();
 $quantity           = 0;
 $productId          = 0;
 $iblockId           = 0;
-$arResult["IS_SKU"] = true;
-$lang               = \Bitrix\Main\Application::getInstance()->getContext()->getLanguage();
 
-if ($arParams["ELEMENT_ID"] <= 0)
+if ($this->startResultCache())
 {
-	ShowError(GetMessage("PRODUCT_NOT_EXIST"));
-	return;
-}
+	if (!Loader::includeModule('catalog'))
+	{
+		$this->abortResultCache();
+		ShowError(GetMessage('CATALOG_MODULE_NOT_INSTALL'));
+		return;
+	}
 
-if ($this->StartResultCache())
-{
+	if ($arParams["ELEMENT_ID"] <= 0 && $arParams["ELEMENT_CODE"] != '')
+	{
+		$res = CIBlockElement::GetList(
+			array(),
+			array('=CODE' => $arParams['ELEMENT_CODE']),
+			false,
+			false,
+			array('ID')
+		);
+		if ($elementId = $res->Fetch())
+			$arParams["ELEMENT_ID"] = $elementId['ID'];
+	}
+
+	if ($arParams["ELEMENT_ID"] <= 0)
+	{
+		$this->abortResultCache();
+		ShowError(GetMessage("PRODUCT_NOT_EXIST"));
+		return;
+	}
+
+	$context = Main\Application::getInstance()->getContext();
+
+	$arResult['IS_SKU'] = false;
 	$arResult['STORES'] = array();
 	$isProductExistSKU = CCatalogSku::IsExistOffers($arParams['ELEMENT_ID'], $iblockId);
 	$productSku = array();
@@ -111,6 +115,7 @@ if ($this->StartResultCache())
 
 		while ($sku = $skuIterator->Fetch())
 		{
+			$arResult['IS_SKU'] = true;
 			$amount = array();
 			$sum = 0;
 			$filter = array('PRODUCT_ID' => $sku['ID']);
@@ -174,7 +179,7 @@ if ($this->StartResultCache())
 		$filter = array(
 			"ACTIVE" => "Y",
 			"PRODUCT_ID" => $arParams["ELEMENT_ID"],
-			"+SITE_ID" => $siteId,
+			"+SITE_ID" => $context->getSite(),
 			"ISSUING_CENTER" => 'Y'
 		);
 
@@ -245,7 +250,7 @@ if ($this->StartResultCache())
 
 			$arResult["USER_FIELDS"] = $arParams["USER_FIELDS"];
 
-			$userFields = $USER_FIELD_MANAGER->GetUserFields('CAT_STORE', 0, $lang);
+			$userFields = $USER_FIELD_MANAGER->GetUserFields('CAT_STORE', 0, $context->getLanguage());
 
 			foreach ($arResult["USER_FIELDS"] as $userField)
 			{
@@ -300,5 +305,7 @@ if ($this->StartResultCache())
 			foreach ($arResult['STORES'] as $store)
 				$arResult['JS']['STORES'][] = $store['ID'];
 	}
-	$this->IncludeComponentTemplate();
+	$this->includeComponentTemplate();
+
+	unset($context);
 }

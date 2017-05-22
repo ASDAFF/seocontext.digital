@@ -965,6 +965,13 @@ class CSaleOrderChangeFormat
 			"ENTITY" => 'SHIPMENT_ITEM'
 		),
 
+		"MARKER_SUCCESS" => array(
+			"TRIGGER_FIELDS" => array(),
+			"FUNCTION" => "FormatMarkerSuccess",
+			"DATA_FIELDS" => array("ENTITY_ID", "MESSAGE"),
+			"ENTITY" => 'SHIPMENT'
+		),
+
 	);
 
 	public static function FormatBasketAdded($data)
@@ -1149,7 +1156,7 @@ class CSaleOrderChangeFormat
 			{
 				if ($param == "DELIVERY_ID")
 				{
-					if (!array_key_exists('DELIVERY_NAME', $arData) && strval($arData['DELIVERY_NAME']) != '')
+					if (!array_key_exists('DELIVERY_NAME', $data) && strval($data['DELIVERY_NAME']) != '')
 					{
 						if (strpos($value, ":") !== false)
 						{
@@ -1174,7 +1181,7 @@ class CSaleOrderChangeFormat
 					}
 					else
 					{
-						$value = "\"".$arData['DELIVERY_NAME']."\"";
+						$value = "\"".$data['DELIVERY_NAME']."\"";
 					}
 				}
 				elseif($param == "DELIVERY_NAME")
@@ -1374,7 +1381,7 @@ class CSaleOrderChangeFormat
 					$reqDescription .=": ".$data["TEXT"].".";
 
 				if(isset($data["DATA"]))
-					$reqDescription .= GetMessage("SOC_ORDER_DELIVERY_REQUEST_SENT_ADD_INFO").": ".serialize($arData["DATA"]);
+					$reqDescription .= GetMessage("SOC_ORDER_DELIVERY_REQUEST_SENT_ADD_INFO").": ".serialize($data["DATA"]);
 			}
 
 		}
@@ -1827,5 +1834,25 @@ class CSaleOrderChangeFormat
 		}
 
 		return $text;
+	}
+
+
+	public static function FormatMarkerSuccess($data)
+	{
+		$info = GetMessage("SOC_MARKER_SUCCESS_INFO");
+
+
+		if (!empty($data['ENTITY_TYPE']))
+		{
+			$data['ENTITY_NAME'] = \Bitrix\Main\Localization\Loc::getMessage('SOC_MARKER_'. $data['ENTITY_TYPE'] .'_INFO');
+		}
+
+		$info = static::doProcessLogMessage($info, $data);
+
+
+		return array(
+			"NAME" => GetMessage("SOC_MARKER_SUCCESS"),
+			"INFO" => $info,
+		);
 	}
 }

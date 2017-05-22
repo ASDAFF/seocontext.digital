@@ -280,11 +280,13 @@ if (strlen($arResult["FatalErrorMessage"]) <= 0 && !$arParams['COUNTERS_ONLY'])
 
 		$arRecord["IS_MY"] = $arResult['IS_MY_TASKS'];
 		$arRecord['MODIFIED'] = FormatDateFromDB($arRecord['MODIFIED']);
-		$arRecord["DOCUMENT_URL"] = CBPDocument::GetDocumentAdminPage($arRecord["PARAMETERS"]["DOCUMENT_ID"]);
+		$documentId = isset($arRecord["PARAMETERS"]["DOCUMENT_ID"]) && is_array($arRecord["PARAMETERS"]["DOCUMENT_ID"]) ?
+			$arRecord["PARAMETERS"]["DOCUMENT_ID"] : null;
+		$arRecord["DOCUMENT_URL"] = $documentId ? CBPDocument::GetDocumentAdminPage($documentId) : '';
 
-		$arRecord["MODULE_ID"] = $arRecord["PARAMETERS"]["DOCUMENT_ID"][0];
-		$arRecord["ENTITY"] = $arRecord["PARAMETERS"]["DOCUMENT_ID"][1];
-		$arRecord["DOCUMENT_ID"] = $arRecord["PARAMETERS"]["DOCUMENT_ID"][2];
+		$arRecord["MODULE_ID"] = $documentId ? $documentId[0] : '';
+		$arRecord["ENTITY"] = $documentId ? $documentId[1] : '';
+		$arRecord["DOCUMENT_ID"] = $documentId ? $documentId[2] : '';
 
 		if (empty($arRecord['DOCUMENT_NAME']))
 			$arRecord['DOCUMENT_NAME'] = GetMessage("BPATL_DOCUMENT_NAME");
@@ -351,6 +353,8 @@ if (strlen($arResult["FatalErrorMessage"]) <= 0 && !$arParams['COUNTERS_ONLY'])
 	$arResult["NAV_STRING"] = $dbRecordsList->GetPageNavStringEx($navComponentObject, GetMessage("INTS_TASKS_NAV"), "", false);
 	$arResult["NAV_CACHED_DATA"] = $navComponentObject->GetTemplateCachedData();
 	$arResult["NAV_RESULT"] = $dbRecordsList;
+
+	$arResult['HIDE_WORKFLOW_PROGRESS'] = $gridColumns && is_array($gridColumns) && !in_array('WORKFLOW_PROGRESS', $gridColumns);
 }
 
 if ($arParams["SHOW_TRACKING"] == "Y")

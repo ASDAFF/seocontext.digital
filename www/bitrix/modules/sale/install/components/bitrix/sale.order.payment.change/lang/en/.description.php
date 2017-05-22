@@ -1,5 +1,5 @@
 <?
-$MESS["SOP_DEFAULT_TEMPLATE_NAME"] = "Change payment method";
-$MESS["SOP_DEFAULT_TEMPLATE_DESCRIPTION"] = "Changes payment system to use for order payment";
-$MESS["SOP_NAME"] = "Ordering procedure";
+$MESS["SOPC_DEFAULT_TEMPLATE_NAME"] = "Change payment method";
+$MESS["SOPC_DEFAULT_TEMPLATE_DESCRIPTION"] = "Changes payment system to use for order payment";
+$MESS["SOPC_NAME"] = "Ordering procedure";
 ?>

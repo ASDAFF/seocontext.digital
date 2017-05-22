@@ -38,7 +38,7 @@ elseif ($arResult["MESSAGE_TYPE"] == "REPLY")
 else
 {
 	?><?=GetMessage("F_EDIT_FORM")?> <?=GetMessage("F_IN_TOPIC")?>:
-		<a href="<?=$arResult["URL"]["READ"]?>"><?=htmlspecialcharsEx($arResult["TOPIC_FILTER"]["TITLE"])?></a>, <?=GetMessage("F_IN_FORUM")?>: 
+		<a href="<?=$arResult["URL"]["READ"]?>"><?=htmlspecialcharsbx($arResult["TOPIC_FILTER"]["TITLE"])?></a>, <?=GetMessage("F_IN_FORUM")?>:
 		<a href="<?=$arResult["URL"]["LIST"]?>"><?=$arResult["FORUM"]["NAME"]?></a><?
 };	
 	?></span></div>

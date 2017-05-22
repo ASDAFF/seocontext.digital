@@ -8,7 +8,7 @@ class CBPTrackingService
 	{
 		global $DB;
 
-		if (in_array($type, $this->skipTypes))
+		if (!$this->canWrite($type, $workflowId))
 			return;
 
 		$workflowId = trim($workflowId);

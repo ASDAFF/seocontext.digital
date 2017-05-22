@@ -35,10 +35,13 @@ div.blog-post-quote table.blogquote, div.blog-post-code table.blogcode {margin: 
 	text-decoration: none;
 }
 
+.blog-p-user-name-extranet {
+	color: #d9930a !important;
+}
+
 .blog-p-user-name:hover {
 	border-bottom: 1px solid;
 }
-
 
 /*div.blog-post-quote table span, div.blog-post-code table span {display: block;}*/
 div.blog-post-code table.blogcode { border-color: #E8E8E8; color: #7D7D7D; background-color: #F7F7F7;}

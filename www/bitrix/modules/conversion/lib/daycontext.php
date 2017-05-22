@@ -11,71 +11,73 @@ use Bitrix\Main\ArgumentTypeException;
 
 final class DayContext extends Internals\BaseContext
 {
-	/** Add value to counter. If counter not exists set counter to value.
-	 * @param string    $name  - counter name
-	 * @param int|float $value - number to add
+	/**
+	 * Add value to counter. If counter not exists set counter to value.
+	 *
+	 * @param Date $day Counter date.
+	 * @param string $name Counter name.
+	 * @param int|float $value Number to add.
+	 * @return void
 	 */
-	public function addCounter($name, $value)
+	public function addCounter($day, $name, $value = null)
 	{
-		if (($id = $this->id) === null)
+		if (func_num_args() == 2)
 		{
-			$value = (float) $value;
+			$value = $name;
+			$name  = $day;
+			$day   = new Date();
+		}
 
-			if ($v =& self::$session['PENDING_COUNTERS'][$name])
-			{
-				$v += $value;
-			}
-			else
-			{
-				$v = $value;
-			}
-		}
-		else
-		{
-			parent::addCounter(new Date(), $name, $value);
-		}
+		parent::addCounter($day, $name, $value);
 	}
 
-	/** Add value to counter (once a day per person). If counter not exists set counter to value.
-	 * @param string    $name  - counter name
-	 * @param int|float $value - number to add
+	/**
+	 * Add value to counter (once a day per person). If counter not exists set counter to value.
+	 *
+	 * @param string $name Counter name.
+	 * @param int|float $value Number to add.
+	 * @return void
 	 */
 	public function addDayCounter($name, $value)
 	{
-		$session =& self::$session;
+		$instance =& self::$instance;
+		$session  =& self::$session;
 
-		if (($id = $this->id) === null)
-		{
-			$session['PENDING_DAY_COUNTERS'][$name] = $value;
-		}
-		else
-		{
-			$unique =& $session['UNIQUE'];
+		$unique =& $session['UNIQUE'];
 
-			if (! in_array($name, $unique, true))
+		if ($this !== $instance || !in_array($name, $unique, true))
+		{
+			$this->addCounter($name, $value);
+
+			if ($this === $instance)
 			{
-				$unique [] = $name;
+				$unique[] = $name;
 
-				$this->addCounter($name, $value);
 				$this->setCookie(); // TODO HACK save to database into session
 			}
 		}
 	}
 
-	/** Add currency value to counter. If counter not exists set counter to value.
-	 * @param string           $name     - counter name
-	 * @param int|float|string $value    - numeric value
-	 * @param string           $currency - currency code (eg: RUB)
+	/**
+	 * Add currency value to counter. If counter not exists set counter to value.
+	 *
+	 * @param string $name Counter name.
+	 * @param int|float|string $value Numeric value.
+	 * @param string $currency Currency code (eg: RUB).
+	 * @return void
 	 */
 	public function addCurrencyCounter($name, $value, $currency)
 	{
 		$this->addCounter($name, Utils::convertToBaseCurrency($value, $currency));
 	}
 
-	/** Attach entity item to context.
-	 * @param string     $entity
-	 * @param string|int $item
+	/**
+	 * Attach entity item to context.
+	 *
+	 * @param string $entity Entity type.
+	 * @param string|int $item Entity item ID.
 	 * @throws ArgumentTypeException
+	 * @return void
 	 */
 	public function attachEntityItem($entity, $item)
 	{
@@ -85,63 +87,84 @@ final class DayContext extends Internals\BaseContext
 		if (! is_scalar($item))
 			throw new ArgumentTypeException('item', 'scalar');
 
-		if (($id = $this->id) === null)
+		try
 		{
-			self::$session['PENDING_ENTITY_ITEMS'][$entity.':'.$item] = array('ENTITY' => $entity, 'ITEM' => $item);
-		}
-		else
-		{
-			try
-			{
-				$result = Internals\ContextEntityItemTable::add(array(
-					'CONTEXT_ID' => $id,
-					'ENTITY'     => $entity,
-					'ITEM'       => $item,
-				));
+			$result = Internals\ContextEntityItemTable::add(array(
+				'CONTEXT_ID' => $this->id,
+				'ENTITY'     => $entity,
+				'ITEM'       => $item,
+			));
 
-				$result->isSuccess(); // TODO
-			}
-			catch (\Bitrix\Main\DB\SqlQueryException $e)
-			{
-				// TODO log??
-			}
+			$result->isSuccess(); // TODO
+		}
+		catch (\Bitrix\Main\DB\SqlQueryException $e)
+		{
+			// TODO log??
 		}
 	}
 
-	/** Get context of attached entity item.
-	 * @param $entity
-	 * @param $item
+	/**
+	 * Get context of attached entity item.
+	 *
+	 * @param string $entity Entity type.
+	 * @param string|int $item Entity item ID.
 	 * @return self
 	 */
-	static public function getEntityItemInstance($entity, $item)
+	public static function getEntityItemInstance($entity, $item)
 	{
-		$instance = new self;
+		$instance = self::getInstance();
 
-		if ($row = Internals\ContextEntityItemTable::getRow(array(
+		$context = Internals\ContextEntityItemTable::getList(array(
 			'select' => array('CONTEXT_ID'),
 			'filter' => array('=ENTITY' => $entity, '=ITEM' => $item),
-		)))
+			'limit'  => 1,
+		))->fetch();
+
+		$contextId = !empty($context['CONTEXT_ID']) ? $context['CONTEXT_ID'] : self::EMPTY_CONTEXT_ID;
+		if ($contextId !== $instance->id)
 		{
-			$instance->id = $row['CONTEXT_ID'];
-		}
-		else
-		{
-			$instance->id = self::EMPTY_CONTEXT_ID;
+			$instance = new self;
+			$instance->id = $contextId;
 		}
 
-		self::getInstance(); // load cookie unique counters
+		return $instance;
+	}
+
+	/**
+	 * Returns context for given Site
+	 *
+	 * @param string $siteId Site ID.
+	 * @return self
+	 */
+	public static function getSiteInstance($siteId)
+	{
+		$instance = self::getInstance();
+
+		if (preg_match('/[a-z0-9_]{2}/i', $siteId) && self::getSiteId() != $siteId && \CSite::getById($siteId)->fetch())
+		{
+			$instance = new self;
+
+			$instance->saveInstance();
+
+			$instance->id = null;
+
+			$instance->setAttribute('conversion_site', $siteId);
+			$instance->save();
+		}
 
 		return $instance;
 	}
 
 	/** @var self $instance */
-	static private $instance;
-	static private $session;
+	private static $instance;
+	private static $session;
 
-	/** Get day context singleton instance.
+	/**
+	 * Get day context singleton instance.
+	 *
 	 * @return self
 	 */
-	static public function getInstance()
+	public static function getInstance()
 	{
 		if (! self::$instance)
 		{
@@ -154,7 +177,6 @@ final class DayContext extends Internals\BaseContext
 			{
 				$session = array('ID' => null, 'EXPIRE' => $expire, 'UNIQUE' => array());
 
-				//global $APPLICATION; $cookie = $APPLICATION->get_cookie($varname);
 				if ($cookie = $_COOKIE[$varName])
 				{
 					try
@@ -183,17 +205,22 @@ final class DayContext extends Internals\BaseContext
 			$instance->id = $session['ID'];
 			self::$session =& $session;
 			self::$instance = $instance;
+
+			if ($instance->id === null)
+				$instance->saveInstance();
+
+			$instance->setCookie();
 		}
 
 		return self::$instance;
 	}
 
+	/** @internal */
 	private function setCookie()
 	{
 		$session = self::$session;
 
-		//$APPLICATION->set_cookie($varname, $id, strtotime('today 23:59'));
-		setcookie(self::getVarName(), Json::encode(array(
+		@setcookie(self::getVarName(), Json::encode(array(
 			'ID'     => $session['ID'    ],
 			'EXPIRE' => $session['EXPIRE'],
 			'UNIQUE' => $session['UNIQUE'],
@@ -201,60 +228,29 @@ final class DayContext extends Internals\BaseContext
 	}
 
 	/** @internal */
-	static public function saveInstance()
+	private function saveInstance()
 	{
-		$instance = self::getInstance();
-		$session =& self::$session;
+		$instance =& self::$instance;
+		$session  =& self::$session;
 
 		// save day context
 
-		if ($instance->id === null)
+		if ($this->id === null)
 		{
 			foreach (EventManager::getInstance()->findEventHandlers('conversion', 'OnSetDayContextAttributes') as $handler)
 			{
-				ExecuteModuleEventEx($handler, array($instance));
+				ExecuteModuleEventEx($handler, array($this));
 			}
 
-			$instance->save();
-			$session['ID'] = $instance->id;
-			$instance->setCookie();
-		}
+			$this->save();
 
-		// save pending counters
-
-		if ($pending =& $session['PENDING_COUNTERS'])
-		{
-			foreach($pending as $name => $value)
-			{
-				$instance->addCounter($name, $value);
-			}
-
-			$pending = array();
-		}
-
-		if ($pending =& $session['PENDING_DAY_COUNTERS'])
-		{
-			foreach($pending as $name => $value)
-			{
-				$instance->addDayCounter($name, $value);
-			}
-
-			$pending = array();
-		}
-
-		if ($pending =& $session['PENDING_ENTITY_ITEMS'])
-		{
-			foreach($pending as $i)
-			{
-				$instance->attachEntityItem($i['ENTITY'], $i['ITEM']);
-			}
-
-			$pending = array();
+			if ($this === $instance)
+				$session['ID'] = $instance->id;
 		}
 	}
 
 	/** @internal */
-	static public function getVarName()
+	public static function getVarName()
 	{
 		static $name;
 
@@ -267,7 +263,7 @@ final class DayContext extends Internals\BaseContext
 	}
 
 	/** @internal */
-	static public function getSiteId()
+	public static function getSiteId()
 	{
 		static $siteId = null;
 
@@ -277,8 +273,6 @@ final class DayContext extends Internals\BaseContext
 
 			if (defined('ADMIN_SECTION') && ADMIN_SECTION === true)
 			{
-				// In admin section SITE_ID = "ru" !!!
-
 				if ($row = SiteTable::getList(array(
 					'select' => array('LID'),
 					'order'  => array('DEF' => 'DESC', 'SORT' => 'ASC'),

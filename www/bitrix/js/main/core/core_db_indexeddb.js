@@ -20,80 +20,89 @@
 		window.IDBKeyRange = window.IDBKeyRange || window.webkitIDBKeyRange || window.msIDBKeyRange;
 
 		if(
-			typeof indexedDB != 'undefined'
-			&& typeof window.IDBTransaction != 'undefined'
-			&& typeof window.IDBKeyRange != 'undefined'
+			typeof indexedDB == 'undefined'
+			|| typeof window.IDBTransaction == 'undefined'
+			|| typeof window.IDBKeyRange == 'undefined'
 		)
 		{
-			var request = indexedDB.open(params.name, parseInt(params.version));
+			return;
+		}
 
-			request.onsuccess = function(event) {
-				if (typeof params.callback == 'function')
-				{
-					params.callback(this.result);
-				}
-			};
+		var request = indexedDB.open(params.name, parseInt(params.version));
 
-			request.onupgradeneeded = function (event)
+		if (request == null)
+		{
+			return;
+		}
+
+		request.onsuccess = function(event)
+		{
+			if (typeof params.callback == 'function')
 			{
-				/* syncronize database structure */
+				params.callback(this.result);
+			}
+		};
 
-				if (typeof params.oScheme != 'undefined')
+		request.onupgradeneeded = function (event)
+		{
+			/* syncronize database structure */
+
+			if (typeof params.oScheme != 'undefined')
+			{
+				var hDBHandle = event.target.result;
+				var ob = null;
+				var oStore = null;
+				var tx = null;
+				var schemeLength = params.oScheme.length;
+				var i, j = null;
+
+				for (i = 0; i < schemeLength; i++)
 				{
-	                var hDBHandle = event.target.result;
-					var ob = null;
-					var oStore = null;
-					var tx = null;
-					var schemeLength = params.oScheme.length;
+					ob = params.oScheme[i];
 
-					for (var i = 0; i < schemeLength; i++)
+					if (
+						typeof ob == 'object'
+						&& !hDBHandle.objectStoreNames.contains(ob.name)
+					)
 					{
-						ob = params.oScheme[i];
-
-						if (
-							typeof ob == 'object'
-							&& !hDBHandle.objectStoreNames.contains(ob.name)
-						)
-						{
-							oStore = hDBHandle.createObjectStore(
-								ob.name,
-								{
-									keyPath : (typeof ob.keyPath != 'undefined' && ob.keyPath),
-									autoIncrement : (typeof ob.autoIncrement != 'undefined' && !!ob.autoIncrement)
-								}
-							);
-
-							if (typeof ob.indexes != 'undefined')
+						oStore = hDBHandle.createObjectStore(
+							ob.name,
 							{
-								for (var j = 0; j < ob.indexes.length; j++)
-								{
-									oStore.createIndex(ob.indexes[j].name, ob.indexes[j].keyPath, { unique: !!ob.indexes[j].unique });
-								}
+								keyPath : (typeof ob.keyPath != 'undefined' && ob.keyPath ? ob.keyPath : undefined),
+								autoIncrement : (typeof ob.autoIncrement != 'undefined' && !!ob.autoIncrement)
+							}
+						);
+
+						if (typeof ob.indexes != 'undefined')
+						{
+							for (j = 0; j < ob.indexes.length; j++)
+							{
+								oStore.createIndex(ob.indexes[j].name, ob.indexes[j].keyPath, { unique: !!ob.indexes[j].unique });
 							}
 						}
 					}
+				}
 
-					var bFound = null;
-					length = hDBHandle.objectStoreNames.length;
+				var bFound = null;
+				length = hDBHandle.objectStoreNames.length;
 
-					for (var i = 0; i < length; i++)
+				for (i = 0; i < length; i++)
+				{
+					bFound = false;
+
+					for (j = 0; j < schemeLength; j++)
 					{
-						bFound = false;
-
-						for (var j = 0; j < schemeLength; j++)
+						ob = params.oScheme[j];
+						if (ob.name == hDBHandle.objectStoreNames[i])
 						{
-							ob = params.oScheme[j];
-							if (ob.name == hDBHandle.objectStoreNames[i])
-							{
-								bFound = true;
-								continue;
-							}
+							bFound = true;
+							break;
 						}
+					}
 
-						if (!bFound)
-						{
-							hDBHandle.deleteObjectStore(hDBHandle.objectStoreNames[i]);
-						}
+					if (!bFound)
+					{
+						hDBHandle.deleteObjectStore(hDBHandle.objectStoreNames[i]);
 					}
 				}
 			}
@@ -103,7 +112,7 @@
 	BX.indexedDB.checkDbObject = function (dbObject)
 	{
 		return (typeof dbObject == 'object');
-	}
+	};
 
 	BX.indexedDB.getObjectStore = function (dbObject, storeName, mode)
 	{
@@ -123,7 +132,14 @@
 		{
 			return false;
 		}
-	}
+	};
+
+	BX.indexedDB.clearObjectStore = function (dbObject, storeName)
+	{
+		var request = null;
+		var store = BX.indexedDB.getObjectStore(dbObject, storeName, 'readwrite');
+		request = BX.indexedDB.getObjectStore(dbObject, storeName, 'readwrite').clear();
+	};
 
 	BX.indexedDB.addValue = function (dbObject, storeName, value, key, obCallback)
 	{

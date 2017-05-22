@@ -44,6 +44,7 @@ $MESS["SEO_PAGE_TITLE_EDIT"] = "редактировать";
 $MESS["SEO_PAGE_ERROR_NO_STATS"] = "Эта функция недоступна без модуля Веб-аналитики";
 $MESS["SEO_PAGE_ERROR_NO_STATS_RIGHTS"] = "Нет доступа к модулю Веб-аналитики";
 $MESS["SEO_PAGE_ERROR_NO_SEARCHERS"] = "Для использования данной функции необходимо задать список используемых поисковых систем в <a href=\"/bitrix/admin/settings.php?mid=seo&tabControl_active_tab=edit3&lang=ru\">настройках модуля Поисковой оптимизации</a>.";
+$MESS["SEO_PAGE_ERROR_FOLDER_ACCESS"] = "Для использования данной функции текущему пользователю нужно дать права на запись для файла <i>#F</i>.";
 $MESS["SEO_PAGE_STATS_INDEX"] = "Поисковые системы, индексировавшие страницу за последние #COUNT# дней";
 $MESS["SEO_PAGE_STATS_ERROR_NO_DATA"] = "Нет данных по индексированию данной страницы за имеющийся промежуток времени.";
 $MESS["SEO_PAGE_STATS_SITE_INDEX"] = "Общая динамика индексирования сайта";

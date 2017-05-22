@@ -292,6 +292,10 @@ if($_SERVER["REQUEST_METHOD"] == "POST" && check_bitrix_sessid())
 
 			$tab_name = $arResult["FORM_ID"]."_active_tab";
 
+			$obList->actualizeDocumentAdminPage(str_replace(
+				array("#list_id#", "#group_id#"),
+				array($arResult["IBLOCK_ID"], $arParams["SOCNET_GROUP_ID"]), $arParams["LIST_ELEMENT_URL"]));
+
 			//And go to proper page
 			if(isset($_POST["save"]))
 				LocalRedirect($arResult["~LIST_FIELDS_URL"]);

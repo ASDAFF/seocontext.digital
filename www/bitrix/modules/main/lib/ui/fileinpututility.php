@@ -9,6 +9,9 @@ class FileInputUtility
 	const SESSION_LIST = "MFI_SESSIONS";
 	const SESSION_TTL = 86400;
 
+	/**
+	 * @return FileInputUtility
+	 */
 	public static function instance()
 	{
 		if (!isset(static::$instance))
@@ -78,6 +81,34 @@ class FileInputUtility
 			&& in_array($fileId, $_SESSION[self::SESSION_VAR_PREFIX.$CID]);
 	}
 
+	public function getControlByCid($CID)
+	{
+		$ts = time();
+		$found = null;
+		foreach ($_SESSION[self::SESSION_LIST] as $controlId => $d)
+		{
+			if (array_key_exists($CID, $d))
+			{
+				$r = $d[$CID];
+				if($r["SESSID"] != bitrix_sessid()
+					|| $ts-$r["TS"] > self::SESSION_TTL)
+				{
+					unset($_SESSION[self::SESSION_LIST][$controlId][$CID]);
+					unset($_SESSION[self::SESSION_VAR_PREFIX.$CID]);
+				}
+				else
+				{
+					$found = $controlId;
+					break;
+				}
+			}
+		}
+		return $found;
+	}
+	public function isCidRegistered($CID)
+	{
+		return !is_null($this->getControlByCid($CID));
+	}
 	protected function initSession($CID, $controlId)
 	{
 		$ts = time();
@@ -116,9 +147,9 @@ class FileInputUtility
 		{
 			foreach($_SESSION[self::SESSION_LIST][$controlId] as $CID => $arSession)
 			{
-				if(isset($_SESSION[self::SESSION_VAR_PREFIX.$CID]))
+				if(isset($_SESSION[self::SESSION_VAR_PREFIX.$CID]) && is_array($_SESSION[self::SESSION_VAR_PREFIX.$CID]))
 				{
-					$res = array_merge($_SESSION[self::SESSION_VAR_PREFIX.$CID]);
+					$res = array_merge($res, $_SESSION[self::SESSION_VAR_PREFIX.$CID]);
 				}
 			}
 		}

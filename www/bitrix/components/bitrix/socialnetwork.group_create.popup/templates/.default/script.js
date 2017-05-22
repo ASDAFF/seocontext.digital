@@ -93,6 +93,8 @@ BX.SGCP.ShowForm = function(action, popupName, event)
 		&& actionURL.length > 0
 	)
 	{
+		var initialStyles = action === "invite" ? "width:450px;height:230px" : "width:600px;height: 650px";
+
 		BX.SGCP.popup = new BX.PopupWindow("BXSGCP", null, {
 			autoHide: false,
 			zIndex: 0,
@@ -112,11 +114,11 @@ BX.SGCP.ShowForm = function(action, popupName, event)
 				top : "10px"
 			},
 			buttons: [],
-			content: '<div style="width:450px;height:230px"></div>',
+			content: '<div style="' + initialStyles + '"></div>',
 			events: {
 				onAfterPopupShow: function()
 				{
-					this.setContent('<div style="width:450px;height:230px">' + BX.message('SONET_SGCP_LOADING_' + popupName) + '</div>');
+					this.setContent('<div style="' + initialStyles +'">' + BX.message('SONET_SGCP_LOADING_' + popupName) + '</div>');
 
 					BX.ajax.post(
 						actionURL,

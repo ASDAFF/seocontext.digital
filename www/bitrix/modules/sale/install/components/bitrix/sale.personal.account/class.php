@@ -77,8 +77,17 @@ class PersonalAccountComponent extends CBitrixComponent
 			array("ID", "CURRENT_BUDGET", "CURRENCY", "TIMESTAMP_X")
 		);
 
-		$currencyList = Bitrix\Currency\CurrencyManager::getCurrencyList();
-		$baseCurrencyCode = Bitrix\Currency\CurrencyManager::getBaseCurrency();
+		$currencyList = array();
+		$currencyIterator = Bitrix\Currency\CurrencyTable::getList(array(
+			'select' => array('CURRENCY', 'FULL_NAME' => 'CURRENT_LANG_FORMAT.FULL_NAME', 'SORT'),
+			'order' => array('SORT' => 'ASC', 'CURRENCY' => 'ASC')
+		));
+		while ($currency = $currencyIterator->fetch())		
+		{
+			$currencyList[$currency['CURRENCY']] = (string)$currency['FULL_NAME'];
+		}
+
+		$baseCurrencyCode = Bitrix\Sale\Internals\SiteCurrencyTable::getSiteCurrency(SITE_ID);
 		$this->arResult['BASE_CURRENCY'] =  array(
 			"CODE" => $baseCurrencyCode,
 			"TEXT" => $currencyList[$baseCurrencyCode]
@@ -86,7 +95,7 @@ class PersonalAccountComponent extends CBitrixComponent
 			
 		while ($account = $accountList->Fetch())
 		{
-			$resultTemplate["CURRENCY"] = $currencyList[$account["CURRENCY"]];
+			$resultTemplate["CURRENCY"] = $account["CURRENCY"];
 			$resultTemplate["ACCOUNT_LIST"] = $account;
 			$resultTemplate["INFO"] = Loc::getMessage(
 				"SPA_IN_CUR",
@@ -94,15 +103,17 @@ class PersonalAccountComponent extends CBitrixComponent
 					"#CURRENCY#" => $resultTemplate["CURRENCY"],
 					"#SUM#" => SaleFormatCurrency($account["CURRENT_BUDGET"], $account["CURRENCY"]),
 				));
-			$resultTemplate["NEW_INFO"] =
-				array(
-					"CURRENCY" => $resultTemplate["CURRENCY"],
-					"SUM" => SaleFormatCurrency($account["CURRENT_BUDGET"], $account["CURRENCY"]),
-				);
+			$resultTemplate["CURRENCY_FULL_NAME"] = $currencyList[$account['CURRENCY']];
+			$resultTemplate["SUM"] =  SaleFormatCurrency($account["CURRENT_BUDGET"], $account["CURRENCY"]);
 			$this->arResult["ACCOUNT_LIST"][] = $resultTemplate;
 		}
 		if (empty($this->arResult["ACCOUNT_LIST"]))
 		{
+			$this->arResult["ACCOUNT_LIST"][] = array(
+				'SUM' => SaleFormatCurrency(0, $this->arResult['BASE_CURRENCY']['CODE']),
+				'CURRENCY' => $this->arResult['BASE_CURRENCY']['CODE'],
+				'CURRENCY_FULL_NAME' => $this->arResult['BASE_CURRENCY']['TEXT']
+			);
 			$this->arResult["ERROR_MESSAGE"] = Loc::getMessage("SPA_NO_ACCOUNT");
 		}
 

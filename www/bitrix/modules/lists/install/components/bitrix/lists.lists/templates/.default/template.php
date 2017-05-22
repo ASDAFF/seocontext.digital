@@ -12,31 +12,40 @@ if($arParams["IBLOCK_TYPE_ID"] == COption::GetOptionString("lists", "livefeed_ib
 	$title = GetMessage("CT_BLL_TOOLBAR_ADD_TITLE_PROCESS");
 	$claim = true;
 }
+$isBitrix24Template = (SITE_TEMPLATE_ID == "bitrix24");
+if($isBitrix24Template)
+	$this->SetViewTarget("pagetitle", 100);
+else
+	$APPLICATION->SetAdditionalCSS("/bitrix/js/lists/css/intranet-common.css");
 if($arParams['CAN_EDIT']): ?>
-	<div class="bx-bp-btn-panel">
-		<a href="<?= $arResult["LIST_EDIT_URL"] ?>"
-		   class="webform-small-button webform-small-button-accept bp-small-button"
-		   title="<?= $title ?>"
+<div class="pagetitle-container pagetitle-align-right-container">
+	<a href="<?= $arResult["LIST_EDIT_URL"] ?>"
+	   class="webform-small-button webform-small-button-accept bp-small-button"
+	   title="<?= $title ?>">
+		<?= GetMessage("CT_BLL_TOOLBAR_ADD_NEW") ?>
+	</a>
+	<? if($claim && $arParams['CAN_EDIT']): ?>
+		<a
+			href="<?= $arParams["CATALOG_PROCESSES_URL"] ?>"
+			class="webform-small-button webform-small-button-cancel"
+			title="<?= GetMessage("CT_BLL_TOOLBAR_TRANSITION_PROCESSES") ?>"
 		>
-			<?= GetMessage("CT_BLL_TOOLBAR_ADD_NEW") ?>
+			<?= GetMessage("CT_BLL_TOOLBAR_TRANSITION_PROCESSES") ?>
 		</a>
-		<? if($claim && $arParams['CAN_EDIT']): ?>
-			<a
-				href="<?= $arParams["CATALOG_PROCESSES_URL"] ?>"
-				class="webform-small-button webform-small-button-cancel"
-				title="<?= GetMessage("CT_BLL_TOOLBAR_TRANSITION_PROCESSES") ?>"
-			>
-				<?= GetMessage("CT_BLL_TOOLBAR_TRANSITION_PROCESSES") ?>
-			</a>
-		<? endif; ?>
-		<? if($arParams["IBLOCK_TYPE_ID"] != "lists" && $arParams["IBLOCK_TYPE_ID"] != "lists_socnet" && empty($arResult["ITEMS"])): ?>
-			<p id="bx-lists-default-processes" onclick="javascript:BX.Lists['<?=$jsClass?>'].createDefaultProcesses();" class="webform-small-button webform-small-button-cancel bp-small-button" title="<?= GetMessage("CT_BLL_TOOLBAR_ADD_DEFAULT") ?>">
-				<?= GetMessage("CT_BLL_TOOLBAR_ADD_DEFAULT") ?>
-			</p>
-		<? endif; ?>
-		<input type="hidden" id="bx-lists-select-site" value="<?= SITE_ID ?>" />
-	</div>
-<? endif; ?>
+	<? endif; ?>
+	<? if($arParams["IBLOCK_TYPE_ID"] != "lists" && $arParams["IBLOCK_TYPE_ID"] != "lists_socnet" && empty($arResult["ITEMS"])): ?>
+		<p id="bx-lists-default-processes" onclick="javascript:BX.Lists['<?=$jsClass?>'].createDefaultProcesses();" class="
+		webform-small-button webform-small-button-cancel bp-small-button" title="<?= GetMessage("CT_BLL_TOOLBAR_ADD_DEFAULT") ?>">
+			<?= GetMessage("CT_BLL_TOOLBAR_ADD_DEFAULT") ?>
+		</p>
+	<? endif; ?>
+	<input type="hidden" id="bx-lists-select-site" value="<?= SITE_ID ?>" />
+</div>
+<? endif;
+	if($isBitrix24Template)
+		$this->EndViewTarget();
+?>
+
 <? foreach($arResult["ITEMS"] as $item): ?>
 	<div class="bp-bx-application">
 		<a href="<?= $item["LIST_URL"]?>">
@@ -50,7 +59,8 @@ if($arParams['CAN_EDIT']): ?>
 		</a>
 		<? if($claim && $arParams['CAN_EDIT']): ?>
 			<span class="bp-bx-application-check">
-				<input type="checkbox" value="" id="bx-lists-show-live-feed-<?= $item['ID'] ?>" <?= $item['SHOW_LIVE_FEED'] ? 'checked' : '' ?>
+				<input type="checkbox" value="" id="bx-lists-show-live-feed-<?= intval($item['ID']) ?>"
+					<?= intval($item['SHOW_LIVE_FEED']) ? 'checked' : '' ?>
 					   onclick="javascript:BX.Lists['<?=$jsClass?>'].showLiveFeed(<?= $item['ID'] ?>);">
 				<label for="bx-lists-show-live-feed-<?= $item['ID'] ?>"><?= GetMessage("CT_BLL_TOOLBAR_SHOW_LIVE_FEED") ?></label>
 			</span>

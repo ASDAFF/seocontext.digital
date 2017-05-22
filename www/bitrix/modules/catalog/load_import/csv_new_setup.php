@@ -225,6 +225,8 @@ if (($ACTION == 'IMPORT_EDIT' || $ACTION == 'IMPORT_COPY') && $STEP == 3)
 			$USE_TRANSLIT = $arOldSetupVars['USE_TRANSLIT'];
 		if (isset($arOldSetupVars['TRANSLIT_LANG']))
 			$TRANSLIT_LANG = $arOldSetupVars['TRANSLIT_LANG'];
+		if (isset($arOldSetupVars['USE_UPDATE_TRANSLIT']))
+			$USE_UPDATE_TRANSLIT = $arOldSetupVars['USE_UPDATE_TRANSLIT'];
 	}
 	if (isset($arOldSetupVars['PATH2IMAGE_FILES']))
 		$PATH2IMAGE_FILES = $arOldSetupVars['PATH2IMAGE_FILES'];
@@ -248,6 +250,7 @@ if ($STEP > 3)
 {
 	$USE_TRANSLIT = (isset($USE_TRANSLIT) && 'Y' == $USE_TRANSLIT ? 'Y' : 'N');
 	$TRANSLIT_LANG = (isset($TRANSLIT_LANG) ? (string)$TRANSLIT_LANG : '');
+	$USE_UPDATE_TRANSLIT = (isset($USE_UPDATE_TRANSLIT) && $USE_UPDATE_TRANSLIT == 'N' ? 'N' : 'Y');
 	if ('Y' == $USE_TRANSLIT)
 	{
 		if (!empty($TRANSLIT_LANG))
@@ -655,7 +658,6 @@ if ($STEP == 3)
 				unset($arOneCatalogAvailValueFields);
 		}
 	}
-
 	for ($i = 0, $intCountDataFileFields = count($arDataFileFields); $i < $intCountDataFileFields; $i++)
 	{
 		?><tr>
@@ -664,20 +666,25 @@ if ($STEP == 3)
 				<select name="field_<? echo $i; ?>">
 				<option value="" style="font-weight: bold; text-align: center;"> --- </option>
 				<?
-				foreach ($arAvailFields as $arOneAvailField)
+				foreach ($arAvailFields as $field)
 				{
-					if (!empty($arOneAvailField['SEP']))
-						?><option value="" style="font-weight: bold; text-align: center;">--- <? echo htmlspecialcharsbx($arOneAvailField['SEP']); ?> ---</option><?
-					if (!empty($arOneAvailField['SUB_SEP']))
-						?><option value="" style="font-style: italic; text-align: center;">--- <? echo htmlspecialcharsbx($arOneAvailField['SUB_SEP']); ?> ---</option><?
+					if (!empty($field['SEP']))
+					{
+						?><option value="" style="font-weight: bold; text-align: center;">--- <?=htmlspecialcharsbx($field['SEP']); ?> ---</option><?
+					}
+					if (!empty($field['SUB_SEP']))
+					{
+						?><option value="" style="font-style: italic; text-align: center;">--- <?=htmlspecialcharsbx($field['SUB_SEP']); ?> ---</option><?
+					}
 					$strStyle = '';
-					if (array_key_exists('DISABLE', $arOneAvailField))
+					if (isset($field['DISABLE']))
 						$strStyle .= 'text-decoration: line-through; color: #aaaaaa;';
-					if (!empty($arOneAvailField['STYLE']))
-						$strStyle .= $arOneAvailField['STYLE'];
-					?><option value="<? echo htmlspecialcharsbx($arOneAvailField['value']); ?>" <? echo (!empty($strStyle) ? 'style="'.$strStyle.'"' : ''); ?> <? if (${"field_".$i}==$arOneAvailField["value"] || !isset(${"field_".$i}) && $arOneAvailField["value"]==$arDataFileFields[$i]) echo "selected"; ?>><?echo htmlspecialcharsex($arOneAvailField["name"]); ?></option><?
+					if (!empty($field['STYLE']))
+						$strStyle .= $field['STYLE'];
+					$selected = (${"field_".$i} == $field["value"] || (!isset(${"field_".$i}) && $field["value"]==$arDataFileFields[$i]));
+					?><option value="<?=htmlspecialcharsbx($field['value']); ?>" <?=(!empty($strStyle) ? 'style="'.$strStyle.'"' : ''); ?><?=($selected ? ' selected' : ''); ?>><?=htmlspecialcharsbx($field["name"]); ?></option><?
 				}
-				unset($arOneAvailField);
+				unset($field);
 				?>
 				</select>
 			</td>
@@ -702,6 +709,7 @@ if ($STEP == 3)
 		</td>
 	</tr>
 	<?
+	$USE_TRANSLIT = (isset($USE_TRANSLIT) && $USE_TRANSLIT == 'Y' ? 'Y' : 'N');
 	$boolOutTranslit = false;
 	if (isset($arIBlock['FIELDS']['CODE']['DEFAULT_VALUE']))
 	{
@@ -719,6 +727,8 @@ if ($STEP == 3)
 			$boolOutTranslit = true;
 		}
 	}
+	if ($boolOutTranslit)
+		$USE_TRANSLIT = 'N';
 	?>
 	<tr>
 		<td width="40%"><label for="USE_TRANSLIT_Y"><? echo GetMessage('CATI_USE_CODE_TRANSLIT'); ?></label>:</td>
@@ -738,16 +748,26 @@ if ($STEP == 3)
 	<?
 	if (!isset($TRANSLIT_LANG) || empty($TRANSLIT_LANG))
 		$TRANSLIT_LANG = LANGUAGE_ID;
+	if (!isset($USE_UPDATE_TRANSLIT) || $USE_UPDATE_TRANSLIT != 'N')
+		$USE_UPDATE_TRANSLIT = 'Y';
 	if ($boolOutTranslit)
 	{
-		?><input type="hidden" name="TRANSLIT_LANG" value="<? echo htmlspecialcharsbx($TRANSLIT_LANG); ?>"><?
+		?><input type="hidden" name="TRANSLIT_LANG" value="<?=htmlspecialcharsbx($TRANSLIT_LANG); ?>"><?
+		?><input type="hidden" name="USE_UPDATE_TRANSLIT" value="<?=htmlspecialcharsbx($USE_UPDATE_TRANSLIT); ?>"><?
 	}
 	else
 	{
-		?><tr>
+		?><tr id="tr_TRANSLIT_LANG" style="display: <?=($USE_TRANSLIT == 'Y' ? 'table-row' : 'none'); ?>;">
 			<td width="40%"><? echo GetMessage('CATI_CODE_TRANSLIT_LANG'); ?>:</td>
 			<td width="60%">
 				<? echo CLanguage::SelectBox('TRANSLIT_LANG', $TRANSLIT_LANG); ?>
+			</td>
+		</tr>
+		<tr id="tr_USE_UPDATE_TRANSLIT" style="display: <?=($USE_TRANSLIT == 'Y' ? 'table-row' : 'none'); ?>;">
+			<td width="40%"><? echo GetMessage('CATI_CODE_TRANSLIT_FOR_UPDATE'); ?>:</td>
+			<td width="60%">
+				<input type="hidden" name="USE_UPDATE_TRANSLIT" id="USE_UPDATE_TRANSLIT_N" value="N">
+				<input type="checkbox" name="USE_UPDATE_TRANSLIT" id="USE_UPDATE_TRANSLIT_Y" value="Y"<?=($USE_UPDATE_TRANSLIT == 'Y' ? ' checked' : ''); ?>>
 			</td>
 		</tr><?
 	}
@@ -897,6 +917,7 @@ if ($STEP < 4)
 			'PATH2IMAGE_FILES',
 			'USE_TRANSLIT',
 			'TRANSLIT_LANG',
+			'USE_UPDATE_TRANSLIT',
 			'IMAGE_RESIZE',
 			'outFileAction',
 			'inFileAction',
@@ -949,4 +970,21 @@ tabControl.DisableTab("edit1");
 tabControl.DisableTab("edit2");
 tabControl.DisableTab("edit3");
 <?endif;?>
+function showTranslitSettings()
+{
+	var useTranslit = BX('USE_TRANSLIT_Y'),
+		translitLang = BX('tr_TRANSLIT_LANG'),
+		translitUpdate = BX('tr_USE_UPDATE_TRANSLIT');
+	if (!BX.type.isElementNode(useTranslit) || !BX.type.isElementNode(translitLang) || !BX.type.isElementNode(translitUpdate))
+		return;
+	BX.style(translitLang, 'display', (useTranslit.checked ? 'table-row' : 'none'));
+	BX.style(translitUpdate, 'display', (useTranslit.checked ? 'table-row' : 'none'));
+}
+BX.ready(function(){
+	var useTranslit = BX('USE_TRANSLIT_Y'),
+		translitLang = BX('tr_TRANSLIT_LANG'),
+		translitUpdate = BX('tr_USE_UPDATE_TRANSLIT');
+	if (BX.type.isElementNode(useTranslit) && BX.type.isElementNode(translitLang) && BX.type.isElementNode(translitUpdate))
+		BX.bind(useTranslit, 'click', showTranslitSettings);
+});
 </script>

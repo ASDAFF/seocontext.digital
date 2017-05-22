@@ -132,9 +132,10 @@ namespace Bitrix\Sale\Delivery\AdminPage\DeliveryExtraServiceEdit
 			"ICON" => "btn_new"
 		);
 
+		$menu = array();
+
 		if($service && $embeddedList = $service->getEmbeddedExtraServicesList())
 		{
-			$menu = array();
 
 			foreach($embeddedList as $code => $eserviceParams)
 			{
@@ -143,11 +144,13 @@ namespace Bitrix\Sale\Delivery\AdminPage\DeliveryExtraServiceEdit
 					'LINK' => 'sale_delivery_eservice_edit.php?lang='.LANGUAGE_ID.'&DELIVERY_ID='.$ID.'&'.$tabControl->ActiveTabParam().'&ES_CODE='.$code.'&back_url='.urlencode($APPLICATION->GetCurPageParam()),
 				);
 			}
-		}
 
-		$menu[] =  array(
-			'SEPARATOR' => true,
-		);
+			sortByColumn($menu, array("TEXT" => SORT_ASC));
+
+			$menu[] =  array(
+				'SEPARATOR' => true,
+			);
+		}
 
 		/** @var  \Bitrix\Sale\Delivery\ExtraServices\Base $esClass */
 		foreach(ExtraServices\Manager::getClassesList() as $esClass)

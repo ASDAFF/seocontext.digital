@@ -508,6 +508,11 @@ if (($_SERVER['REQUEST_METHOD'] == 'POST' || $_SERVER['REQUEST_METHOD'] == 'GET'
 		{
 			if(\Bitrix\Main\Config\Option::get('disk', 'successfully_converted', false) && CModule::includeModule('disk'))
 			{
+				if(empty($ob->arParams['element_array']['ID']) && !empty($arResult["VARIABLES"]["element_id"]))
+				{
+					$ob->IsDir(array("element_id" => $arResult["VARIABLES"]["element_id"]));
+				}
+
 				/** @var \Bitrix\Disk\File $diskFile */
 				$diskFile = \Bitrix\Disk\File::load(array('XML_ID' => $ob->arParams['element_array']['ID']), array('STORAGE'));
 				if($diskFile)
@@ -547,7 +552,12 @@ if (($_SERVER['REQUEST_METHOD'] == 'POST' || $_SERVER['REQUEST_METHOD'] == 'GET'
 	{
 		if(\Bitrix\Main\Config\Option::get('disk', 'successfully_converted', false) && CModule::includeModule('disk'))
 		{
-				/** @var \Bitrix\Disk\File $diskFile */
+			if(empty($ob->arParams['element_array']['ID']) && !empty($arResult["VARIABLES"]["element_id"]))
+			{
+				$ob->IsDir(array("element_id" => $arResult["VARIABLES"]["element_id"]));
+			}
+
+			/** @var \Bitrix\Disk\File $diskFile */
 			$diskFile = \Bitrix\Disk\File::load(array('XML_ID' => $ob->arParams['element_array']['ID']), array('STORAGE'));
 			if($diskFile)
 			{

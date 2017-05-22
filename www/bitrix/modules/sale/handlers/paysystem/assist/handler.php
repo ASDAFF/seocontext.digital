@@ -268,7 +268,7 @@ class AssistHandler extends PaySystem\ServiceHandler implements PaySystem\IRefun
 
 	/**
 	 * @param Payment $payment
-	 * @return bool
+	 * @return PaySystem\ServiceResult
 	 */
 	public function check(Payment $payment)
 	{

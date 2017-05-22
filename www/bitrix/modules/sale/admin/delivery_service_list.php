@@ -17,6 +17,12 @@ require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/sale/prolog.php");
 $sTableID = "tbl_sale_delivery_list";
 $oSort = new CAdminSorting($sTableID, "ID", "asc");
 $lAdmin = new CAdminList($sTableID, $oSort);
+$adminNotes = array();
+
+if(!isset($by))
+	$by = 'ID';
+if(!isset($order))
+	$order = 'ASC';
 
 $groupId = isset($filter_group) && (isset($set_filter) ||  $set_filter == 'Y') ? $filter_group : -1;
 
@@ -71,12 +77,15 @@ if (($arID = $lAdmin->GroupAction()) && $saleModulePermissions >= "W")
 	if ($_REQUEST['action_target']=='selected')
 	{
 		$arID = Array();
-		$dbResultList = \Bitrix\Sale\Delivery\Services\Table::GetList( array(
-			'order' => array($by => $order),
+		$params = array(
 			'filter' => $filter,
 			'select' => array("ID")
-			)
 		);
+
+		if(strlen($by) > 0 && strlen($order) > 0)
+			$params['order'] = array($by => $order);
+
+		$dbResultList = \Bitrix\Sale\Delivery\Services\Table::getList($params);
 
 		while ($arResult = $dbResultList->fetch())
 			$arID[] = $arResult['ID'];
@@ -143,8 +152,8 @@ while($site = $db->fetch())
 	$sitesList[$site['LID']] = $site['NAME'];
 
 $glParams = array(
-	'order' => array($by => $order),
-	'filter' => $filter
+	'filter' => $filter,
+	'order' => array($by => $order)
 );
 
 $lAdmin->AddHeaders(array(
@@ -331,15 +340,30 @@ if ($saleModulePermissions == "W")
 
 			if(is_array($supportedServices) && !empty($supportedServices))
 			{
-				foreach($supportedServices as $srvType => $srvParams)
+				if(!empty($supportedServices['ERRORS']) && is_array($supportedServices['ERRORS']))
+					foreach($supportedServices['ERRORS'] as $error)
+						$lAdmin->AddGroupError($error);
+
+				unset($supportedServices['ERRORS']);
+
+				if(!empty($supportedServices['NOTES']) && is_array($supportedServices['NOTES']))
+					foreach($supportedServices['NOTES'] as $note)
+						$adminNotes[] = $note;
+
+				unset($supportedServices['NOTES']);
+
+				if(is_array($supportedServices))
 				{
-					if(!empty($srvParams["NAME"]))
+					foreach($supportedServices as $srvType => $srvParams)
 					{
-						$menu[] = array(
-							"TEXT" => $srvParams["NAME"],
-							"LINK" => "sale_delivery_service_edit.php?lang=".LANG."&PARENT_ID=".(intval($filter["=PARENT_ID"]) > 0 ? $filter["=PARENT_ID"] : 0).
-								"&CLASS_NAME=".urlencode($class)."&SERVICE_TYPE=".$srvType."&back_url=".$backUrl
-						);
+						if(!empty($srvParams["NAME"]))
+						{
+							$menu[] = array(
+								"TEXT" => $srvParams["NAME"],
+								"LINK" => "sale_delivery_service_edit.php?lang=".LANG."&PARENT_ID=".(intval($filter["=PARENT_ID"]) > 0 ? $filter["=PARENT_ID"] : 0).
+									"&CLASS_NAME=".urlencode($class)."&SERVICE_TYPE=".$srvType."&back_url=".$backUrl
+							);
+						}
 					}
 				}
 			}
@@ -352,6 +376,8 @@ if ($saleModulePermissions == "W")
 				);
 			}
 		}
+
+		sortByColumn($menu, array("TEXT" => SORT_ASC));
 
 		$aContext[] = array(
 			"TEXT" => Loc::getMessage("SALE_SDL_ADD_NEW"),
@@ -466,6 +492,14 @@ $oFilter->End();
 ?>
 </form>
 <?
+
+if(!empty($adminNotes))
+{
+	echo BeginNote();
+	echo implode('<br>', $adminNotes);
+	echo EndNote();
+}
+
 $lAdmin->DisplayList();
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");

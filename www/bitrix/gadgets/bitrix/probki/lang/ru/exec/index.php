@@ -6,9 +6,9 @@ require_once($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/main/classes/general/xml
 $APPLICATION->SetAdditionalCSS('/bitrix/gadgets/bitrix/probki/styles.css');
 
 if($arGadgetParams["CITY"]!='')
-	$url = 'yasoft=barff&region='.substr($arGadgetParams["CITY"], 1).'&ts='.mktime();
+	$url = 'yasoft=barff&region='.substr($arGadgetParams["CITY"], 1).'&ts='.time();
 else
-	$url = 'ts='.mktime();
+	$url = 'ts='.time();
 
 $cache = new CPageCache();
 if($arGadgetParams["CACHE_TIME"]>0 && !$cache->StartDataCache($arGadgetParams["CACHE_TIME"], 'c'.$arGadgetParams["CITY"], "gdprobki"))
@@ -43,18 +43,18 @@ $node = $xml->SelectNodes('/info/traffic/title');
 <h3><?=$node->content?></h3>
 <table width="90%"><tr>
 <td width="80%" nowrap>
-<?$node = $xml->SelectNodes('/info/traffic/hint');?>
+<?$node = $xml->SelectNodes('/info/traffic/region/hint');?>
 <span class="gdtrafic"><?=$node->content?></span><br>
 <span class="gdtrafinfo">
-<?$node = $xml->SelectNodes('/info/traffic/length');?>
-Протяженность: <?=$node->content?> м.<br>
-<?$node = $xml->SelectNodes('/info/traffic/time');?>
+<?$node = $xml->SelectNodes('/info/traffic/region/length');?>
+Протяженность: <?=$node->content?> м<br>
+<?$node = $xml->SelectNodes('/info/traffic/region/time');?>
 Последнее обновление: <?=$node->content?>
 
 </span>
 </td>
 <?
-$node = $xml->SelectNodes('/info/traffic/level');
+$node = $xml->SelectNodes('/info/traffic/region/level');
 $t = Intval($node->content);
 ?>
 <td nowrap="yes" width="20%"><span class="traf<?=intval(($t+1)/2)?>"><?=$t?></span></td>
@@ -62,7 +62,7 @@ $t = Intval($node->content);
 </table>
 <?if($arGadgetParams["SHOW_URL"]=="Y"):?>
 <br />
-<?$node = $xml->SelectNodes('/info/traffic/url');?>
+<?$node = $xml->SelectNodes('/info/traffic/region/url');?>
 <a href="<?=htmlspecialcharsbx($node->content)?>">Подробнее</a> <a href="<?=htmlspecialcharsbx($node->content)?>"><img width="7" height="7" border="0" src="/bitrix/components/bitrix/desktop/images/arrows.gif" /></a>
 <br />
 <?endif?>

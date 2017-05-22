@@ -60,22 +60,12 @@ BX.namespace('BX.Sale.PersonalOrderComponent');
 
 			Array.prototype.forEach.call(listPaymentWrapper, function(paymentWrapper)
 			{
-				var paymentTemplate = paymentWrapper.getElementsByClassName('sale-order-detail-payment-options-methods-template')[0];
-				var paymentBlock = paymentWrapper.getElementsByClassName('sale-order-detail-payment-options-methods-information-block')[0];
 				var rowPayment = paymentWrapper.getElementsByClassName('sale-order-detail-payment-options-methods-info')[0];
 
 				BX.bindDelegate(paymentWrapper, 'click', { 'class': 'active-button' }, BX.proxy(function()
 				{
-					paymentBlock.style.display = 'none';
-					paymentTemplate.style.display = 'block';
+					BX.toggleClass(paymentWrapper, 'sale-order-detail-active-event');
 				}, this));
-
-				BX.bindDelegate(paymentWrapper, 'click', { 'class': 'sale-order-payment-cancel' }, BX.proxy(function()
-				{
-					paymentBlock.style.display = 'block';
-					paymentTemplate.style.display = 'none';
-				}, this));
-
 
 				BX.bindDelegate(rowPayment, 'click', { 'class': 'sale-order-detail-payment-options-methods-info-change-link' }, BX.proxy(function(event)
 				{

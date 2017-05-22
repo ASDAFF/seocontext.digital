@@ -175,4 +175,7 @@ $MESS["SONET_LOG_TOALL_RIGHTS_ADD"] = "Add";
 $MESS["SONET_LOG_TOALL_RIGHTS"] = "Settings for \"All employees\" option";
 $MESS["SONET_LOG_TOALL_DEL"] = "delete";
 $MESS["SONET_LOG_EMAIL_USERS_ALL"] = "Show all e-mail users";
+$MESS["SONET_USE_WORKGROUP_CHAT"] = "Enable workgroup chats";
+$MESS["SONET_USE_LF_FULLTEXT_INDEX"] = "Use fulltext  index in Activity  Stream";
+$MESS["SONET_USE_LF_FULLTEXT_INDEX_ERROR"] = "Fulltext search activation error";
 ?>

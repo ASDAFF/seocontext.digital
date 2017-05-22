@@ -84,7 +84,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && strlen($_REQUEST["Update"]) > 0 && !
 		"EMAIL" => (isset($_POST["EMAIL"]) ? $_POST["EMAIL"] : ''),
 		"ISSUING_CENTER" => $ISSUING_CENTER,
 		"SHIPPING_CENTER" => $SHIPPING_CENTER,
-		"SITE_ID" => $_POST["SITE_ID"]
+		"SITE_ID" => $_POST["SITE_ID"],
+		"CODE" => isset($_POST['CODE']) ? $_POST['CODE'] : false
 	);
 
 	$USER_FIELD_MANAGER->EditFormAddFields($entityId, $arFields);
@@ -164,6 +165,7 @@ if($id > 0)
 		"ISSUING_CENTER",
 		"SHIPPING_CENTER",
 		"SITE_ID",
+		"CODE"
 	);
 
 	$dbResult = CCatalogStore::GetList(array(), array('ID' => $id), false, false, $arSelect);
@@ -223,14 +225,13 @@ if ($rsCount <= 0)
 	$arSitesShop = $arSitesTmp;
 	$rsCount = count($arSitesShop);
 }
-?>
 
-<?CAdminMessage::ShowMessage($errorMessage);?>
+CAdminMessage::ShowMessage($errorMessage);?>
 
 <form enctype="multipart/form-data" method="POST" action="<?echo $APPLICATION->GetCurPage()?>?" name="store_edit">
 	<?echo GetFilterHiddens("filter_");?>
 	<input type="hidden" name="Update" value="Y">
-	<input type="hidden" name="lang" value="<?echo LANG ?>">
+	<input type="hidden" name="lang" value="<?echo LANGUAGE_ID; ?>">
 	<input type="hidden" name="ID" value="<?echo $id ?>">
 	<?=bitrix_sessid_post()?>
 
@@ -241,14 +242,11 @@ if ($rsCount <= 0)
 
 	$tabControl = new CAdminTabControl("tabControl", $aTabs);
 	$tabControl->Begin();
-	?>
 
-	<?
 	$tabControl->BeginNextTab();
 	?>
-
-	<tr colspan="2">
-		<td align="left">
+	<tr>
+		<td align="left" colspan="2">
 			<a href="/bitrix/admin/userfield_edit.php?lang=<?=LANGUAGE_ID;?>&amp;ENTITY_ID=<?=$entityId;?>&amp;back_url=<?echo urlencode($APPLICATION->GetCurPageParam('', array('bxpublic'))."&tabControl_active_tab=user_fields_tab")?>"><?=GetMessage("STORE_E_USER_FIELDS_ADD_HREF");?></a>
 		</td>
 	</tr>
@@ -284,7 +282,7 @@ if ($rsCount <= 0)
 			<? foreach($arSitesShop as $key => $val)
 			{
 				$selected = ($val['ID'] == $str_SITE_ID) ? 'selected' : '';
-				echo"<option ".$selected." value=".$val['ID'].">".$val["NAME"]." (".$val["ID"].")"."</option>";
+				echo "<option ".$selected." value=".$val['ID'].">".htmlspecialcharsbx($val["NAME"]." (".$val["ID"].")")."</option>";
 			}
 			?>
 			</select>
@@ -294,6 +292,12 @@ if ($rsCount <= 0)
 		<td><?= GetMessage("STORE_TITLE") ?>:</td>
 		<td>
 			<input type="text" style="width:300px" name="TITLE" value="<?=$str_TITLE?>" />
+		</td>
+	</tr>
+	<tr>
+		<td><?= GetMessage("STORE_CODE") ?>:</td>
+		<td>
+			<input type="text" style="width:300px" name="CODE" value="<?=$str_CODE?>">
 		</td>
 	</tr>
 	<tr class="adm-detail-required-field">
@@ -341,7 +345,6 @@ if ($rsCount <= 0)
 		<td>XML_ID:</td>
 		<td><input type="text" name="XML_ID" value="<?=$str_XML_ID?>" size="45" />
 		</td>
-
 	</tr>
 	<tr>
 		<td width="40%"><?= GetMessage("CSTORE_SORT") ?>:</td>

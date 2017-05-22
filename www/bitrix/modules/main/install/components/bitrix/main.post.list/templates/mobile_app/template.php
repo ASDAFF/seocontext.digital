@@ -26,6 +26,7 @@ ob_start();
 	?>bx-mpl-edit-url="#EDIT_URL#" bx-mpl-edit-show="#EDIT_SHOW#" <?
 	?>bx-mpl-moderate-url="#MODERATE_URL#" bx-mpl-moderate-show="#MODERATE_SHOW#" bx-mpl-moderate-approved="#APPROVED#" <?
 	?>bx-mpl-delete-url="#DELETE_URL###ID#" bx-mpl-delete-show="#DELETE_SHOW#" <?
+	?>bx-mpl-createtask-show="#CREATETASK_SHOW#" <?
 	?>bx-mpl-vote-id="#VOTE_ID#" <?
 	?>onclick="return mobileShowActions('#ENTITY_XML_ID#', '#ID#', arguments[0])" <?
 ?>>
@@ -54,7 +55,10 @@ BX.ready(function()
 	</div>
 	#AFTER#
 <?
-if (\Bitrix\MobileApp\Mobile::getApiVersion() >= 10)
+if (
+		\Bitrix\MobileApp\Mobile::getApiVersion() >= 10
+		&& (!isset($arParams["SHOW_POST_FORM"]) || $arParams["SHOW_POST_FORM"] != 'N')
+)
 {
 	?><div class="post-comment-reply"><?
 		?><div class="post-comment-reply-text" id="record-#FULL_ID#-reply-action" onclick="return mobileReply('#ENTITY_XML_ID#', event)" <?
@@ -178,7 +182,7 @@ $thumbFile = preg_replace(array(
 		$USER->getId(),
 		($avatar ? "Y" : "N"),
 		($avatar ? $avatar["src"] : ""),
-		$name,
+		htmlspecialcharsbx($name),
 	), ob_get_clean());
 if (empty($arParams["RECORDS"]))
 {
@@ -253,7 +257,8 @@ if ($arParams["SHOW_POST_FORM"] == "Y")
 					rights : {
 						MODERATE : '<?=$arParams["RIGHTS"]["MODERATE"]?>',
 						EDIT : '<?=$arParams["RIGHTS"]["EDIT"]?>',
-						DELETE : '<?=$arParams["RIGHTS"]["DELETE"]?>'
+						DELETE : '<?=$arParams["RIGHTS"]["DELETE"]?>',
+						CREATETASK : '<?=$arParams["RIGHTS"]["CREATETASK"]?>'
 					},
 					sign : '<?=$arParams["SIGN"]?>'
 			},

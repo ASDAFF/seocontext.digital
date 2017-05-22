@@ -10,6 +10,10 @@ if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
 /** @global CUser $USER */
 /** @global CMain $APPLICATION */
 
+use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\ModuleManager;
+use Bitrix\Main\Loader;
+
 if (!CModule::IncludeModule("socialnetwork"))
 {
 	ShowError(GetMessage("SONET_MODULE_NOT_INSTALL"));
@@ -20,12 +24,24 @@ $arResult = $arParams["arResult"];
 $arParams = $arParams["arParams"];
 
 if (
-	!IsModuleInstalled('tasks')
+	!ModuleManager::isModuleInstalled('tasks')
 	|| !$USER->IsAuthorized()
 )
 {
 	$arParams["SHOW_EXPERT_MODE"] = 'N';
 }
+
+$bizprocAvailable = (
+	ModuleManager::isModuleInstalled('lists')
+	&& ModuleManager::isModuleInstalled('intranet')
+	&& Loader::includeModule('bizproc')
+	&& CBPRuntime::isFeatureEnabled()
+	&& COption::GetOptionString("lists", "turnProcessesOn") == "Y"
+	&& (
+		!Loader::includeModule('extranet')
+		|| !CExtranet::isExtranetSite()
+	)
+);
 
 $arResult["PostFormUrl"] = isset($arParams["POST_FORM_URI"]) ? $arParams["POST_FORM_URI"] : '';
 $arResult["ActionUrl"] = isset($arParams["ACTION_URI"]) ? $arParams["ACTION_URI"] : '';
@@ -81,7 +97,7 @@ else
 
 $arResult["MODE"] = (isset($_REQUEST["SONET_FILTER_MODE"]) && $_REQUEST["SONET_FILTER_MODE"] == "AJAX" ? "AJAX" : false);
 
-if ($arResult["MODE"] != "AJAX")
+if ($arResult["MODE"] != "AJAX") // old filter
 {
 	if (intval($arParams["CREATED_BY_ID"]) > 0)
 	{
@@ -256,6 +272,49 @@ if (!function_exists("__SL_PF_sort"))
 usort($arResult["PresetFilters"], "__SL_PF_sort");
 $arResult["PresetFilters"] = CSocNetLogComponent::ConvertPresetToFilters($arResult["PresetFilters"], $arParams);
 
+$arResult["PresetFiltersNew"] = array();
+foreach($arResult["PresetFilters"] as $presetFilter)
+{
+	$skipPreset = false;
+	$newFilter = $presetFilter["FILTER"];
+	if (!empty($newFilter['EXACT_EVENT_ID']))
+	{
+		$newFilter['EVENT_ID'] = array($newFilter['EXACT_EVENT_ID']);
+		unset($newFilter['EXACT_EVENT_ID']);
+	}
+	if (!empty($newFilter['CREATED_BY_ID']))
+	{
+		$renderPartsUser = new \Bitrix\Socialnetwork\Livefeed\RenderParts\User(array('skipLink' => true));
+		if ($renderData = $renderPartsUser->getData($newFilter['CREATED_BY_ID']))
+		{
+			$newFilter['CREATED_BY_ID_label'] = $renderData['name'];
+		}
+		$newFilter['CREATED_BY_ID'] = 'U'.$newFilter['CREATED_BY_ID'];
+	}
+	if (!empty($presetFilter['ID']))
+	{
+		if ($presetFilter['ID'] == 'extranet')
+		{
+			$newFilter = array('EXTRANET' => 'Y');
+		}
+		elseif (
+			$presetFilter['ID'] == 'bizproc'
+			&& !$bizprocAvailable
+		)
+		{
+			$skipPreset = true;
+		}
+	}
+
+	if (!$skipPreset)
+	{
+		$arResult["PresetFiltersNew"][$presetFilter["ID"]] = array(
+			"name" => $presetFilter["NAME"],
+			"fields" => $newFilter
+		);
+	}
+}
+
 if ($_REQUEST["preset_filter_top_id"] == "clearall")
 {
 	$preset_filter_top_id = false;
@@ -302,6 +361,125 @@ else
 }
 
 $arResult["bExtranetUser"] = (CModule::IncludeModule("extranet") && !CExtranet::IsIntranetUser());
+
+$eventIdList = array();
+if (ModuleManager::isModuleInstalled('blog'))
+{
+	$eventIdList['blog_post'] = Loc::getMessage('SONET_C30_FILTER_EVENT_ID_BLOG_POST');
+	$eventIdList['blog_post_important'] = Loc::getMessage('SONET_C30_FILTER_EVENT_ID_BLOG_POST_IMPORTANT');
+}
+
+if (ModuleManager::isModuleInstalled('forum'))
+{
+	$eventIdList['forum'] = Loc::getMessage('SONET_C30_FILTER_EVENT_ID_FORUM');
+}
+
+if (ModuleManager::isModuleInstalled('tasks'))
+{
+	$eventIdList['tasks'] = Loc::getMessage('SONET_C30_FILTER_EVENT_ID_TASK');
+}
+
+if (ModuleManager::isModuleInstalled('timeman'))
+{
+	$eventIdList['timeman_entry'] = Loc::getMessage('SONET_C30_FILTER_EVENT_ID_TIMEMAN_ENTRY');
+	$eventIdList['report'] = Loc::getMessage('SONET_C30_FILTER_EVENT_ID_REPORT');
+}
+
+if (ModuleManager::isModuleInstalled('calendar'))
+{
+	$eventIdList['calendar'] = Loc::getMessage('SONET_C30_FILTER_EVENT_ID_CALENDAR');
+}
+
+if (ModuleManager::isModuleInstalled('xdimport'))
+{
+	$eventIdList['data'] = Loc::getMessage('SONET_C30_FILTER_EVENT_ID_DATA');
+}
+
+if (ModuleManager::isModuleInstalled('photogallery'))
+{
+	$eventIdList['photo'] = Loc::getMessage('SONET_C30_FILTER_EVENT_ID_PHOTO');
+}
+
+if (ModuleManager::isModuleInstalled('wiki'))
+{
+	$eventIdList['wiki'] = Loc::getMessage('SONET_C30_FILTER_EVENT_ID_WIKI');
+}
+
+if ($bizprocAvailable)
+{
+	$eventIdList['lists_new_element'] = Loc::getMessage('SONET_C30_FILTER_EVENT_ID_BP');
+}
+
+$arResult["Filter"] = array(
+	array(
+		'id' => 'DATE_CREATE',
+		'name' => Loc::getMessage('SONET_C30_FILTER_DATE_CREATE'),
+		'type' => 'date',
+		'default' => true
+	),
+	array(
+		'id' => 'EVENT_ID',
+		'name' => Loc::getMessage('SONET_C30_FILTER_EVENT_ID'),
+		'type' => 'list',
+		'params' => array (
+			'multiple' => 'Y',
+		),
+		'items' => $eventIdList,
+		'default' => true
+	),
+	array(
+		'id' => 'CREATED_BY_ID',
+		'name' => Loc::getMessage('SONET_C30_FILTER_CREATED_BY'),
+		'default' => true,
+		'type' => 'custom_entity',
+		'selector' =>
+			array (
+				'TYPE' => 'user',
+				'DATA' =>
+					array (
+						'ID' => 'created_by',
+						'FIELD_ID' => 'CREATED_BY_ID',
+					),
+			),
+	)
+);
+
+if (
+	!isset($arParams['GROUP_ID'])
+	|| intval($arParams['GROUP_ID']) <= 0
+)
+{
+	$arResult["Filter"][] = array(
+		'id' => 'TO',
+		'name' => Loc::getMessage('SONET_C30_FILTER_TO'),
+		'default' => true,
+		'type' => 'custom_entity',
+		'selector' =>
+			array (
+				'TYPE' => 'destination',
+				'DATA' =>
+					array (
+						'ID' => 'to',
+						'FIELD_ID' => 'TO',
+					),
+			),
+	);
+}
+
+$arResult["Filter"][] = array(
+	'id' => 'FAVORITES_USER_ID',
+	'name' => Loc::getMessage('SONET_C30_FILTER_FAVORITES'),
+	'type' => 'checkbox'
+);
+
+if (ModuleManager::isModuleInstalled('extranet'))
+{
+	$arResult["Filter"][] = array(
+		'id' => 'EXTRANET',
+		'name' => Loc::getMessage('SONET_C30_FILTER_EXTRANET'),
+		'type' => 'checkbox'
+	);
+}
 
 $this->IncludeComponentTemplate();
 ?>

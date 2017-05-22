@@ -1,6 +1,7 @@
 .mobile-grid{
 	font-family: "Helvetica Neue", Helvetica, sans-serif;
 	background: rgba(223,226,228,.5);
+	word-wrap: break-word;
 }
 /*.mobile-grid-section{margin-bottom:4px;}*/
 .mobile-grid-section-child{ background: #fff;}
@@ -661,7 +662,7 @@ del {
 .mobile-grid-field-user-name {
 	display: inline-block;
 	vertical-align: middle;
-	line-height: 20px;
+	line-height: 43px;
 	white-space: normal;
 }
 .mobile-grid-field-user-name span {
@@ -1484,6 +1485,10 @@ ol.mobile-grid-field-tasklinks {
 	-webkit-transform: translateY(-50%);
 	-moz-transform: translateY(-50%);
 	transform: translateY(-50%);
+}
+
+.mobile-grid-field-icon-phone {
+	margin-top: -3px;
 }
 
 .mobile-grid-field-desc {

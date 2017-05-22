@@ -1,6 +1,7 @@
 <?if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
 
-$arParams["CALENDAR_TYPE"] = $arParams["CALENDAR_TYPE"];
+if (!CModule::IncludeModule("calendar"))
+	return ShowError("EC_CALENDAR_MODULE_NOT_INSTALLED");
 
 $this->IncludeComponentTemplate();
 ?>

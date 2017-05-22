@@ -68,12 +68,30 @@ class PersonalProfileDetail extends CBitrixComponent
 			$params["PATH_TO_DETAIL"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?ID=#ID#");
 		}
 
+		if (!isset($params['COMPATIBLE_LOCATION_MODE']) && $this->initComponentTemplate())
+		{
+			$template = $this->getTemplate();
+			if ($template instanceof CBitrixComponentTemplate
+				&& $template->GetSiteTemplate() == ''
+				&& $template->GetName() == '.default'
+			)
+				$params['COMPATIBLE_LOCATION_MODE'] = 'N';
+			else
+				$params['COMPATIBLE_LOCATION_MODE'] = 'Y';
+		}
+		else
+		{
+			$arParams['COMPATIBLE_LOCATION_MODE'] = $params['COMPATIBLE_LOCATION_MODE'] == 'Y' ? 'Y' : 'N';
+		}
+
 		return $params;
 	}
 
 	public function executeComponent()
 	{
 		global $USER, $APPLICATION;
+
+		Loc::loadMessages(__FILE__);
 
 		$this->setFrameMode(false);
 
@@ -85,7 +103,6 @@ class PersonalProfileDetail extends CBitrixComponent
 		}
 
 		$request = Main\Application::getInstance()->getContext()->getRequest();
-		$request->addFilter(new Main\Web\PostDecodeFilter);
 
 		if ($this->arParams["SET_TITLE"] === 'Y')
 		{
@@ -187,14 +204,17 @@ class PersonalProfileDetail extends CBitrixComponent
 
 		$locationValue = array();
 
-		$locationDb = CSaleLocation::GetList(
-			array("SORT" => "ASC", "COUNTRY_NAME_LANG" => "ASC", "CITY_NAME_LANG" => "ASC"),
-			array(),
-			LANGUAGE_ID
-		);
-		while ($location = $locationDb->Fetch())
+		if ($this->arParams['COMPATIBLE_LOCATION_MODE'] == 'Y')
 		{
-			$locationValue[] = $location;
+			$locationDb = CSaleLocation::GetList(
+				array("SORT" => "ASC", "COUNTRY_NAME_LANG" => "ASC", "CITY_NAME_LANG" => "ASC"),
+				array(),
+				LANGUAGE_ID
+			);
+			while ($location = $locationDb->Fetch())
+			{
+				$locationValue[] = $location;
+			}
 		}
 
 		$arrayTmp = array();
@@ -220,7 +240,7 @@ class PersonalProfileDetail extends CBitrixComponent
 				false,
 				array("ID", "PERSON_TYPE_ID", "NAME", "TYPE", "REQUIED", "DEFAULT_VALUE", "SORT", "USER_PROPS",
 					"IS_LOCATION", "PROPS_GROUP_ID", "SIZE1", "SIZE2", "DESCRIPTION", "IS_EMAIL", "IS_PROFILE_NAME",
-					"IS_PAYER", "IS_LOCATION4TAX", "CODE", "SORT")
+					"IS_PAYER", "IS_LOCATION4TAX", "CODE", "SORT", "MULTIPLE")
 			);
 			while ($orderProperty = $orderPropertiesList->GetNext())
 			{
@@ -232,7 +252,7 @@ class PersonalProfileDetail extends CBitrixComponent
 					while ($vars = $dbVars->GetNext())
 						$orderProperty["VALUES"][] = $vars;
 				}
-				elseif ($orderProperty["TYPE"] == "LOCATION")
+				elseif ($orderProperty["TYPE"] == "LOCATION" && $this->arParams['COMPATIBLE_LOCATION_MODE'] == 'Y')
 				{
 					$orderProperty["VALUES"] = $locationValue;
 				}
@@ -473,10 +493,13 @@ class PersonalProfileDetail extends CBitrixComponent
 				}
 			}
 
-			$saleOrderUserPropertiesValue->Update(
-				$propertyValues["ID"],
-				array("VALUE" => $fieldValues[$propertyValues["ORDER_PROPS_ID"]]['VALUE'])
-			);
+			if (isset($fieldValues[$propertyValues["ORDER_PROPS_ID"]]['VALUE']))
+			{
+				$saleOrderUserPropertiesValue->Update(
+					$propertyValues["ID"],
+					array("VALUE" => $fieldValues[$propertyValues["ORDER_PROPS_ID"]]['VALUE'])
+				);
+			}
 
 			$updatedValues[$propertyValues["ORDER_PROPS_ID"]] = $fieldValues[$propertyValues["ORDER_PROPS_ID"]];
 		}

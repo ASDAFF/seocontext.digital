@@ -17,19 +17,30 @@ Loc::loadMessages(__FILE__);
 class Site extends Restrictions\BySite
 {
 	/**
-	 * @param Internals\CollectableEntity $entity
+	 * @param Internals\Entity $entity
 	 * @return null|string
 	 */
-	protected static function extractParams(Internals\CollectableEntity $entity)
+	protected static function extractParams(Internals\Entity $entity)
 	{
 		if (!($entity instanceof Payment))
 			return false;
 
-		/** @var PaymentCollection $collection */
-		$collection = $entity->getCollection();
+		if ($entity instanceof Internals\CollectableEntity)
+		{
+			/** @var \Bitrix\Sale\ShipmentCollection $collection */
+			$collection = $entity->getCollection();
 
-		/** @var Order $order */
-		$order = $collection->getOrder();
+			/** @var \Bitrix\Sale\Order $order */
+			$order = $collection->getOrder();
+		}
+		elseif ($entity instanceof Order)
+		{
+			/** @var \Bitrix\Sale\Order $order */
+			$order = $entity;
+		}
+
+		if (!$order)
+			return false;
 
 		return $order->getSiteId();
 	}

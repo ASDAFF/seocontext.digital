@@ -448,6 +448,11 @@ class BasketCompatibility
 				$result->addErrors($r->getErrors());
 				return $result;
 			}
+			else
+			{
+				if (!$order)
+					$basket->refreshData(array('PRICE', 'COUPONS', 'QUANTITY'), $item);
+			}
 		}
 
 		if ($item === null)
@@ -637,13 +642,17 @@ class BasketCompatibility
 			$result->addErrors($r->getErrors());
 		}
 
-		if (!DiscountCompatibility::isInited())
-			DiscountCompatibility::init();
-		if (DiscountCompatibility::usedByClient())
+		if(DiscountCompatibility::isUsed())
 		{
-			DiscountCompatibility::setBasketItemData($id, $fields);
-			DiscountCompatibility::setBasketCode($id, $item->getBasketCode());
+			if (!DiscountCompatibility::isInited())
+				DiscountCompatibility::init();
+			if (DiscountCompatibility::usedByClient())
+			{
+				DiscountCompatibility::setBasketItemData($id, $fields);
+				DiscountCompatibility::setBasketCode($id, $item->getBasketCode());
+			}
 		}
+
 
 		if ($order === null && !empty($fields['ORDER_ID']) && intval($fields['ORDER_ID']) > 0)
 		{

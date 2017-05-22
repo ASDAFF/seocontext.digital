@@ -39,7 +39,7 @@ class Service
 
 	public static function isRegistered()
 	{
-		return static::getEngine()->isRegistered();
+		return static::getEngine() ? static::getEngine()->isRegistered() : false;
 	}
 
 	public static function getAuth($engineCode)

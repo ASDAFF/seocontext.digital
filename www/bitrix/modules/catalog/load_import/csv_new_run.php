@@ -5,12 +5,14 @@
 /** @global int $error_lines */
 /** @global string $tmpid */
 
+/** @global int $IBLOCK_ID */
 /** @global array $arIBlock */
 /** @global string $first_names_r */
 /** @global string $first_names_f */
 /** @global int $CUR_FILE_POS */
 /** @global string $USE_TRANSLIT */
 /** @global string $TRANSLIT_LANG */
+/** @global string $USE_UPDATE_TRANSLIT */
 /** @global string $PATH2IMAGE_FILES */
 /** @global string $outFileAction */
 
@@ -302,6 +304,13 @@ if ('' == $strImportErrorMessage)
 			$strImportErrorMessage .= GetMessage("CATI_CODE_TRANSLIT_LANG_ERR")."<br>";
 		}
 	}
+	$updateTranslit = false;
+	if ($USE_TRANSLIT == 'Y')
+	{
+		$updateTranslit = true;
+		if (isset($USE_UPDATE_TRANSLIT) && $USE_UPDATE_TRANSLIT == 'N')
+			$updateTranslit = false;
+	}
 }
 
 $IMAGE_RESIZE = (isset($IMAGE_RESIZE) && 'Y' == $IMAGE_RESIZE ? 'Y' : 'N');
@@ -357,6 +366,7 @@ if ('' == $strImportErrorMessage)
 		}
 
 		$boolTranslitElement = false;
+
 		$boolTranslitSection = false;
 		$arTranslitElement = array();
 		$arTranslitSection = array();
@@ -561,14 +571,6 @@ if ('' == $strImportErrorMessage)
 				$sectionIndex = $sectionKey.$sectionFilter;
 				if (!isset($arSectionCache[$sectionIndex]))
 				{
-					if ($boolTranslitSection)
-					{
-						if (!isset($arGroupsTmp[$i]['CODE']) || '' === $arGroupsTmp[$i]['CODE'])
-						{
-							$arGroupsTmp[$i]['CODE'] = CUtil::translit($arGroupsTmp[$i]["NAME"], $TRANSLIT_LANG, $arTranslitSection);
-						}
-					}
-
 					if (isset($arGroupsTmp[$i]["PICTURE"]))
 					{
 						$bFilePres = false;
@@ -619,6 +621,13 @@ if ('' == $strImportErrorMessage)
 					$res = CIBlockSection::GetList(array(), $arFilter, false, array('ID'));
 					if ($arr = $res->Fetch())
 					{
+						if ($boolTranslitSection && $updateTranslit)
+						{
+							if (!isset($arGroupsTmp[$i]['CODE']) || '' === $arGroupsTmp[$i]['CODE'])
+							{
+								$arGroupsTmp[$i]['CODE'] = CUtil::translit($arGroupsTmp[$i]["NAME"], $TRANSLIT_LANG, $arTranslitSection);
+							}
+						}
 						$LAST_GROUP_CODE = $arr["ID"];
 						$res = $bs->Update($LAST_GROUP_CODE, $arGroupsTmp[$i], true, true, 'Y' === $IMAGE_RESIZE);
 						if (!$res)
@@ -628,6 +637,13 @@ if ('' == $strImportErrorMessage)
 					}
 					else
 					{
+						if ($boolTranslitSection)
+						{
+							if (!isset($arGroupsTmp[$i]['CODE']) || '' === $arGroupsTmp[$i]['CODE'])
+							{
+								$arGroupsTmp[$i]['CODE'] = CUtil::translit($arGroupsTmp[$i]["NAME"], $TRANSLIT_LANG, $arTranslitSection);
+							}
+						}
 						$arGroupsTmp[$i]["IBLOCK_ID"] = $IBLOCK_ID;
 						$arGroupsTmp[$i]["ACTIVE"] = (isset($arGroupsTmp[$i]["ACTIVE"]) && 'N' === $arGroupsTmp[$i]["ACTIVE"] ? 'N' : 'Y');
 						$LAST_GROUP_CODE = $bs->Add($arGroupsTmp[$i], true, true, 'Y' === $IMAGE_RESIZE);
@@ -648,6 +664,7 @@ if ('' == $strImportErrorMessage)
 				}
 			}
 
+			$arFilter = array("IBLOCK_ID" => $IBLOCK_ID);
 			if ('' === $strErrorR)
 			{
 				$arLoadProductArray = array(
@@ -673,7 +690,6 @@ if ('' == $strImportErrorMessage)
 					}
 				}
 
-				$arFilter = array("IBLOCK_ID" => $IBLOCK_ID);
 				if (isset($arLoadProductArray["XML_ID"]) && '' !== $arLoadProductArray["XML_ID"])
 				{
 					$arFilter["=XML_ID"] = $arLoadProductArray["XML_ID"];
@@ -741,14 +757,6 @@ if ('' == $strImportErrorMessage)
 						unset($arLoadProductArray["DETAIL_PICTURE"]);
 				}
 
-				if ($boolTranslitElement)
-				{
-					if (!isset($arLoadProductArray['CODE']) || '' === $arLoadProductArray['CODE'])
-					{
-						$arLoadProductArray['CODE'] = CUtil::translit($arLoadProductArray["NAME"], $TRANSLIT_LANG, $arTranslitElement);
-					}
-				}
-
 				$res = CIBlockElement::GetList(
 					array(),
 					$arFilter,
@@ -766,6 +774,13 @@ if ('' == $strImportErrorMessage)
 					if (isset($arLoadProductArray["DETAIL_PICTURE"]) && intval($arr["DETAIL_PICTURE"])>0)
 					{
 						$arLoadProductArray["DETAIL_PICTURE"]["old_file"] = $arr["DETAIL_PICTURE"];
+					}
+					if ($boolTranslitElement && $updateTranslit)
+					{
+						if (!isset($arLoadProductArray['CODE']) || '' === $arLoadProductArray['CODE'])
+						{
+							$arLoadProductArray['CODE'] = CUtil::translit($arLoadProductArray["NAME"], $TRANSLIT_LANG, $arTranslitElement);
+						}
 					}
 					if ($bThereIsGroups)
 					{
@@ -789,6 +804,13 @@ if ('' == $strImportErrorMessage)
 					}
 					if ($arLoadProductArray["ACTIVE"] != "N")
 						$arLoadProductArray["ACTIVE"] = "Y";
+					if ($boolTranslitElement)
+					{
+						if (!isset($arLoadProductArray['CODE']) || '' === $arLoadProductArray['CODE'])
+						{
+							$arLoadProductArray['CODE'] = CUtil::translit($arLoadProductArray["NAME"], $TRANSLIT_LANG, $arTranslitElement);
+						}
+					}
 
 					$PRODUCT_ID = $el->Add($arLoadProductArray, $bWorkflow, false, 'Y' === $IMAGE_RESIZE);
 					if ($bThereIsGroups)

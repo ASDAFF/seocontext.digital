@@ -188,6 +188,8 @@ class CUserOptions
 			$user_id = $USER->GetID();
 		}
 
+		$category = strtolower($category);
+
 		$user_id = intval($user_id);
 		$arFields = array(
 			"USER_ID" => $user_id,

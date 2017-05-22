@@ -704,9 +704,9 @@ $tabControl->BeginNextTab();
 											BX("need_license_module").value = '<?=CUtil::JSEscape($arModuleTmp["@"]["ID"]);?>';
 											</script><?
 										}
-										$md = CUtil::JSEscape($arModuleTmp["@"]["ID"]);
+										$md = htmlspecialcharsbx($arModuleTmp["@"]["ID"]);
 										?>
-										<input type="hidden" name="md_name_<?=$md?>" id="md_name_<?=$md?>" value="<?=CUtil::JSEscape(str_replace("#NAME#", htmlspecialcharsbx($arModuleTmp["@"]["NAME"]), GetMessage("SUP_SULL_MODULE")))?>">
+										<input type="hidden" name="md_name_<?=$md?>" id="md_name_<?=$md?>" value="<?=str_replace("#NAME#", htmlspecialcharsbx($arModuleTmp["@"]["NAME"]), GetMessage("SUP_SULL_MODULE"))?>">
 										<input type="hidden" name="md_new_<?=$md?>" id="md_new_<?=$md?>" value="Y">
 										<?
 									}
@@ -1109,7 +1109,7 @@ $tabControl->BeginNextTab();
 
 						var txt = '';
 						txt += '<form name="license_form">';
-						txt += '<iframe name="license_text" src="http://www.1c-bitrix.ru/license.php?module='+name+'&free_module='+freeModule+'&updatesystem=Y" style="width:622px; height:410px; display:block;"></iframe>';
+						txt += '<iframe name="license_text" src="//www.1c-bitrix.ru/license.php?module='+name+'&free_module='+freeModule+'&updatesystem=Y" style="width:622px; height:410px; display:block;"></iframe>';
 						txt += '<input name="agree_license" type="checkbox" value="Y" id="agree_license_id">';
 						txt += '<label for="agree_license_id"><?= GetMessageJS("SUP_SUBT_AGREE") ?></label>';
 						txt += '</form>';

@@ -2,6 +2,7 @@
 
 namespace Bitrix\Mail;
 
+use Bitrix\Main;
 use Bitrix\Main\Text\Encoding;
 use Bitrix\Main\Localization\Loc;
 
@@ -21,34 +22,27 @@ class Imap
 	const ERR_CAPABILITY       = 203;
 	const ERR_AUTH             = 204;
 	const ERR_AUTH_MECH        = 205;
-	const ERR_LIST             = 206;
-	const ERR_SELECT           = 207;
-	const ERR_SEARCH           = 208;
-	const ERR_FETCH            = 209;
-	const ERR_APPEND           = 210;
-	const ERR_STORE            = 211;
+	const ERR_AUTH_OAUTH       = 206;
+	const ERR_LIST             = 207;
+	const ERR_SELECT           = 208;
+	const ERR_SEARCH           = 209;
+	const ERR_FETCH            = 210;
+	const ERR_APPEND           = 211;
+	const ERR_STORE            = 212;
 
-	protected $stream;
+	protected $stream, $errors;
+	protected $sessState, $sessCapability, $sessCounter, $sessUntagged, $sessMailbox;
 
 	protected $options = array();
-
-	protected $sessState;
-	protected $sessCounter = 0;
-	protected $sessCapability;
-	protected $sessUntagged = array();
-	protected $sessMailbox = array(
-		'name'        => null,
-		'exists'      => null,
-		'uidvalidity' => null,
-	);
 
 	protected static $atomRegex    = '[^\x00-\x20\x22\x25\x28-\x2a\x5c\x5d\x7b\x7f-\xff]+';
 	protected static $qcharRegex   = '[^\x00\x0a\x0d\x22\x5c\x80-\xff]|\x5c[\x5c\x22]';
 	protected static $astringRegex = '[^\x00-\x20\x22\x25\x28-\x2a\x5c\x7b\x7f-\xff]+';
 
-
 	public function __construct($host, $port, $tls, $strict, $login, $password, $encoding)
 	{
+		$this->reset();
+
 		$strict = PHP_VERSION_ID < 50600 ? false : (bool) $strict;
 
 		$this->options = array(
@@ -66,6 +60,34 @@ class Imap
 			'login'    => $login,
 			'password' => $password,
 			'encoding' => $encoding,
+		);
+	}
+
+	public function __destruct()
+	{
+		$this->disconnect();
+	}
+
+	protected function disconnect()
+	{
+		if (!is_null($this->stream))
+			@fclose($this->stream);
+		unset($this->stream);
+	}
+
+	protected function reset()
+	{
+		$this->disconnect();
+
+		unset($this->errors);
+		unset($this->sessState);
+		unset($this->sessCapability);
+		$this->sessCounter = 0;
+		$this->sessUntagged = array();
+		$this->sessMailbox = array(
+			'name'        => null,
+			'exists'      => null,
+			'uidvalidity' => null,
 		);
 	}
 
@@ -88,12 +110,14 @@ class Imap
 
 		if ($resource === false)
 		{
-			$error = static::errorMessage(Imap::ERR_CONNECT, $errno ?: null);
+			$error = $this->errorMessage(Imap::ERR_CONNECT, $errno ?: null);
 			return false;
 		}
 
 		$this->stream = $resource;
-		stream_set_timeout($this->stream, $this->options['timeout']);
+
+		if ($this->options['timeout'] > 0)
+			stream_set_timeout($this->stream, $this->options['timeout']);
 
 		$prompt = $this->readLine();
 
@@ -106,9 +130,6 @@ class Imap
 		}
 		else
 		{
-			fclose($this->stream);
-			unset($this->stream);
-
 			if ($prompt === false)
 				$error = Imap::ERR_EMPTY_RESPONSE;
 			elseif (preg_match('/^\* BYE/i', $prompt))
@@ -116,7 +137,7 @@ class Imap
 			else
 				$error = Imap::ERR_BAD_SERVER;
 
-			$error = static::errorMessage(array(Imap::ERR_CONNECT, $error));
+			$error = $this->errorMessage(array(Imap::ERR_CONNECT, $error));
 
 			return false;
 		}
@@ -139,7 +160,7 @@ class Imap
 
 		if (!$this->sessState)
 		{
-			$error = static::errorMessage(Imap::ERR_STARTTLS);
+			$error = $this->errorMessage(Imap::ERR_STARTTLS);
 			return false;
 		}
 
@@ -154,10 +175,9 @@ class Imap
 			}
 			else
 			{
-				fclose($this->stream);
-				unset($this->stream);
+				$this->reset();
 
-				$error = static::errorMessage(Imap::ERR_STARTTLS);
+				$error = $this->errorMessage(Imap::ERR_STARTTLS);
 
 				return false;
 			}
@@ -172,7 +192,7 @@ class Imap
 
 		if (!$this->sessState)
 		{
-			$error = static::errorMessage(Imap::ERR_CAPABILITY);
+			$error = $this->errorMessage(Imap::ERR_CAPABILITY);
 			return false;
 		}
 
@@ -181,7 +201,7 @@ class Imap
 		if ($error)
 		{
 			$error = $error == Imap::ERR_COMMAND_REJECTED ? null : $error;
-			$error = static::errorMessage(array(Imap::ERR_CAPABILITY, $error), $response);
+			$error = $this->errorMessage(array(Imap::ERR_CAPABILITY, $error), $response);
 
 			return false;
 		}
@@ -203,25 +223,81 @@ class Imap
 			return true;
 
 		$mech = false;
-		if (preg_match('/ \x20 AUTH=PLAIN ( \x20 | \r\n ) /ix', $this->sessCapability))
-			$mech = 'plain';
-		elseif (!preg_match('/ \x20 LOGINDISABLED ( \x20 | \r\n ) /ix', $this->sessCapability))
-			$mech = 'login';
+
+		if (preg_match('/^\x00oauth\x00(google|liveid)\x00(\d+)$/', $this->options['password'], $matches))
+		{
+			if (preg_match('/ \x20 AUTH=XOAUTH2 ( \x20 | \r\n ) /ix', $this->sessCapability))
+			{
+				if (\CModule::includeModule('socialservices'))
+				{
+					switch ($matches[1])
+					{
+						case 'google':
+							$oauthClient = new \CSocServGoogleOAuth($matches[2]);
+							$oauthClient->getUrl('modal', array('https://mail.google.com/'));
+							break;
+						case 'liveid':
+							$oauthClient = new \CSocServLiveIDOAuth($matches[2]);
+							$oauthClient->getUrl('modal', array('wl.imap', 'wl.offline_access'));
+							break;
+					}
+
+					if (!empty($oauthClient))
+					{
+						$token = $oauthClient->getStorageToken();
+						if (!$token)
+						{
+							$error = $this->errorMessage(array(Imap::ERR_AUTH, Imap::ERR_AUTH_OAUTH));
+							return false;
+						}
+
+						$mech = 'oauth';
+					}
+				}
+			}
+		}
+
+		if ($mech == false)
+		{
+			if (preg_match('/ \x20 AUTH=PLAIN ( \x20 | \r\n ) /ix', $this->sessCapability))
+				$mech = 'plain';
+			elseif (!preg_match('/ \x20 LOGINDISABLED ( \x20 | \r\n ) /ix', $this->sessCapability))
+				$mech = 'login';
+		}
 
 		if (!$mech)
 		{
-			$error = static::errorMessage(array(Imap::ERR_AUTH, Imap::ERR_AUTH_MECH));
+			$error = $this->errorMessage(array(Imap::ERR_AUTH, Imap::ERR_AUTH_MECH));
 			return false;
 		}
 
-		if ($mech == 'plain')
+		if ($mech == 'oauth')
+		{
+			$response = $this->executeCommand('AUTHENTICATE XOAUTH2', $error);
+
+			if (strpos($response, '+') !== 0)
+			{
+				$error = $error == Imap::ERR_COMMAND_REJECTED ? Imap::ERR_AUTH_MECH : $error;
+				$error = $this->errorMessage(array(Imap::ERR_AUTH, $error), $response);
+
+				return false;
+			}
+
+			$response = $this->exchange(base64_encode(sprintf(
+				"user=%s\x01auth=Bearer %s\x01\x01", $this->options['login'], $token
+			)), $error);
+
+			if (strpos($response, '+') === 0)
+				$response = $this->exchange("\r\n", $error);
+		}
+		elseif ($mech == 'plain')
 		{
 			$response = $this->executeCommand('AUTHENTICATE PLAIN', $error);
 
 			if (strpos($response, '+') !== 0)
 			{
 				$error = $error == Imap::ERR_COMMAND_REJECTED ? Imap::ERR_AUTH_MECH : $error;
-				$error = static::errorMessage(array(Imap::ERR_AUTH, $error), $response);
+				$error = $this->errorMessage(array(Imap::ERR_AUTH, $error), $response);
 
 				return false;
 			}
@@ -242,7 +318,7 @@ class Imap
 		if ($error)
 		{
 			$error = $error == Imap::ERR_COMMAND_REJECTED ? null : $error;
-			$error = static::errorMessage(array(Imap::ERR_AUTH, $error), $response);
+			$error = $this->errorMessage(array(Imap::ERR_AUTH, $error), $response);
 
 			return false;
 		}
@@ -271,7 +347,7 @@ class Imap
 		if ($error)
 		{
 			$error = $error == Imap::ERR_COMMAND_REJECTED ? null : $error;
-			$error = static::errorMessage(array(Imap::ERR_SELECT, $error), $response);
+			$error = $this->errorMessage(array(Imap::ERR_SELECT, $error), $response);
 
 			return false;
 		}
@@ -327,7 +403,7 @@ class Imap
 		if ($error)
 		{
 			$error = $error == Imap::ERR_COMMAND_REJECTED ? null : $error;
-			$error = static::errorMessage(array(Imap::ERR_SEARCH, $error), $response);
+			$error = $this->errorMessage(array(Imap::ERR_SEARCH, $error), $response);
 
 			return false;
 		}
@@ -362,7 +438,7 @@ class Imap
 		if ($error)
 		{
 			$error = $error == Imap::ERR_COMMAND_REJECTED ? null : $error;
-			$error = static::errorMessage(array(Imap::ERR_LIST, $error), $response);
+			$error = $this->errorMessage(array(Imap::ERR_LIST, $error), $response);
 
 			return false;
 		}
@@ -393,6 +469,10 @@ class Imap
 			elseif (preg_match('/^ " ( .* ) " $/ix', $sname, $quoted))
 				$sname = static::unescapeQuoted($quoted[1]);
 
+			// #79498
+			if (strtoupper($sdelim) != 'NIL')
+				$sname = rtrim($sname, $sdelim);
+
 			$list[] = array(
 				'flags' => $sflags,
 				'delim' => strtoupper($sdelim) == 'NIL' ? null : $sdelim,
@@ -404,6 +484,9 @@ class Imap
 		{
 			foreach ($list as $i => $item)
 			{
+				if ($item['delim'] === null)
+					continue;
+
 				if (!preg_match('/ ( ^ | \x20 ) \x5c ( Noinferiors | HasNoChildren ) ( \x20 | $ ) /ix', $item['flags']))
 				{
 					$children = $this->listMailboxes(sprintf('%s%s*', $item['name'], $item['delim']), $error);
@@ -443,7 +526,7 @@ class Imap
 			if ($error)
 			{
 				$error = $error == Imap::ERR_COMMAND_REJECTED ? null : $error;
-				$error = static::errorMessage(array(Imap::ERR_FETCH, $error), $response);
+				$error = $this->errorMessage(array(Imap::ERR_FETCH, $error), $response);
 
 				return false;
 			}
@@ -511,7 +594,7 @@ class Imap
 		if ($error)
 		{
 			$error = $error == Imap::ERR_COMMAND_REJECTED ? null : $error;
-			$error = static::errorMessage(array(Imap::ERR_APPEND, $error), $response);
+			$error = $this->errorMessage(array(Imap::ERR_APPEND, $error), $response);
 
 			return false;
 		}
@@ -552,7 +635,7 @@ class Imap
 		if ($error)
 		{
 			$error = $error == Imap::ERR_COMMAND_REJECTED ? null : $error;
-			$error = static::errorMessage(array(Imap::ERR_STORE, $error), $response);
+			$error = $this->errorMessage(array(Imap::ERR_STORE, $error), $response);
 
 			return false;
 		}
@@ -586,7 +669,7 @@ class Imap
 		if ($error)
 		{
 			$error = $error == Imap::ERR_COMMAND_REJECTED ? null : $error;
-			$error = static::errorMessage(array(Imap::ERR_FETCH, $error), $response);
+			$error = $this->errorMessage(array(Imap::ERR_FETCH, $error), $response);
 
 			return false;
 		}
@@ -709,11 +792,18 @@ class Imap
 
 	protected function sendData($data)
 	{
-//echo '> ', $data;
-		$bytes = fputs($this->stream, $data);
+		while (\CUtil::binStrlen($data) > 0)
+		{
+			$bytes = fputs($this->stream, $data);
 
-		if ($bytes < strlen($data))
-			return false;
+			if ($bytes === false)
+			{
+				$this->reset();
+				return false;
+			}
+
+			$data = \CUtil::binSubstr($data, $bytes);
+		}
 
 		return true;
 	}
@@ -726,8 +816,18 @@ class Imap
 		{
 			$buffer = fread($this->stream, $bytes);
 
+			if ($this->options['timeout'] > 0)
+			{
+				$meta = stream_get_meta_data($this->stream);
+				if ($meta['timed_out'])
+					$buffer = false;
+			}
+
 			if ($buffer === false)
+			{
+				$this->reset();
 				return false;
+			}
 
 			$data  .= $buffer;
 			$bytes -= \CUtil::binStrlen($buffer);
@@ -744,8 +844,18 @@ class Imap
 		{
 			$buffer = fgets($this->stream, 4096);
 
+			if ($this->options['timeout'] > 0)
+			{
+				$meta = stream_get_meta_data($this->stream);
+				if ($meta['timed_out'])
+					$buffer = false;
+			}
+
 			if ($buffer === false)
+			{
+				$this->reset();
 				return false;
+			}
 
 			$line .= $buffer;
 
@@ -761,7 +871,6 @@ class Imap
 		}
 		while ($literal || !preg_match('/\r\n$/', $line));
 
-//echo '< ', $line;
 		return $line;
 	}
 
@@ -860,19 +969,32 @@ class Imap
 		return $result;
 	}
 
-	protected static function errorMessage($errors, $details = null)
+	protected function errorMessage($errors, $details = null)
 	{
 		$errors  = array_filter((array) $errors);
 		$details = array_filter((array) $details);
 
+		$this->errors = new Main\ErrorCollection();
 		foreach ($errors as $i => $error)
+		{
 			$errors[$i] = static::decodeError($error);
+			$this->errors->setError(new Main\Error($errors[$i], $error > 0 ? $error : 0));
+		}
 
 		$error = join(': ', $errors);
 		if ($details)
+		{
 			$error .= sprintf(' (%s)', join(': ', $details));
+			foreach ($details as $item)
+				$this->errors->setError(new Main\Error($item, -1));
+		}
 
 		return $error;
+	}
+
+	public function getErrors()
+	{
+		return $this->errors;
 	}
 
 	/**
@@ -905,6 +1027,8 @@ class Imap
 				return Loc::getMessage('MAIL_IMAP_ERR_AUTH');
 			case self::ERR_AUTH_MECH:
 				return Loc::getMessage('MAIL_IMAP_ERR_AUTH_MECH');
+			case self::ERR_AUTH_OAUTH:
+				return Loc::getMessage('MAIL_IMAP_ERR_AUTH_OAUTH');
 			case self::ERR_LIST:
 				return Loc::getMessage('MAIL_IMAP_ERR_LIST');
 			case self::ERR_SELECT:

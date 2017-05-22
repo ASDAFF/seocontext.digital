@@ -54,7 +54,7 @@ foreach($arResult["TABS"] as $tab):
 			$callback = '';
 	}
 ?>
-					<td title="<?=htmlspecialcharsbx($tab["title"])?>" id="tab_cont_<?=$tab["id"]?>" class="bx-tab-container<?=($bSelected? "-selected":"")?>" onclick="<?if(strlen($callback)):?><?=$callback?>('<?=$tab["id"]?>');<?endif?>bxForm_<?=$arParams["FORM_ID"]?>.SelectTab('<?=$tab["id"]?>');" onmouseover="if(bxForm_<?=$arParams["FORM_ID"]?>){bxForm_<?=$arParams["FORM_ID"]?>.HoverTab('<?=$tab["id"]?>', true);}" onmouseout="if(bxForm_<?=$arParams["FORM_ID"]?>){bxForm_<?=$arParams["FORM_ID"]?>.HoverTab('<?=$tab["id"]?>', false);}">
+					<td title="<?=htmlspecialcharsbx($tab["title"])?>" id="tab_cont_<?=$tab["id"]?>" class="bx-tab-container<?=($bSelected? "-selected":"")?>" onclick="<?if(strlen($callback)):?><?=$callback?>('<?=$tab["id"]?>');<?endif?>bxForm_<?=$arParams["FORM_ID"]?>.SelectTab('<?=$tab["id"]?>');" onmouseover="if(window.bxForm_<?=$arParams["FORM_ID"]?>){bxForm_<?=$arParams["FORM_ID"]?>.HoverTab('<?=$tab["id"]?>', true);}" onmouseout="if(window.bxForm_<?=$arParams["FORM_ID"]?>){bxForm_<?=$arParams["FORM_ID"]?>.HoverTab('<?=$tab["id"]?>', false);}">
 						<table cellspacing="0">
 							<tr>
 								<td class="bx-tab-left<?=($bSelected? "-selected":"")?>" id="tab_left_<?=$tab["id"]?>"><div class="empty"></div></td>
@@ -141,6 +141,9 @@ if($field["type"] == 'section'):
 <?
 else:
 	$val = (isset($field["value"])? $field["value"] : $arParams["~DATA"][$field["id"]]);
+	$valEncoded = '';
+	if(!is_array($val))
+		$valEncoded = htmlspecialcharsbx(htmlspecialcharsback($val));
 
 	//default attributes
 	if(!is_array($field["params"]))
@@ -193,7 +196,7 @@ else:
 			break;
 		case 'textarea':
 ?>
-<textarea name="<?=$field["id"]?>"<?=$params?>><?=$val?></textarea>
+<textarea name="<?=$field["id"]?>"<?=$params?>><?=$valEncoded?></textarea>
 <?
 			break;
 		case 'list':
@@ -245,7 +248,7 @@ else:
 			break;
 		default:
 ?>
-<input type="text" name="<?=$field["id"]?>" value="<?=$val?>"<?=$params?>>
+<input type="text" name="<?=$field["id"]?>" value="<?=$valEncoded?>"<?=$params?>>
 <?
 			break;
 	endswitch;

@@ -27,4 +27,9 @@ $MESS["SONET_GUE_T_SAME_OWNER"] = "The specified user is already a workgroup own
 $MESS["SONET_GUE_T_FIRED"] = "dismissed";
 $MESS["SONET_GUE_T_FIRED_M"] = "dismissed";
 $MESS["SONET_GUE_T_FIRED_F"] = "dismissed";
+$MESS["SONET_GUE_T_USERS_AUTO_SUBTITLE"] = "Connected users";
+$MESS["SONET_GUE_T_DEPARTMENTS_SUBTITLE"] = "Departments";
+$MESS["SONET_GUE_T_ACTION_UNCONNECT_DEPT"] = "Disconnect";
+$MESS["SONET_GUE_T_DEPARTMENT_ID_NOT_DEFINED"] = "No department(s) selected.";
+$MESS["SONET_GUE_T_CANT_EXCLUDE_AUTO_MEMBER"] = "A connected user cannot be removed from the group.";
 ?>

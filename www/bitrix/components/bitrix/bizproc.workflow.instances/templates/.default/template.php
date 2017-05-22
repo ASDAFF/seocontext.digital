@@ -94,6 +94,10 @@ else
 		{
 			if (empty($record['data'][$field]))
 				$record['data'][$field] = '<span class="bp-warning">'.getMessage('BPWIT_UNKNOWN').'</span>';
+			elseif ($field === 'WS_DOCUMENT_NAME')
+			{
+				$record['data'][$field] = htmlspecialcharsbx($record['data'][$field]);
+			}
 		}
 		$arResult["RECORDS"][$key] = $record;
 	}

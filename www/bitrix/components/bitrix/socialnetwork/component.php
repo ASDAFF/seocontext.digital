@@ -1,4 +1,14 @@
 <?if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
+/** @var CBitrixComponent $this */
+/** @var array $arParams */
+/** @var array $arResult */
+/** @var string $componentPath */
+/** @var string $componentName */
+/** @var string $componentTemplate */
+/** @global CDatabase $DB */
+/** @global CUser $USER */
+/** @global CMain $APPLICATION */
+
 if (!CModule::IncludeModule("socialnetwork"))
 {
 	ShowError(GetMessage("SONET_MODULE_NOT_INSTALL"));
@@ -33,8 +43,6 @@ $arDefaultUrlTemplates404 = array(
 	"group_request_user" => "group/#group_id#/user/#user_id#/request/",
 
 	"search" => "search.php",
-
-	"mail" => "mail/",
 
 	"message_form" => "messages/form/#user_id#/",
 	"group" => "group/#group_id#/",
@@ -170,6 +178,7 @@ $arDefaultUrlTemplates404 = array(
 	"user_blog_post_rss" => "user/#user_id#/blog/rss/#type#/#post_id#/",
 	"user_blog_draft" => "user/#user_id#/blog/draft/",
 	"user_blog_moderation" => "user/#user_id#/blog/moderation/",
+	"user_blog_tags" => "user/#user_id#/blog/tags/",
 	"user_blog_post" => "user/#user_id#/blog/#post_id#/",
 
 	"user_microblog" => "user/#user_id#/microblog/",
@@ -269,8 +278,6 @@ $arDefaultUrlTemplatesN404 = array(
 
 	"search" => "page=search",
 
-	"mail" => "page=mail",
-
 	"message_form" => "page=message_form&user_id=#user_id#",
 	"group_request_group_search" => "page=group_request_group_search&user_id=#user_id#",
 
@@ -364,6 +371,7 @@ $arDefaultUrlTemplatesN404 = array(
 	"user_blog_post_rss" => "page=user_blog_post_rss&user_id=#user_id#&type=#type#&post_id=#post_id#",
 	"user_blog_draft" => "page=user_blog_draft&user_id=#user_id#",
 	"user_blog_moderation" => "page=user_blog_moderation&user_id=#user_id#",
+	"user_blog_tags" => "page=user_blog_tags&user_id=#user_id#",
 	"user_blog_post" => "page=user_blog_post&user_id=#user_id#&post_id=#post_id#",
 	"user_microblog" => "page=user_microblog&user_id=#user_id#",
 	"user_microblog_post" => "page=user_microblog_post&user_id=#user_id#&post_id=#post_id#",
@@ -464,7 +472,9 @@ if (!array_key_exists("ALLOW_GROUP_CREATE_REDIRECT_REQUEST", $arParams))
 }
 
 if (!is_array($arParams["VARIABLE_ALIASES"]))
+{
 	$arParams["VARIABLE_ALIASES"] = array();
+}
 
 if ($arParams["GROUP_USE_KEYWORDS"] != "N") $arParams["GROUP_USE_KEYWORDS"] = "Y";
 // for bitrix:main.user.link
@@ -499,15 +509,27 @@ else
 }
 
 if (!array_key_exists("SHOW_FIELDS_TOOLTIP", $arParams))
+{
 	$arParams["SHOW_FIELDS_TOOLTIP"] = unserialize(COption::GetOptionString("socialnetwork", "tooltip_fields", $arTooltipFieldsDefault));
+}
+
 if (!array_key_exists("USER_PROPERTY_TOOLTIP", $arParams))
+{
 	$arParams["USER_PROPERTY_TOOLTIP"] = unserialize(COption::GetOptionString("socialnetwork", "tooltip_properties", $arTooltipPropertiesDefault));
+}
 
 if (IsModuleInstalled('intranet') && !array_key_exists("PATH_TO_CONPANY_DEPARTMENT", $arParams))
+{
 	$arParams["PATH_TO_CONPANY_DEPARTMENT"] = "/company/structure.php?set_filter_structure=Y&structure_UF_DEPARTMENT=#ID#";
+}
 
-if (IsModuleInstalled("search") && !array_key_exists("PATH_TO_SEARCH_TAG", $arParams))
+if (
+	IsModuleInstalled("search")
+	&& !array_key_exists("PATH_TO_SEARCH_TAG", $arParams)
+)
+{
 	$arParams["PATH_TO_SEARCH_TAG"] = SITE_DIR."search/?tags=#tag#";
+}
 
 if (strlen(trim($arParams["NAME_TEMPLATE"])) <= 0)
 {
@@ -544,20 +566,26 @@ CRatingsComponentsMain::GetShowRating($arParams);
 
 if (
 	!array_key_exists("RATING_ID", $arParams)
-	||
-	(
+	|| (
 		!is_array($arParams["RATING_ID"])
 		&& intval($arParams["RATING_ID"]) <= 0
 	)
 )
+{
 	$arParams["RATING_ID"] = 0;
+}
 
 if (IsModuleInstalled("search"))
 {
 	if (!array_key_exists("SEARCH_FILTER_NAME", $arParams))
+	{
 		$arParams["SEARCH_FILTER_NAME"] = "sonet_search_filter";
+	}
+
 	if (!array_key_exists("SEARCH_FILTER_DATE_NAME", $arParams))
+	{
 		$arParams["SEARCH_FILTER_DATE_NAME"] = "sonet_search_filter_date";
+	}
 }
 
 $arCustomPagesPath = array();
@@ -850,7 +878,6 @@ if(check_bitrix_sessid() || $_SERVER['REQUEST_METHOD'] == "PUT")
 				"CALENDAR_GROUP_IBLOCK_ID" => $arParams["CALENDAR_GROUP_IBLOCK_ID"],
 				"PATH_TO_GROUP_CALENDAR_ELEMENT" => $arResult["PATH_TO_GROUP_CALENDAR"]."?EVENT_ID=#element_id#",
 
-				"TASK_IBLOCK_ID" => $arParams["TASK_IBLOCK_ID"],
 				"PATH_TO_GROUP_TASK_ELEMENT" => $arResult["PATH_TO_GROUP_TASKS_TASK"],
 				"PATH_TO_USER_TASK_ELEMENT" => $arResult["PATH_TO_USER_TASKS_TASK"],
 				"TASK_FORUM_ID" => $arParams["TASK_FORUM_ID"],

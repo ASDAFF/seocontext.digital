@@ -135,6 +135,48 @@ class Option
 
 		return $defaultsCache[$moduleId] = array();
 	}
+	/**
+	 * Returns an array of set options array(name => value).
+	 *
+	 * @param string $moduleId The module ID.
+	 * @param bool|string $siteId The site ID, if the option differs for sites.
+	 * @return array
+	 * @throws Main\ArgumentNullException
+	 */
+	public static function getForModule($moduleId, $siteId = false)
+	{
+		if (empty($moduleId))
+			throw new Main\ArgumentNullException("moduleId");
+
+		$return = array();
+		static $defaultSite = null;
+		if ($siteId === false)
+		{
+			if ($defaultSite === null)
+			{
+				$context = Main\Application::getInstance()->getContext();
+				if ($context != null)
+					$defaultSite = $context->getSite();
+			}
+			$siteId = $defaultSite;
+		}
+
+		$siteKey = ($siteId == "") ? "-" : $siteId;
+		if (static::$cacheTtl === null)
+			static::$cacheTtl = self::getCacheTtl();
+		if ((static::$cacheTtl === false) && !isset(self::$options[$siteKey][$moduleId])
+			|| (static::$cacheTtl !== false) && empty(self::$options))
+		{
+			self::load($moduleId, $siteId);
+		}
+
+		if (isset(self::$options[$siteKey][$moduleId]))
+			$return = self::$options[$siteKey][$moduleId];
+		else if (isset(self::$options["-"][$moduleId]))
+			$return = self::$options["-"][$moduleId];
+
+		return is_array($return) ? $return : array();
+	}
 
 	private static function load($moduleId, $siteId)
 	{
@@ -162,6 +204,8 @@ class Option
 				{
 					$s = ($ar["SITE_ID"] == ""? "-" : $ar["SITE_ID"]);
 					self::$options[$s][$moduleId][$ar["NAME"]] = $ar["VALUE"];
+
+					
 				}
 			}
 		}
@@ -186,6 +230,8 @@ class Option
 						$s = ($ar["SITE_ID"] == "") ? "-" : $ar["SITE_ID"];
 						self::$options[$s][$ar["MODULE_ID"]][$ar["NAME"]] = $ar["VALUE"];
 					}
+
+					
 
 					$cache->set("b_option", self::$options);
 				}

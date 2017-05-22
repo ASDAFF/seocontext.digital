@@ -52,6 +52,13 @@ if ($request->isPost() && $request->getPost("update") && check_bitrix_sessid() &
 
 		$fields = array_merge($fields, $uFields);
 
+		if ($id > 0)
+		{
+			\Bitrix\Sale\Internals\CompanyGroupTable::deleteByCompanyId($id);
+			\Bitrix\Sale\Internals\CompanyResponsibleGroupTable::deleteByCompanyId($id);
+		}
+
+
 		$result = null;
 		if ($id > 0)
 		{
@@ -70,6 +77,33 @@ if ($request->isPost() && $request->getPost("update") && check_bitrix_sessid() &
 		if ($result && $result->isSuccess())
 		{
 			$id = $result->getId();
+
+			if ($groups = $request->getPost('GROUPS'))
+			{
+				foreach ($groups as $groupId)
+				{
+					$r = \Bitrix\Sale\Internals\CompanyGroupTable::add(array(
+																		   'COMPANY_ID' => $id,
+																		   'GROUP_ID' => $groupId,
+																	   ));
+
+				}
+
+			}
+
+			if ($responsibleGroups = $request->getPost('RESPONSIBLE_GROUPS'))
+			{
+				foreach ($responsibleGroups as $groupId)
+				{
+					$r = \Bitrix\Sale\Internals\CompanyResponsibleGroupTable::add(array(
+																		   'COMPANY_ID' => $id,
+																		   'GROUP_ID' => $groupId,
+																	   ));
+
+				}
+
+			}
+
 			if (strlen($request->getPost("apply")) == 0)
 				LocalRedirect("/bitrix/admin/sale_company.php?lang=".$lang."&".GetFilterParams("filter_", false));
 			else
@@ -200,11 +234,93 @@ endif;
 $tabControl->EndCustomField('LOCATIONS', '');
 
 $tabControl->AddTextField("ADDRESS", GetMessage("COMPANY_LOCATION"), htmlspecialcharsbx($fields['ADDRESS']), array('cols' => 60, 'rows' => 5));
+
+$tabControl->BeginCustomField('USER_GROUPS', GetMessage("COMPANY_GROUPS"));
+$currentGroups = array();
+if ($id > 0)
+{
+	$resCompayGroup = \Bitrix\Sale\Internals\CompanyGroupTable::getList(array(
+		'filter' => array('=COMPANY_ID' => $id),
+		'select' => array('GROUP_ID')
+	));
+	while($companyGroup = $resCompayGroup->fetch())
+	{
+		$currentGroups[] = $companyGroup['GROUP_ID'];
+	}
+}
+
+$b = "c_sort";
+$o = "asc";
+$userGroupList = array();
+$resGroups = CGroup::GetList($b, $o, array("ANONYMOUS" => "N"));
+while ($groupData = $resGroups->Fetch())
+{
+	$groupData["ID"] = (int)$groupData["ID"];
+	$userGroupList[] = $groupData;
+}
+
+?>
+<tr>
+	<td style="vertical-align: top"><?=GetMessage("COMPANY_GROUPS");?></td>
+	<td>
+		<select name="GROUPS[]" multiple size="5">
+			<?
+			foreach ($userGroupList as $userGroupData)
+			{
+				?><option value="<?= $userGroupData["ID"] ?>"<?if (in_array($userGroupData["ID"], $currentGroups)) echo " selected";?>><?= htmlspecialcharsEx($userGroupData["NAME"]) ?></option><?
+			}
+			?>
+		</select>
+	</td>
+</tr>
+<?
+$tabControl->EndCustomField('USER_GROUPS', '');
+
+$tabControl->BeginCustomField('RESPONSIBLE_USER_GROUPS', GetMessage("COMPANY_RESPONSIBLE_GROUPS"));
+$currentResponsibleGroups = array();
+if ($id > 0)
+{
+	$resCompayGroup = \Bitrix\Sale\Internals\CompanyResponsibleGroupTable::getList(array(
+		'filter' => array('=COMPANY_ID' => $id),
+		'select' => array('GROUP_ID')
+	));
+	while($companyGroup = $resCompayGroup->fetch())
+	{
+		$currentResponsibleGroups[] = $companyGroup['GROUP_ID'];
+	}
+}
+
+$b = "c_sort";
+$o = "asc";
+$userGroupList = array();
+$resGroups = CGroup::GetList($b, $o, array("ANONYMOUS" => "N"));
+while ($groupData = $resGroups->Fetch())
+{
+	$groupData["ID"] = (int)$groupData["ID"];
+	$userGroupList[] = $groupData;
+}
+
+?>
+<tr>
+	<td style="vertical-align: top"><?=GetMessage("COMPANY_RESPONSIBLE_GROUPS");?></td>
+	<td>
+		<select name="RESPONSIBLE_GROUPS[]" multiple size="5">
+			<?
+			foreach ($userGroupList as $userGroupData)
+			{
+				?><option value="<?= $userGroupData["ID"] ?>"<?if (in_array($userGroupData["ID"], $currentResponsibleGroups)) echo " selected";?>><?= htmlspecialcharsEx($userGroupData["NAME"]) ?></option><?
+			}
+			?>
+		</select>
+	</td>
+</tr>
+<?
+$tabControl->EndCustomField('RESPONSIBLE_USER_GROUPS', '');
 $tabControl->AddEditField("SORT", GetMessage("COMPANY_SORT"), false, array('size' => 30), $fields['SORT']);
 $tabControl->AddEditField("CODE", GetMessage("COMPANY_CODE"), false, array('size' => 30), htmlspecialcharsbx($fields['CODE']));
 
 $tabControl->BeginNextFormTab();
-$tabControl->ShowUserFieldsWithReadyData(CompanyTable::getUfId(), $fields, false);
+$tabControl->ShowUserFieldsWithReadyData(CompanyTable::getUfId(), $fields, false, 'ID');
 
 if ($id > 0):
 	$tabControl->BeginNextFormTab();

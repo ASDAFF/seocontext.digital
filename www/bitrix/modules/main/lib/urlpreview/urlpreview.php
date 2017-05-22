@@ -24,9 +24,10 @@ class UrlPreview
 	 *
 	 * @param string $url URL.
 	 * @param bool $addIfNew Should metadata be fetched and saved, if not found in database.
+	 * @param bool $reuseExistingMetadata Allow reading of the cached metadata.
 	 * @return array|false Metadata for the URL if found, or false otherwise.
 	 */
-	public static function getMetadataByUrl($url, $addIfNew = true)
+	public static function getMetadataByUrl($url, $addIfNew = true, $reuseExistingMetadata = true)
 	{
 		if(!static::isEnabled())
 			return false;
@@ -35,13 +36,16 @@ class UrlPreview
 		if($url == '')
 			return false;
 
-		if($metadata = UrlMetadataTable::getByUrl($url))
+		if($reuseExistingMetadata)
 		{
-			if($metadata['TYPE'] == UrlMetadataTable::TYPE_TEMPORARY && $addIfNew)
+			if($metadata = UrlMetadataTable::getByUrl($url))
 			{
-				$metadata = static::resolveTemporaryMetadata($metadata['ID']);
+				if($metadata['TYPE'] == UrlMetadataTable::TYPE_TEMPORARY && $addIfNew)
+				{
+					$metadata = static::resolveTemporaryMetadata($metadata['ID']);
+				}
+				return $metadata;
 			}
-			return $metadata;
 		}
 
 		if(!$addIfNew)
@@ -169,11 +173,12 @@ class UrlPreview
 	 *
 	 * @param string $url Document's URL.
 	 * @param bool $addIfNew Should method fetch and store metadata for the document, if it is not found in database.
+	 * @params bool $reuseExistingMetadata Allow reading of the cached metadata.
 	 * @return array|false Metadata for the document, or false if metadata could not be fetched/parsed.
 	 */
-	public static function getMetadataAndHtmlByUrl($url, $addIfNew = true)
+	public static function getMetadataAndHtmlByUrl($url, $addIfNew = true, $reuseExistingMetadata = true)
 	{
-		$metadata = static::getMetadataByUrl($url, $addIfNew);
+		$metadata = static::getMetadataByUrl($url, $addIfNew, $reuseExistingMetadata);
 		if($metadata === false)
 			return false;
 
@@ -326,6 +331,36 @@ class UrlPreview
 	}
 
 	/**
+	 * Returns attach for the IM message with the requested internal entity content.
+	 * @param string $url URL of the internal document.
+	 * @param bool $checkAccess Should method check current user's access to the entity, or not.
+	 * @return \CIMMessageParamAttach : false
+	 */
+	public static function getImAttach($url, $checkAccess = true)
+	{
+		//todo: caching
+		$routeRecord = Router::dispatch(new Uri(static::unfoldShortLink($url)));
+		if($routeRecord === false)
+			return false;
+
+		if(isset($routeRecord['MODULE']) && Loader::includeModule($routeRecord['MODULE']))
+		{
+			$className = $routeRecord['CLASS'];
+			$parameters = $routeRecord['PARAMETERS'];
+			$parameters['URL'] = $url;
+
+			if ($checkAccess && (!method_exists($className, 'checkUserReadAccess') || !$className::checkUserReadAccess($parameters, static::getCurrentUserId())))
+				return false;
+
+			if (method_exists($className, 'getImAttach'))
+			{
+				return $className::getImAttach($parameters);
+			}
+		}
+		return false;
+	}
+
+	/**
 	 * Returns true if current user has read access to the content behind internal url.
 	 * @param string $url URL of the internal document.
 	 * @return bool True if current user has read access to the main entity of the document, or false otherwise.
@@ -464,8 +499,10 @@ class UrlPreview
 	 */
 	protected static function isUrlLocal(Uri $uri)
 	{
-		$host = \Bitrix\Main\Context::getCurrent()->getRequest()->getHttpHost();
+		if($uri->getHost() == '')
+			return true;
 
+		$host = \Bitrix\Main\Context::getCurrent()->getRequest()->getHttpHost();
 		return $uri->getHost() === $host;
 	}
 
@@ -564,7 +601,19 @@ class UrlPreview
 	 */
 	protected static function normalizeUrl($url)
 	{
-		if(!preg_match('#^https?://#i', $url))
+		if(strpos($url, 'https://') === 0 || strpos($url, 'http://') === 0)
+		{
+			//nop
+		}
+		else if(strpos($url, '//') === 0)
+		{
+			$url = 'http:'.$url;
+		}
+		else if(strpos($url, '/') === 0)
+		{
+			//nop
+		}
+		else
 		{
 			$url = 'http://'.$url;
 		}

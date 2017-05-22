@@ -211,9 +211,11 @@ class CBPAllStateService
 			"SELECT COUNT(WS.ID) CNT ".
 			"FROM b_bp_workflow_state WS ".
 			"	INNER JOIN b_bp_workflow_instance WI ON (WS.ID = WI.ID) ".
+			"	INNER JOIN b_bp_workflow_template WT ON (WS.WORKFLOW_TEMPLATE_ID = WT.ID) ".
 			"WHERE WS.DOCUMENT_ID = '".$DB->ForSql($arDocumentId[2])."' ".
 			"	AND WS.ENTITY = '".$DB->ForSql($arDocumentId[1])."' ".
-			"	AND WS.MODULE_ID ".((strlen($arDocumentId[0]) > 0) ? "= '".$DB->ForSql($arDocumentId[0])."'" : "IS NULL")
+			"	AND WS.MODULE_ID ".((strlen($arDocumentId[0]) > 0) ? "= '".$DB->ForSql($arDocumentId[0])."'" : "IS NULL").
+			"	AND WT.AUTO_EXECUTE <> ".(int)CBPDocumentEventType::Automation
 		);
 
 		if ($arResult = $dbResult->Fetch())

@@ -98,7 +98,7 @@ class ShipmentItemCollection
 
 	/**
 	 * @param BasketItem $basketItem
-	 * @return ShipmentItem|null|static
+	 * @return ShipmentItem
 	 * @throws Main\ArgumentOutOfRangeException
 	 */
 	public function createItem(BasketItem $basketItem)
@@ -318,6 +318,8 @@ class ShipmentItemCollection
 			/** @var BasketItem $basketItem */
 			if ($basketItem = $shipmentItem->getBasketItem())
 			{
+				if ($basketItem->isBundleChild())
+					continue;
 				$price += $basketItem->getPrice() * $shipmentItem->getQuantity();
 			}
 		}
@@ -561,17 +563,19 @@ class ShipmentItemCollection
 				
 				if (!$basketItem = $shipmentItem->getBasketItem())
 				{
-					if (!$shipment->isMarked())
+					$msg = Loc::getMessage("SALE_SHIPMENT_ITEM_COLLECTION_BASKET_ITEM_NOT_FOUND", array(
+						'#BASKET_ITEM_ID#' => $shipmentItem->getBasketId(),
+						'#SHIPMENT_ID#' => $shipment->getId(),
+						'#SHIPMENT_ITEM_ID#' => $shipmentItem->getId(),
+					));
+
+					$r = new Result();
+					$r->addError( new ResultError($msg, 'SALE_SHIPMENT_ITEM_COLLECTION_BASKET_ITEM_NOT_FOUND'));
+
+					EntityMarker::addMarker($order, $shipment, $r);
+					if (!$shipment->isSystem())
 					{
 						$shipment->setField('MARKED', 'Y');
-						$oldErrorText = $shipment->getField('REASON_MARKED');
-						$oldErrorText .= (strval($oldErrorText) != '' ? "\n" : ""). Loc::getMessage("SALE_SHIPMENT_ITEM_COLLECTION_BASKET_ITEM_NOT_FOUND", array(
-								'#BASKET_ITEM_ID#' => $shipmentItem->getBasketId(),
-								'#SHIPMENT_ID#' => $shipment->getId(),
-								'#SHIPMENT_ITEM_ID#' => $shipmentItem->getId(),
-							));
-						
-						$shipment->setField('REASON_MARKED', $oldErrorText);
 					}
 				}
 			}
@@ -849,6 +853,46 @@ class ShipmentItemCollection
 		}
 
 		return $shipmentItemCollectionClone;
+	}
+
+	/**
+	 * @param $value
+	 *
+	 * @return string
+	 */
+	public function getErrorEntity($value)
+	{
+		$className = null;
+		/** @var ShipmentItem $shipmentItem */
+		foreach ($this->collection as $shipmentItem)
+		{
+			if ($className = $shipmentItem->getErrorEntity($value))
+			{
+				break;
+			}
+		}
+
+		return $className;
+	}
+
+	/**
+	 * @param $value
+	 *
+	 * @return string
+	 */
+	public function canAutoFixError($value)
+	{
+		$autoFix = false;
+
+		/** @var ShipmentItem $shipmentItem */
+		foreach ($this->collection as $shipmentItem)
+		{
+			if ($autoFix = $shipmentItem->canAutoFixError($value))
+			{
+				break;
+			}
+		}
+		return $autoFix;
 	}
 
 }

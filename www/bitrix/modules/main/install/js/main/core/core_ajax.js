@@ -983,7 +983,16 @@ BX.ajax.submitAjax = function(obForm, config)
 {
 	config = (config !== null && typeof config == "object" ? config : {});
 	config.url = (config["url"] || obForm.getAttribute("action"));
+
+	var additionalData = (config["data"] || {});
 	config.data = BX.ajax.prepareForm(obForm).data;
+	for (var ii in additionalData)
+	{
+		if (additionalData.hasOwnProperty(ii))
+		{
+			config.data[ii] = additionalData[ii];
+		}
+	}
 
 	if (!window["FormData"])
 	{
@@ -1167,7 +1176,7 @@ BX.userOptions.save = function(sCategory, sName, sValName, sVal, bCommon)
 
 	var sParam = BX.userOptions.__get();
 	if (sParam != '')
-		document.cookie = BX.message('COOKIE_PREFIX')+"_LAST_SETTINGS=" + sParam + "&sessid="+BX.bitrix_sessid()+"; expires=Thu, 31 Dec 2020 23:59:59 GMT; path=/;";
+		document.cookie = BX.message('COOKIE_PREFIX')+"_LAST_SETTINGS=" + encodeURIComponent(sParam) + "&sessid="+BX.bitrix_sessid()+"; expires=Thu, 31 Dec 2020 23:59:59 GMT; path=/;";
 
 	if(!BX.userOptions.bSend)
 	{

@@ -512,22 +512,33 @@ class CControllerClient
 
 	public static function ExecuteEvent($eventName, $arParams = array())
 	{
+		global $APPLICATION;
 		if(COption::GetOptionString("main", "controller_member", "N") != "Y")
 		{
 			return null;
 		}
 		else
 		{
+			$APPLICATION->ResetException();
 			$oRequest = new CControllerClientRequestTo("execute_event", array(
 				"event_name" => $eventName,
 				"parameters" => $arParams,
 			));
 			$oResponse = $oRequest->SendWithCheck();
 
-			if($oResponse == false)
-				error_log("CControllerClient::ExecuteEvent: unknown error");
-			elseif(!$oResponse->OK())
-				error_log("CControllerClient::ExecuteEvent: ".$oResponse->text);
+			if ($oResponse == false || !$oResponse->OK())
+			{
+				$e = $APPLICATION? $APPLICATION->GetException(): false;
+				if (is_object($e))
+					$errorMessage = $e->GetString();
+				elseif ($oResponse && $oResponse->text)
+					$errorMessage = $oResponse->text;
+				elseif ($oResponse)
+					$errorMessage = "http headers: [".$oResponse->httpHeaders."]";
+				else
+					$errorMessage = "unknown error";
+				error_log("CControllerClient::ExecuteEvent($eventName): ".$errorMessage);
+			}
 
 			return $oResponse->arParameters['result'];
 		}
@@ -1290,6 +1301,7 @@ class __CControllerPacketRequest extends __CControllerPacket
 		fclose($conn);
 
 		$packet_result = new __CControllerPacketResponse();
+		$packet_result->httpHeaders = $header;
 		$packet_result->secret_id = $this->secret_id;
 		$packet_result->ParseResult($result);
 
@@ -1322,7 +1334,9 @@ class __CControllerPacketRequest extends __CControllerPacket
 //////////////////////////////////////////////////////////
 class __CControllerPacketResponse extends __CControllerPacket
 {
-	var $status, $text;
+	public $httpHeaders;
+	public $status;
+	public $text;
 
 	function _InitFromRequest($oPacket, $arExclude = array('operation', 'arParameters'))
 	{

@@ -163,7 +163,7 @@ class CBPMailActivity
 
 			$eol = CAllEvent::GetMailEOL();
 
-			mail(
+			bxmail(
 				$strMailUserTo,
 				$mailSubject,
 				$mailText,

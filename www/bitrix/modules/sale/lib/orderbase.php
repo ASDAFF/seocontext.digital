@@ -72,10 +72,10 @@ abstract class OrderBase
 			"MARKED", "DATE_MARKED", "EMP_MARKED_ID", "REASON_MARKED",
 			"PRICE", "CURRENCY", "DISCOUNT_VALUE", "USER_ID",
 			"DATE_INSERT", "DATE_UPDATE", "USER_DESCRIPTION", "ADDITIONAL_INFO", "COMMENTS", "TAX_VALUE",
-			"STAT_GID", "RECURRING_ID", "LOCKED_BY",
+			"STAT_GID", "RECURRING_ID", "LOCKED_BY", "IS_RECURRING",
 			"DATE_LOCK", "RECOUNT_FLAG", "AFFILIATE_ID", "DELIVERY_DOC_NUM", "DELIVERY_DOC_DATE", "UPDATED_1C",
 			"STORE_ID", "ORDER_TOPIC", "RESPONSIBLE_ID", "DATE_BILL", "DATE_PAY_BEFORE", "ACCOUNT_NUMBER",
-			"XML_ID", "ID_1C", "VERSION_1C", "VERSION", "EXTERNAL_ORDER"
+			"XML_ID", "ID_1C", "VERSION_1C", "VERSION", "EXTERNAL_ORDER", "COMPANY_ID"
 		);
 
 		return array_merge($result, static::getCalculatedFields());
@@ -171,13 +171,10 @@ abstract class OrderBase
 			'select' => array('*'),
 		);
 
-		if ($orderDat = static::loadFromDb($filter))
+		$list = static::loadByFilter($filter);
+		if (!empty($list) && is_array($list))
 		{
-			$order = new static($orderDat);
-
-			$order->calculateType = static::SALE_ORDER_CALC_TYPE_CHANGE;
-
-			return $order;
+			return reset($list);
 		}
 
 		return null;
@@ -185,7 +182,30 @@ abstract class OrderBase
 
 	/**
 	 * @param array $filter
-	 * @return array
+	 * @return array|false
+	 * @throws Main\ArgumentNullException
+	 * @throws Main\NotImplementedException
+	 */
+	public static function loadByFilter(array $filter)
+	{
+		$list = array();
+
+		/** @var Main\DB\Result $res */
+		$res = static::loadFromDb($filter);
+		while($orderData = $res->fetch())
+		{
+			$order = new static($orderData);
+
+			$order->calculateType = static::SALE_ORDER_CALC_TYPE_CHANGE;
+			$list[] = $order;
+		}
+
+		return (!empty($list) ? $list : null);
+	}
+
+	/**
+	 * @param array $filter
+	 * @return Main\DB\Result
 	 * @throws Main\NotImplementedException
 	 */
 	static protected function loadFromDb(array $filter)
@@ -272,7 +292,7 @@ abstract class OrderBase
 	/**
 	 * @param $name
 	 * @param $value
-	 * @return bool|void
+	 * @return Result
 	 * @throws Main\ArgumentException
 	 */
 	public function setField($name, $value)
@@ -449,7 +469,7 @@ abstract class OrderBase
 	 */
 	public function getTaxValue()
 	{
-		return $this->getField('TAX_VALUE');
+		return floatval($this->getField('TAX_VALUE'));
 	}
 
 	/**

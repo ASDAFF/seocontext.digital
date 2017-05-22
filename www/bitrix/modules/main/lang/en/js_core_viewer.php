@@ -54,4 +54,5 @@ $MESS["JS_CORE_VIEWER_SERVICE_B24_DISK"] = "Bitrix24.Drive";
 $MESS["JS_CORE_VIEWER_SHOW_FILE_DIALOG_OAUTH_NOTICE"] = "Please log in to your <a id=\"bx-js-disk-run-oauth-modal\" href=\"#\">#SERVICE#</a> account to view the file.";
 $MESS["JS_CORE_VIEWER_SERVICE_OFFICE365"] = "Office 365";
 $MESS["JS_CORE_VIEWER_DOCUMENT_IS_LOCKED_BY"] = "The document is locked for editing";
+$MESS["JS_CORE_VIEWER_SERVICE_MYOFFICE"] = "MyOffice";
 ?>

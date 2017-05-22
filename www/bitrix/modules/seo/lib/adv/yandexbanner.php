@@ -474,7 +474,8 @@ class YandexBannerTable extends AdvEntity
 
 				foreach($bannerParam["Phrases"] as $key => $phraseInfo)
 				{
-					$phraseInfo['AutoBudgetPriority'] = static::$priorityList[intval($phraseInfo['AutoBudgetPriority'])];
+					if(is_numeric($phraseInfo['AutoBudgetPriority']))
+						$phraseInfo['AutoBudgetPriority'] = static::$priorityList[intval($phraseInfo['AutoBudgetPriority'])];
 
 					$bannerParam["Phrases"][$key] = $phraseInfo;
 				}

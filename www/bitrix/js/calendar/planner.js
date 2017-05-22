@@ -15,6 +15,7 @@ function CalendarPlanner(params)
 	this.timelineCellWidthOrig = false;
 	this.proposeTimeLimit = 60; // in days
 	this.expandTimelineDelay = 600;
+	this.limitScaleSizeMode = false;
 
 	this.DATE_FORMAT = BX.date.convertBitrixFormat(BX.message("FORMAT_DATE"));
 	this.DATETIME_FORMAT = BX.date.convertBitrixFormat(BX.message("FORMAT_DATETIME"));
@@ -229,6 +230,9 @@ CalendarPlanner.prototype =
 
 		this.scaleLimitOffsetLeft = parseInt(params.scaleLimitOffsetLeft) || this.scaleLimitOffsetLeft || 3;
 		this.scaleLimitOffsetRight = parseInt(params.scaleLimitOffsetRight) || this.scaleLimitOffsetRight || 5;
+
+		this.maxTimelineSize = parseInt(params.maxTimelineSize) || this.maxTimelineSize || 20;
+
 		this.minEntryRows = parseInt(params.minEntryRows) || this.minEntryRows || 3;
 		this.maxEntryRows = parseInt(params.maxEntryRows) || this.maxEntryRows || 10;
 
@@ -438,11 +442,8 @@ CalendarPlanner.prototype =
 		this.built = true;
 	},
 
-	BuildSelector: function(params)
+	BuildSelector: function()
 	{
-		if (!params || typeof params !== 'object')
-			params = {};
-
 		// Selector
 		var selector = this.timelineDataCont.appendChild(BX.create("DIV", {props: {className: 'calendar-planner-timeline-selector'}, html: '<span data-bx-planner-meta="selector-resize-left" class="calendar-planner-timeline-drag-left"></span><span class="calendar-planner-timeline-selector-grip"></span><span data-bx-planner-meta="selector-resize-right" class="calendar-planner-timeline-drag-right"></span>'}));
 		selector.setAttribute('data-bx-planner-meta', 'selector');
@@ -525,7 +526,6 @@ CalendarPlanner.prototype =
 	CheckRebuildTimeout: function(timelineOffset, timeout)
 	{
 		var _this = this;
-
 		if (!timeout)
 			timeout = 200;
 
@@ -573,7 +573,7 @@ CalendarPlanner.prototype =
 		this.ResizePlannerWidth(this.width);
 
 		if (params.updateSelector !== false)
-			this.UpdateSelector();
+			this.UpdateSelector(params.selectorParams || false);
 	},
 
 	GetScaleData: function()
@@ -652,7 +652,7 @@ CalendarPlanner.prototype =
 			}
 
 			// Fuse access
-			data = this.FuseAccessibility(data);
+			//data = this.FuseAccessibility(data);
 			this.compactRowWrap = this.accessibilityWrap.appendChild(BX.create("DIV", {
 				props: {className: 'calendar-planner-timeline-space'},
 				style: {}
@@ -760,7 +760,10 @@ CalendarPlanner.prototype =
 		if (!entry.toReal)
 		{
 			// Full day
-			if ((entry.toTimestamp - entry.fromTimestamp) % this.dayLength == 0)
+			if ((entry.toTimestamp - entry.fromTimestamp) % this.dayLength == 0
+				&&
+				BX.date.format('H:i', entry.toTimestamp / 1000) == '00:00'
+			)
 			{
 				entry.toReal = new Date(entry.to.getTime() + this.dayLength);
 				entry.toReal.setSeconds(0,0);
@@ -788,58 +791,37 @@ CalendarPlanner.prototype =
 			from = new Date(fromTimestamp),
 			to = new Date(toTimestamp);
 
-
 		timeFrom = parseInt(from.getHours()) + from.getMinutes() / 60;
 		timeTo = parseInt(to.getHours()) + to.getMinutes() / 60;
 
-		//if (this.FormatDate(from) == this.FormatDate(to) || ((toTimestamp - fromTimestamp) == this.dayLength))
-		//{
-		//	if (((toTimestamp - fromTimestamp) == this.dayLength) && timeTo == 0)
-		//	{
-		//		timeTo = 24;
-		//		to = new Date(entry.toTimestamp);
-		//		//to = new Date(entry.toTimestamp);
-		//		//entry.toTimestampReal || entry.toTimestamp
-		//	}
-		//
-		//	// Whole event out of range
-		//	if (timeTo <= shownScaleTimeFrom || timeFrom >= shownScaleTimeTo)
-		//	{
-		//		hidden = true;
-		//	}
-		//	else
-		//	{
-		//		if (timeFrom < shownScaleTimeFrom)
-		//			from.setHours(shownScaleTimeFrom, 0, 0, 0);
-		//
-		//		if (timeTo > shownScaleTimeTo)
-		//			to.setHours(shownScaleTimeTo, 0, 0, 0);
-		//	}
-		//}
-		//else
+		if (timeFrom > shownScaleTimeTo)
 		{
-			if (timeFrom > shownScaleTimeTo)
-			{
-				from = new Date(from.getTime() + this.dayLength - 1);
-				from.setHours(shownScaleTimeFrom, 0, 0, 0);
-				if (from.getTime() >= to.getTime())
-					hidden = true;
-			}
+			from = new Date(from.getTime() + this.dayLength - 1);
+			from.setHours(shownScaleTimeFrom, 0, 0, 0);
+			if (from.getTime() >= to.getTime())
+				hidden = true;
+		}
 
-			if (!hidden && timeFrom < shownScaleTimeFrom)
-			{
-				from.setHours(shownScaleTimeFrom, 0, 0, 0);
-				if (from.getTime() >= to.getTime())
-					hidden = true;
-			}
+		if (!hidden && timeFrom < shownScaleTimeFrom)
+		{
+			from.setHours(shownScaleTimeFrom, 0, 0, 0);
+			if (from.getTime() >= to.getTime())
+				hidden = true;
+		}
 
-			if (!hidden && timeTo < shownScaleTimeFrom)
-			{
-				to = new Date(to.getTime() - this.dayLength + 1);
-				to.setHours(shownScaleTimeTo, 0, 0, 0);
-				if (from.getTime() >= to.getTime())
-					hidden = true;
-			}
+		if (!hidden && timeTo > shownScaleTimeTo)
+		{
+			to.setHours(shownScaleTimeTo, 0, 0, 0);
+			if (from.getTime() >= to.getTime())
+				hidden = true;
+		}
+
+		if (!hidden && timeTo < shownScaleTimeFrom)
+		{
+			to = new Date(to.getTime() - this.dayLength + 1);
+			to.setHours(shownScaleTimeTo, 0, 0, 0);
+			if (from.getTime() >= to.getTime())
+				hidden = true;
 		}
 
 		if (!hidden)
@@ -852,53 +834,52 @@ CalendarPlanner.prototype =
 				props: {className: 'calendar-planner-acc-entry' + (entry.type && entry.type == 'hr' ? ' calendar-planner-acc-entry-hr' : '')},
 				style: {
 					left: fromPos + 'px',
-					width: (toPos - fromPos) + 'px'
+					width: Math.max((toPos - fromPos), 1) + 'px'
 				}
 			}));
 		}
 	},
 
-	FuseAccessibility: function(data)
-	{
-		return data;
-		// sort
-		data.sort(function(a, b){return a.fromTimestamp - b.fromTimestamp});
-
-		var i, res = [], resCurInd = false, dataIToTimestamp, resResCurIndToTimestampReal;
-		for (i = 0; i < data.length; i++)
-		{
-			if (resCurInd !== false && res[resCurInd])
-			{
-				if (data[i].fromTimestamp <= res[resCurInd].toTimestampReal)
-				{
-					dataIToTimestamp = data[i].toTimestampReal || data[i].toTimestamp;
-					resResCurIndToTimestampReal = res[resCurInd].toTimestampReal || res[resCurInd].toTimestamp;
-
-					if (dataIToTimestamp > resResCurIndToTimestampReal)
-					{
-						res[resCurInd].toTimestamp = dataIToTimestamp;
-						res[resCurInd].to = data[i].toReal || data[i].to;
-
-						res[resCurInd].toTimestampReal = dataIToTimestamp;
-						res[resCurInd].toReal = data[i].toReal || data[i].to;
-					}
-					continue;
-				}
-			}
-
-			res.push({
-				fromTimestamp: data[i].fromTimestamp,
-				from: data[i].from,
-				toTimestamp: data[i].toTimestampReal,
-				toTimestampReal: data[i].toTimestampReal,
-				to: data[i].to,
-				toReal: data[i].toReal || data[i].to
-			});
-			resCurInd = res.length - 1;
-		}
-
-		return res;
-	},
+	//FuseAccessibility: function(data)
+	//{
+	//	// sort
+	//	data.sort(function(a, b){return a.fromTimestamp - b.fromTimestamp});
+	//
+	//	var i, res = [], resCurInd = false, dataIToTimestamp, resResCurIndToTimestampReal;
+	//	for (i = 0; i < data.length; i++)
+	//	{
+	//		if (resCurInd !== false && res[resCurInd])
+	//		{
+	//			if (data[i].fromTimestamp <= res[resCurInd].toTimestampReal)
+	//			{
+	//				dataIToTimestamp = data[i].toTimestampReal || data[i].toTimestamp;
+	//				resResCurIndToTimestampReal = res[resCurInd].toTimestampReal || res[resCurInd].toTimestamp;
+	//
+	//				if (dataIToTimestamp > resResCurIndToTimestampReal)
+	//				{
+	//					res[resCurInd].toTimestamp = dataIToTimestamp;
+	//					res[resCurInd].to = data[i].toReal || data[i].to;
+	//
+	//					res[resCurInd].toTimestampReal = dataIToTimestamp;
+	//					res[resCurInd].toReal = data[i].toReal || data[i].to;
+	//				}
+	//				continue;
+	//			}
+	//		}
+	//
+	//		res.push({
+	//			fromTimestamp: data[i].fromTimestamp,
+	//			from: data[i].from,
+	//			toTimestamp: data[i].toTimestampReal,
+	//			toTimestampReal: data[i].toTimestampReal,
+	//			to: data[i].to,
+	//			toReal: data[i].toReal || data[i].to
+	//		});
+	//		resCurInd = res.length - 1;
+	//	}
+	//
+	//	return res;
+	//},
 
 	DisplayEntryRow: function(entry, accessibility)
 	{
@@ -979,7 +960,7 @@ CalendarPlanner.prototype =
 		{
 			accessibility[i] = this.HandleAccessibilityEntry(accessibility[i]);
 		}
-		accessibility = this.FuseAccessibility(accessibility);
+		//accessibility = this.FuseAccessibility(accessibility);
 
 		var
 			i,
@@ -2335,56 +2316,92 @@ CalendarPlanner.prototype =
 		}
 		this.lastExpandparams = false;
 
-		if (direction == 'left' || direction == 'right')
+		var
+			loadedTimelineSize,
+			leftOffset = 3,
+			rightOffset = 3,
+			scrollLeft,
+			_this = this;
+
+		if (!loadedDataFrom)
+			loadedDataFrom = this.loadedDataFrom || this.scaleDateFrom;
+		if (!loadedDataTo)
+			loadedDataTo = this.loadedDataTo || this.scaleDateTo;
+
+		if (direction == 'left')
 		{
-			var
-				leftOffset = 3,
-				rightOffset = 3,
-				scrollLeft,
-				_this = this;
+			var oldScaleDateFrom = new Date(this.scaleDateFrom.getTime());
+			this.scaleDateFrom = loadedDataFrom = new Date(loadedDataFrom - this.dayLength  * leftOffset);
 
-			if (!loadedDataFrom)
-				loadedDataFrom = this.loadedDataFrom || this.scaleDateFrom;
-			if (!loadedDataTo)
-				loadedDataTo = this.loadedDataTo || this.scaleDateTo;
-
-			if (direction == 'left')
+			loadedTimelineSize = (this.scaleDateTo.getTime() - this.scaleDateFrom.getTime()) / this.dayLength;
+			if (loadedTimelineSize > this.maxTimelineSize)
 			{
-				var oldScaleDateFrom = new Date(this.scaleDateFrom.getTime());
-				//this.scaleDateTo = loadedDataTo;
-				loadedDataFrom = new Date(loadedDataFrom - this.dayLength  * leftOffset);
+				this.scaleDateTo = new Date(this.scaleDateFrom.getTime() + this.dayLength  * this.maxTimelineSize);
+				this.loadedDataFrom = this.scaleDateFrom;
+				this.loadedDataTo = this.scaleDateTo;
 
-				this.scaleDateFrom = loadedDataFrom;
-				this.RebuildPlanner();
-				scrollLeft = this.GetPosByDate(oldScaleDateFrom);
-			}
-			else
-			{
-				scrollLeft = _this.timelineFixedWrap.scrollLeft;
-				//this.scaleDateFrom = scaleDateFrom;
-				loadedDataTo = new Date(loadedDataTo.getTime() + this.dayLength * rightOffset);
-				this.scaleDateTo = loadedDataTo;
-				this.RebuildPlanner();
+				loadedDataTo = this.loadedDataTo;
+				this.limitScaleSizeMode = true;
 			}
 
+			this.RebuildPlanner();
+			scrollLeft = this.GetPosByDate(oldScaleDateFrom);
+		}
+		else if (direction == 'right')
+		{
+			var oldDateTo = this.scaleDateTo;
+
+			scrollLeft = _this.timelineFixedWrap.scrollLeft;
+			this.scaleDateTo = loadedDataTo = new Date(loadedDataTo.getTime() + this.dayLength * rightOffset);
+
+			loadedTimelineSize = (this.scaleDateTo.getTime() - this.scaleDateFrom.getTime()) / this.dayLength;
+			if (loadedTimelineSize > this.maxTimelineSize)
+			{
+				this.scaleDateFrom = new Date(this.scaleDateTo.getTime() - this.dayLength  * this.maxTimelineSize);
+				this.loadedDataFrom = this.scaleDateFrom;
+				this.loadedDataTo = this.scaleDateTo;
+				loadedDataFrom = this.loadedDataFrom;
+
+				scrollLeft = this.GetPosByDate(oldDateTo) - this.timelineFixedWrap.offsetWidth;
+				setTimeout(function(){
+					_this.timelineFixedWrap.scrollLeft = _this.GetPosByDate(oldDateTo) - _this.timelineFixedWrap.offsetWidth;
+				}, 1);
+
+				this.limitScaleSizeMode = true;
+			}
+
+			this.scaleDateTo = loadedDataTo;
+			this.RebuildPlanner();
+		}
+		else
+		{
+			loadedDataFrom = new Date(loadedDataFrom - this.dayLength  * leftOffset);
+			loadedDataTo = new Date(loadedDataTo.getTime() + this.dayLength * rightOffset);
+
+			this.scaleDateFrom = loadedDataFrom;
+			this.scaleDateTo = loadedDataTo;
+
+			this.RebuildPlanner();
+		}
+
+		if (scrollLeft !== undefined)
 			_this.timelineFixedWrap.scrollLeft = scrollLeft;
 
-			var i,entry, entrieIds = [];
-			for (i = 0; i < this.entries.length; i++)
-			{
-				entry = this.entries[i];
-				entrieIds.push(entry.id);
-			}
-
-			this.loadDataLock = true;
-			BX.onCustomEvent('OnCalendarPlannerScaleChanged', [{
-				from: this.FormatDate(loadedDataFrom),
-				to: this.FormatDate(loadedDataTo),
-				entrieIds: entrieIds,
-				entries: this.entries,
-				focusSelector: focusSelector === true
-			}]);
+		var i,entry, entrieIds = [];
+		for (i = 0; i < this.entries.length; i++)
+		{
+			entry = this.entries[i];
+			entrieIds.push(entry.id);
 		}
+
+		this.loadDataLock = true;
+		BX.onCustomEvent('OnCalendarPlannerScaleChanged', [{
+			from: this.FormatDate(loadedDataFrom),
+			to: this.FormatDate(loadedDataTo),
+			entrieIds: entrieIds,
+			entries: this.entries,
+			focusSelector: focusSelector === true
+		}]);
 	},
 
 	GelTimelineScrollOffset: function()
@@ -2437,14 +2454,7 @@ CalendarPlanner.prototype =
 			}
 			else if (rebuild)
 			{
-				//if (params.data === undefined)
-				//{
-					this.RebuildPlanner({updateSelector: false});
-				//}
-				//else
-				//{
-				//	this.BuildTimeline();
-				//}
+				this.RebuildPlanner({updateSelector: false});
 			}
 
 			if (params.hide && this.shown)
@@ -2461,22 +2471,37 @@ CalendarPlanner.prototype =
 					this.SetLoadedDataLimits(params.loadedDataFrom, params.loadedDataTo);
 				}
 
-				if (params.selector !== undefined && params.selector.from && params.selector.to)
+				if (params.selector !== undefined &&
+					params.selector.from && params.selector.to)
 				{
 					params.selector.focus = params.focusSelector === true;
 					params.selector.updateScaleType = false;
 
-					if (params.selector.to.getTime() > this.loadedDataTo.getTime())
+					// this.limitScaleSizeMode - is true if timeline scrolled by mouse or
+					// mousewheel and we load some data from deep future or from past
+					// (so we should't expand timeline in this case)
+					if (params.selector.to.getTime() > this.loadedDataTo.getTime()
+						&& !this.limitScaleSizeMode)
 					{
 						this.ExpandTimeline('right', false, params.selector.to, true);
 					}
-					else if (params.selector.from.getTime() < this.loadedDataFrom.getTime())
+					else if (params.selector.from.getTime() < this.loadedDataFrom.getTime()
+						&& !this.limitScaleSizeMode)
 					{
 						this.ExpandTimeline('left', params.selector.from, false, true);
 					}
 					else
 					{
-						this.UpdateSelector(params.selector);
+						if (!this.readonly)
+						{
+							this.scaleDateFrom = this.loadedDataFrom;
+							this.scaleDateTo = this.loadedDataTo;
+						}
+
+						this.RebuildPlanner({
+							updateSelector: true,
+							selectorParams: params.selector
+						});
 					}
 				}
 
@@ -2508,6 +2533,9 @@ CalendarPlanner.prototype =
 				this.expandTimelineDelay
 			);
 		}
+
+		// We reset value to the false to allow user to extend timeline manually
+		this.limitScaleSizeMode = false;
 	},
 
 	DoExpand: function(params)
@@ -2751,6 +2779,7 @@ CalendarPlanner.prototype =
 		else
 		{
 			var
+				entriesAccessibleIndex = {},
 				selectorAccuracy = this.selectorAccuracy * 1000,
 				entryId;
 
@@ -2758,20 +2787,35 @@ CalendarPlanner.prototype =
 			{
 				if (this.accessibility.hasOwnProperty(entryId))
 				{
+					entriesAccessibleIndex[entryId] = true;
 					for (i = 0; i < this.accessibility[entryId].length; i++)
 					{
 						item = this.accessibility[entryId][i];
 						if (item.type && item.type == 'hr')
 							continue;
 
+
 						if ((item.fromTimestamp + selectorAccuracy) <= toTimestamp && ((item.toTimestampReal || item.toTimestamp) - selectorAccuracy) >= fromTimestamp)
 						{
+							entriesAccessibleIndex[entryId] = false;
 							result = item;
 							break;
 						}
 					}
-					if (result !== true)
-						break;
+					//if (result !== true)
+					//	break;
+				}
+			}
+
+			for (i = 0; i < this.entries.length; i++)
+			{
+				if (entriesAccessibleIndex[this.entries[i].id] !== undefined)
+				{
+					this.entries[i].currentStatus = !!entriesAccessibleIndex[this.entries[i].id];
+				}
+				else
+				{
+					this.entries[i].currentStatus = true;
 				}
 			}
 		}

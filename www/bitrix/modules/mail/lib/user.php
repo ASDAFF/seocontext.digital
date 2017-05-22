@@ -24,8 +24,15 @@ class User
 			'EMAIL'            => $fields["EMAIL"],
 			'NAME'             => (!empty($fields["NAME"]) ? $fields["NAME"] : ''),
 			'LAST_NAME'        => (!empty($fields["LAST_NAME"]) ? $fields["LAST_NAME"] : ''),
+			'PERSONAL_PHOTO'   => (!empty($fields["PERSONAL_PHOTO_ID"]) ? \CFile::makeFileArray($fields['PERSONAL_PHOTO_ID']) : false),
 			'EXTERNAL_AUTH_ID' => 'email',
 		);
+
+		if (Main\ModuleManager::isModuleInstalled('intranet'))
+		{
+			$userFields['UF_DEPARTMENT'] = array();
+		}
+
 		if (
 			isset($fields['UF'])
 			&& is_array($fields['UF'])
@@ -45,6 +52,7 @@ class User
 		{
 			$userFields["GROUP_ID"] = $mailGroup;
 		}
+
 		$result = $user->add($userFields);
 
 		return $result;
@@ -248,7 +256,12 @@ class User
 		$type  = $matches['type'];
 		$token = $matches['token'];
 
-		$userRelation = UserRelationsTable::getByPrimary($token)->fetch();
+		$userRelation = UserRelationsTable::getList(array(
+			'filter' => array(
+				'=TOKEN'      => $token,
+				'USER.ACTIVE' => 'Y'
+			)
+		))->fetch();
 
 		if (!$userRelation)
 		{

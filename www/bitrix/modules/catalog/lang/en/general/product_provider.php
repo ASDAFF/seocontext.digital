@@ -18,4 +18,6 @@ $MESS["CATALOG_ERR_NO_PRODUCT"] = "The product was not found.";
 $MESS["CATALOG_ERR_SKU_PRODUCT"] = "You cannot add to cart a product that has multiple SKU's. Only a specific SKU can be added to cart.";
 $MESS["RSRV_SKU_FOUND"] = "The product ##PRODUCT_ID# has multiple SKU's. Only a specific SKU can be reserved or released.";
 $MESS["DDCT_DEDUCTION_PRODUCT_NOT_FOUND_ERROR"] = "Product to be shipped was not found (##PRODUCT_ID#)";
+$MESS["CATALOG_ERR_NO_PRODUCT_SET"] = "Bundle contents was not found.";
+$MESS["CATALOG_ERR_NO_PRODUCT_SET_ITEM"] = "Bundled products were not found.";
 ?>

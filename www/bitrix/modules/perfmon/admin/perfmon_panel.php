@@ -1,4 +1,5 @@
 <?
+define("BX_SESSION_ID_CHANGE", false);
 define("PERFMON_STOP", true);
 if(isset($_REQUEST["test"]) && $_REQUEST["test"] === "Y")
 {
@@ -589,15 +590,10 @@ if($REQUEST_METHOD == "POST" && ($calc.$total_calc!="") && $RIGHT >= "W" && chec
 
 $bComponentCache = COption::GetOptionString("main", "component_cache_on", "Y")=="Y";
 
-$bHTMLCache = CHTMLPagesCache::IsOn();
-$bExtraModule = false;
 $arModulesInstalled = array();
-$arModules = array("main", "iblock", "search", "fileman", "compression", "perfmon", "seo");
 $rsModules = CModule::GetDropDownList();
 while($arModule = $rsModules->Fetch())
 {
-	if(!in_array($arModule["REFERENCE_ID"], $arModules))
-		$bExtraModule = true;
 	$arModulesInstalled[] = $arModule["REFERENCE_ID"];
 }
 
@@ -684,7 +680,6 @@ else
 }
 
 $bOptimal = $bComponentCache
-	&& ($bHTMLCache || $bExtraModule)
 	&& $bManagedCache
 	&& $bEncodedModules
 	&& $bOptimized
@@ -1279,19 +1274,6 @@ else
 			<?else:?>
 				<td class="bx-digit-cell"><?echo GetMessage("PERFMON_PANEL_COMPONENT_CACHE_OFF")?></td>
 				<td><a href="cache.php?lang=<?echo LANGUAGE_ID?>"><?echo GetMessage("PERFMON_PANEL_COMPONENT_CACHE_REC")?></a></td>
-			<?endif?>
-		</tr>
-		<tr>
-			<td nowrap><?echo GetMessage("PERFMON_PANEL_HTML_CACHE")?></td>
-			<?if($bHTMLCache):?>
-				<td class="bx-digit-cell"><?echo GetMessage("PERFMON_PANEL_HTML_CACHE_ON")?></td>
-			<?else:?>
-				<td class="bx-digit-cell"><?echo GetMessage("PERFMON_PANEL_HTML_CACHE_OFF")?></td>
-			<?endif?>
-			<?if($bExtraModule || $bHTMLCache):?>
-				<td>&nbsp;</td>
-			<?else:?>
-				<td><a href="cache.php?lang=<?echo LANGUAGE_ID?>&amp;tabControl_active_tab=fedit3"><?echo GetMessage("PERFMON_PANEL_HTML_CACHE_REC")?></a></td>
 			<?endif?>
 		</tr>
 		<?if(IsModuleInstalled('statistic')):?>

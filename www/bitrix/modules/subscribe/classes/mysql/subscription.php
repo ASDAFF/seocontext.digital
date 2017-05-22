@@ -4,7 +4,7 @@ require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/subscribe/classes/genera
 class CSubscription extends CSubscriptionGeneral
 {
 	//get by e-mail
-	public function GetByEmail($email, $user_id = false)
+	public static function GetByEmail($email, $user_id = false)
 	{
 		global $DB;
 

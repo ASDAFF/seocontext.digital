@@ -11,8 +11,8 @@ function socialnetworkBlogPostCommentMobile(
 		"AVATAR_SIZE" => intval(array_key_exists("AVATAR_SIZE_COMMON", $arParams) ? $arParams["AVATAR_SIZE_COMMON"] : $arParams["AVATAR_SIZE"]),
 		"AVATAR_SIZE_COMMENT" => intval($arParams["AVATAR_SIZE_COMMENT"])
 	);
-	$arAvatarSizes["AVATAR_SIZE"] = ($arAvatarSizes["AVATAR_SIZE"] > 0 ? $arAvatarSizes["AVATAR_SIZE"] : 42); // reference to CBlogUser::GetUserInfoArray
-	$arAvatarSizes["AVATAR_SIZE_COMMENT"] = ($arAvatarSizes["AVATAR_SIZE_COMMENT"] > 0 ? $arAvatarSizes["AVATAR_SIZE_COMMENT"] : 42); // reference to CBlogUser::GetUserInfoArray
+	$arAvatarSizes["AVATAR_SIZE"] = ($arAvatarSizes["AVATAR_SIZE"] > 0 ? $arAvatarSizes["AVATAR_SIZE"] : 100); // reference to CBlogUser::GetUserInfoArray
+	$arAvatarSizes["AVATAR_SIZE_COMMENT"] = ($arAvatarSizes["AVATAR_SIZE_COMMENT"] > 0 ? $arAvatarSizes["AVATAR_SIZE_COMMENT"] : 100); // reference to CBlogUser::GetUserInfoArray
 	$avatarKey = "PERSONAL_PHOTO_RESIZED";
 	if ($arAvatarSizes["AVATAR_SIZE"] == $arParams["AVATAR_SIZE"])
 		$avatarKey = "PERSONAL_PHOTO_resized";
@@ -102,6 +102,8 @@ function socialnetworkBlogPostCommentMobile(
 		"ID" => $comment["ID"],
 		"NEW" => ($arParams["FOLLOW"] != "N" && $comment["NEW"] == "Y" ? "Y" : "N"),
 		"APPROVED" => ($comment["PUBLISH_STATUS"] == BLOG_PUBLISH_STATUS_PUBLISH ? "Y" : "N"),
+		"AUX" => (!empty($comment["AuxType"]) ? $comment["AuxType"] : ''),
+		"AUX_LIVE_PARAMS" => (!empty($comment["AUX_LIVE_PARAMS"]) ? $comment["AUX_LIVE_PARAMS"] : array()),
 		"POST_TIMESTAMP" => (
 			!empty($comment["DATE_CREATE_TS"])
 				? ($comment["DATE_CREATE_TS"] + $arResult["TZ_OFFSET"])

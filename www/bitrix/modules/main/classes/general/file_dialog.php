@@ -387,7 +387,7 @@ if (window.jsUtils)
 				<tr>
 					<?if (count($arSites) > 1):?>
 						<td style="width:22px!important; padding: 0 4px 0 5px !important;">
-						<div id="__bx_site_selector" bxvalue='<?= CUtil::JSEscape($Params['site'])?>' onclick="oBXDialogControls.SiteSelectorOnClick(this);" class="site_selector_div"><span><?= CUtil::JSEscape($Params['site'])?></span><span class="fd_iconkit site_selector_div_arrow">&nbsp;&nbsp;</span></div>
+						<div id="__bx_site_selector" bxvalue="<?=htmlspecialcharsbx($Params['site'])?>" onclick="oBXDialogControls.SiteSelectorOnClick(this);" class="site_selector_div"><span><?=htmlspecialcharsbx($Params['site'])?></span><span class="fd_iconkit site_selector_div_arrow">&nbsp;&nbsp;</span></div>
 						</td>
 					<?endif;?>
 					<td style="padding: 0 2px 0 2px !important;">
@@ -516,7 +516,7 @@ if (window.jsUtils)
 							<td>
 								<select id="__bx_fd_menutype" name="menutype">
 								<?for($i = 0, $n = count($Params['arMenuTypes']); $i < $n; $i++): ?>
-								<option value='<?= CUtil::JSEscape($Params['arMenuTypes'][$i]['key'])?>'><?= CUtil::JSEscape($Params['arMenuTypes'][$i]['title'])?></option>
+								<option value="<?=htmlspecialcharsbx($Params['arMenuTypes'][$i]['key'])?>"><?=htmlspecialcharsbx($Params['arMenuTypes'][$i]['title'])?></option>
 								<? endfor;?>
 								</select>
 							</td>
@@ -537,7 +537,7 @@ if (window.jsUtils)
 							<td>
 								<select name="newppos" id="__bx_fd_newppos">
 									<?for($i = 0, $n = count($Params['menuItems']); $i < $n; $i++):?>
-									<option value="<?= $i + 1 ?>"><?= CUtil::JSEscape($Params['menuItems'][$i])?></option>
+									<option value="<?= $i + 1 ?>"><?=htmlspecialcharsbx($Params['menuItems'][$i])?></option>
 									<?endfor;?>
 									<option value="0" selected="selected"><?=GetMessage("FD_LAST_POINT")?></option>
 								</select>
@@ -548,7 +548,7 @@ if (window.jsUtils)
 							<td>
 								<select name="menuitem" id="__bx_fd_menuitem">
 									<?for($i = 0; $i < $n; $i++):?>
-									<option value="<?= $i + 1 ?>"><?= CUtil::JSEscape($Params['menuItems'][$i])?></option>
+									<option value="<?= $i + 1 ?>"><?=htmlspecialcharsbx($Params['menuItems'][$i])?></option>
 									<?endfor;?>
 								</select>
 							</td>

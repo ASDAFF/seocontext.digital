@@ -498,6 +498,7 @@ class SubscribeManager
 	 * Write product id to the session to check that the user has subscribed.
 	 *
 	 * @param integer $itemId Product id.
+	 * @return void
 	 */
 	public function setSessionOfSibscribedProducts($itemId)
 	{

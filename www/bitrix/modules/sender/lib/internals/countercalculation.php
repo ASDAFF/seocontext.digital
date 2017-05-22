@@ -24,6 +24,7 @@ class CounterCalculation
 		'POSTING_CLICK' => '6',
 		'POSTING_UNSUB' => '7',
 		'MAILING_SUBSCRIPTION' => '8',
+		'CONTACT_EMAIL_REGISTER' => '9',
 		'FINISH' => '',
 	);
 
@@ -153,6 +154,16 @@ class CounterCalculation
 			if(!$haveData)
 			{
 				self::setCompleted('MAILING_SUBSCRIPTION');
+			}
+		}
+
+		// update contact email register
+		if(!$haveData && !self::wasCompleted('CONTACT_EMAIL_REGISTER'))
+		{
+			$haveData = self::updateContactEmailRegister();
+			if(!$haveData)
+			{
+				self::setCompleted('CONTACT_EMAIL_REGISTER');
 			}
 		}
 
@@ -375,6 +386,40 @@ class CounterCalculation
 			}
 		}
 		
+		return false;
+	}
+
+	public static function updateContactEmailRegister()
+	{
+		$query = null;
+		$connection = \Bitrix\Main\Application::getConnection();
+		switch(strtoupper($connection->getType()))
+		{
+			case 'MSSQL':
+				$query = "SELECT ID FROM b_sender_contact WHERE EMAIL LIKE '%[A-Z]%' COLLATE Latin1_General_BIN";
+				break;
+			case 'MYSQL':
+				$query = "SELECT ID FROM b_sender_contact WHERE EMAIL REGEXP BINARY '[A-Z]'";
+				break;
+			case 'ORACLE':
+				$query = "SELECT ID FROM b_sender_contact WHERE REGEXP_LIKE(EMAIL, '[A-Z]')";
+				break;
+		}
+
+		if($query)
+		{
+			$senderContactDb = $connection->query($query);
+			while($senderContact = $senderContactDb->fetch())
+			{
+				if(self::isTimeUp())
+				{
+					return true;
+				}
+
+				$connection->Query("UPDATE b_sender_contact SET EMAIL = LOWER(EMAIL) WHERE ID = " . intval($senderContact['ID']));
+			}
+		}
+
 		return false;
 	}
 

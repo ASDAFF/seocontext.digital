@@ -31,4 +31,11 @@ $MESS["SONET_C30_T_CREATE_TASK_SUCCESS_TITLE"] = "Task has been created";
 $MESS["SONET_C30_T_CREATE_TASK_FAILURE_TITLE"] = "Error";
 $MESS["SONET_C30_T_CREATE_TASK_SUCCESS_DESCRIPTION"] = "You can now view and edit the task.";
 $MESS["SONET_C30_T_CREATE_TASK_ERROR_GET_DATA"] = "Cannot obtain data to create a task.";
+$MESS["SONET_C30_T_CREATE_TASK_LINK"] = "Task was created based on #ENTITY#";
+$MESS["SONET_C30_T_CREATE_TASK_LINK_BLOG_POST"] = "Activity Stream message";
+$MESS["SONET_C30_T_CREATE_TASK_LINK_BLOG_COMMENT"] = "Activity Stream message comment";
+$MESS["SONET_C30_MENU_TITLE_LINK2"] = "Copy link";
+$MESS["SONET_C30_T_LINK_COPIED"] = "Link copied";
+$MESS["SONET_C30_T_EMPTY"] = "There are no posts in Activity Stream";
+$MESS["SONET_C30_T_EMPTY_SEARCH"] = "Nothing found";
 ?>

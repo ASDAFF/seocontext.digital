@@ -18,4 +18,5 @@ $MESS["REPORT_CHART_TYPE_LINE"] = "Line graph";
 $MESS["REPORT_CHART_TYPE_BAR"] = "Bar chart";
 $MESS["REPORT_CHART_TYPE_PIE"] = "Pie chart";
 $MESS["REPORT_UNKNOWN_FIELD_DEFINITION"] = "The report is using a field that does not exist. It is most likely a custom field that was deleted. Please check and save the report configuration.";
+$MESS["REPORT_HELPER_NOT_DEFINED"] = "No helper class defined.";
 ?>

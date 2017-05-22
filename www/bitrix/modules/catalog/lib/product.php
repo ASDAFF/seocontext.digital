@@ -73,6 +73,13 @@ class ProductTable extends Main\Entity\DataManager
 	const PAYMENT_PERIOD_YEAR = 'Y';
 	const PAYMENT_PERIOD_DOUBLE_YEAR = 'T';
 
+	const PRICE_MODE_SIMPLE = 'S';
+	const PRICE_MODE_QUANTITY = 'Q';
+	const PRICE_MODE_RATIO = 'R';
+
+	const INITIAL_PRICE_BASE = 'B';
+	const INITIAL_PRICE_PURCHASING = 'P';
+
 	protected static $defaultProductSettings = array();
 
 	protected static $existProductCache = array();
@@ -126,7 +133,7 @@ class ProductTable extends Main\Entity\DataManager
 				'title' => Loc::getMessage('PRODUCT_ENTITY_TIMESTAMP_X_FIELD')
 			)),
 			'PRICE_TYPE' => new Main\Entity\EnumField('PRICE_TYPE', array(
-				'values' => array(self::PAYMENT_TYPE_SINGLE, self::PAYMENT_TYPE_REGULAR, self::PAYMENT_TYPE_TRIAL),
+				'values' => self::getPaymentTypes(false),
 				'default_value' => self::PAYMENT_TYPE_SINGLE,
 				'title' => Loc::getMessage('PRODUCT_ENTITY_PRICE_TYPE_FIELD')
 			)),
@@ -135,16 +142,7 @@ class ProductTable extends Main\Entity\DataManager
 				'title' => Loc::getMessage('PRODUCT_ENTITY_RECUR_SCHEME_LENGTH_FIELD')
 			)),
 			'RECUR_SCHEME_TYPE' => new Main\Entity\EnumField('RECUR_SCHEME_TYPE', array(
-				'values' => array(
-					self::PAYMENT_PERIOD_HOUR,
-					self::PAYMENT_PERIOD_DAY,
-					self::PAYMENT_PERIOD_WEEK,
-					self::PAYMENT_PERIOD_MONTH,
-					self::PAYMENT_PERIOD_QUART,
-					self::PAYMENT_PERIOD_SEMIYEAR,
-					self::PAYMENT_PERIOD_YEAR,
-					self::PAYMENT_PERIOD_DOUBLE_YEAR
-				),
+				'values' => self::getPaymentPeriods(false),
 				'default_value' => self::PAYMENT_PERIOD_DAY,
 				'title' => Loc::getMessage('PRODUCT_ENTITY_RECUR_SCHEME_TYPE_FIELD')
 			)),
@@ -257,19 +255,19 @@ class ProductTable extends Main\Entity\DataManager
 			)),
 			'IBLOCK_ELEMENT' => new Main\Entity\ReferenceField(
 				'IBLOCK_ELEMENT',
-				'Bitrix\Iblock\Element',
+				'\Bitrix\Iblock\Element',
 				array('=this.ID' => 'ref.ID'),
 				array('join_type' => 'LEFT')
 			),
 			'TRIAL_IBLOCK_ELEMENT' => new Main\Entity\ReferenceField(
 				'TRIAL_IBLOCK_ELEMENT',
-				'Bitrix\Iblock\Element',
+				'\Bitrix\Iblock\Element',
 				array('=this.TRIAL_PRICE_ID' => 'ref.ID'),
 				array('join_type' => 'LEFT')
 			),
 			'TRIAL_PRODUCT' => new Main\Entity\ReferenceField(
 				'TRIAL_PRODUCT',
-				'Bitrix\Catalog\Product',
+				'\Bitrix\Catalog\Product',
 				array('=this.TRIAL_PRICE_ID' => 'ref.ID'),
 				array('join_type' => 'LEFT')
 			)

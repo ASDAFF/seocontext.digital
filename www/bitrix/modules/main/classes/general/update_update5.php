@@ -12,7 +12,7 @@ if ($MAIN_RIGHT<"R")
 
 class CUpdateOutput
 {
-	function ShowBlock($top, $bottom="", $icon="")
+	public static function ShowBlock($top, $bottom="", $icon="")
 	{
 		$s = '
 <div class="update-block">
@@ -63,7 +63,7 @@ class CUpdateOutput
 		return $s;
 	}
 
-	function ShowScript()
+	public static function ShowScript()
 	{
 		if(defined("__CUpdateOutputScript"))
 			return "";
@@ -81,7 +81,7 @@ function ToggleInfo(id, obj)
 ';		
 	}
 
-	function ShowBlockInfo($top, $bottom, $id)
+	public static function ShowBlockInfo($top, $bottom, $id)
 	{
 		$aOpt = CUserOptions::GetOption("sysupdate", "hidden_blocks", array());
 		$s = CUpdateOutput::ShowScript();

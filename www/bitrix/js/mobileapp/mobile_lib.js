@@ -1,12 +1,13 @@
 ;
 (function ()
 {
-
+	/**
+	 * @requires module:mobileapp
+	 * @module mobilelib
+	 */
 	if (window.BXMobileApp) return;
 
-
-
-	window.syncApiObject = function (objectName){
+	var syncApiObject = function (objectName){
 		this.objectName = objectName;
 
 		try{
@@ -16,7 +17,7 @@
 		}
 	};
 
-	window.syncApiObject.prototype.getFunc = function(command)
+	syncApiObject.prototype.getFunc = function(command)
 	{
 		if(typeof (this.object) != "undefined" && this.object != null)
 		{
@@ -34,8 +35,7 @@
 							if (typeof(result) == "string")
 							{
 								var modifiedResult = null;
-								try
-								{
+								try {
 									modifiedResult = JSON.parse(result);
 									result = modifiedResult;
 								}
@@ -69,6 +69,11 @@
 
 	window.BXMobileApp =
 	{
+		eventAddLog:{},
+		debug:false,
+		supportNativeEvents:function(){
+			return app.enableInVersion(17);
+		},
 		apiVersion: (typeof appVersion != "undefined"? appVersion : 1),
 		//platform: platform,
 		cordovaVersion: "3.6.3",
@@ -80,11 +85,7 @@
 				}
 			},
 			Slider: {
-				state: {
-					CENTER: 0,
-					LEFT: 1,
-					RIGHT: 2
-				},
+				state: { CENTER: 0, LEFT: 1, RIGHT: 2},
 				setState: function (state)
 				{
 					switch (state)
@@ -148,11 +149,13 @@
 					app.hideDatePicker();
 				}
 			},
-			SelectPicker:{
-				show: function(params){
+			SelectPicker: {
+				show: function (params)
+				{
 					app.showSelectPicker(params);
 				},
-				hide: function(){
+				hide: function ()
+				{
 					app.hideSelectPicker();
 				}
 			},
@@ -163,11 +166,13 @@
 				}
 			},
 			NotifyPanel: {
-				setNotificationNumber:function(number){
-					app.setCounters({notifications:number});
+				setNotificationNumber: function (number)
+				{
+					app.setCounters({notifications: number});
 				},
-				setMessagesNumber:function(number){
-					app.setCounters({messages:number});
+				setMessagesNumber: function (number)
+				{
+					app.setCounters({messages: number});
 				},
 				setCounters: function (params)
 				{
@@ -182,13 +187,14 @@
 					app.setPanelPages(pages);
 				}
 			},
-			Badge:{
+			Badge: {
 				/**
 				 * Sets number fot badge
 				 * @since 14
 				 * @param {int} number value of badge
 				 */
-				setIconBadge: function(number){
+				setIconBadge: function (number)
+				{
 					app.exec("setBadge", number)
 				},
 				/**
@@ -197,10 +203,11 @@
 				 * @param {string} badgeCode identifier of badge
 				 * @param {int} number value of badge
 				 */
-				setButtonBadge: function(badgeCode, number){
-					app.exec("setButtonBadge",{
-						code:badgeCode,
-						value:number
+				setButtonBadge: function (badgeCode, number)
+				{
+					app.exec("setButtonBadge", {
+						code: badgeCode,
+						value: number
 					})
 				}
 
@@ -221,10 +228,9 @@
 				UNKNOWN: 3
 			}
 		},
-		PushManager:
-		{
-			getLastNotification:(new syncApiObject("BXMobileAppContext")).getFunc("getLastNotification"),
-			prepareParams : function (push)
+		PushManager: {
+			getLastNotification: (new syncApiObject("BXMobileAppContext")).getFunc("getLastNotification"),
+			prepareParams: function (push)
 			{
 				if (typeof (push) != 'object' || typeof (push.params) == 'undefined')
 				{
@@ -232,11 +238,10 @@
 				}
 
 				var result = {};
-				try
-				{
+				try {
 					result = JSON.parse(push.params);
 				}
-				catch(e)
+				catch (e)
 				{
 					result = {'ACTION': push.params};
 				}
@@ -244,8 +249,7 @@
 				return result;
 			}
 		},
-		PageManager:
-		{
+		PageManager: {
 			loadPageBlank: function (params)
 			{
 				/**
@@ -270,8 +274,7 @@
 
 				if (typeof(params.data) == 'object')
 				{
-					app.onCustomEvent("onPageParamsChangedLegacy", {url: params.url, data: params.data});
-					BX.onCustomEvent("onPageParamsChangedLegacy", [{url: params.url, data: params.data}]);
+					BXMobileApp.onCustomEvent("onPageParamsChangedLegacy", {url: params.url, data: params.data}, true, true);
 				}
 
 				return true;
@@ -284,17 +287,85 @@
 			{
 				app.showModalDialog(params)
 			},
+			/**
+			 * Set white list for allowed urls which can be opened inside the app.
+			 * Use semicolon as separator.
+			 * Example1: "*.mydomain.ru;*mydomain2.ru"
+			 * Example2: "https*"
+			 * Example2: "*" (wild card)
+			 * @param whiteListString
+			 */
+			setWhiteList: function(whiteListString)
+			{
+				_pageNavigator.getFunc("setWhiteList")(whiteListString);
+			},
+			/**
+			 * @private
+			 * @param data
+			 * @returns {BXMobilePage}
+			 */
+			createPage: function (data)
+			{
+				return new (function BXMobilePage(pageData)
+				{
+					this.pageData = pageData;
+					this.getData = function ()
+					{
+						return this.pageData.data;
+					};
 
-			getAllPages: _pageNavigator.getFunc("getAllPages"),
-			getCurrent: _pageNavigator.getFunc("getCurrent"),
-			getPrevious: _pageNavigator.getFunc("getPrevious"),
+					this.go = function ()
+					{
+						BXMobileApp.PageManager.goToPageWithUniqueCode(this.pageData.uniqueCode);
+					};
+
+					this.getListeners = function ()
+					{
+						return this.pageData.listeners;
+					}
+
+				})(data);
+			},
+			getAllPages: function ()
+			{
+				var pages = [];
+				var _pages = _pageNavigator.getFunc("getAllPages")();
+
+				for (var i = 0; i < _pages.length; i++)
+				{
+					pages.push(this.createPage(_pages[i]));
+
+				}
+
+				return pages;
+			},
+			getCurrent: function ()
+			{
+				var pageData = _pageNavigator.getFunc("getCurrent")();
+				if (pageData)
+				{
+					return this.createPage(pageData);
+				}
+
+				return null;
+			},
+			getPrevious: function ()
+			{
+				var pageData = _pageNavigator.getFunc("getPrevious")();
+				if (pageData)
+				{
+					return this.createPage(pageData);
+				}
+
+				return null;
+			},
 			goToFirst: _pageNavigator.getFunc("goToFirst"),
 			goBack: _pageNavigator.getFunc("goBack"),
 			goToPageWithId: _pageNavigator.getFunc("goToPageWithId"),
 			goToPageWithUniqueCode: _pageNavigator.getFunc("goToPageWithUniqueCode"),
 			isFirst: _pageNavigator.getFunc("isFirst"),
 			isLast: _pageNavigator.getFunc("isLast"),
-			isVisible: _pageNavigator.getFunc("isVisible"),
+			isVisible: _pageNavigator.getFunc("isVisible")
 
 		},
 		TOOLS: {
@@ -329,20 +400,126 @@
 			}
 
 		},
-		removeCustomEvent:function(eventName, func){
-			BX.removeCustomEvent(eventName,func);
-			app.exec("unsubscribeEvent",{eventName:eventName});
-		},
-		addCustomEvent:function(eventName, func){
-			BX.addCustomEvent(eventName,func);
-			app.exec("subscribeEvent",{eventName:eventName});
-		},
-		onCustomEvent: function (eventName, params)
-		{
-			app.onCustomEvent(eventName, params, false, false)
-		}
-	};
+		Events: {
+			/**
+			 * Subscribes to the event
+			 * @param eventName
+			 */
+			list:[],
+			subscribe: function (eventName)
+			{
+				this.list.push(eventName);
+				app.exec("subscribeEvent", {eventName: eventName});
+			},
+			/**
+			 * Unsubscribe from the event
+			 * @param eventName
+			 */
+			unsubscribe: function (eventName)
+			{
+				var index;
+				if (index = this.list.indexOf(eventName) >= 0)
+				{
+					delete this.list[index];
+				}
 
+				app.exec("unsubscribeEvent", {eventName: eventName});
+			},
+			/**
+			 * Post javascript event for all subscribers.
+			 * It calls BX.onCustomEvent(eventName,params) on all pages which have subscribed to the event
+			 * @param eventName
+			 * @param params
+			 * @returns {boolean}
+			 */
+			post: function (eventName, params)
+			{
+				if (app.enableInVersion(17))
+				{
+					if (typeof(params) == "object")
+						params = JSON.stringify(params);
+					app.exec("fireEvent", {
+						eventName: eventName,
+						params: params
+					}, false);
+
+					return true;
+				}
+
+				return false;
+			},
+			addEventListener: function (eventObject, eventName, listener)
+			{
+				BXMobileApp.addCustomEvent(eventObject, eventName,listener)
+			}
+		},
+		/**
+		 *
+		 * @param {string} eventName - the event name
+		 * @param  params - parameters which will be passed to event handler
+		 * @param {boolean} [useNativeSubscription] - use native subscription. <b>false</b> by default
+		 * @param {boolean} [fireSelf] - the event will be fired on this page. <b>false</b> false by default
+		 */
+		onCustomEvent: function (eventName, params, useNativeSubscription, fireSelf)
+		{
+			var oldVersion = true;
+			if(this.supportNativeEvents() && useNativeSubscription)
+			{
+				oldVersion = false;
+				BXMobileApp.Events.post(eventName, params);
+
+				if(fireSelf)
+				{
+					BX.onCustomEvent(eventName, BX.type.isArray(params)? params:[params])
+				}
+			}
+			else
+			{
+				app.onCustomEvent(eventName, params, false, false)
+			}
+
+			if(BXMobileApp.debug)
+				console.log("Fire event"+(oldVersion ?" (old)":""), eventName, location.href);
+
+		},
+
+		addCustomEvent: function (eventObject, eventName, listener)
+		{
+			/* shift parameters for short version */
+			if (BX.type.isString(eventObject))
+			{
+				listener = eventName;
+				eventName = eventObject;
+				eventObject = window;
+			}
+
+			if(BXMobileApp.debug)
+			{
+				if(typeof BXMobileApp.eventAddLog[eventName] == "undefined")
+				{
+					BXMobileApp.eventAddLog[eventName] = [];
+				}
+
+				BXMobileApp.eventAddLog[eventName].push(function getStackTrace(){
+					var obj = {};
+					if(Error && Error["captureStackTrace"])
+					{
+						Error.captureStackTrace(obj, getStackTrace);
+						return {stack: obj.stack, eventObject:eventObject, listener: listener};
+					}
+					return {eventObject: eventObject, listener: listener};
+				}());
+
+				BX.addCustomEvent(eventName,function(){
+					console.log("Event has been caught", eventName);
+				});
+			}
+
+			BXMobileApp.Events.subscribe(eventName);
+			BX.addCustomEvent(eventObject, eventName, listener);
+		}
+
+	};
 
 //--->Base UI element
 	BXMobileApp.UI.Element = function (id, params)
@@ -354,7 +531,6 @@
 		this.isCreated = false;
 		this.isShown = false;
 	};
-
 
 	BXMobileApp.UI.Element.prototype.onCreate = function ()
 	{
@@ -394,7 +570,6 @@
 		//TODO destroy object
 	};
 
-
 	/**
 	 * Button class
 	 * @param id
@@ -410,7 +585,7 @@
 	BXMobileApp.TOOLS.extend(BXMobileApp.UI.Button, BXMobileApp.UI.Element);
 	BXMobileApp.UI.Button.prototype.setBadge = function (number)
 	{
-		if(this.params.badgeCode)
+		if (this.params.badgeCode)
 		{
 			BXMobileApp.UI.Badge.setButtonBadge(this.params.badgeCode, number);
 		}
@@ -423,8 +598,12 @@
 
 	/**
 	 * Menu class
+	 * @param params - the set of options
+	 * @config {array} items - array of menu items
+	 * @config {bool} useNavigationBarColor - color of navigation bar will be apply
+	 * as a background color for the page menu. false by default
+	 *
 	 * @param id
-	 * @param params
 	 * @constructor
 	 */
 	BXMobileApp.UI.Menu = function (params, id)
@@ -432,7 +611,7 @@
 		this.items = params.items;
 		this.type = BXMobileApp.UI.types.MENU;
 		BXMobileApp.UI.Menu.superclass.constructor.apply(this, [id, params]);
-		app.menuCreate({items: this.items});
+		app.menuCreate({items: this.items, useNavigationBarColor: params["useNavigationBarColor"]});
 	};
 	BXMobileApp.TOOLS.extend(BXMobileApp.UI.Menu, BXMobileApp.UI.Element);
 
@@ -445,7 +624,6 @@
 	{
 		app.menuHide();
 	};
-
 
 	/**
 	 * @since 14
@@ -482,7 +660,7 @@
 		BXMobileApp.UI.NotificationBar.superclass.constructor.apply(this, [id, params]);
 		var addParams = this.params;
 		addParams["id"] = this.id;
-		addParams["onCreate"] =  BX.proxy(function (params)
+		addParams["onCreate"] = BX.proxy(function (params)
 		{
 			this.onCreate(params)
 		}, this);
@@ -498,9 +676,9 @@
 	BXMobileApp.UI.NotificationBar.prototype.onCreate = function (json)
 	{
 		this.isCreated = true;
-		if(this.isShown)
+		if (this.isShown)
 		{
-			app.exec("notificationBar", {action:"show", params: this.params});
+			app.exec("notificationBar", {action: "show", params: this.params});
 		}
 	};
 
@@ -523,8 +701,6 @@
 
 		this.isShown = false;
 	};
-
-
 
 	/**
 	 * ActionSheet class
@@ -595,7 +771,7 @@
 	{
 		this.params = {
 			table_id: id,
-			url: params.url||"",
+			url: params.url || "",
 			isroot: false,
 
 			TABLE_SETTINGS: {
@@ -648,7 +824,6 @@
 		return app.exec("removeTableCache", {"table_id": this.id});
 	};
 
-
 	/**
 	 * Page object
 	 * @name BXMPage
@@ -663,23 +838,29 @@
 		{
 			app.reload();
 		},
-		reloadUnique: function()
+		reloadUnique: function ()
 		{
-			BXMobileApp.UI.Page.params.get({callback:function(data){
+			BXMobileApp.UI.Page.params.get({
+				callback: function (data)
+				{
 
-				BX.localStorage.set('mobileReloadPageData', {url: location.pathname+location.search, data: data});
-				app.reload();
-			}});
+					BX.localStorage.set('mobileReloadPageData', {url: location.pathname + location.search, data: data});
+					app.reload();
+				}
+			});
 		},
 		close: function (params)
 		{
 			app.closeController(params)
 		},
+		closeModalDialog:function(){
+			app.exec("closeModalDialog");
+		},
 		captureKeyboardEvents: function (enable)
 		{
 			app.enableCaptureKeyboard(!((typeof enable == "boolean" && enable === false)))
 		},
-		setId:function(id)
+		setId: function (id)
 		{
 			app.setPageID(id);
 		},
@@ -687,7 +868,8 @@
 		 *
 		 * @returns {BXMPage.TopBar.title|{params, timeout, isAboutToShow, show, hide, setImage, setText, setDetailText, setCallback, redraw, _applyParams}}
 		 */
-		getTitle:function(){
+		getTitle: function ()
+		{
 			return this.TopBar.title;
 		},
 		params: {
@@ -698,13 +880,12 @@
 			get: function (params)
 			{
 				var data = BX.localStorage.get('mobileReloadPageData');
-				if (data && data.url == location.pathname+location.search && params.callback)
+				if (data && data.url == location.pathname + location.search && params.callback)
 				{
 					BX.localStorage.remove('mobileReloadPageData');
 					params.callback(data.data);
 				}
-				else
-				{
+				else {
 					app.getPageParams(params);
 				}
 			}
@@ -725,13 +906,14 @@
 			 * @config {string} [titleText] color of title text
 			 * @config {string} [titleDetailText] color of  subtitle text
 			 */
-			setColors:function(colors){
+			setColors: function (colors)
+			{
 				app.exec("setTopBarColors", colors);
 			},
 			addRightButton: function (button)
 			{
 				app.addButtons({
-					"rightButton":button
+					"rightButton": button
 				});
 			},
 			/**
@@ -751,14 +933,20 @@
 					detailText: "",
 					callback: ""
 				},
-				timeout:0,
-				isAboutToShow:false,
+				timeout: 0,
+				isAboutToShow: false,
 				show: function ()
 				{
 					this.isAboutToShow = (this.timeout > 0);
 
-					if(!this.isAboutToShow)
-						app.titleAction("show");
+					if (!this.isAboutToShow)
+					{
+						clearTimeout(this.showTitleTimeout);
+						this.showTitleTimeout = setTimeout(function ()
+						{
+							app.titleAction("show");
+						}, 300)
+					}
 				},
 				hide: function ()
 				{
@@ -784,19 +972,19 @@
 					this.params.callback = callback;
 					this.redraw();
 				},
-				redraw:function()
+				redraw: function ()
 				{
-					if(this.timeout > 0)
+					if (this.timeout > 0)
 						clearTimeout(this.timeout);
 
-					this.timeout = setTimeout(BX.proxy(this._applyParams, this), 10);
+					this.timeout = setTimeout(BX.proxy(this._applyParams, this), 200);
 				},
-				_applyParams:function()
+				_applyParams: function ()
 				{
 					app.titleAction("setParams", this.params);
 					this.timeout = 0;
 
-					if(this.isAboutToShow)
+					if (this.isAboutToShow)
 						this.show()
 				}
 			}
@@ -879,11 +1067,13 @@
 				//TODO
 			}
 		},
-		PopupLoader:{
-			show:function(text){
+		PopupLoader: {
+			show: function (text)
+			{
 				app.exec("showPopupLoader", {text: text})
 			},
-			hide:function(){
+			hide: function ()
+			{
 				app.exec("hidePopupLoader");
 			}
 		},
@@ -902,35 +1092,46 @@
 			}
 		},
 		TextPanel: {
-			defaultParams : {
+			defaultParams: {
 				placeholder: "Text here...",
 				button_name: "Send",
-                mentionDataSource: {},
-				action: function (){},
-                smileButton:{},
+				mentionDataSource: {},
+				action: function ()
+				{
+				},
+				smileButton: {},
 				plusAction: "",
-				callback:"-1",
-				useImageButton: true,
-				text:""
+				callback: "-1",
+				useImageButton: true
 			},
-			params:{},
+			params: {},
 			isAboutToShow: false,
-
 			temporaryParams: {},
-            timeout:0,
+			timeout: 0,
 			setParams: function (params)
 			{
-				this.params = BXMobileApp.TOOLS.merge(this.defaultParams, params);
+				if (typeof(params) == "undefined" && this.params == {})
+				{
+					this.params = this.defaultParams;
+				}
+				else {
+					this.params = params;
+				}
+
 				if (this.isAboutToShow)
 				{
-                    this.redraw();
+					this.redraw();
 				}
 			},
 			show: function (params)
 			{
-				if (typeof params == "object")
+				if (typeof params == "object" && params != null)
 				{
 					this.setParams(params);
+				}
+				else if (this.params == {})
+				{
+					this.params = this.defaultParams;
 				}
 
 				var showParams = this.getParams();
@@ -946,10 +1147,15 @@
 
 				if (BXMobileApp.apiVersion >= 10)
 				{
-					app.textPanelAction("show", showParams);
+					clearTimeout(this.showTimeout);
+					this.showTimeout = setTimeout(function ()
+					{
+						app.textPanelAction("show", showParams);
+					}, 100)
+
 				}
-				else
-				{
+				else {
+
 					delete showParams['text'];
 					app.showInput(showParams);
 				}
@@ -978,13 +1184,13 @@
 			},
 			setUseImageButton: function (use)
 			{
-				this.params.useImageButton = !((typeof use == "boolean" && use === false));
-                this.redraw();
+				this.params["useImageButton"] = !((typeof use == "boolean" && use === false));
+				this.redraw();
 			},
 			setAction: function (callback)
 			{
-				this.params.action = callback;
-                this.redraw();
+				this.params["action"] = callback;
+				this.redraw();
 			},
 			setText: function (text)
 			{
@@ -992,15 +1198,12 @@
 				{
 					this.temporaryParams["text"] = text;
 				}
-				else
-				{
+				else {
 
-                    var params = app.clone(this.params, true);
-                    params.text = text;
+					var params = app.clone(this.params, true);
+					params["text"] = text;
 					app.textPanelAction("setParams", params);
 				}
-
-
 			},
 			getText: function (callback)
 			{
@@ -1020,21 +1223,21 @@
 
 				return params;
 			},
-            redraw:function()
-            {
-                if(this.timeout > 0)
-                    clearTimeout(this.timeout);
+			redraw: function ()
+			{
+				if (this.timeout > 0)
+					clearTimeout(this.timeout);
 
-                this.timeout = setTimeout(BX.proxy(this._applyParams, this), 100);
-            },
-            _applyParams:function()
-            {
-                app.textPanelAction("setParams", this.params);
-                this.timeout = 0;
+				this.timeout = setTimeout(BX.proxy(this._applyParams, this), 100);
+			},
+			_applyParams: function ()
+			{
+				app.textPanelAction("setParams", this.params);
+				this.timeout = 0;
 
-                if(this.isAboutToShow)
-                    this.show()
-            }
+				if (this.isAboutToShow)
+					this.show()
+			}
 
 		},
 		Scroll: {
@@ -1046,7 +1249,71 @@
 
 	};
 
-	 //Short aliases
+
+	//websocket override
+
+	window.__origWebSocket = WebSocket;
+	var websocketPlugin = window.websocketPlugin = new BXCordovaPlugin("WebSocketCordovaPlugin");
+	window.websocketPlugin.open = function(){
+		this.exec("open");
+	};
+	window.websocketPlugin.close = function(code, message){
+		this.exec("close",{code: code, reason:message});
+	};
+	window.websocketPlugin.init = function(config){
+		this.exec("init", config);
+	};
+
+	if(typeof BXMobileAppContext != "undefined" && BXMobileAppContext["useNativeWebSocket"])
+	{
+		window.WebSocket = function(server)
+		{
+			this.open =  BX.proxy(websocketPlugin.open, websocketPlugin);
+			this.close =  BX.proxy(websocketPlugin.close, websocketPlugin);
+
+			var onSocketClosed = BX.proxy(function (data)
+			{
+				if(typeof this.onclose == "function")
+				{
+					this.onclose(data);
+				}
+			}, this);
+
+			var onSocketOpened = BX.proxy(function (data)
+			{
+				if(typeof this.onopen == "function")
+				{
+					this.onopen(data);
+				}
+			},this);
+
+			var onSocketMessage = BX.proxy(function (data)
+			{
+				if(typeof this.onmessage == "function")
+				{
+					this.onmessage(data);
+				}
+			},this);
+			var onSocketError = BX.proxy(function (data)
+			{
+				if(typeof this.onerror == "function")
+				{
+					this.onerror(data);
+				}
+			},this);
+
+
+			websocketPlugin.init({
+				server:server,
+				onmessage:onSocketMessage,
+				onclose:onSocketClosed,
+				onopen:onSocketOpened,
+				onerror:onSocketError
+			});
+		};
+	}
+
+	//Short aliases
 
 	/**
 	 *
@@ -1067,5 +1334,7 @@
 	window.BXMPager = BXMobileApp.PageManager;
 
 })();
+
+
 
 

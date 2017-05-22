@@ -2,6 +2,7 @@
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/img.php");
 
+use Bitrix\Main\Text\HtmlFilter;
 /********************** Check user access rights ***********************/
 
 if (!$USER->CanDoOperation('seo_tools'))
@@ -71,14 +72,24 @@ if (isset($_REQUEST["site"]) && strlen($_REQUEST["site"]) > 0)
 	$obSite = CSite::GetByID($_REQUEST["site"]);
 	if ($arSite = $obSite->Fetch())
 	{
-		$site = $_REQUEST["site"];
-
-		$server_name = $arSite['SERVER_NAME'];
-		if (strlen($server_name) <= 0)
-			$server_name = COption::GetOptionString('main', 'server_name', '');
+		$site = HtmlFilter::encode($_REQUEST["site"]);
+		$serverName = HtmlFilter::encode($arSite['SERVER_NAME']);
 	}
 }
+//find server name in other places
+if (strlen($serverName) <= 0)
+	$serverName = COption::GetOptionString('main', 'server_name', '');
+if (strlen($serverName) <= 0)
+	$serverName = $_SERVER['SERVER_NAME'];
 
+$serverName = str_replace(array("https://", "http://"), '', $serverName);
+$protocol = \CMain::IsHTTPS() ? "https://" : "http://";
+
+$serverPort = intval($_SERVER['SERVER_PORT']);
+$serverHost = $_SERVER['HTTP_HOST'];
+if(strlen($serverPort)>0 && strlen($serverHost)>0)
+	if(strpos($serverHost, $serverPort) !== false || ($serverPort!=80 && $serverPort!=443))
+		$serverName .= ":".$serverPort;
 
 //lang
 if (!isset($_REQUEST["lang"]) || strlen($_REQUEST["lang"]) <= 0)
@@ -146,12 +157,12 @@ if (isset($_REQUEST['loadtab']))
 </table>
 <?
 			else:
-
+				$url = $protocol.$serverName.$back_url;
 				$arFilter = array(
 					'SEARCHER_ID' => implode('|', array_keys($arSearchers)),
 					'DATE1' => ConvertTimeStamp(strtotime('-3 month'), false, $site_id),
 					'DATE2' => ConvertTimeStamp(time(), false, $site_id),
-					'URL' => 'http://'.$server_name.$back_url,
+					'URL' => $url,
 					'URL_EXACT_MATCH' => 'Y',
 					'SITE_ID' => $site,
 				);
@@ -261,9 +272,10 @@ if (isset($_REQUEST['loadtab']))
 </table>
 <?
 			else:
+				$url = $protocol.$serverName.$back_url;
 				$arFilter = array(
 					'SEARCHER_ID' => implode('|', array_keys($arSearchers)),
-					'TO' => 'http://'.$server_name.$back_url,
+					'TO' => $url,
 					'TO_EXACT_MATCH' => 'Y',
 					'GROUP' => 'P'
 				);
@@ -376,11 +388,13 @@ if (isset($_REQUEST['loadtab']))
 
 		/******************* referers tab *********************/
 		case 'referers':
+			$url = $protocol.$serverName.$back_url;
 			$arFilter = array(
-				'TO' => 'http://'.$server_name.$back_url,
+				'TO' => $url,
 				'TO_EXACT_MATCH' => 'Y',
 				'GROUP' => 'S'
 			);
+			
 
 			$dbRes = CReferer::GetList($by = 's_quantity', $order = 'desc', $arFilter, $is_filtered, $total, $group_by, $max);
 			$dbRes->NavStart(20, false, 0);
@@ -504,59 +518,60 @@ $fileContent = $APPLICATION->GetFileContent($absoluteFilePath);
 
 /************************** GET/POST processing ***************************************/
 $strWarning = '';
+$success = true;
 
 if (!check_bitrix_sessid())
 {
 	CUtil::JSPostUnescape();
 	$strWarning = GetMessage("MAIN_SESSION_EXPIRED");
 }
-elseif (!$bReadOnly && $_SERVER["REQUEST_METHOD"] == "POST" && isset($_REQUEST["save"]))
+elseif ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_REQUEST["save"]))
 {
-	//Title
-	if (isset($_POST["pageTitle"]) && strlen($_POST["pageTitle"]) > 0)
+	if(!$bReadOnly)
 	{
-		$fileContent = SetPrologTitle($fileContent, $_POST["pageTitle"]);
-	}
-
-	//Title
-	$prop_code = COption::GetOptionString('seo', 'property_window_title', 'title');
-	if (isset($_POST["property_".$prop_code]))
-	{
-		$fileContent = SetPrologProperty($fileContent, $prop_code, $_POST["property_".$prop_code]);
-	}
-
-	//Properties
-	if (isset($_POST["PROPERTY"]) && is_array($_POST["PROPERTY"]))
-	{
-		foreach ($_POST["PROPERTY"] as $arProperty)
+		//Title
+		if (isset($_POST["pageTitle"]) && strlen($_POST["pageTitle"]) > 0)
 		{
-			$arProperty["CODE"] = (isset($arProperty["CODE"]) ? trim($arProperty["CODE"]) : "");
-			$arProperty["VALUE"] = (isset($arProperty["VALUE"]) ? trim($arProperty["VALUE"]) : "");
-
-			if (preg_match("/[a-zA-Z_-~]+/i", $arProperty["CODE"]))
+			$fileContent = SetPrologTitle($fileContent, $_POST["pageTitle"]);
+		}
+		
+		//Title
+		$prop_code = COption::GetOptionString('seo', 'property_window_title', 'title');
+		if (isset($_POST["property_" . $prop_code]))
+		{
+			$fileContent = SetPrologProperty($fileContent, $prop_code, $_POST["property_" . $prop_code]);
+		}
+		
+		//Properties
+		if (isset($_POST["PROPERTY"]) && is_array($_POST["PROPERTY"]))
+		{
+			foreach ($_POST["PROPERTY"] as $arProperty)
 			{
-				$fileContent = SetPrologProperty($fileContent, $arProperty["CODE"], $arProperty["VALUE"]);
+				$arProperty["CODE"] = (isset($arProperty["CODE"]) ? trim($arProperty["CODE"]) : "");
+				$arProperty["VALUE"] = (isset($arProperty["VALUE"]) ? trim($arProperty["VALUE"]) : "");
+				
+				if (preg_match("/[a-zA-Z_-~]+/i", $arProperty["CODE"]))
+				{
+					$fileContent = SetPrologProperty($fileContent, $arProperty["CODE"], $arProperty["VALUE"]);
+				}
 			}
 		}
+		
+		$success = $APPLICATION->SaveFileContent($absoluteFilePath, $fileContent);
+		
+		if ($success === false && ($exception = $APPLICATION->GetException()))
+			$strWarning = $exception->msg;
 	}
-
-	$success = $APPLICATION->SaveFileContent($absoluteFilePath, $fileContent);
-
-	if ($success === false && ($exception = $APPLICATION->GetException()))
-		$strWarning = $exception->msg;
-	else
+	if (isset($_POST['internal_keywords']) && $success !== false)
 	{
-		if (isset($_POST['internal_keywords']))
-		{
-			CSeoKeywords::Update(array(
-				'URL' => $back_url,
-				'SITE_ID' => $site,
-				'KEYWORDS' => $_POST['internal_keywords'],
-			));
-		}
-
-		LocalRedirect("/".ltrim($original_backurl, "/"));
+		CSeoKeywords::Update(array(
+			'URL' => $back_url,
+			'SITE_ID' => $site,
+			'KEYWORDS' => $_POST['internal_keywords'],
+		));
 	}
+	
+	LocalRedirect("/" . ltrim($original_backurl, "/"));
 	die();
 }
 
@@ -622,7 +637,7 @@ require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_aft
 ?>
 <form name="seo_form" method="POST" action="/bitrix/admin/public_seo_tools.php" enctype="multipart/form-data">
 <input type="hidden" name="lang" value="<?=LANGUAGE_ID?>" />
-<input type="hidden" name="site" value="<?=htmlspecialcharsEx($site)?>" />
+<input type="hidden" name="site" value="<?=$site?>" />
 <input type="hidden" name="path" value="<?echo htmlspecialcharsEx($path)?>" />
 <input type="hidden" name="back_url" value="<?echo htmlspecialcharsEx($original_backurl)?>" />
 <?=bitrix_sessid_post()?>
@@ -653,7 +668,7 @@ div#bx_page_extended_data div {height: 140px; width: 99%; overflow: auto; margin
 </style>
 <?
 if (strlen($counters) > 0):
-	$counters = str_replace(array('#DOMAIN#'), array($server_name), $counters);
+	$counters = str_replace(array('#DOMAIN#'), array($serverName), $counters);
 
 foreach(GetModuleEvents("seo", "OnSeoCountersGetList", true) as $arEvent)
 {
@@ -787,105 +802,118 @@ endif;
 /*************************************/
 $tabControl->BeginNextTab();
 ?>
-<tr>
-	<td><?echo GetMessage('SEO_PAGE_BASE_TITLE')?> (&lt;H1&gt;): <?echo SeoShowHelp('base_title')?></td>
-	<td><input type="text" name="pageTitle" value="<?=htmlspecialcharsEx($pageTitle)?>"  size="50" /></td>
-</tr>
-<?
-if ($titleFinal != $pageTitle):
-?>
-<tr>
-	<td valign="top"><?echo GetMessage('SEO_PAGE_CURRENT_TITLE')?>: <?echo SeoShowHelp('current_title')?></td>
-	<td valign="top">
-<script>
-window.jsPopup_subdialog = new JCPopup({'suffix':'subdialog', 'zIndex':parseInt(jsPopup.zIndex)+20});
-</script>
-<?
-if ($titleChangerLink)
-{
-	$titleChangerLink = preg_replace(
-		"/jsPopup.ShowDialog\('(.*?)',([^\)]*)\)/is",
-		"jsPopup_subdialog.ShowDialog('\\1&subdialog=Y&suffix=subdialog',\\2)",
-		$titleChangerLink
-	);
-
-	$titleChangerLink = preg_replace(
-		"/BX.CAdminDialog[\s]*\([\s]*\{(.*?)'content_url'[\s]*:[\s]*'(.*?)'/is",
-		"BX.CAdminDialog({\\1'content_url':'\\2&subdialog=Y'",
-		$titleChangerLink
-	);
-}
-?>
-		<b><?echo htmlspecialcharsEx($titleFinal)?></b>&nbsp;<?if ($titleChangerName != ''):?>(<?echo htmlspecialcharsbx($titleChangerName)?>)&nbsp;<?endif;?><?if ($titleChangerLink):?><br /><a href="<?echo htmlspecialcharsbx($titleChangerLink, ENT_QUOTES);?>"><?echo GetMessage('SEO_PAGE_CURRENT_TITLE_EDIT')?></a><?endif;?>
-</tr>
-<?
-endif;
-
-if ($prop_code = COption::GetOptionString('seo', 'property_window_title', 'title')):
-	$value = $arGlobalProperties[$prop_code] ? $arGlobalProperties[$prop_code] : $arDirProperties[$prop_code];
-	if (strlen($value) <= 0)
-		$value = $APPLICATION->GetDirProperty($prop_code, array($site, $path));
-?>
-<tr>
-	<td><?echo $arFilemanProperties[$prop_code] ? $arFilemanProperties[$prop_code] : GetMessage('SEO_PAGE_PROPERTY_WINDOW_TITLE')?> (&lt;TITLE&gt;): <?echo SeoShowHelp('property_window_title')?></td>
-	<td><input type="text" name="property_<?echo htmlspecialcharsEx($prop_code)?>" value="<?=htmlspecialcharsEx($value)?>" size="50" /></td>
-</tr>
-<?
-	if ($value != $titleWinFinal):
-	?>
-<tr>
-	<td valign="top"><?echo $arFilemanProperties[$prop_code] ? $arFilemanProperties[$prop_code] : GetMessage('SEO_PAGE_PROPERTY_WINDOW_TITLE')?> (<?echo GetMessage('SEO_PAGE_WINDOW_TITLE_CURRENT')?>): <?echo SeoShowHelp('current_window_title')?></td>
-	<td valign="top">
+<?if ($bReadOnly):?>
+	<tr>
+		<td>
+			<?echo
+			BeginNote(),GetMessage('SEO_PAGE_ERROR_FOLDER_ACCESS', array(
+				'#F'=>$path)
+			), EndNote()
+			?>
+		</td>
+	</tr>
+<?else:?>
+	
+	<tr>
+		<td><?echo GetMessage('SEO_PAGE_BASE_TITLE')?> (&lt;H1&gt;): <?echo SeoShowHelp('base_title')?></td>
+		<td><input type="text" name="pageTitle" value="<?=htmlspecialcharsEx($pageTitle)?>"  size="50" /></td>
+	</tr>
 	<?
-		if ($titleWinChangerLink)
-		{
-			$titleWinChangerLink = preg_replace(
-				"/jsPopup.ShowDialog\('(.*?)',([^\)]*)\)/is",
-				"jsPopup_subdialog.ShowDialog('\\1&subdialog=Y&suffix=subdialog',\\2)",
-				$titleWinChangerLink
-			);
-
-			$titleWinChangerLink = preg_replace(
-				"/BX.CAdminDialog[\s]*\([\s]*\{(.*?)'content_url'[\s]*:[\s]*'(.*?)'/is",
-				"BX.CAdminDialog({\\1'content_url':'\\2&subdialog=Y'",
-				$titleWinChangerLink
-			);
-		}
+	if ($titleFinal != $pageTitle):
 	?>
-		<b><?echo htmlspecialcharsEx($titleWinFinal)?></b>&nbsp;<?if ($titleWinChangerName != ''):?>(<?echo htmlspecialcharsbx($titleWinChangerName)?>)&nbsp;<?endif;?><?if ($titleWinChangerLink):?><br /><a href="<?echo htmlspecialcharsbx($titleWinChangerLink, ENT_QUOTES)?>"><?echo GetMessage('SEO_PAGE_CURRENT_TITLE_EDIT')?></a><?endif;?>
+	<tr>
+		<td valign="top"><?echo GetMessage('SEO_PAGE_CURRENT_TITLE')?>: <?echo SeoShowHelp('current_title')?></td>
+		<td valign="top">
+	<script>
+	window.jsPopup_subdialog = new JCPopup({'suffix':'subdialog', 'zIndex':parseInt(jsPopup.zIndex)+20});
+	</script>
+	<?
+	if ($titleChangerLink)
+	{
+		$titleChangerLink = preg_replace(
+			"/jsPopup.ShowDialog\('(.*?)',([^\)]*)\)/is",
+			"jsPopup_subdialog.ShowDialog('\\1&subdialog=Y&suffix=subdialog',\\2)",
+			$titleChangerLink
+		);
+	
+		$titleChangerLink = preg_replace(
+			"/BX.CAdminDialog[\s]*\([\s]*\{(.*?)'content_url'[\s]*:[\s]*'(.*?)'/is",
+			"BX.CAdminDialog({\\1'content_url':'\\2&subdialog=Y'",
+			$titleChangerLink
+		);
+	}
+	?>
+			<b><?echo htmlspecialcharsEx($titleFinal)?></b>&nbsp;<?if ($titleChangerName != ''):?>(<?echo htmlspecialcharsbx($titleChangerName)?>)&nbsp;<?endif;?><?if ($titleChangerLink):?><br /><a href="<?echo htmlspecialcharsbx($titleChangerLink, ENT_QUOTES);?>"><?echo GetMessage('SEO_PAGE_CURRENT_TITLE_EDIT')?></a><?endif;?>
 	</tr>
 	<?
 	endif;
-endif;
-
-$arEditProperties = array();
-if ($prop_code = COption::GetOptionString('seo', 'property_keywords', 'keywords')) $arEditProperties['keywords'] = htmlspecialcharsbx($prop_code);
-if ($prop_code = COption::GetOptionString('seo', 'property_description', 'description')) $arEditProperties['description'] = htmlspecialcharsbx($prop_code);
-
-foreach ($arEditProperties as $key => $prop_code):
-	$value = $arGlobalProperties[$prop_code];
-?>
-<tr>
-	<td><?echo $arFilemanProperties[$prop_code]?>: <?echo SeoShowHelp('property_'.$key)?></td>
-	<td><input type="hidden" name="PROPERTY[<?=$prop_code?>][CODE]" value="<?=htmlspecialcharsEx($prop_code)?>" />
-	<?
-	if (strlen($value) <= 0):
-		$value = $APPLICATION->GetDirProperty($prop_code, array($site, $path));
+	
+	if ($prop_code = COption::GetOptionString('seo', 'property_window_title', 'title')):
+		$value = $arGlobalProperties[$prop_code] ? $arGlobalProperties[$prop_code] : $arDirProperties[$prop_code];
+		if (strlen($value) <= 0)
+			$value = $APPLICATION->GetDirProperty($prop_code, array($site, $path));
 	?>
-		<div id="bx_view_property_<?=$prop_code?>" style="overflow:hidden;padding:2px 12px 2px 2px; border:1px solid #F8F9FC; width:90%; cursor:text; box-sizing:border-box; -moz-box-sizing:border-box;background-color:transparent; background-position:right; background-repeat:no-repeat; height: 22px;" onclick="BXEditProperty('<?=$prop_code?>')" onmouseover="this.style.borderColor = '#434B50 #ADC0CF #ADC0CF #434B50';" onmouseout="this.style.borderColor = '#F8F9FC'" class="edit-field"><?=htmlspecialcharsEx($value)?></div>
-
-		<div id="bx_edit_property_<?=$prop_code?>" style="display:none;"></div>
+	<tr>
+		<td><?echo $arFilemanProperties[$prop_code] ? $arFilemanProperties[$prop_code] : GetMessage('SEO_PAGE_PROPERTY_WINDOW_TITLE')?> (&lt;TITLE&gt;): <?echo SeoShowHelp('property_window_title')?></td>
+		<td><input type="text" name="property_<?echo htmlspecialcharsEx($prop_code)?>" value="<?=htmlspecialcharsEx($value)?>" size="50" /></td>
+	</tr>
 	<?
-	else:
-	?>
-		<input type="text" name="PROPERTY[<?=$prop_code?>][VALUE]" value="<?=htmlspecialcharsEx($value)?>" size="50" /></td>
-	<?
+		if ($value != $titleWinFinal):
+		?>
+	<tr>
+		<td valign="top"><?echo $arFilemanProperties[$prop_code] ? $arFilemanProperties[$prop_code] : GetMessage('SEO_PAGE_PROPERTY_WINDOW_TITLE')?> (<?echo GetMessage('SEO_PAGE_WINDOW_TITLE_CURRENT')?>): <?echo SeoShowHelp('current_window_title')?></td>
+		<td valign="top">
+		<?
+			if ($titleWinChangerLink)
+			{
+				$titleWinChangerLink = preg_replace(
+					"/jsPopup.ShowDialog\('(.*?)',([^\)]*)\)/is",
+					"jsPopup_subdialog.ShowDialog('\\1&subdialog=Y&suffix=subdialog',\\2)",
+					$titleWinChangerLink
+				);
+	
+				$titleWinChangerLink = preg_replace(
+					"/BX.CAdminDialog[\s]*\([\s]*\{(.*?)'content_url'[\s]*:[\s]*'(.*?)'/is",
+					"BX.CAdminDialog({\\1'content_url':'\\2&subdialog=Y'",
+					$titleWinChangerLink
+				);
+			}
+		?>
+			<b><?echo htmlspecialcharsEx($titleWinFinal)?></b>&nbsp;<?if ($titleWinChangerName != ''):?>(<?echo htmlspecialcharsbx($titleWinChangerName)?>)&nbsp;<?endif;?><?if ($titleWinChangerLink):?><br /><a href="<?echo htmlspecialcharsbx($titleWinChangerLink, ENT_QUOTES)?>"><?echo GetMessage('SEO_PAGE_CURRENT_TITLE_EDIT')?></a><?endif;?>
+		</tr>
+		<?
+		endif;
 	endif;
+	
+	$arEditProperties = array();
+	if ($prop_code = COption::GetOptionString('seo', 'property_keywords', 'keywords')) $arEditProperties['keywords'] = htmlspecialcharsbx($prop_code);
+	if ($prop_code = COption::GetOptionString('seo', 'property_description', 'description')) $arEditProperties['description'] = htmlspecialcharsbx($prop_code);
+	
+	foreach ($arEditProperties as $key => $prop_code):
+		$value = $arGlobalProperties[$prop_code];
 	?>
-</tr>
-<?
-endforeach;
-?>
+	<tr>
+		<td><?echo $arFilemanProperties[$prop_code]?>: <?echo SeoShowHelp('property_'.$key)?></td>
+		<td><input type="hidden" name="PROPERTY[<?=$prop_code?>][CODE]" value="<?=htmlspecialcharsEx($prop_code)?>" />
+		<?
+		if (strlen($value) <= 0):
+			$value = $APPLICATION->GetDirProperty($prop_code, array($site, $path));
+		?>
+			<div id="bx_view_property_<?=$prop_code?>" style="overflow:hidden;padding:2px 12px 2px 2px; border:1px solid #F8F9FC; width:90%; cursor:text; box-sizing:border-box; -moz-box-sizing:border-box;background-color:transparent; background-position:right; background-repeat:no-repeat; height: 22px;" onclick="BXEditProperty('<?=$prop_code?>')" onmouseover="this.style.borderColor = '#434B50 #ADC0CF #ADC0CF #434B50';" onmouseout="this.style.borderColor = '#F8F9FC'" class="edit-field"><?=htmlspecialcharsEx($value)?></div>
+	
+			<div id="bx_edit_property_<?=$prop_code?>" style="display:none;"></div>
+		<?
+		else:
+		?>
+			<input type="text" name="PROPERTY[<?=$prop_code?>][VALUE]" value="<?=htmlspecialcharsEx($value)?>" size="50" /></td>
+		<?
+		endif;
+		?>
+	</tr>
+	<?
+	endforeach;
+	?>
+<?endif;?>
 <?
 /********************************/
 /* searchers indexing stats tab */
@@ -973,7 +1001,8 @@ window.BXUpdateKeywordsStats = function(data)
 {
 	BX.closeWait();
 
-	var obTable = document.getElementById('bx_seo_words_table')
+	var obTable = document.getElementById('bx_seo_words_table');
+	var newKeywords = [];
 
 	if (null != obTable)
 	{
@@ -983,6 +1012,8 @@ window.BXUpdateKeywordsStats = function(data)
 
 		for (var i = 0; i < data.length; i++)
 		{
+//			collect new keywords string
+			newKeywords.push(data[i][0]);
 			var obRow = obTable.insertRow(-1);
 
 			obRow.insertCell(-1).appendChild(document.createTextNode(data[i][0]));
@@ -995,15 +1026,19 @@ window.BXUpdateKeywordsStats = function(data)
 			obRow.cells[0].style.textAlign = 'left';
 
 		}
+		
+//		print new keywords string
+		if(newKeywords.length > 0)
+		{
+			BX('internal_keywords').value = newKeywords.join(', ');
+		}
 	}
 }
 <?
-if (!$bReadOnly):
 ?>
 window.BXCallUpdateKeywordsStats = function(keywords)
 {
 	BX.showWait();
-
 	BX.ajax({
 		url: '/bitrix/tools/seo_page_parser.php?lang=<?=LANGUAGE_ID?>&site=<?=$site?>&url=<?echo CUtil::JSEScape(urlencode($back_url))?>&callback=set_keywords_stats&sessid=' + BX.bitrix_sessid(),
 		data: 'keywords=' + BX.util.urlencode(keywords),
@@ -1013,7 +1048,6 @@ window.BXCallUpdateKeywordsStats = function(keywords)
 	});
 }
 <?
-endif;
 ?>
 window.arTabsLoaded = {};
 window.BXLoadTab = function(tab)

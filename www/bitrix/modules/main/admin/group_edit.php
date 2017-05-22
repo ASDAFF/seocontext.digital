@@ -779,6 +779,7 @@ $tabControl->BeginNextTab();
 			$rsData = CGroup::GetList($by, $order, array("ACTIVE"=>"Y", "ADMIN"=>"N", "ANONYMOUS"=>"N"));
 			while($arRes = $rsData->Fetch())
 			{
+				$arRes['ID'] = intval($arRes['ID']);
 				if ($arRes['ID'] == $ID)
 					continue;
 				if($strError <> '' && is_array($_REQUEST["subordinate_groups"]))

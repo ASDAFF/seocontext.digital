@@ -20,7 +20,10 @@ elseif ($USER->IsAuthorized())
 
 $arResult["ajaxControllerURL"] = $this->GetFolder()."/ajax.php";
 
-if ($arResult["MODE"] == "AJAX")
+if (
+	SITE_TEMPLATE_ID === 'bitrix24'
+	|| $arResult["MODE"] == "AJAX"
+)
 {
 	CJSCore::Init(array('socnetlogdest'));
 
@@ -39,10 +42,12 @@ if ($arResult["MODE"] == "AJAX")
 	$arResult["TO_DEST"] = array(
 		"SORT" => CSocNetLogDestination::GetDestinationSort(array(
 			"DEST_CONTEXT" => "FEED_FILTER_TO",
-			"ALLOW_EMAIL_INVITATION" => true
+			"ALLOW_EMAIL_INVITATION" => (IsModuleInstalled('mail') && IsModuleInstalled('intranet'))
 		)),
 		"LAST" => array(),
-		"ITEMS" => array()
+		"ITEMS" => array(
+			"USERS" => array()
+		)
 	);
 
 	CSocNetLogDestination::fillLastDestination($arResult["CREATED_BY_DEST"]["SORT"], $arResult["CREATED_BY_DEST"]["LAST"]);
@@ -121,7 +126,7 @@ if ($arResult["MODE"] == "AJAX")
 			'select' => $arSelect
 		));
 
-		while($arUser = $dbUsers->Fetch())
+		while($arUser = $dbUsers->fetch())
 		{
 			if (intval($siteDepartmentID) > 0)
 			{
@@ -239,4 +244,10 @@ if ($arResult["MODE"] == "AJAX")
 		}
 	}
 }
+
+if (SITE_TEMPLATE_ID === 'bitrix24')
+{
+	$arResult["EnableFulltextSearch"] = \Bitrix\Socialnetwork\LogIndexTable::getEntity()->fullTextIndexEnabled("CONTENT");
+}
+
 ?>

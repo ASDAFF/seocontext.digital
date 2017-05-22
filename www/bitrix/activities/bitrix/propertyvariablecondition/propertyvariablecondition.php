@@ -159,6 +159,12 @@ class CBPPropertyVariableCondition
 				$v1 = $v1Tmp;
 			}
 
+			if ($type === 'bool')
+			{
+				$f1 = CBPHelper::getBool($f1);
+				$v1 = CBPHelper::getBool($v1);
+			}
+
 			switch ($operation)
 			{
 				case ">":

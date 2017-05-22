@@ -207,4 +207,10 @@ $MESS["MAIN_OPTIONS_URL_PREVIEW"] = "Богатые ссылки";
 $MESS["MAIN_OPTION_URL_PREVIEW_ENABLE"] = "Включить богатые ссылки:";
 $MESS["MAIN_OPTION_URL_PREVIEW_SAVE_IMAGES"] = "Сохранять изображения локально:";
 $MESS["main_sett_public_panel_hide"] = "Никогда не показывать панель для пользователей:";
+$MESS["MAIN_OPTIONS_UPDATE_DEVSRV"] = "Установка для разработки:";
+$MESS["MAIN_OPTIONS_USE_CAPTCHA"] = "Использовать CAPTCHA при восстановлении пароля:";
+$MESS["MAIN_OPTIONS_IMAGES"] = "Изображения в профиле пользователя";
+$MESS["MAIN_OPTIONS_IMAGES_WIDTH"] = "Максимальная ширина в пикселях:";
+$MESS["MAIN_OPTIONS_IMAGES_HEIGHT"] = "Максимальная высота в пикселях:";
+$MESS["MAIN_OPTIONS_IMAGES_SIZE"] = "Максимальный размер файла в байтах:";
 ?>

@@ -133,7 +133,10 @@ class CAllBlogComment
 			);
 
 			if($arResult["PUBLISH_STATUS"] == BLOG_PUBLISH_STATUS_PUBLISH)
-				CBlogPost::Update($arResult["POST_ID"], array("=NUM_COMMENTS" => "NUM_COMMENTS - 1"));
+				CBlogPost::Update($arResult["POST_ID"], array(
+					"=NUM_COMMENTS" => "NUM_COMMENTS - 1",
+					"=NUM_COMMENTS_ALL" => "NUM_COMMENTS_ALL - 1"
+				));
 
 			$res = CBlogImage::GetList(array(), array("BLOG_ID" => $arResult["BLOG_ID"], "POST_ID"=>$arResult["POST_ID"], "IS_COMMENT" => "Y", "COMMENT_ID" => $ID));
 			while($aImg = $res->Fetch())
@@ -177,7 +180,7 @@ class CAllBlogComment
 				"SELECT C.ID, C.BLOG_ID, C.POST_ID, C.PARENT_ID, C.AUTHOR_ID, C.AUTHOR_NAME, ".
 				"	C.AUTHOR_EMAIL, C.AUTHOR_IP, C.AUTHOR_IP1, C.TITLE, C.POST_TEXT, ".
 				"	".$DB->DateToCharFunction("C.DATE_CREATE", "FULL")." as DATE_CREATE, ".
-				"	C.PUBLISH_STATUS, C.PATH ".
+				"	C.PUBLISH_STATUS, C.PATH, C.SHARE_DEST ".
 				"FROM b_blog_comment C ".
 				"WHERE C.ID = ".$ID."";
 			$dbResult = $DB->Query($strSql, False, "File: ".__FILE__."<br>Line: ".__LINE__);
@@ -238,6 +241,7 @@ class CAllBlogComment
 						else
 							$serverName = COption::GetOptionString("main", "server_name", "");
 					}
+					$serverName = \Bitrix\Main\Text\HtmlFilter::encode($serverName);
 
 					if (strlen($charset) <= 0)
 					{
@@ -248,14 +252,14 @@ class CAllBlogComment
 					}
 
 					if(strlen($arPathTemplate["PATH_TO_BLOG"])>0)
-						$blogURL = htmlspecialcharsbx("http://".$serverName.CComponentEngine::MakePathFromTemplate($arPathTemplate["PATH_TO_BLOG"], array("blog" => $arBlog["URL"], "user_id" => $arBlog["OWNER_ID"], "group_id" => $arBlog["SOCNET_GROUP_ID"])));
+						$blogURL = "http://".$serverName.htmlspecialcharsbx(CComponentEngine::MakePathFromTemplate($arPathTemplate["PATH_TO_BLOG"], array("blog" => $arBlog["URL"], "user_id" => $arBlog["OWNER_ID"], "group_id" => $arBlog["SOCNET_GROUP_ID"])));
 					else
-						$blogURL = htmlspecialcharsbx("http://".$serverName.CBlog::PreparePath($arBlog["URL"], $arGroup["SITE_ID"]));
+						$blogURL = "http://".$serverName.htmlspecialcharsbx(CBlog::PreparePath($arBlog["URL"], $arGroup["SITE_ID"]));
 
 					if(strlen($arPathTemplate["PATH_TO_POST"])>0)
-						$url = htmlspecialcharsbx("http://".$serverName.CComponentEngine::MakePathFromTemplate($arPathTemplate["PATH_TO_POST"], array("blog" => $arBlog["URL"], "post_id" => CBlogPost::GetPostID($arPost["ID"], $arPost["CODE"], $arPathTemplate["ALLOW_POST_CODE"]), "user_id" => $arBlog["OWNER_ID"], "group_id" => $arBlog["SOCNET_GROUP_ID"])));
+						$url = "http://".$serverName.htmlspecialcharsbx(CComponentEngine::MakePathFromTemplate($arPathTemplate["PATH_TO_POST"], array("blog" => $arBlog["URL"], "post_id" => CBlogPost::GetPostID($arPost["ID"], $arPost["CODE"], $arPathTemplate["ALLOW_POST_CODE"]), "user_id" => $arBlog["OWNER_ID"], "group_id" => $arBlog["SOCNET_GROUP_ID"])));
 					else
-						$url = htmlspecialcharsbx("http://".$serverName.CBlogPost::PreparePath($arBlog["URL"], $arPost["ID"], $arGroup["SITE_ID"]));
+						$url = "http://".$serverName.htmlspecialcharsbx(CBlogPost::PreparePath($arBlog["URL"], $arPost["ID"], $arGroup["SITE_ID"]));
 
 					$dbUser = CUser::GetByID($arPost["AUTHOR_ID"]);
 					$arUser = $dbUser->Fetch();
@@ -298,7 +302,7 @@ class CAllBlogComment
 					}
 					elseif ($type == "atom.03")
 					{
-						$atomID = "tag:".htmlspecialcharsbx($serverName).",".date("Y-m-d").":".$postID;
+						$atomID = "tag:".$serverName.",".date("Y-m-d").":".$postID;
 
 						$rssText .= "<"."?xml version=\"1.0\" encoding=\"".$charset."\"?".">\n\n";
 						$rssText .= "<feed version=\"0.3\" xmlns=\"http://purl.org/atom/ns#\" xml:lang=\"".$language."\">\n";
@@ -311,9 +315,9 @@ class CAllBlogComment
 						$BlogUser = CBlogUser::GetByID($arPost["AUTHOR_ID"], BLOG_BY_USER_ID);
 						$authorP = htmlspecialcharsex(CBlogUser::GetUserName($BlogUser["ALIAS"], $arUser["NAME"], $arUser["LAST_NAME"], $arUser["LOGIN"], $arUser["SECOND_NAME"]));
 						if(strLen($arPathTemplate["PATH_TO_USER"])>0)
-							$authorURLP = htmlspecialcharsbx("http://".$serverName.CComponentEngine::MakePathFromTemplate($arPathTemplate["PATH_TO_USER"], array("user_id"=>$arPost["AUTHOR_ID"])));
+							$authorURLP = "http://".$serverName.htmlspecialcharsbx(CComponentEngine::MakePathFromTemplate($arPathTemplate["PATH_TO_USER"], array("user_id"=>$arPost["AUTHOR_ID"])));
 						else
-							$authorURLP = "http://".$serverName.CBlogUser::PreparePath($arPost["AUTHOR_ID"], $arGroup["SITE_ID"]);
+							$authorURLP = "http://".$serverName.htmlspecialcharsbx(CBlogUser::PreparePath($arPost["AUTHOR_ID"], $arGroup["SITE_ID"]));
 
 						$rssText .= "  <author>\n";
 						$rssText .= "  		<name>".$authorP."</name>\n";
@@ -368,16 +372,16 @@ class CAllBlogComment
 								$url1 = $url."&amp;";
 							else
 								$url1 = $url."?";
-							$url1 .= "commentId=".$arComments["ID"]."#".$arComments["ID"];
+							$url1 .= "commentId=".$arComments["ID"]."#com".$arComments["ID"];
 
 							$authorURL = "";
 							if(IntVal($arComments["AUTHOR_ID"]) > 0)
 							{
 								$author = CBlogUser::GetUserName($arComments["BLOG_USER_ALIAS"], $arComments["USER_NAME"], $arComments["USER_LAST_NAME"], $arComments["USER_LOGIN"], $arComments["USER_SECOND_NAME"]);
 								if(strLen($arPathTemplate["PATH_TO_USER"])>0)
-									$authorURL = htmlspecialcharsbx("http://".$serverName.CComponentEngine::MakePathFromTemplate($arPathTemplate["PATH_TO_USER"], array("user_id"=>$arComments["AUTHOR_ID"])));
+									$authorURL = "http://".$serverName.htmlspecialcharsbx(CComponentEngine::MakePathFromTemplate($arPathTemplate["PATH_TO_USER"], array("user_id"=>$arComments["AUTHOR_ID"])));
 								else
-									$authorURL = htmlspecialcharsbx("http://".$serverName.CBlogUser::PreparePath($arComments["AUTHOR_ID"], $arGroup["SITE_ID"]));
+									$authorURL = "http://".$serverName.htmlspecialcharsbx(CBlogUser::PreparePath($arComments["AUTHOR_ID"], $arGroup["SITE_ID"]));
 							}
 							else
 								$author = $arComments["AUTHOR_NAME"];
@@ -427,7 +431,7 @@ class CAllBlogComment
 							}
 							elseif ($type == "atom.03")
 							{
-								$atomID = "tag:".htmlspecialcharsbx($serverName).":".$arBlog["URL"]."/".$arPost["ID"];
+								$atomID = "tag:".$serverName.":".$arBlog["URL"]."/".$arPost["ID"];
 
 								$timeISO = mktime($arDate["HH"], $arDate["MI"], $arDate["SS"], $arDate["MM"], $arDate["DD"], $arDate["YYYY"]);
 								$dateISO = date("Y-m-d\TH:i:s", $timeISO).substr(date("O", $timeISO), 0, 3).":".substr(date("O", $timeISO), -2, 2);
@@ -465,7 +469,7 @@ class CAllBlogComment
 		return $rssText;
 	}
 
-	function _IndexPostComments($arParams = Array())
+	public static function _IndexPostComments($arParams = Array())
 	{
 		if(IntVal($arParams["BLOG_ID"]) <= 0 || IntVal($arParams["POST_ID"]) <= 0 || !CModule::IncludeModule("search"))
 			return false;
@@ -608,7 +612,7 @@ class CAllBlogComment
 							INNER JOIN b_blog_socnet_rights SR ON (C.POST_ID = SR.POST_ID AND SR.ENTITY_TYPE='".$type."' AND SR.ENTITY_ID=".$entity_id." AND SR.ENTITY = '".$type2.$entity_id."')", false, "File: ".__FILE__."<br>Line: ".__LINE__);
 	}
 
-	function GetSocNetCommentPerms($postID = 0)
+	public static function GetSocNetCommentPerms($postID = 0)
 	{
 		$postID = IntVal($postID);
 		if($postID <= 0)
@@ -855,7 +859,7 @@ class CAllBlogComment
 		return $perms;
 	}
 
-	function GetMentionedUserID($arFields)
+	public static function GetMentionedUserID($arFields)
 	{
 		$arMentionedUserID = array();
 
@@ -894,7 +898,7 @@ class CAllBlogComment
 			$arParams["SHOW_RATING"] = ($arParams["SHOW_RATING"] == "N" ? "N" : "Y");
 
 			$arParams["PATH_TO_USER"] = (isset($arParams["PATH_TO_USER"]) ? $arParams["PATH_TO_USER"] : '');
-			$arParams["AVATAR_SIZE_COMMENT"] = ($arParams["AVATAR_SIZE_COMMENT"] > 0 ? $arParams["AVATAR_SIZE_COMMENT"] : ($arParams["AVATAR_SIZE"] > $arParams["AVATAR_SIZE"] ? $arParams["AVATAR_SIZE"] : 58));
+			$arParams["AVATAR_SIZE_COMMENT"] = ($arParams["AVATAR_SIZE_COMMENT"] > 0 ? $arParams["AVATAR_SIZE_COMMENT"] : ($arParams["AVATAR_SIZE"] > $arParams["AVATAR_SIZE"] ? $arParams["AVATAR_SIZE"] : 100));
 			$arParams["NAME_TEMPLATE"] = isset($arParams["NAME_TEMPLATE"]) ? $arParams["NAME_TEMPLATE"] : CSite::GetNameFormat();
 			$arParams["SHOW_LOGIN"] = ($arParams["SHOW_LOGIN"] == "N" ? "N" : "Y");
 
@@ -932,14 +936,6 @@ class CAllBlogComment
 				$arAuthor["PERSONAL_PHOTO_RESIZED"] = array("src" => $image_resize["src"]);
 			}
 
-			$p = new blogTextParser(false, '');
-
-			$ufCode = "UF_BLOG_COMMENT_FILE";
-			if (is_array($comment["UF"][$ufCode]))
-			{
-				$p->arUserfields = array($ufCode => array_merge($comment["UF"][$ufCode], array("TAG" => "DOCUMENT ID")));
-			}
-
 			$arAllow = array("HTML" => "N", "ANCHOR" => "Y", "BIU" => "Y", "IMG" => "Y", "QUOTE" => "Y", "CODE" => "Y", "FONT" => "Y", "LIST" => "Y", "SMILES" => "Y", "NL2BR" => "N", "VIDEO" => "Y", "SHORT_ANCHOR" => "Y");
 			$arParserParams = Array(
 				"imageWidth" => 800,
@@ -951,10 +947,32 @@ class CAllBlogComment
 				$arParserParams["pathToUserEntityType"] = 'LOG_ENTRY';
 				$arParserParams["pathToUserEntityId"] = intval($arParams["LOG_ID"]);
 			}
-			$comment["TextFormated"] = $p->convert($comment["POST_TEXT"], false, array(), $arAllow, $arParserParams);
 
-			$p->bMobile = true;
-			$comment["TextFormatedMobile"] = $p->convert($comment["POST_TEXT"], false, array(), $arAllow, $arParserParams);
+			if ($commentAuxProvider = \Bitrix\Socialnetwork\CommentAux\Base::findProvider($comment))
+			{
+				$comment["AuxType"] = strtolower($commentAuxProvider->getType());
+				$comment["TextFormated"] = $commentAuxProvider->getText();
+
+				$commentAuxProvider->setOptions(array(
+					'mobile' => true
+				));
+				$comment["TextFormatedMobile"] = $commentAuxProvider->getText();
+			}
+			else
+			{
+				$p = new blogTextParser(false, '');
+				$ufCode = "UF_BLOG_COMMENT_FILE";
+				if (is_array($comment["UF"][$ufCode]))
+				{
+					$p->arUserfields = array($ufCode => array_merge($comment["UF"][$ufCode], array("TAG" => "DOCUMENT ID")));
+				}
+
+				$comment["TextFormated"] = $p->convert($comment["POST_TEXT"], false, array(), $arAllow, $arParserParams);
+				$p->bMobile = true;
+				$comment["TextFormatedMobile"] = $p->convert($comment["POST_TEXT"], false, array(), $arAllow, $arParserParams);
+			}
+
+
 			$comment["TextFormatedJS"] = CUtil::JSEscape(htmlspecialcharsBack($comment["POST_TEXT"]));
 			$comment["TITLE"] = CUtil::JSEscape(htmlspecialcharsBack($comment["TITLE"]));
 
@@ -992,6 +1010,8 @@ class CAllBlogComment
 						$commentId => array(
 							"ID" => $comment["ID"],
 							"NEW" => ($arParams["FOLLOW"] != "N" && $comment["NEW"] == "Y" ? "Y" : "N"),
+							"AUX" => (!empty($arParams["AUX"]) ? $arParams["AUX"] : ''),
+							"AUX_LIVE_PARAMS" => (!empty($arParams["AUX_LIVE_PARAMS"]) ? $arParams["AUX_LIVE_PARAMS"] : ''),
 							"APPROVED" => ($comment["PUBLISH_STATUS"] == BLOG_PUBLISH_STATUS_PUBLISH ? "Y" : "N"),
 							"POST_TIMESTAMP" => $timestamp,
 							"POST_TIME" => $comment["DATE_CREATE_TIME"],

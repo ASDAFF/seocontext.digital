@@ -48,7 +48,13 @@ abstract class CBPCompositeActivity
 		foreach ($this->arActivities as $activity)
 			$this->workflow->InitializeActivity($activity);
 	}
-	
+
+	public function Finalize()
+	{
+		foreach ($this->arActivities as $activity)
+			$this->workflow->FinalizeActivity($activity);
+	}
+
 	public function HandleFault(Exception $exception)
 	{
 		if (!$exception)

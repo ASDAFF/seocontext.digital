@@ -515,4 +515,12 @@ abstract class Entity
 		return new Result();
 	}
 
+	/**
+	 * @internal
+	 */
+	public function clearChanged()
+	{
+		$this->fields->clearChanged();
+	}
+
 }

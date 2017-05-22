@@ -23,10 +23,12 @@ require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/lib/loader.php");
 		"bitrix\\main\\argumenttypeexception" => "lib/exception.php",
 		"bitrix\\main\\notimplementedexception" => "lib/exception.php",
 		"bitrix\\main\\notsupportedexception" => "lib/exception.php",
+		"bitrix\\main\\invalidoperationexception" => "lib/exception.php",
 		"bitrix\\main\\objectpropertyexception" => "lib/exception.php",
 		"bitrix\\main\\objectnotfoundexception" => "lib/exception.php",
 		"bitrix\\main\\objectexception" => "lib/exception.php",
 		"bitrix\\main\\systemexception" => "lib/exception.php",
+		"bitrix\\main\\accessdeniedexception" => "lib/exception.php",
 		"bitrix\\main\\io\\invalidpathexception" => "lib/io/ioexception.php",
 		"bitrix\\main\\io\\filenotfoundexception" => "lib/io/ioexception.php",
 		"bitrix\\main\\io\\filedeleteexception" => "lib/io/ioexception.php",
@@ -121,6 +123,7 @@ require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/lib/loader.php");
 		"bitrix\\main\\sendereventhandler" => "lib/senderconnector.php",
 		"bitrix\\main\\senderconnectoruser" => "lib/senderconnector.php",
 		"bitrix\\main\\urlrewriterrulemaker" => "lib/urlrewriter.php",
+		"bitrix\\main\\update\\stepper" => "lib/update/stepper.php",
 		"CTimeZone" => "classes/general/time.php",
 	)
 );

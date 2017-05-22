@@ -450,6 +450,38 @@ class PropertyValue
 		return $this->property['UTIL'] == 'Y';
 	}
 
+	/**
+	 * @internal
+	 *
+	 * Delete order properties.
+	 * 
+	 * @param $idOrder
+	 * @return Result
+	 * @throws \Bitrix\Main\ObjectNotFoundException
+	 */
+	public static function deleteNoDemand($idOrder)
+	{
+		$result = new Result();
+		
+		$propertiesDataList = Internals\OrderPropsValueTable::getList(
+			array(
+				"filter" => array("=ORDER_ID" => $idOrder),
+				"select" => array("ID")
+			)	
+		);
+		
+		while ($property = $propertiesDataList->fetch())
+		{
+			$r = Internals\OrderPropsValueTable::delete($property['ID']);
+			if (!$r->isSuccess())
+			{
+				$result->addErrors($r->getErrors());
+			}
+		}
+		
+		return $result;
+	}
+	
 	public static function getMeaningfulValues($personTypeId, $request)
 	{
 		$personTypeId = intval($personTypeId);

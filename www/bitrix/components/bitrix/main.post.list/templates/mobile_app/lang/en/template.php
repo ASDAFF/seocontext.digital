@@ -11,4 +11,5 @@ $MESS["BPC_MES_VOTE"] = "Liked by";
 $MESS["BPC_MES_VOTE1"] = "Like";
 $MESS["BPC_MES_VOTE2"] = "Dislike";
 $MESS["INCORRECT_SERVER_RESPONSE"] = "Incorrect server response.";
+$MESS["BPC_MES_CREATETASK"] = "Create task";
 ?>

@@ -175,4 +175,7 @@ $MESS["SONET_LOG_TOALL_RIGHTS_ADD"] = "Добавить";
 $MESS["SONET_LOG_TOALL_RIGHTS"] = "Права на доступ к адресации \"Всем\"";
 $MESS["SONET_LOG_TOALL_DEL"] = "удалить";
 $MESS["SONET_LOG_EMAIL_USERS_ALL"] = "Отображать всех почтовых получателей";
+$MESS["SONET_USE_WORKGROUP_CHAT"] = "Разрешить чаты в рабочих группах";
+$MESS["SONET_USE_LF_FULLTEXT_INDEX"] = "Использовать полнотекстовый индекс в живой ленте";
+$MESS["SONET_USE_LF_FULLTEXT_INDEX_ERROR"] = "Ошибка включения полнотекстового поиска";
 ?>

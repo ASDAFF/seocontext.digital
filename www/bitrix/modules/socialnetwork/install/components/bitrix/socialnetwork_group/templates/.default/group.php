@@ -1,11 +1,15 @@
-<?if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();?>
+<?if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
+/** @var CBitrixComponentTemplate $this */
+/** @var array $arParams */
+/** @var array $arResult */
+/** @global CDatabase $DB */
+/** @global CUser $USER */
+/** @global CMain $APPLICATION */
+$component = $this->getComponent();
 
-<?
 $pageId = "group";
 include("util_group_menu.php");
-?>
 
-<?
 $APPLICATION->IncludeComponent(
 	"bitrix:socialnetwork.group",
 	"",
@@ -47,14 +51,12 @@ $APPLICATION->IncludeComponent(
 		"PATH_TO_GROUP_SUBSCRIBE" => $arResult["PATH_TO_GROUP_SUBSCRIBE"],
 		"PATH_TO_MESSAGE_TO_GROUP" => $arResult["PATH_TO_MESSAGE_TO_GROUP"],
 		"BLOG_GROUP_ID" => $arParams["BLOG_GROUP_ID"],
-		"TASK_IBLOCK_ID" => $arParams["TASK_IBLOCK_ID"],
 		"TASK_VAR" => $arResult["ALIASES"]["task_id"],
 		"TASK_ACTION_VAR" => $arResult["ALIASES"]["action"],
 		"PATH_TO_GROUP_TASKS" => $arResult["PATH_TO_GROUP_TASKS"],
 		"PATH_TO_GROUP_TASKS_TASK" => $arResult["PATH_TO_GROUP_TASKS_TASK"],
 		"PATH_TO_GROUP_TASKS_VIEW" => $arResult["PATH_TO_GROUP_TASKS_VIEW"],
 		"PATH_TO_GROUP_CONTENT_SEARCH" => $arResult["PATH_TO_GROUP_CONTENT_SEARCH"],		
-		"TASKS_FIELDS_SHOW" => $arParams["TASKS_FIELDS_SHOW"],
 		"TASK_FORUM_ID" => $arParams["TASK_FORUM_ID"],
 		"THUMBNAIL_LIST_SIZE" => 30,
 		"PATH_TO_MESSAGES_CHAT" => $arParams["PATH_TO_MESSAGES_CHAT"],
@@ -87,4 +89,3 @@ $APPLICATION->IncludeComponent(
 	),
 	$component
 );
-?>

@@ -22,6 +22,8 @@ $MESS["SPOL_TPL_SUMOF"] = "на сумму";
 $MESS["SPOL_TPL_PAYMENT"] = "Оплата";
 $MESS["SPOL_TPL_BILL"] = "Счет";
 $MESS["SPOL_TPL_NOTPAID"] = "Не оплачено";
+$MESS["SPOL_TPL_RESTRICTED_PAID"] = "На проверке менеджером";
+$MESS["SOPL_TPL_RESTRICTED_PAID_MESSAGE"] = "<b>Обратите внимание:</b> оплата заказа будет доступна после подтверждения менеджером";
 $MESS["SPOL_TPL_PAID"] = "Оплачено";
 $MESS["SPOL_TPL_SUM_TO_PAID"] = "Сумма к оплате по счету";
 $MESS["SPOL_TPL_CHECK_POSTID"] = "проверить идентификатор отправления";
@@ -41,5 +43,6 @@ $MESS["SPOL_TPL_LOADED"] = "Отгружено";
 $MESS["SPOL_TPL_NOTLOADED"] = "Не отгружено";
 $MESS["SPOL_CANCEL_PAYMENT"] = "назад";
 $MESS["SPOL_ORDER_SHIPMENT_STATUS"] = "Статус отгрузки";
-
-
+$MESS["SPOL_CHECK_TITLE"] = "Список чеков";
+$MESS["SPOL_CHECK_NUM"] = "Чек №#CHECK_NUMBER#";
+?>

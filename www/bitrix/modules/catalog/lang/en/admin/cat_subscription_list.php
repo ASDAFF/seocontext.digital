@@ -9,6 +9,7 @@ $MESS["PSL_DATE_TO"] = "Subscription active until";
 $MESS["PSL_SITE_ID"] = "Website ID";
 $MESS["PSL_ITEM_ID"] = "Product ID";
 $MESS["PSL_ACTIVE"] = "Active";
+$MESS["PSL_PRODUCT_NAME"] = "Product name";
 $MESS["PSL_FILTER_ID"] = "ID";
 $MESS["PSL_FILTER_USER_ID"] = "User";
 $MESS["PSL_FILTER_USER_CONTACT"] = "User contact";

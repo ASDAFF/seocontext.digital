@@ -1,4 +1,8 @@
 ;
+/**
+ * @bxjs_lang_path mobile_designer.php
+ */
+
 (function ()
 {
 	if (window.BX.app) return;
@@ -14,6 +18,7 @@
 			CONFIG_CHANGED: "onEditorConfigChanged",
 			CONFIG_READY: "onEditorConfigReady",
 			CONFIG_LOADED: "onEditorConfigLoad",
+			CONFIG_LOADED_BEFORE: "onBeforeEditorConfigLoad",
 			CONFIG_SAVED: "onEditorConfigSaved",
 			APP_FILE_LIST_GOT: "onAppFileListGot",
 			VIEWER_ELEMENT_SET_SIZE: "onViewerElementSetSize",
@@ -187,7 +192,6 @@
 				}
 			}
 
-
 		},
 		Controls: {
 			Base: function (options)
@@ -229,8 +233,7 @@
 					{
 						this.input.value = value;
 					}
-					else
-					{
+					else {
 						this.input.options.selectedIndex = 0;
 					}
 				};
@@ -300,8 +303,7 @@
 							);
 						}
 					}
-					else
-					{
+					else {
 
 						BX.addCustomEvent(BX.Mobile.Events.CONFIG_READY, BX.proxy(function (editor)
 						{
@@ -310,14 +312,11 @@
 							{
 								this.setList(editor.config[this.params.list]);
 							}
-							else
-							{
+							else {
 								this.setList({});
 							}
 
-
 						}, this));
-
 
 						BX.addCustomEvent(BX.Mobile.Events.CONFIG_CHANGED, BX.proxy(function (param)
 						{
@@ -326,7 +325,6 @@
 							{
 								this.setList(param.value);
 							}
-
 
 						}, this))
 					}
@@ -343,7 +341,8 @@
 								events: {
 									"change": BX.proxy(function ()
 									{
-										this.setValue((this.input.options.selectedIndex != 0) ? this.input.value : "", true, false);
+										this.setValue((this.input.options.selectedIndex != 0) ? this.input.value : "",
+											true, false);
 
 									}, this)
 								}
@@ -365,6 +364,7 @@
 
 				this._getDisplayElement = function ()
 				{
+
 					this.displayElement = this.input = BX.create("INPUT", {
 						props: {
 							className: "designer-simple-string"
@@ -381,6 +381,44 @@
 							}, this)
 						}
 					});
+
+					if (typeof(options.params.enabledIf) != "undefined")
+					{
+						var conditions = options.params.enabledIf;
+
+						var checkConditions = BX.proxy(function (editor)
+						{
+							for (var cond in conditions)
+							{
+
+								if (!editor.config[cond] || (conditions[cond] != editor.config[cond]))
+								{
+									return false;
+								}
+							}
+
+							return true;
+
+						}, this);
+
+						BX.addCustomEvent(BX.Mobile.Events.CONFIG_READY, BX.proxy(function (editor)
+						{
+							this.displayElement.disabled = !checkConditions(editor);
+
+						}, this));
+
+						BX.addCustomEvent(BX.Mobile.Events.CONFIG_CHANGED, BX.proxy(function (param)
+							{
+								var disabled = this.displayElement.disabled;
+								this.displayElement.disabled = !checkConditions(this.editor);
+								if(!this.displayElement.disabled && disabled != this.displayElement.disabled)
+								{
+									BX.Mobile.Tools.highlight(this.displayElement.parentNode, [97, 140, 80], true);
+								}
+
+							}, this)
+						);
+					}
 
 					return this.displayElement;
 				};
@@ -404,15 +442,18 @@
 						events: {
 							"change": BX.proxy(function ()
 							{
-								if (this.params.limits["min"] && this.input.value < this.params.limits["min"])
+								if (this.params.limits)
 								{
-									this.input.value = this.params.limits["min"];
+									if (this.params.limits["min"] && this.input.value < this.params.limits["min"])
+									{
+										this.input.value = this.params.limits["min"];
+									}
 								}
+
 								this.setValue(this.input.value, true, false);
 							}, this)
 						}
 					});
-
 
 					this.input.setAttribute("placeholder", "0");
 					this.displayElement = BX.create("SPAN", {
@@ -444,14 +485,12 @@
 							this.image.src = (value.preview) ? value.preview : value.src;
 							BX.show(this.imageView);
 						}
-						else
-						{
+						else {
 							BX.hide(this.imageView);
 						}
 
 					}
-					else
-					{
+					else {
 						this.input.value = (value) ? value : "";
 						var src = this.imager.getSrcByID(value, true);
 						this.image.src = this.imager.getSrcByID(value, true);
@@ -459,8 +498,7 @@
 						{
 							BX.show(this.imageView);
 						}
-						else
-						{
+						else {
 							BX.hide(this.imageView);
 						}
 					}
@@ -558,6 +596,7 @@
 			Boolean: function (options)
 			{
 				BX.Mobile.Controls.Boolean.superclass.constructor.apply(this, [options]);
+
 				this._setValue = function (value)
 				{
 					var options = this.input.options;
@@ -575,8 +614,14 @@
 				{
 					var options = [];
 					var variants = ["YES", "NO"];
+					var defaultIndex = 0;
 					for (var i = 0; i < variants.length; i++)
 					{
+						if(this.params.default && this.params.default == variants[i])
+						{
+							defaultIndex = i;
+						}
+
 						options.push(
 							BX.create("OPTION", {
 								html: this.getMessage(variants[i]),
@@ -607,6 +652,8 @@
 							})
 						]
 					});
+
+					this.input.selectedIndex = defaultIndex;
 
 					return this.displayElement;
 				}
@@ -702,13 +749,11 @@
 				{
 					this.setCurrentProject(this.projects[this.initedApp]);
 				}
-				else
-				{
+				else {
 					this.setCurrentProject(this.projects[this.appSwitcher.activeApp]);
 				}
 			}
-			else
-			{
+			else {
 				this.showEmptyScreen();
 			}
 		},
@@ -735,8 +780,7 @@
 					}
 				);
 			}
-			else
-			{
+			else {
 				this.draw();
 			}
 
@@ -760,12 +804,10 @@
 			this.imager.setFileList(project.files);
 			this.editor.setSaved(true);
 
-
 			this.currentPlatform = false;
 			var configs = this.currentProject.config;
 			this.currentPlatformTab = false;
 			this.configList.innerHTML = "";
-
 
 			for (var platform in configs)
 			{
@@ -840,12 +882,12 @@
 									{
 										event.stopPropagation();
 									}
-									else
-									{
+									else {
 										event.cancelBubble = true;
 									}
 
-									_that.removePlatformConfig(event.target.getAttribute("data-platform"), event.target);
+									_that.removePlatformConfig(event.target.getAttribute("data-platform"),
+										event.target);
 								}
 							}
 
@@ -858,11 +900,11 @@
 		},
 		drawPanel: function ()
 		{
+			//noinspection JSValidateTypes
 			/**
 			 * @var BX.Mobile.Designer _that
 			 */
 			var _that = this;
-
 
 			this.configList = BX.create("SPAN");
 
@@ -899,7 +941,6 @@
 
 				if (_that.editor.getSaved() === false)
 					_that.save();
-
 
 				_that.setCurrentProject(_that.projects[code]);
 			});
@@ -999,22 +1040,15 @@
 									var qrwindow = new BX.PopupWindow('qrcode' + Math.random(), null, {
 										content: qrcode,
 										draggable: true,
-										titleBar: {
-											content: BX.create("SPAN", {
-												html: BX.message("MOBILEAPP_CONNECT_TO_APP_TITLE"),
-												attrs: {
-													style: "font-size:15px"
-												}
-											})
-										},
+										titleBar: BX.message("MOBILEAPP_CONNECT_TO_APP_TITLE"),
 										closeByEsc: true,
 										height: 500,
+										contentColor: "white",
 										overlay: {opacity: 500},
 										zIndex: 10000,
 										buttons: [
 											new BX.PopupWindowButton({
 												text: BX.message("MOBILEAPP_CONNECT_BUTTON_CLOSE"),
-												className: "popup-window-button",
 												events: {
 													click: BX.proxy(function ()
 													{
@@ -1024,7 +1058,6 @@
 											})
 										]
 									});
-
 
 									qrwindow.show();
 								}
@@ -1062,8 +1095,7 @@
 				this.imager.setFileList(this.currentProject.files);
 				BX.onCustomEvent(BX.Mobile.Events.APP_FILE_LIST_GOT, [this.currentProject.files]);
 			}
-			else
-			{
+			else {
 				this.executeRequest(
 					{
 						data: {
@@ -1139,15 +1171,13 @@
 					}
 
 				}
-				else
-				{
+				else {
 					element.setAttribute("data-error", "N");
 					element.style.backgroundColor = "#ffffff";
 
 				}
 
 				this.saveButton.disabled = !this.isValid();
-
 
 				BX.PreventDefault(e);
 			},
@@ -1262,8 +1292,9 @@
 												attrs: {
 													placeholder: BX.message("MOBILEAPP_APP_NAME")
 												},
-												events:{
-													"keyup": BX.proxy(function(){
+												events: {
+													"keyup": BX.proxy(function ()
+													{
 														this.saveButton.disabled = !this.isValid();
 													}, this)
 												}
@@ -1319,7 +1350,6 @@
 						]
 					}));
 
-
 				/**
 				 * Preset of public options
 				 */
@@ -1330,7 +1360,6 @@
 					html: BX.message("MOBILEAPP_CREATE_APP_PUBLIC_OPTIONS_TITLE")
 				}));
 				fields.push(BX.create("HR"));
-
 
 				fields.push(
 					BX.create("SPAN", {
@@ -1407,7 +1436,6 @@
 					})
 				);
 
-
 				this.templateList = BX.create("SELECT", {
 					props: {className: "adm-workarea adm-select"},
 					style: {width: "212px"},
@@ -1419,8 +1447,7 @@
 							{
 								BX.hide(this.templateFolderName);
 							}
-							else
-							{
+							else {
 								BX.show(this.templateFolderName);
 							}
 
@@ -1428,7 +1455,6 @@
 						}, this)
 					}
 				});
-
 
 				this.templateList.appendChild(BX.create("OPTION", {
 					html: BX.message("MOBILEAPP_CREATE_NEW_TEMPLATE"),
@@ -1462,7 +1488,6 @@
 						}));
 					}
 				}
-
 
 				fields.push(BX.create("DIV", {
 					props: {
@@ -1559,8 +1584,7 @@
 												}
 
 											}
-											else
-											{
+											else {
 												data["bindTemplate"] = "Y";
 												data["template_id"] = this.templateList.value;
 											}
@@ -1593,7 +1617,7 @@
 					children: fields
 				});
 
-				if(!this.inited)
+				if (!this.inited)
 				{
 					this.inited = true;
 					this.popup = new BX.PopupWindow('DesignerCreateForm' + Math.random(), null, {
@@ -1611,8 +1635,7 @@
 							this.popupError.close();
 					}))
 				}
-				else
-				{
+				else {
 					this.popup.setContent(formContent);
 				}
 
@@ -1721,8 +1744,7 @@
 
 							this.createConfigForm.close();
 						}
-						else
-						{
+						else {
 							alert("Error");
 						}
 					}, this),
@@ -1764,54 +1786,59 @@
 		},
 		removePlatformConfig: function (platform, node)
 		{
-			var appCode = this.currentProject.code;
-			this.executeRequest(
-				{
-					command: "removePlatform",
-					waitMessage: BX.message("MOBILEAPP_APP_REMOVE_CONFIG_WAIT"),
-					data: {
-						code: appCode,
-						platform: platform
-					},
-					onsuccess: BX.proxy(function (data)
+			if (confirm(BX.message("MOBILEAPP_REMOVE_CONFIG_ASK")))
+			{
+				var appCode = this.currentProject.code;
+				this.executeRequest(
 					{
-						if (data.status == "ok")
+						command: "removePlatform",
+						waitMessage: BX.message("MOBILEAPP_APP_REMOVE_CONFIG_WAIT"),
+						data: {
+							code: appCode,
+							platform: platform
+						},
+						onsuccess: BX.proxy(function (data)
 						{
-							node.parentNode.removeChild(node);
-							delete this.currentProject.config[platform];
-							this.setCurrentProject(this.currentProject);
-						}
-						else
+							if (data.status == "ok")
+							{
+								node.parentNode.removeChild(node);
+								delete this.currentProject.config[platform];
+								this.setCurrentProject(this.currentProject);
+							}
+							else {
+								alert("Error");
+							}
+						}, this),
+						onfailure: function (data)
 						{
-							alert("Error");
+							//handling error
 						}
-					}, this),
-					onfailure: function (data)
-					{
-						//handling error
-					}
-				});
+					});
+			}
 		},
 		removeApp: function (code)
 		{
-			this.executeRequest(
-				{
-					command: "removeApp",
-					data: {
-						"code": code
-					},
-					onsuccess: BX.proxy(function (data)
+			if (confirm(BX.message("MOBILEAPP_REMOVE_APP_ASK")))
+			{
+				this.executeRequest(
 					{
-						if (data.status == "ok")
+						command: "removeApp",
+						data: {
+							"code": code
+						},
+						onsuccess: BX.proxy(function (data)
 						{
-							this.removeProject(code);
+							if (data.status == "ok")
+							{
+								this.removeProject(code);
+							}
+						}, this),
+						onfailure: function (data)
+						{
+							//handling error
 						}
-					}, this),
-					onfailure: function (data)
-					{
-						//handling error
-					}
-				});
+					});
+			}
 		},
 		removeProject: function (code)
 		{
@@ -1823,8 +1850,7 @@
 			{
 				this.showEmptyScreen()
 			}
-			else
-			{
+			else {
 				this.setCurrentProject(this.projects[arrayProjects[0]]);
 			}
 		},
@@ -1836,12 +1862,10 @@
 				{
 					BX.showWait(null, params.waitMessage);
 				}
-				else
-				{
+				else {
 					BX.showWait();
 				}
 			}
-
 
 			var data = params.data || {};
 			data['sessid'] = BX.bitrix_sessid();
@@ -1919,7 +1943,6 @@
 					overlay: true,
 					zIndex: 100001
 				});
-
 
 				var firstParent = BX('file-selectdialog-designer').parentNode;
 				this.images = BX.create("DIV", {
@@ -2199,7 +2222,6 @@
 						}
 					});
 
-
 				}
 
 				this.inited = true;
@@ -2249,25 +2271,28 @@
 	BX.Mobile.Editor.prototype = {
 		loadConfig: function (config, platform)
 		{
-			this.config = (typeof config != "object") ? {} : BX.clone(config);
+			this.config = (typeof config != "object" || config == null) ? {} : BX.clone(config);
+
+			BX.onCustomEvent(BX.Mobile.Events.CONFIG_LOADED_BEFORE, [
+				{'platform': platform, 'config': config}
+			]);
 			for (var key in this.controlList)
 			{
-				this.controlList[key].setValue((this.config[key]) ? this.config[key] : "");
+				this.controlList[key].setValue((typeof this.config[key] != "undefined") ? this.config[key] : "");
 			}
 			BX.onCustomEvent(BX.Mobile.Events.CONFIG_LOADED, [
 				{'platform': platform, 'config': config}
 			]);
 
-
 			if (!this.viewer)
 			{
 				this.viewer = new BX.Mobile.Viewer(this, this.previewContainer);
-				this.viewer.config = config;
+				this.viewer.setConfig(this.config);
 				this.viewer.init();
 			}
 			else
 			{
-				this.viewer.setConfig(config);
+				this.viewer.setConfig(this.config );
 			}
 
 			this.setConfigReady(true);
@@ -2294,8 +2319,7 @@
 				this.configReady = false;
 				this.ready = false;
 			}
-			else
-			{
+			else {
 				this.ready = true;
 				BX.onCustomEvent(this, BX.Mobile.Events.CONFIG_READY, [this]);
 			}
@@ -2314,8 +2338,7 @@
 						result[parent] = {};
 					result[parent][key] = groupedParams[key];
 				}
-				else
-				{
+				else {
 					if (!result["common_params"])
 						result["common_params"] = {};
 					result["common_params"][key] = groupedParams[key];
@@ -2330,11 +2353,9 @@
 			this.imageReady = false;
 			this.configReady = false;
 			this.controlListImage = {};
-			this.picker = new window.BXColorPicker({
-				'id': "picker", 'name': 'picker'
-			});
+			this.picker = new window.BXColorPicker({'id': "picker", 'name': 'picker'});
 			this.picker.Create();
-			window.designerEditorFileChosen = BX.proxy(this.onFileChosen, this);
+
 			BX.addCustomEvent(BX.Mobile.Events.APP_FILE_LIST_GOT, BX.proxy(function (data)
 			{
 				this.setImageReady(true);
@@ -2352,15 +2373,13 @@
 						}
 					}
 
-
 				}
 			}, this));
 
-
 			if (!this.map)
 				return;
-			this.initGroupTabs();
 
+			this.initGroupTabs();
 
 			for (var i = 0; i < this.map.groups.length; i++)
 			{
@@ -2512,7 +2531,6 @@
 					this.activeGroupId = groupList[i];
 			}
 
-
 		},
 
 		showGroup: function (gid)
@@ -2557,8 +2575,7 @@
 				{
 					delete this.config[name];
 				}
-				else
-				{
+				else {
 					this.config[name] = value;
 				}
 
@@ -2611,17 +2628,17 @@
 			});
 			animation.start();
 		},
-		openFileDialog: function (nodeInput)
+		openFileDialog: function (callback)
 		{
-			this.waitingFileInput = nodeInput;
+
+			window.designerEditorFileChosen = function (filename, path)
+			{
+				callback(path + "/" + filename);
+				window.designerEditorFileChosen = null;
+			};
+
 			window.openFileDialog(false, {path: "/" + this.currentProject.folder})
 		},
-		onFileChosen: function (filename, path)
-		{
-			this.waitingFileInput.value = path + "/" + filename;
-			this.waitingFileInput = false;
-		},
-
 		getMessage: function (key)
 		{
 			var messKey = key.toLowerCase().replace(new RegExp("/", 'g'), "_");
@@ -2697,7 +2714,6 @@
 					}
 				});
 
-
 				var cellText = new BX.Mobile.ViewerElement(this, {
 					element: {
 						position: {top: 10, left: 40},
@@ -2753,8 +2769,7 @@
 					{
 						this.style.height = size.height + "px";
 					}
-					else
-					{
+					else {
 						this.style.height = "50px";
 					}
 				}, cell));
@@ -2943,8 +2958,7 @@
 						backButton.text = BX.message("MOBILEAPP_BACK");
 						backButton.handleParameter("width", 60);
 					}
-					else
-					{
+					else {
 						backButton.valuesSet["width"] = 35;
 						backButton.text = "";
 						backButton.handleParameter("width", 35);
@@ -3016,7 +3030,6 @@
 					})).canvasElement
 				);
 			}
-
 
 			return {
 				baseElement: BX.create("DIV",
@@ -3148,7 +3161,6 @@
 			this.addScreen("load", BX.message("MOBILEAPP_PREVIEW_LOAD"), this.createLoadScreen());
 			this.addScreen("table", BX.message("MOBILEAPP_PREVIEW_LISTS"), this.createTableScreen());
 
-
 		}
 	};
 
@@ -3207,8 +3219,7 @@
 									configKey = keyParam;
 									jumpToParam = param;
 								}
-								else
-								{
+								else {
 									configKey = keyParam;
 									jumpToParam = param;
 								}
@@ -3217,12 +3228,10 @@
 
 						}
 
-
 						if (keyParam)
 						{
 							this.viewer.editor.jumpToControl(configKey, configKeys);
 						}
-
 
 					}, this)
 				}
@@ -3251,7 +3260,6 @@
 			|| (watchedImage && watchedColor && (valueColor || valueImage))
 			|| (watchedImage && valueImage)
 			|| (watchedColor && valueColor));
-
 
 		},
 		bindParameter: function (configParamName, propertyName)
@@ -3286,7 +3294,6 @@
 				this.applyTimeout = 0;
 			}, this), 200);
 
-
 		},
 		getParamValue: function (code)
 		{
@@ -3313,8 +3320,8 @@
 
 			this.customHandle();
 
-
-			this.isEmpty = (this.isBackgroundNeeded() || (jsUtils.in_array("textColor", this.watched) && !this.valuesSet["textColor"]));
+			this.isEmpty = (this.isBackgroundNeeded() || (jsUtils.in_array("textColor",
+				this.watched) && !this.valuesSet["textColor"]));
 
 			if (this.isEmpty)
 			{
@@ -3357,8 +3364,7 @@
 					context.shadowColor = shadow;
 					context.shadowBlur = 1;
 				}
-				else
-				{
+				else {
 					context.shadowOffsetY = 0;
 					context.shadowOffsetX = 0;
 					context.shadowBlur = 0;
@@ -3374,14 +3380,14 @@
 
 				if (this.textPosition.y)
 				{
-					y = (this.textPosition.y == "center") ? (canvas.height + this.textSize) / 2 : parseInt(this.textPosition.y);
+					y = (this.textPosition.y == "center") ? (canvas.height + this.textSize) / 2 : parseInt(
+						this.textPosition.y);
 				}
 
 				context.fillText(this.text, x, y);
 
 				return true;
 			}
-
 
 			return false;
 		},
@@ -3394,7 +3400,6 @@
 			var countV = Math.round(canvas.height - 4 / squareHeight);
 			var x = squareHeight;
 			var y = squareHeight;
-
 
 			context.shadowOffsetY = 0;
 			context.shadowOffsetX = 0;
@@ -3480,8 +3485,7 @@
 					{
 						context.drawImage(imageObj, 0, 0, canvas.width, canvas.height);
 					}
-					else
-					{
+					else {
 						var pat = context.createPattern(imageObj, "repeat");
 						context.rect(0, 0, canvas.width, canvas.height);
 						context.fillStyle = pat;
@@ -3514,6 +3518,7 @@
 			this.valuesSet = {};
 			this.canvasElement.getContext('2d').clearRect(0, 0, this.canvasElement.width, this.canvasElement.height);
 			BX.onCustomEvent(this, BX.Mobile.Events.VIEWER_ELEMENT_REDRAW, [this.defaultValues]);
+
 			for (var param in this.bindedParameters)
 			{
 				var value = this.viewer.config[param];
@@ -3604,7 +3609,7 @@
 						},
 						callback_complete: function ()
 						{
-							node.style.backgroundColor = "ffffff";
+							node.style.backgroundColor = "#ffffff";
 						}
 					})).start();
 				}
@@ -3815,8 +3820,7 @@
 
 				this.itemsNode.appendChild(this.items[code]["element"]);
 			}
-			else
-			{
+			else {
 				this.items[code]["img"].src = this.imager.getSrcByID(id, true);
 				this.items[code]["input"].value = code;
 			}
@@ -3854,7 +3858,6 @@
 				this.highlight(element, [34, 139, 34]);
 			}
 
-
 			return true;
 		},
 		onImageChosen: function (data)
@@ -3873,6 +3876,13 @@
 			this.values = {};
 			this.fieldIndex = 0;
 			this.items = {};
+			this.displayElement = null;
+			this.itemsNode = null;
+			BX.addCustomEvent(BX.Mobile.Events.CONFIG_LOADED_BEFORE, BX.proxy(function ()
+			{
+				this.items = {};
+				this.itemsNode.innerHTML = "";
+			}, this))
 		},
 		_getDisplayElement: function ()
 		{
@@ -3985,7 +3995,6 @@
 						},
 						events: {
 
-
 							"change": BX.proxy(function ()
 							{
 								this.save();
@@ -3995,7 +4004,6 @@
 
 					})
 				};
-
 
 				this.items[code]["element"] = BX.create("DIV", {
 					props: {
@@ -4039,7 +4047,11 @@
 										events: {
 											"click": BX.proxy(function ()
 											{
-												_that.editor.openFileDialog(this.items[code]["inputValue"])
+												_that.editor.openFileDialog(BX.proxy(function (value)
+												{
+													this.items[code]["inputValue"].value = value;
+													_that.save()
+												}, this))
 											}, this)
 										}
 									}),
@@ -4066,8 +4078,7 @@
 
 				this.itemsNode.appendChild(this.items[code]["element"]);
 			}
-			else
-			{
+			else {
 				this.items[code]["input"].value = code;
 			}
 
@@ -4078,7 +4089,6 @@
 		},
 		save: function ()
 		{
-
 			var keys = BX.findChildren(this.itemsNode, {tagName: "INPUT", className: "file-name"}, true);
 			var values = BX.findChildren(this.itemsNode, {tagName: "INPUT", className: "file-path"}, true);
 			var valuesObject = {};
@@ -4180,7 +4190,6 @@
 
 			}, this);
 
-
 			BX.bind(this.input, 'click', clickHandler);
 			BX.bind(this.colorBox, 'click', clickHandler);
 
@@ -4194,18 +4203,15 @@
 				{
 					this.deleteButton.style.display = "none";
 				}
-				else
-				{
-					if(this.input.value[0] != "#")
+				else {
+					if (this.input.value[0] != "#")
 					{
-						this.input.value = "#"+this.input.value;
+						this.input.value = "#" + this.input.value;
 						return;
 					}
 
 					this.deleteButton.style.display = "inline-block";
 				}
-
-
 
 				this.colorBox.style.background = element.value;
 				this.changeListener(this.id, element.value);

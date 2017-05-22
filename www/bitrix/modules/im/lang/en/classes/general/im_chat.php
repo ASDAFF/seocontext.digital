@@ -42,4 +42,8 @@ $MESS["IM_CHAT_GENERAL_JOIN"] = "#USER_NAME# has been hired";
 $MESS["IM_CHAT_GENERAL_JOIN_PLURAL"] = "#USER_NAME# have been hired";
 $MESS["IM_CHAT_GENERAL_LEAVE"] = "#USER_NAME# has been dismissed";
 $MESS["IM_CHAT_GENERAL_JOIN_F"] = "#USER_NAME# has been hired";
+$MESS["IM_PERSONAL_DESCRIPTION"] = "Only you can see messages in this chat.[br] Post here message drafts, notes, links and files to keep them handy.";
+$MESS["IM_CHAT_CHANGE_TITLE"] = "Chat \"#CHAT_TITLE#\" subject changed";
+$MESS["IM_PATH_TITLE_TASKS"] = "View task";
+$MESS["IM_PATH_TITLE_SONET"] = "View group";
 ?>

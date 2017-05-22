@@ -398,9 +398,15 @@ if(!empty($arBlog) && $arBlog["ACTIVE"] == "Y" && $arGroup["SITE_ID"] == SITE_ID
 						if($arResult["PostPerm"] > BLOG_PERMS_MODERATE || ($arResult["PostPerm"] >= BLOG_PERMS_PREMODERATE && $arPost["AUTHOR_ID"] == $arResult["USER_ID"]))
 							$arResult["urlToEdit"] = CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_POST_EDIT"], array("blog" => $arBlog["URL"], "post_id"=>$arPost["ID"], "user_id" => $arParams["USER_ID"]));
 						if($arResult["PostPerm"] >= BLOG_PERMS_MODERATE)
-							$arResult["urlToHide"] = htmlspecialcharsex($APPLICATION->GetCurPageParam("hide=Y", Array("del_id", "sessid", "success", "hide", "delete")));
+						{
+							$arResult["urlToHide"] = urlencode($APPLICATION->GetCurPageParam("hide=Y", Array("del_id", "sessid", "success", "hide", "delete")));
+							$arResult["urlToHide"] = htmlspecialcharsbx($arResult["urlToHide"]);
+						}
 						if($arResult["PostPerm"] >= BLOG_PERMS_FULL)
-							$arResult["urlToDelete"] = htmlspecialcharsex($APPLICATION->GetCurPageParam("delete=Y", Array("sessid", "delete", "hide")));
+						{
+							$arResult["urlToDelete"] = urlencode($APPLICATION->GetCurPageParam("delete=Y", Array("sessid", "delete", "hide")));
+							$arResult["urlToDelete"] = htmlspecialcharsbx($arResult["urlToDelete"]);
+						}
 
 						$arResult["BlogUser"]["AVATAR_file"] = CFile::GetFileArray($arResult["BlogUser"]["AVATAR"]);
 						if ($arResult["BlogUser"]["AVATAR_file"] !== false)
@@ -469,7 +475,7 @@ if(!empty($arBlog) && $arBlog["ACTIVE"] == "Y" && $arGroup["SITE_ID"] == SITE_ID
 		{
 			$arResult["NOTE_MESSAGE"] .= GetMessage("B_B_MES_FR_ONLY").'<br />';
 			if($USER->IsAuthorized())
-				$arResult["NOTE_MESSAGE"] .= GetMessage("B_B_MES_U_CAN").' <a href="'.$APPLICATION->GetCurPageParam("become_friend=Y", Array("become_friend")).'">'.GetMessage("B_B_MES_U_CAN1").'</a> '.GetMessage("B_B_MES_U_CAN2").'</br />';
+				$arResult["NOTE_MESSAGE"] .= GetMessage("B_B_MES_U_CAN").' <a href="'.htmlspecialcharsbx($APPLICATION->GetCurPageParam("become_friend=Y", Array("become_friend"))).'">'.GetMessage("B_B_MES_U_CAN1").'</a> '.GetMessage("B_B_MES_U_CAN2").'</br />';
 			else
 				$arResult["NOTE_MESSAGE"] .= GetMessage("B_B_MES_U_AUTH").'<br />';
 		}

@@ -8,6 +8,22 @@ Loc::loadMessages(__FILE__);
 
 class CSocialnetworkBlogPostPreview extends \CBitrixComponent
 {
+	const E_BLOG_MODULE_NOT_INSTALLED 		= 10001;
+	const E_SOCIALNETWORK_MODULE_NOT_INSTALLED 		= 10003;
+
+	protected function checkRequiredModules()
+	{
+		if (!Main\Loader::includeModule('blog'))
+		{
+			throw new Main\SystemException(Loc::getMessage("BLOG_POST_PREVIEW_BLOG_MODULE_NOT_INSTALLED"), self::E_BLOG_MODULE_NOT_INSTALLED);
+		}
+
+		if (!Main\Loader::includeModule('socialnetwork'))
+		{
+			throw new Main\SystemException(Loc::getMessage("BLOG_POST_PREVIEW_SOCIALNETWORK_MODULE_NOT_INSTALLED"), self::E_SOCIALNETWORK_MODULE_NOT_INSTALLED);
+		}
+	}
+
 	protected function prepareParams()
 	{
 		$this->arParams["AVATAR_SIZE"] = $this->arParams["AVATAR_SIZE"] ?: 40;
@@ -80,6 +96,8 @@ class CSocialnetworkBlogPostPreview extends \CBitrixComponent
 
 	public function executeComponent()
 	{
+		$this->checkRequiredModules();
+
 		$this->prepareParams();
 		$this->prepareData();
 		if($this->arResult['POST']['ID'] > 0)

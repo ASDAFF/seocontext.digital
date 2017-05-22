@@ -103,3 +103,5 @@ class CommandLangTable extends Main\Entity\DataManager
 		);
 	}
 }
+
+class_alias("Bitrix\\Im\\Model\\CommandLangTable", "Bitrix\\Im\\CommandLangTable", false);

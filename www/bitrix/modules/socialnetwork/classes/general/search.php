@@ -24,7 +24,6 @@ class CSocNetSearch
 		CALENDAR_GROUP_IBLOCK_ID
 		PATH_TO_GROUP_CALENDAR_ELEMENT
 
-		TASK_IBLOCK_ID
 		PATH_TO_GROUP_TASK_ELEMENT
 		PATH_TO_USER_TASK_ELEMENT
 
@@ -70,7 +69,7 @@ class CSocNetSearch
 		}
 	}
 
-	function SetFeaturePermissions($entity_type, $entity_id, $feature, $operation, $new_perm)
+	public static function SetFeaturePermissions($entity_type, $entity_id, $feature, $operation, $new_perm)
 	{
 		if(substr($operation, 0, 4) == "view")//This kind of extremely dangerous optimization
 		{
@@ -179,9 +178,12 @@ class CSocNetSearch
 					break;
 				case "K"://Group members includes moderators and admins
 					$arResult[] = $prefix.'K';
+					$arResult[] = $prefix.'E';
+					$arResult[] = $prefix.'A';
 					break;
 				case "E"://Moderators includes admins
 					$arResult[] = $prefix.'E';
+					$arResult[] = $prefix.'A';
 					break;
 				case "A"://Admins
 					$arResult[] = $prefix.'A';
@@ -203,6 +205,7 @@ class CSocNetSearch
 				case "E"://Friends of friends (has no rights yet) so it counts as
 				case "M"://Friends
 					$arResult[] = $prefix.'M';
+				$arResult[] = $prefix.'Z';
 					break;
 				case "Z"://Personal
 					$arResult[] = $prefix.'Z';
@@ -316,7 +319,8 @@ class CSocNetSearch
 
 	function OnSearchCheckPermissions($FIELD)
 	{
-		global $DB, $USER;
+		global $USER;
+
 		$user_id = intval($USER->GetID());
 		$arResult = array();
 
@@ -451,10 +455,9 @@ class CSocNetSearch
 		}
 
 		if (
-			($feature == 'tasks') &&
-			(COption::GetOptionString("intranet", "use_tasks_2_0", "N") == 'Y') &&
-			($arFields["PARAM1"] == COption::GetOptionString("tasks", "task_forum_id", 0)) &&
-			CModule::IncludeModule('tasks')
+			$feature == 'tasks'
+			&& $arFields["PARAM1"] == COption::GetOptionString("tasks", "task_forum_id", 0)
+			&& CModule::IncludeModule('tasks')
 		)
 		{
 			if (!preg_match('/^EVENT_[0-9]+/', $arFields["TITLE"], $match)) // calendar comments live in the same TASK_FORUM_ID :(
@@ -513,11 +516,10 @@ class CSocNetSearch
 
 	function BeforeIndex($arFields)
 	{
-		global $USER;
-
 		//Check if we in right context
 		if (
-			!is_object($this) 
+			!isset($this)
+			|| !is_object($this)
 			|| !is_array($this->_params)
 		)
 		{
@@ -554,6 +556,7 @@ class CSocNetSearch
 			elseif(
 				$arFields["MODULE_ID"] == "forum" 
 				&& intval($arFields["PARAM1"]) == intval($this->_params["FILES_FORUM_ID"])
+				&& isModuleInstalled("webdav")
 			)
 			{
 				$arFields = $this->BeforeIndexForum($arFields,
@@ -568,7 +571,7 @@ class CSocNetSearch
 				&& !preg_match('/^EVENT_[0-9]+/', $arFields["TITLE"], $match) // calendar comments live in the same TASK_FORUM_ID :(
 			)
 			{
-				$arFields = $this->BeforeIndexForum(
+/*				$arFields = $this->BeforeIndexForum(
 					$arFields,
 					SONET_ENTITY_GROUP,
 					$this->_group_id,
@@ -582,7 +585,7 @@ class CSocNetSearch
 						"message#message_id#"
 					)
 				);
-			}
+*/			}
 			elseif(
 				$arFields["MODULE_ID"] == "forum" 
 				&& preg_match('/^EVENT_[0-9]+/', $arFields["TITLE"], $match)
@@ -649,8 +652,9 @@ class CSocNetSearch
 				);
 			}
 			elseif(
-				$arFields["MODULE_ID"] == "forum" 
+				$arFields["MODULE_ID"] == "forum"
 				&& intval($arFields["PARAM1"]) == intval($this->_params["FILES_FORUM_ID"])
+				&& isModuleInstalled("webdav")
 			)
 			{
 				$arFields = $this->BeforeIndexForum($arFields,
@@ -660,11 +664,11 @@ class CSocNetSearch
 				);
 			}
 			elseif(
-				$arFields["MODULE_ID"] == "forum" 
+				$arFields["MODULE_ID"] == "forum"
 				&& intval($arFields["PARAM1"]) == intval($this->_params["TASK_FORUM_ID"])
 			)
 			{
-				if (!preg_match('/^EVENT_[0-9]+/', $arFields["TITLE"], $match)) // calendar comments live in the same TASK_FORUM_ID :(
+/*				if (!preg_match('/^EVENT_[0-9]+/', $arFields["TITLE"], $match)) // calendar comments live in the same TASK_FORUM_ID :(
 				{
 					$arFields = $this->BeforeIndexForum($arFields,
 						SONET_ENTITY_USER, $this->_user_id,
@@ -672,7 +676,7 @@ class CSocNetSearch
 						$this->Url($this->_params["PATH_TO_USER_TASK_ELEMENT"], array("MID"=>"#message_id#"), "message#message_id#")
 					);
 				}
-			}
+*/			}
 			elseif(
 				$arFields["MODULE_ID"] == "forum" 
 				&& preg_match('/^EVENT_[0-9]+/', $arFields["TITLE"], $match)
@@ -877,42 +881,6 @@ class CSocNetSearch
 			$path_template = trim($this->_params["PATH_TO_GROUP_CALENDAR_ELEMENT"]);
 			if(strlen($path_template))
 				$this->IndexIBlockElement($arFields, $this->_group_id, "G", "calendar", "view", $path_template, array("DETAIL_TEXT"));
-			break;
-
-		case intval($this->_params["TASK_IBLOCK_ID"]):
-			if(is_array($arFields["IBLOCK_SECTION"]))
-			{
-				foreach($arFields["IBLOCK_SECTION"] as $section_id)
-					break;
-			}
-			else
-			{
-				$section_id = $arFields["IBLOCK_SECTION"];
-			}
-			$section_id = intval($section_id);
-
-			if($section_id)
-			{
-				$rsPath = CIBlockSection::GetNavChain($arFields["IBLOCK_ID"], $section_id);
-				$arSection = $rsPath->Fetch();
-				if($arSection)
-				{
-					if($arSection["EXTERNAL_ID"]=="users_tasks")
-					{
-						$rsAssigned = CIBlockElement::GetProperty($arFields["IBLOCK_ID"], $arFields["ID"], "sort", "asc", array("CODE"=>"TASKASSIGNEDTO", "EMPTY"=>"N"));
-						$arAssigned = $rsAssigned->Fetch();
-						$path_template = trim($this->_params["PATH_TO_USER_TASK_ELEMENT"]);
-						if($arAssigned && strlen($path_template))
-							$this->IndexIBlockElement($arFields, $arAssigned["VALUE"], "U", "tasks", "view_all", $path_template, array("DETAIL_TEXT"));
-					}
-					elseif(intval($arSection["EXTERNAL_ID"]) > 0)
-					{
-						$path_template = trim($this->_params["PATH_TO_GROUP_TASK_ELEMENT"]);
-						if(strlen($path_template))
-							$this->IndexIBlockElement($arFields, intval($arSection["EXTERNAL_ID"]), "G", "tasks", "view", $path_template, array("DETAIL_TEXT"));
-					}
-				}
-			}
 			break;
 
 		case intval($this->_params["FILES_GROUP_IBLOCK_ID"]):

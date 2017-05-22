@@ -71,7 +71,7 @@ $arParams["CAN_EDIT"] =
 	)
 ;
 
-$bBizProc = IsModuleInstalled('bizproc');
+$bBizProc = CModule::IncludeModule('bizproc') && CBPRuntime::isFeatureEnabled();
 $arIBlock = CIBlock::GetArrayByID(intval($arParams["~IBLOCK_ID"]));
 
 if($arIBlock)
@@ -259,23 +259,32 @@ if($_SERVER["REQUEST_METHOD"] == "POST" && check_bitrix_sessid())
 			$tab_name = $arResult["FORM_ID"]."_active_tab";
 
 			//And go to proper page
-			if(isset($_POST["save"]))
-				LocalRedirect($arResult["LISTS_URL"]);
-			elseif($arIBlock)
+			if($arIBlock)
+			{
+				$url = $arResult["LIST_URL"];
+				if(isset($_POST["apply"]))
+					$url = $arResult["LIST_EDIT_URL"];
 				LocalRedirect(CHTTP::urlAddParams(
-					$arResult["LIST_EDIT_URL"],
+					$url,
 					array($tab_name => $_POST[$tab_name]),
 					array("skip_empty" => true, "encode" => true)
 				));
+			}
+			elseif(isset($_POST["save"]))
+			{
+				LocalRedirect($arResult["LISTS_URL"]);
+			}
 			else
+			{
 				LocalRedirect(CHTTP::urlAddParams(str_replace(
 					array("#list_id#", "#group_id#"),
 					array($res, $arParams["SOCNET_GROUP_ID"]),
 					$arParams["LIST_EDIT_URL"]
-					),
+				),
 					array($tab_name => $_POST[$tab_name]),
 					array("skip_empty" => true, "encode" => true)
 				));
+			}
 		}
 		else
 		{
@@ -299,7 +308,7 @@ if($_SERVER["REQUEST_METHOD"] == "POST" && check_bitrix_sessid())
 	{
 		if($arParams["IBLOCK_TYPE_ID"] != COption::GetOptionString("lists", "livefeed_iblock_type_id"))
 		{
-			if(CModule::includeModule('bizproc'))
+			if(CModule::includeModule('bizproc') && CBPRuntime::isFeatureEnabled())
 			{
 				\Bitrix\Lists\Importer::migrateList($arResult["IBLOCK_ID"]);
 

@@ -39,4 +39,6 @@ $MESS["SALE_COMPANY_LINK_TO_PAYMENT"] = "Payment";
 $MESS["SALE_COMPANY_LINK_TO_SHIPMENT"] = "Shipment";
 $MESS["SALE_COMPANY_LINK_NOT"] = "None";
 $MESS["SALE_COMPANY_CHANGE_FORM_VALUE"] = "'Attention! Form data have been changed. All unsaved data will be lost. Do you really want to leave this page?'";
+$MESS["COMPANY_GROUPS"] = "Company groups:";
+$MESS["COMPANY_RESPONSIBLE_GROUPS"] = "Responsible person's groups:";
 ?>

@@ -159,7 +159,7 @@ if ($ELEMENT_ID)
 else
 	$arResult["FORM_ID"] = "lists_element_add_".$arResult["IBLOCK_ID"];
 
-$bBizproc = CModule::IncludeModule("bizproc") && ($arIBlock["BIZPROC"] != "N");
+$bBizproc = CModule::IncludeModule("bizproc") && CBPRuntime::isFeatureEnabled() && ($arIBlock["BIZPROC"] != "N");
 
 $arResult["~LISTS_URL"] = str_replace(
 	array("#group_id#"),
@@ -180,7 +180,7 @@ $arResult["~LIST_SECTION_URL"] = str_replace(
 	array($arResult["IBLOCK_ID"], intval($arParams["~SECTION_ID"]), $arParams["SOCNET_GROUP_ID"]),
 	$arParams["~LIST_URL"]
 );
-if(isset($_GET["list_section_id"]) && strlen($_GET["list_section_id"]) == 0)
+if((isset($_GET["list_section_id"]) && strlen($_GET["list_section_id"]) == 0) || !isset($_GET["list_section_id"]))
 	$arResult["~LIST_SECTION_URL"] = CHTTP::urlAddParams($arResult["~LIST_SECTION_URL"], array("list_section_id" => ""));
 
 $arResult["LIST_SECTION_URL"] = htmlspecialcharsbx($arResult["~LIST_SECTION_URL"]);
@@ -218,9 +218,6 @@ else
 $arProps = array();
 foreach($arResult["FIELDS"] as $FIELD_ID => $arField)
 {
-	$arResult["FIELDS"][$FIELD_ID]["~NAME"] = $arResult["FIELDS"][$FIELD_ID]["NAME"];
-	$arResult["FIELDS"][$FIELD_ID]["NAME"] = htmlspecialcharsbx($arResult["FIELDS"][$FIELD_ID]["NAME"]);
-
 	if($obList->is_field($FIELD_ID))
 		$arSelect[] = $FIELD_ID;
 	else
@@ -335,6 +332,37 @@ $tab_name = $arResult["FORM_ID"]."_active_tab";
 
 //Assume there was no error
 $bVarsFromForm = false;
+$arResult["BACK_URL"] = $arResult["~LIST_SECTION_URL"];
+
+$arResult["EXTERNAL_CONTEXT"] = isset($_REQUEST["external_context"]) ? $_REQUEST["external_context"] : "";
+if(!empty($arResult["EXTERNAL_CONTEXT"]))
+{
+	$arResult["BACK_URL"] = CHTTP::urlAddParams($APPLICATION->getCurPageParam(),
+		array("external_context_canceled" => "y"));
+	if(!empty($_REQUEST['external_context_canceled']))
+	{
+		$arResult['EXTERNAL_EVENT'] = array(
+			'NAME' => 'onElementCreate',
+			'IS_CANCELED' => true,
+			'PARAMS' => array(
+				'isCanceled' => true,
+				'context' => $arResult['EXTERNAL_CONTEXT']
+			)
+		);
+		$this->includeComponentTemplate('event');
+		return;
+	}
+	$externalFieldId = isset($_REQUEST["fieldId"]) ? $_REQUEST["fieldId"] : "";
+	$externalDefaultValue = isset($_REQUEST["defaultValue"]) ? $_REQUEST["defaultValue"] : "";
+	if($externalFieldId && $externalDefaultValue)
+	{
+		foreach($arResult["FIELDS"] as $fieldId => $field)
+		{
+			if($fieldId == $externalFieldId)
+				$arResult["FIELDS"][$fieldId]['DEFAULT_VALUE'] = $externalDefaultValue;
+		}
+	}
+}
 
 //Form submitted
 if(
@@ -409,6 +437,7 @@ if(
 			"NAME" => $_POST["NAME"],
 		);
 		$arProps = array();
+		$additionalActions = array();
 		foreach($arResult["FIELDS"] as $FIELD_ID => $arField)
 		{
 			if($FIELD_ID == "PREVIEW_PICTURE" || $FIELD_ID == "DETAIL_PICTURE")
@@ -442,7 +471,8 @@ if(
 					$arDel = array();
 
 				$arProps[$arField["ID"]] = array();
-				CFile::ConvertFilesToPost($_FILES[$FIELD_ID], $arProps[$arField["ID"]]);
+				if(!empty($_FILES[$FIELD_ID]))
+					CFile::ConvertFilesToPost($_FILES[$FIELD_ID], $arProps[$arField["ID"]]);
 				foreach($arProps[$arField["ID"]] as $file_id => $arFile)
 				{
 					if(
@@ -524,6 +554,12 @@ if(
 					}
 				}
 			}
+			elseif($arField["PROPERTY_TYPE"] == "E")
+			{
+				$arField["VALUE"] = $_POST[$FIELD_ID];
+				$additionalActions[$arField["ID"]] = $arField;
+				$arProps[$arField["ID"]] = $_POST[$FIELD_ID];
+			}
 			else
 			{
 				$arProps[$arField["ID"]] = $_POST[$FIELD_ID];
@@ -549,15 +585,19 @@ if(
 				);
 				while($arPropV = $dbPropV->Fetch())
 				{
-					if(!in_array($arPropV["PROPERTY_TYPE"], $ignoreProperty) && empty($arProps[$arPropV["ID"]]))
+					if(!in_array($arPropV["PROPERTY_TYPE"], $ignoreProperty))
 					{
-						if(!array_key_exists($arPropV["ID"], $arElement["PROPERTY_VALUES"]))
-							$arElement["PROPERTY_VALUES"][$arPropV["ID"]] = array();
+						if(is_array($arProps[$arPropV["ID"]]) && empty($arProps[$arPropV["ID"]])
+							|| is_string($arProps[$arPropV["ID"]]) && strlen($arProps[$arPropV["ID"]]) <= 0)
+						{
+							if(!array_key_exists($arPropV["ID"], $arElement["PROPERTY_VALUES"]))
+								$arElement["PROPERTY_VALUES"][$arPropV["ID"]] = array();
 
-						$arElement["PROPERTY_VALUES"][$arPropV["ID"]][$arPropV["PROPERTY_VALUE_ID"]] = array(
-							"VALUE" => $arPropV["VALUE"],
-							"DESCRIPTION" => $arPropV["DESCRIPTION"],
-						);
+							$arElement["PROPERTY_VALUES"][$arPropV["ID"]][$arPropV["PROPERTY_VALUE_ID"]] = array(
+								"VALUE" => $arPropV["VALUE"],
+								"DESCRIPTION" => $arPropV["DESCRIPTION"],
+							);
+						}
 					}
 					if($arPropV["USER_TYPE"] == "DiskFile")
 					{
@@ -691,96 +731,127 @@ if(
 			}
 		}
 
-		if($bBizproc)
+		if(!$strError && $bBizproc)
 		{
-			if(!$strError)
+			/* Find the new or modified field. */
+			$changedFields = array();
+			if($ELEMENT_ID && $templatesOnStartup)
 			{
-				/* Find the new or modified field. */
-				$changedFields = array();
-				if($ELEMENT_ID && $templatesOnStartup)
+				$changedFields = CLists::checkChangedFields(
+					$arResult["IBLOCK_ID"],
+					$arResult["ELEMENT_ID"],
+					$arSelect,
+					$arResult["ELEMENT_FIELDS"],
+					$arResult["ELEMENT_PROPS"]
+				);
+			}
+
+			$arBizProcWorkflowId = array();
+			foreach($arDocumentStates as $arDocumentState)
+			{
+				if(strlen($arDocumentState["ID"]) <= 0)
 				{
-					$changedFields = CLists::checkChangedFields(
-						$arResult["IBLOCK_ID"],
-						$arResult["ELEMENT_ID"],
-						$arSelect,
-						$arResult["ELEMENT_FIELDS"],
-						$arResult["ELEMENT_PROPS"]
+					$arErrorsTmp = array();
+
+					$arBizProcWorkflowId[$arDocumentState["TEMPLATE_ID"]] = CBPDocument::StartWorkflow(
+						$arDocumentState["TEMPLATE_ID"],
+						BizProcDocument::getDocumentComplexId($arParams["IBLOCK_TYPE_ID"], $arResult["ELEMENT_ID"]),
+						array_merge($arBizProcParametersValues[$arDocumentState["TEMPLATE_ID"]], array(
+							CBPDocument::PARAM_TAGRET_USER => "user_".intval($GLOBALS["USER"]->GetID()),
+							CBPDocument::PARAM_MODIFIED_DOCUMENT_FIELDS => $changedFields
+						)),
+						$arErrorsTmp
 					);
+
+					foreach($arErrorsTmp as $e)
+						$strError .= $e["message"]."<br />";
 				}
+			}
 
-				$arBizProcWorkflowId = array();
-				foreach($arDocumentStates as $arDocumentState)
+			$bizprocIndex = intval($_REQUEST["bizproc_index"]);
+			if($bizprocIndex > 0)
+			{
+				for($i = 1; $i <= $bizprocIndex; $i++)
 				{
-					if(strlen($arDocumentState["ID"]) <= 0)
-					{
-						$arErrorsTmp = array();
+					$bpId = trim($_REQUEST["bizproc_id_".$i]);
+					$bpTemplateId = intval($_REQUEST["bizproc_template_id_".$i]);
+					$bpEvent = trim($_REQUEST["bizproc_event_".$i]);
 
-						$arBizProcWorkflowId[$arDocumentState["TEMPLATE_ID"]] = CBPDocument::StartWorkflow(
-							$arDocumentState["TEMPLATE_ID"],
-							BizProcDocument::getDocumentComplexId($arParams["IBLOCK_TYPE_ID"], $arResult["ELEMENT_ID"]),
-							array_merge($arBizProcParametersValues[$arDocumentState["TEMPLATE_ID"]], array(
-								CBPDocument::PARAM_TAGRET_USER => "user_".intval($GLOBALS["USER"]->GetID()),
-								CBPDocument::PARAM_MODIFIED_DOCUMENT_FIELDS => $changedFields
-							)),
-							$arErrorsTmp
+					if(strlen($bpEvent) > 0)
+					{
+						if(strlen($bpId) > 0)
+						{
+							if(!array_key_exists($bpId, $arDocumentStates))
+								continue;
+						}
+						else
+						{
+							if(!array_key_exists($bpTemplateId, $arDocumentStates))
+								continue;
+							$bpId = $arBizProcWorkflowId[$bpTemplateId];
+						}
+
+						$arErrorTmp = array();
+						CBPDocument::SendExternalEvent(
+							$bpId,
+							$bpEvent,
+							array("Groups" => $arCurrentUserGroups, "User" => $GLOBALS["USER"]->GetID()),
+							$arErrorTmp
 						);
 
-						foreach($arErrorsTmp as $e)
-							$strError .= $e["message"]."<br />";
+						foreach ($arErrorsTmp as $e)
+							$strWarning .= $e["message"]."<br />";
 					}
 				}
 			}
 
-			if(!$strError)
+			$arDocumentStates = null;
+			if($arElement["NAME"])
 			{
-				$bizprocIndex = intval($_REQUEST["bizproc_index"]);
-				if($bizprocIndex > 0)
-				{
-					for($i = 1; $i <= $bizprocIndex; $i++)
-					{
-						$bpId = trim($_REQUEST["bizproc_id_".$i]);
-						$bpTemplateId = intval($_REQUEST["bizproc_template_id_".$i]);
-						$bpEvent = trim($_REQUEST["bizproc_event_".$i]);
-
-						if(strlen($bpEvent) > 0)
-						{
-							if(strlen($bpId) > 0)
-							{
-								if(!array_key_exists($bpId, $arDocumentStates))
-									continue;
-							}
-							else
-							{
-								if(!array_key_exists($bpTemplateId, $arDocumentStates))
-									continue;
-								$bpId = $arBizProcWorkflowId[$bpTemplateId];
-							}
-
-							$arErrorTmp = array();
-							CBPDocument::SendExternalEvent(
-								$bpId,
-								$bpEvent,
-								array("Groups" => $arCurrentUserGroups, "User" => $GLOBALS["USER"]->GetID()),
-								$arErrorTmp
-							);
-
-							foreach ($arErrorsTmp as $e)
-								$strWarning .= $e["message"]."<br />";
-						}
-					}
-				}
-
-				$arDocumentStates = null;
 				CBPDocument::AddDocumentToHistory(
 					BizProcDocument::getDocumentComplexId($arParams["IBLOCK_TYPE_ID"], $arResult["ELEMENT_ID"]),
 					$arElement["NAME"],
-					$GLOBALS["USER"]->GetID());
+					$GLOBALS["USER"]->GetID()
+				);
 			}
 		}
 
 		if(!$strError)
 		{
 			//Successfull update
+
+			$url = CHTTP::urlAddParams(str_replace(
+				array("#list_id#", "#section_id#", "#element_id#", "#group_id#"),
+				array($arResult["IBLOCK_ID"], intval($_POST["IBLOCK_SECTION_ID"]), $arResult["ELEMENT_ID"], $arParams["SOCNET_GROUP_ID"]),
+				$arParams["~LIST_ELEMENT_URL"]
+			),
+				array($tab_name => $_POST[$tab_name]),
+				array("skip_empty" => true, "encode" => true)
+			);
+			if(isset($_GET["list_section_id"]) && strlen($_GET["list_section_id"]) == 0)
+				$url = CHTTP::urlAddParams($url, array("list_section_id" => ""));
+
+			if(isset($arResult['EXTERNAL_CONTEXT']) && $arResult['EXTERNAL_CONTEXT'] !== '')
+			{
+				$arResult['EXTERNAL_EVENT'] = array(
+					'NAME' => 'onElementCreate',
+					'IS_CANCELED' => false,
+					'PARAMS' => array(
+						'isCanceled' => false,
+						'context' => $arResult['EXTERNAL_CONTEXT'],
+						'elementInfo' => array(
+							'iblockTypeId' => $arParams['IBLOCK_TYPE_ID'],
+							'iblockId' => $arResult['IBLOCK_ID'],
+							'socnetGroupId' => $arParams['SOCNET_GROUP_ID'],
+							'elementId' => $arResult["ELEMENT_ID"],
+							'elementUrl' => $url,
+							'elementName' => $arElement['NAME']
+						),
+					)
+				);
+				$this->includeComponentTemplate('event');
+				return;
+			}
 
 			//And go to proper page
 			if(isset($_POST["save"]))
@@ -796,17 +867,6 @@ if(
 			}
 			else
 			{
-				$url = CHTTP::urlAddParams(str_replace(
-						array("#list_id#", "#section_id#", "#element_id#", "#group_id#"),
-						array($arResult["IBLOCK_ID"], intval($_POST["IBLOCK_SECTION_ID"]), $arResult["ELEMENT_ID"], $arParams["SOCNET_GROUP_ID"]),
-						$arParams["~LIST_ELEMENT_URL"]
-					),
-					array($tab_name => $_POST[$tab_name]),
-					array("skip_empty" => true, "encode" => true)
-				);
-				if(isset($_GET["list_section_id"]) && strlen($_GET["list_section_id"]) == 0)
-					$url = CHTTP::urlAddParams($url, array("list_section_id" => ""));
-
 				LocalRedirect($url);
 			}
 		}
@@ -854,7 +914,7 @@ foreach($arResult["FIELDS"] as $FIELD_ID => $arField)
 		{
 			if($bVarsFromForm)
 				$data[$FIELD_ID] = $_POST[$FIELD_ID];
-			elseif($arResult["ELEMENT_ID"])
+			elseif($arResult["ELEMENT_ID"] || $copy_id)
 				$data[$FIELD_ID] = $arResult["ELEMENT_FIELDS"]["~".$FIELD_ID];
 			elseif($arField["DEFAULT_VALUE"] === "=now")
 				$data[$FIELD_ID] = ConvertTimeStamp(time()+CTimeZone::GetOffset(), "FULL");
@@ -884,14 +944,7 @@ foreach($arResult["FIELDS"] as $FIELD_ID => $arField)
 	{
 		if($bVarsFromForm)
 		{
-			if(array_key_exists("n0", $_POST[$FIELD_ID]))
-			{
-				$data[$FIELD_ID] = $_POST[$FIELD_ID];
-			}
-			else
-			{
-				$data[$FIELD_ID] = array("n0" => array("VALUE" => current($_POST[$FIELD_ID]), "DESCRIPTION" => ""));
-			}
+			$data[$FIELD_ID] = $_POST[$FIELD_ID];
 		}
 		elseif($arResult["ELEMENT_ID"] || $copy_id)
 		{
@@ -910,7 +963,7 @@ foreach($arResult["FIELDS"] as $FIELD_ID => $arField)
 		{
 			$data[$FIELD_ID] = array(
 				"n0" => array(
-					"VALUE" => $arField["DEFAULT_VALUE"],
+					"VALUE" => $arField["DEFAULT_VALUE"] ? $arField["DEFAULT_VALUE"] : "",
 					"DESCRIPTION" => "",
 				)
 			);
@@ -946,17 +999,17 @@ foreach($arResult["FIELDS"] as $FIELD_ID => $arField)
 			{
 				$data[$FIELD_ID] = $arResult["ELEMENT_PROPS"][$arField["ID"]]["FULL_VALUES"];
 				if($arField["MULTIPLE"] == "Y")
-					$data[$FIELD_ID]["n0"] = array("VALUE" => $arField["DEFAULT_VALUE"], "DESCRIPTION" => "");
+					$data[$FIELD_ID]["n0"] = array("VALUE" => "", "DESCRIPTION" => "");
 			}
 			else
 			{
-				$data[$FIELD_ID]["n0"] = array("VALUE" => $arField["DEFAULT_VALUE"], "DESCRIPTION" => "");
+				$data[$FIELD_ID]["n0"] = array("VALUE" => "", "DESCRIPTION" => "");
 			}
 		}
 		else
 		{
 			$data[$FIELD_ID] = array(
-				"n0" => array("VALUE" => $arField["DEFAULT_VALUE"], "DESCRIPTION" => ""),
+				"n0" => array("VALUE" => "", "DESCRIPTION" => ""),
 			);
 		}
 	}

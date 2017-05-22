@@ -49,7 +49,7 @@
 			if (BX(id + 'Add'))
 				BX.bind(BX(id + 'Add'), "click", BX.proxy(this.showAdd, this));
 			this.eventName = "onCRMEntityWasChosen" + this.id;
-			BX.addCustomEvent(window, this.eventName, BX.proxy(this.buildNode, this));
+			BXMobileApp.addCustomEvent(window, this.eventName, BX.proxy(this.buildNode, this));
 			return this;
 		};
 
@@ -98,7 +98,7 @@
 								return function() {
 									BXMobileApp.PageManager.loadPageModal({
 										url:url,
-										bx24ModernStyle:false,
+										bx24ModernStyle:true,
 										cache : !window.app.enableInVersion(15)
 									}); }
 							})(this.entities[i]["selectUrl"] + "&event=" + this.eventName)
@@ -117,7 +117,7 @@
 					{
 						BX.bind(node, "click", (function(url){
 							return function() {
-								window.BXMobileApp.PageManager.loadPageUnique({url : url, bx24ModernStyle : false});
+								window.BXMobileApp.PageManager.loadPageUnique({url : url, bx24ModernStyle : true});
 							};
 						})(this.entities[type]["viewUrl"].replace(/#id#/gi, node.getAttribute("id"))));
 						if (del)

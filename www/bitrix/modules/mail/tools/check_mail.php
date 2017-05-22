@@ -16,23 +16,32 @@ $userId = $USER->GetID();
 
 session_write_close();
 
-CModule::IncludeModule('mail');
+$siteId = SITE_ID;
+if (isset($_REQUEST['SITE_ID']))
+{
+	$site = \CSite::getById($_REQUEST['SITE_ID'])->fetch();
 
-$siteId = isset($_REQUEST['SITE_ID']) ? $_REQUEST['SITE_ID'] : SITE_ID;
+	if (empty($site))
+		return;
+
+	$siteId = $site['LID'];
+}
+
+\CModule::includeModule('mail');
 
 $error = false;
 
-$dbAcc = CMailbox::GetList(
-	array(
+$acc = \Bitrix\Mail\MailboxTable::getList(array(
+	'filter' => array(
+		'LID'         => $siteId,
+		'ACTIVE'      => 'Y',
+		'USER_ID'     => $userId,
+		'SERVER_TYPE' => array('imap', 'controller', 'domain', 'crdomain')
+	),
+	'order' => array(
 		'TIMESTAMP_X' => 'DESC'
 	),
-	array(
-		'LID'         => SITE_ID,
-		'ACTIVE'      => 'Y',
-		'USER_ID'     => $USER->GetID()
-	)
-);
-while (($acc = $dbAcc->fetch()) !== false && !in_array($acc['SERVER_TYPE'], array('imap', 'controller', 'domain', 'crdomain')));
+))->fetch();
 
 if (!empty($acc))
 {
@@ -107,11 +116,10 @@ if (!empty($acc))
 	CUserOptions::SetOption('global', 'last_mail_check_'.$siteId, time(), false, $userId);
 	CUserOptions::SetOption('global', 'last_mail_check_success_'.$siteId, $unseen >= 0, false, $userId);
 
-	if (in_array('crm_connect', $acc['OPTIONS']['flags']))
+	if (!empty($acc['OPTIONS']['flags']) && is_array($acc['OPTIONS']['flags']) && in_array('crm_connect', $acc['OPTIONS']['flags']))
 		\Bitrix\Mail\Helper::syncMailbox($acc['ID'], $err);
 	else
 		CUserOptions::setOption('global', 'last_mail_sync_'.$siteId, -1, false, $userId);
-
 }
 else
 {
@@ -129,3 +137,5 @@ echo json_encode(array(
 	'last_check' => CUserOptions::GetOption('global', 'last_mail_check_'.$siteId, false, $userId),
 	'error'      => $error
 ));
+
+require $_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/main/include/epilog_after.php';

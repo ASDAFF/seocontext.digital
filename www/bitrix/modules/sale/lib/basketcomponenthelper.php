@@ -1,19 +1,19 @@
 <?php
-
-
 namespace Bitrix\Sale;
 
+use Bitrix\Main,
+	Bitrix\Catalog;
 
-use Bitrix\Main;
+Main\Localization\Loc::loadMessages(__FILE__);
 
 class BasketComponentHelper
 {
 
 	/**
-	 * @param $fuserId
-	 * @param $siteId
+	 * @param int $fuserId
+	 * @param string|null $siteId
 	 *
-	 * @return int
+	 * @return int|float
 	 */
 	public static function getFUserBasketQuantity($fuserId, $siteId = null)
 	{
@@ -40,9 +40,9 @@ class BasketComponentHelper
 
 	/**
 	 * @param int $fuserId
-	 * @param string $siteId
+	 * @param string|null $siteId
 	 *
-	 * @return int
+	 * @return int|float
 	 */
 	public static function getFUserBasketPrice($fuserId, $siteId = null)
 	{
@@ -69,8 +69,10 @@ class BasketComponentHelper
 
 	/**
 	 * @param int $fuserId
-	 * @param int $quantity
-	 * @param string $siteId
+	 * @param int|float $quantity
+	 * @param string|null $siteId
+	 *
+	 * @return void
 	 */
 	protected static function setFUserBasketQuantity($fuserId, $quantity, $siteId = null)
 	{
@@ -84,8 +86,10 @@ class BasketComponentHelper
 
 	/**
 	 * @param int $fuserId
-	 * @param float $price
-	 * @param string $siteId
+	 * @param int|float $price
+	 * @param string|null $siteId
+	 *
+	 * @return void
 	 */
 	protected static function setFUserBasketPrice($fuserId, $price, $siteId = null)
 	{
@@ -98,8 +102,10 @@ class BasketComponentHelper
 
 	/**
 	 * @param int $fuserId
-	 * @param string $siteId
+	 * @param string|null $siteId
 	 * @param array|null $basketList
+	 *
+	 * @return void
 	 */
 	public static function updateFUserBasketPrice($fuserId, $siteId = null, $basketList = null)
 	{
@@ -126,10 +132,10 @@ class BasketComponentHelper
 
 	/**
 	 * @param int $fuserId
-	 * @param string $siteId
+	 * @param string|null $siteId
 	 * @param array|null $basketList
 	 *
-	 * @return float
+	 * @return void
 	 */
 	public static function updateFUserBasketQuantity($fuserId, $siteId = null, $basketList = null)
 	{
@@ -154,8 +160,10 @@ class BasketComponentHelper
 	}
 
 	/**
-	 * @param $fuserId
-	 * @param null $siteId
+	 * @param int $fuserId
+	 * @param string|null $siteId
+	 *
+	 * @return void
 	 */
 	public static function updateFUserBasket($fuserId, $siteId = null)
 	{
@@ -172,7 +180,7 @@ class BasketComponentHelper
 
 	/**
 	 * @param int $fuserId
-	 * @param string $siteId
+	 * @param string|null $siteId
 	 *
 	 * @return array
 	 */
@@ -237,10 +245,12 @@ class BasketComponentHelper
 		if (intval($userId) > 0)
 		{
 			$orderData['USER_ID'] = $userId;
-			$errors = array();
-			\CSaleDiscount::DoProcessOrder($orderData, array(), $errors);
-			Compatible\DiscountCompatibility::stopUsageCompatible();
 		}
+		DiscountCouponsManager::freezeCouponStorage();
+		$errors = array();
+		\CSaleDiscount::DoProcessOrder($orderData, array(), $errors);
+		Compatible\DiscountCompatibility::stopUsageCompatible();
+		DiscountCouponsManager::unFreezeCouponStorage();
 
 		return $orderData;
 	}
@@ -324,7 +334,6 @@ class BasketComponentHelper
 		return new Main\EventResult( Main\EventResult::SUCCESS, null, 'sale');
 	}
 
-
 	/**
 	 * @param \Bitrix\Main\Event $event
 	 *
@@ -343,5 +352,239 @@ class BasketComponentHelper
 		static::updateFUserBasketQuantity($fuserId, SITE_ID);
 
 		return new Main\EventResult( Main\EventResult::SUCCESS, null, 'sale');
+	}
+
+	/**
+	 * @param Basket $basket
+	 * @param BasketItem|null $item
+	 *
+	 * @return Result
+	 */
+	public static function checkQuantityRatio(Basket $basket, BasketItem $item = null)
+	{
+		$result = new Result();
+
+		$basketItemRatioList = array();
+		$ratioList = array();
+		$ratioResult = static::getRatio($basket, $item);
+
+		if ($ratioResult->isSuccess())
+		{
+			$ratioData = $ratioResult->getData();
+			if (!empty($ratioData) && is_array($ratioData)
+				&& array_key_exists('RATIO_LIST', $ratioData) && !empty($ratioData['RATIO_LIST']) && is_array($ratioData['RATIO_LIST']))
+			{
+				$ratioList = $ratioData['RATIO_LIST'];
+			}
+		}
+
+		/** @var BasketItem $basketItem */
+		foreach ($basket as $basketItem)
+		{
+			$foundItem = true;
+			if ($item !== null)
+			{
+				if ($basketItem->getBasketCode() != $item->getBasketCode())
+				{
+					$foundItem = false;
+				}
+			}
+
+			if ($foundItem)
+			{
+				$basketItemRatioList[$basketItem->getBasketCode()] = false;
+				if (array_key_exists($basketItem->getBasketCode(), $ratioList))
+				{
+					$basketItemQuantity = floatval($basketItem->getQuantity());
+					$basketItemRatio = floatval($ratioList[$basketItem->getBasketCode()]);
+
+					$mod = roundEx(($basketItemQuantity / $basketItemRatio - round($basketItemQuantity / $basketItemRatio)), 6);
+
+					if ($mod === 0)
+					{
+						$basketItemRatioList[$basketItem->getBasketCode()] = true;
+					}
+				}
+			}
+		}
+
+		if (!empty($basketItemRatioList))
+			$result->addData(array('CHECK_RATIO_LIST' => $basketItemRatioList));
+
+		return $result;
+	}
+
+	/**
+	 * @param Basket $basket
+	 * @param BasketItem|null $item
+	 *
+	 * @return Result
+	 */
+	public static function correctQuantityRatio(Basket $basket, BasketItem $item = null)
+	{
+		$result = new Result();
+
+		$checkRatioList = array();
+		$checkRatioResult = static::checkQuantityRatio($basket, $item);
+
+		if ($checkRatioResult->isSuccess())
+		{
+			$checkRatioData = $checkRatioResult->getData();
+			if (!empty($checkRatioData) && is_array($checkRatioData)
+				&& array_key_exists('CHECK_RATIO_LIST', $checkRatioData) && !empty($checkRatioData['CHECK_RATIO_LIST']) && is_array($checkRatioData['CHECK_RATIO_LIST']))
+			{
+				$checkRatioList = $checkRatioData['CHECK_RATIO_LIST'];
+			}
+		}
+
+		$basketItemRatioList = array();
+		$ratioList = null;
+
+
+		/** @var BasketItem $basketItem */
+		foreach ($basket as $basketItem)
+		{
+			$foundItem = true;
+			if ($item !== null)
+			{
+				if ($basketItem->getBasketCode() != $item->getBasketCode())
+				{
+					$foundItem = false;
+				}
+			}
+
+			if ($foundItem)
+			{
+				$basketItemRatioList[$basketItem->getBasketCode()] = false;
+				if (array_key_exists($basketItem->getBasketCode(), $checkRatioList) && $checkRatioList[$basketItem->getBasketCode()] === false)
+				{
+					if ($ratioList === null)
+					{
+						$ratioList = array();
+						$ratioResult = static::getRatio($basket, $item);
+						if ($ratioResult->isSuccess())
+						{
+							$ratioData = $ratioResult->getData();
+							if (!empty($ratioData) && is_array($ratioData)
+								&& array_key_exists('RATIO_LIST', $ratioData) && !empty($ratioData['RATIO_LIST']) && is_array($ratioData['RATIO_LIST']))
+							{
+								$ratioList = $ratioData['RATIO_LIST'];
+							}
+						}
+					}
+					
+					if (!array_key_exists($basketItem->getBasketCode(), $ratioList))
+					{
+						$result->addError(new ResultError(Main\Localization\Loc::getMessage('SALE_BASKET_COMPONENT_HELPER_PRODUCT_RATIO_NOT_FOUND', array(
+							'#PRODUCT_NAME#' => $basketItem->getField('NAME')
+						)), 'SALE_BASKET_COMPONENT_HELPER_PRODUCT_RATIO_NOT_FOUND'));
+						continue;
+					}
+
+					$basketItemQuantity = floatval($basketItem->getQuantity());
+					$basketItemRatio = floatval($ratioList[$basketItem->getBasketCode()]);
+
+					$mod = roundEx(($basketItemQuantity / $basketItemRatio - round($basketItemQuantity / $basketItemRatio)), 6);
+
+					if ($mod != 0)
+					{
+						$quantity = floor(ceil($basketItemQuantity) / $basketItemRatio) * $basketItemRatio;
+						$r = $basketItem->setField('QUANTITY', $quantity);
+						if (!$r->isSuccess())
+						{
+							$result->addErrors($r->getErrors());
+						}
+						elseif ($quantity <= 0)
+						{
+							$result->addWarning(new ResultWarning(Main\Localization\Loc::getMessage('SALE_BASKET_COMPONENT_HELPER_PRODUCT_NOT_ENOUGH_QUANTITY', array(
+								'#PRODUCT_NAME#' => $basketItem->getField('NAME')
+							)), 'SALE_BASKET_COMPONENT_HELPER_PRODUCT_NOT_ENOUGH_QUANTITY'));
+						}
+					}
+				}
+			}
+		}
+
+		return $result;
+	}
+
+	/**
+	 * @param Basket $basket
+	 * @param BasketItem|null $item
+	 *
+	 * @return Result
+	 * @throws Main\LoaderException
+	 */
+	public static function getRatio(Basket $basket, BasketItem $item = null)
+	{
+		$result = new Result();
+		$ratioList = array();
+		if (Main\Loader::includeModule('catalog'))
+		{
+			static $cacheRatio = array();
+			$map = array();
+			$elementList = array();
+
+			/** @var BasketItem $basketItem */
+			foreach ($basket as $basketItem)
+			{
+				$code = $basketItem->getBasketCode();
+				if ($item !== null && $item->getBasketCode() != $code)
+				{
+					continue;
+				}
+
+				$hash = md5((strval($basketItem->getField("PRODUCT_PROVIDER_CLASS")) != '' ? $basketItem->getField("PRODUCT_PROVIDER_CLASS"): "")."|".(strval($basketItem->getField("MODULE")) != '' ? $basketItem->getField("MODULE"): "")."|".$basketItem->getField("PRODUCT_ID"));
+
+				if (array_key_exists($hash, $cacheRatio))
+				{
+					$ratioList[$code] = $cacheRatio[$hash];
+				}
+				else
+				{
+					$elementList[$basketItem->getField("PRODUCT_ID")] = $basketItem->getField("PRODUCT_ID");
+				}
+
+				if (!isset($map[$basketItem->getField("PRODUCT_ID")]))
+				{
+					$map[$basketItem->getField("PRODUCT_ID")] = array();
+				}
+
+				$map[$basketItem->getField("PRODUCT_ID")][] = $code;
+			}
+
+			if (!empty($elementList))
+			{
+				$res = Catalog\MeasureRatioTable::getList(array(
+					'select' => array('*'),
+					'filter' => array('@PRODUCT_ID' => $elementList, '=IS_DEFAULT' => 'Y')
+				));
+				while ($ratioData = $res->fetch())
+				{
+					if (empty($map[$ratioData["PRODUCT_ID"]]))
+						continue;
+
+					foreach ($map[$ratioData["PRODUCT_ID"]] as $key)
+					{
+						$ratioList[$key] = $ratioData["RATIO"];
+
+						if (!$basketItem = $basket->getItemByBasketCode($key))
+							continue;
+
+						$hash = md5((strval($basketItem->getField("PRODUCT_PROVIDER_CLASS")) != '' ? $basketItem->getField("PRODUCT_PROVIDER_CLASS"): "")."|".(strval($basketItem->getField("MODULE")) != '' ? $basketItem->getField("MODULE"): "")."|".$basketItem->getField("PRODUCT_ID"));
+
+						$cacheRatio[$hash] = $ratioData["RATIO"];
+					}
+					unset($key);
+				}
+				unset($ratioData, $dbRatio);
+			}
+			unset($elementList, $map);
+		}
+
+		if (!empty($ratioList))
+			$result->addData(array('RATIO_LIST' => $ratioList));
+
+		return $result;
 	}
 }

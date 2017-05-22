@@ -389,7 +389,7 @@ elseif ($post["save_product_review"] == "Y") // preview
 	$arAllow["SMILES"] = ($post["REVIEW_USE_SMILES"] !="Y" ? "N" : $arResult["FORUM"]["ALLOW_SMILES"]);
 	$arResult["MESSAGE_VIEW"] = array(
 		"POST_MESSAGE_TEXT" => $post["REVIEW_TEXT"],
-		"AUTHOR_NAME" => htmlspecialcharsEx($arResult["USER"]["SHOWED_NAME"]),
+		"AUTHOR_NAME" => htmlspecialcharsbx($arResult["USER"]["SHOWED_NAME"]),
 		"AUTHOR_ID" => intval($USER->GetID()),
 		"AUTHOR_URL" => CComponentEngine::MakePathFromTemplate($arParams["URL_TEMPLATES_PROFILE_VIEW"], array("UID" => $USER->GetID())),
 		"POST_DATE" => CForumFormat::DateFormat($arParams["DATE_TIME_FORMAT"], time()+CTimeZone::GetOffset()),

@@ -23,7 +23,7 @@ class Bind
 
 		$eventManager = \Bitrix\Main\EventManager::getInstance();
 
-		$eventManager->addEventHandler("main", "OnUserSetLastActivityDate", array(self::$statusHandler, "OnUserSetLastActivityDate"));
+		//$eventManager->addEventHandler("main", "OnUserSetLastActivityDate", array(self::$statusHandler, "OnUserSetLastActivityDate"));
 		\Bitrix\Replica\Server\Event::registerOperation("im_status_update", array(self::$statusHandler, "handleStatusUpdateOperation"));
 
 		$eventManager->addEventHandler("socialservices", "OnAfterRegisterUserByNetwork", array(self::$statusHandler, "OnStartUserReplication"), false, 200);

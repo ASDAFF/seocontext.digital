@@ -189,8 +189,8 @@ abstract class CAllUser extends CDBResult
 		$result_message = true;
 		$user_id = 0;
 		$arParams = array(
-			"LOGIN" => &$login,
-			"HASH" => &$hash,
+			"LOGIN" => $login,
+			"HASH" => $hash,
 		);
 
 		$APPLICATION->ResetException();
@@ -237,6 +237,7 @@ abstract class CAllUser extends CDBResult
 					$bHashFound = true;
 					if($arUser["ACTIVE"] == "Y")
 					{
+						$user_id = $arUser["ID"];
 						$_SESSION["SESS_AUTH"]["SESSION_HASH"] = $arParams['HASH'];
 						$this->bLoginByHash = true;
 						$this->Authorize($arUser["ID"], !$bExternal);
@@ -266,8 +267,8 @@ abstract class CAllUser extends CDBResult
 			}
 		}
 
-		$arParams["USER_ID"] = &$user_id;
-		$arParams["RESULT_MESSAGE"] = &$result_message;
+		$arParams["USER_ID"] = $user_id;
+		$arParams["RESULT_MESSAGE"] = $result_message;
 
 		foreach (GetModuleEvents("main", "OnAfterUserLoginByHash", true) as $arEvent)
 			ExecuteModuleEventEx($arEvent, array(&$arParams));
@@ -524,6 +525,8 @@ abstract class CAllUser extends CDBResult
 		$result = $DB->Query($strSql, false, "FILE: ".__FILE__."<br> LINE: ".__LINE__);
 		if($arUser = $result->Fetch())
 		{
+			self::$CURRENT_USER = false;
+
 			$this->justAuthorized = true;
 
 			$_SESSION["SESS_AUTH"]["AUTHORIZED"] = "Y";
@@ -544,6 +547,7 @@ abstract class CAllUser extends CDBResult
 			$_SESSION["SESS_AUTH"]["POLICY"] = CUser::GetGroupPolicy($arUser["ID"]);
 			$_SESSION["SESS_AUTH"]["AUTO_TIME_ZONE"] = trim($arUser["AUTO_TIME_ZONE"]);
 			$_SESSION["SESS_AUTH"]["TIME_ZONE"] = $arUser["TIME_ZONE"];
+			$_SESSION["SESS_AUTH"]["TIME_ZONE_OFFSET"] = $arUser["TIME_ZONE_OFFSET"];
 			$_SESSION["SESS_AUTH"]["APPLICATION_ID"] = $applicationId;
 			$_SESSION["SESS_AUTH"]["BX_USER_ID"] = $arUser["BX_USER_ID"];
 
@@ -567,7 +571,9 @@ abstract class CAllUser extends CDBResult
 				{
 					if(!CTimeZone::IsAutoTimeZone(trim($arUser["AUTO_TIME_ZONE"])) || CTimeZone::GetCookieValue() !== null)
 					{
-						$tz = ', TIME_ZONE_OFFSET = '.CTimeZone::GetOffset();
+						$offset = CTimeZone::GetOffset();
+						$tz = ', TIME_ZONE_OFFSET = '.$offset;
+						$_SESSION["SESS_AUTH"]["TIME_ZONE_OFFSET"] = $offset;
 					}
 				}
 
@@ -916,41 +922,14 @@ abstract class CAllUser extends CDBResult
 		// All except Admin
 		if ($user_id > 1 && $arParams["CONTROLLER_ADMIN"] !== "Y")
 		{
-			$limitUsersCount = intval(COption::GetOptionInt("main", "PARAM_MAX_USERS", 0));
-			if ($limitUsersCount > 0)
+			if(!static::CheckUsersCount($user_id))
 			{
-				$by = "ID";
-				$order = "ASC";
-				$arFilter = array(
-					"LAST_LOGIN_1" => ConvertTimeStamp(),
+				$user_id = 0;
+				$APPLICATION->ThrowException(GetMessage("LIMIT_USERS_COUNT"));
+				$result_message = array(
+					"MESSAGE" => GetMessage("LIMIT_USERS_COUNT")."<br>",
+					"TYPE" => "ERROR",
 				);
-				//Intranet users only
-				if (IsModuleInstalled("intranet"))
-					$arFilter["!=UF_DEPARTMENT"] = false;
-
-				$rsUsers = CUser::GetList($by, $order, $arFilter, array(
-					"FIELDS" => array("ID", "LOGIN"),
-				));
-
-				while ( $user = $rsUsers->fetch())
-				{
-					if ($user["ID"] == $user_id)
-					{
-						$limitUsersCount = 1;
-						break;
-					}
-					$limitUsersCount--;
-				}
-
-				if ($limitUsersCount < 0)
-				{
-					$user_id = 0;
-					$APPLICATION->ThrowException(GetMessage("LIMIT_USERS_COUNT"));
-					$result_message = array(
-						"MESSAGE" => GetMessage("LIMIT_USERS_COUNT")."<br>",
-						"TYPE" => "ERROR",
-					);
-				}
 			}
 		}
 
@@ -1017,6 +996,57 @@ abstract class CAllUser extends CDBResult
 		return $arParams["RESULT_MESSAGE"];
 	}
 
+	protected static function CheckUsersCount($user_id)
+	{
+		$limitUsersCount = intval(COption::GetOptionInt("main", "PARAM_MAX_USERS", 0));
+		if ($limitUsersCount > 0)
+		{
+			$by = "ID";
+			$order = "ASC";
+			$arFilter = array("LAST_LOGIN_1" => ConvertTimeStamp());
+
+			//Intranet users only
+			$intranet = IsModuleInstalled("intranet");
+			if ($intranet)
+			{
+				$arFilter["!=UF_DEPARTMENT"] = false;
+			}
+
+			$rsUsers = CUser::GetList($by, $order, $arFilter, array("FIELDS" => array("ID")));
+
+			while ($user = $rsUsers->fetch())
+			{
+				if ($user["ID"] == $user_id)
+				{
+					$limitUsersCount = 1;
+					break;
+				}
+				$limitUsersCount--;
+			}
+
+			if ($limitUsersCount <= 0)
+			{
+				if($intranet)
+				{
+					//only intranet users are NOT allowed
+					$currUserRs = CUser::GetByID($user_id);
+					if($currUser = $currUserRs->Fetch())
+					{
+						if(!empty($currUser["UF_DEPARTMENT"]))
+						{
+							return false;
+						}
+					}
+				}
+				else
+				{
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+
 	public function LoginByOtp($otp, $remember_otp = "N", $captcha_word = "", $captcha_sid = "")
 	{
 		if(!CModule::IncludeModule("security") || !\Bitrix\Security\Mfa\Otp::isOtpRequired())
@@ -1063,7 +1093,7 @@ abstract class CAllUser extends CDBResult
 		return false;
 	}
 
-	public function ChangePassword($LOGIN, $CHECKWORD, $PASSWORD, $CONFIRM_PASSWORD, $SITE_ID=false)
+	public function ChangePassword($LOGIN, $CHECKWORD, $PASSWORD, $CONFIRM_PASSWORD, $SITE_ID=false, $captcha_word = "", $captcha_sid = 0)
 	{
 		/** @global CMain $APPLICATION */
 		global $DB, $APPLICATION;
@@ -1089,6 +1119,15 @@ abstract class CAllUser extends CDBResult
 
 				$bOk = false;
 				break;
+			}
+		}
+
+		if($bOk && COption::GetOptionString("main", "captcha_restoring_password", "N") == "Y")
+		{
+			if (!($APPLICATION->CaptchaCheckCode($captcha_word, $captcha_sid)))
+			{
+				$result_message = array("MESSAGE"=>GetMessage("main_user_captcha_error")."<br>", "TYPE"=>"ERROR");
+				$bOk = false;
 			}
 		}
 
@@ -1129,7 +1168,7 @@ abstract class CAllUser extends CDBResult
 			}
 
 			$site_format = CSite::GetDateFormat();
-			if(mktime()-$arPolicy["CHECKWORD_TIMEOUT"]*60 > MakeTimeStamp($res["CHECKWORD_TIME"], $site_format))
+			if(time()-$arPolicy["CHECKWORD_TIMEOUT"]*60 > MakeTimeStamp($res["CHECKWORD_TIME"], $site_format))
 				return array("MESSAGE"=>preg_replace("/#LOGIN#/i", htmlspecialcharsbx($arParams["LOGIN"]), GetMessage("CHECKWORD_EXPIRE"))."<br>", "TYPE"=>"ERROR", "FIELD"=>"CHECKWORD_EXPIRE");
 
 			if($arParams["SITE_ID"] === false)
@@ -1231,13 +1270,13 @@ abstract class CAllUser extends CDBResult
 				ExecuteModuleEventEx($arEvent, array(&$arParams));
 
 			if (!$bImmediate)
-				$event->Send($eventName, $SITE_ID, $arFields);
+				$event->Send($eventName, $SITE_ID, $arFields, "Y", "", array(), $res_array["LANGUAGE_ID"]);
 			else
-				$event->SendImmediate($eventName, $SITE_ID, $arFields);
+				$event->SendImmediate($eventName, $SITE_ID, $arFields, "Y", "", array(), $res_array["LANGUAGE_ID"]);
 		}
 	}
 
-	public static function SendPassword($LOGIN, $EMAIL, $SITE_ID = false)
+	public static function SendPassword($LOGIN, $EMAIL, $SITE_ID = false, $captcha_word = "", $captcha_sid = 0)
 	{
 		/** @global CMain $APPLICATION */
 		global $DB, $APPLICATION;
@@ -1263,6 +1302,15 @@ abstract class CAllUser extends CDBResult
 			}
 		}
 
+		if($bOk && COption::GetOptionString("main", "captcha_restoring_password", "N") == "Y")
+		{
+			if (!($APPLICATION->CaptchaCheckCode($captcha_word, $captcha_sid)))
+			{
+				$result_message = array("MESSAGE"=>GetMessage("main_user_captcha_error")."<br>", "TYPE"=>"ERROR");
+				$bOk = false;
+			}
+		}
+
 		if($bOk)
 		{
 			$f = false;
@@ -1274,7 +1322,7 @@ abstract class CAllUser extends CDBResult
 				if($arParams["LOGIN"] <> '')
 				{
 					$strSql =
-						"SELECT ID, LID, ACTIVE, CONFIRM_CODE, LOGIN, EMAIL, NAME, LAST_NAME ".
+						"SELECT ID, LID, ACTIVE, CONFIRM_CODE, LOGIN, EMAIL, NAME, LAST_NAME, LANGUAGE_ID ".
 						"FROM b_user u ".
 						"WHERE LOGIN='".$DB->ForSQL($arParams["LOGIN"])."' ".
 						"	AND (ACTIVE='Y' OR NOT(CONFIRM_CODE IS NULL OR CONFIRM_CODE='')) ".
@@ -1287,7 +1335,7 @@ abstract class CAllUser extends CDBResult
 						$strSql .= "\nUNION\n";
 					}
 					$strSql .=
-						"SELECT ID, LID, ACTIVE, CONFIRM_CODE, LOGIN, EMAIL, NAME, LAST_NAME ".
+						"SELECT ID, LID, ACTIVE, CONFIRM_CODE, LOGIN, EMAIL, NAME, LAST_NAME, LANGUAGE_ID ".
 						"FROM b_user u ".
 						"WHERE EMAIL='".$DB->ForSQL($arParams["EMAIL"])."' ".
 						"	AND (ACTIVE='Y' OR NOT(CONFIRM_CODE IS NULL OR CONFIRM_CODE='')) ".
@@ -1325,7 +1373,7 @@ abstract class CAllUser extends CDBResult
 						);
 
 						$event = new CEvent;
-						$event->SendImmediate("NEW_USER_CONFIRM", $arParams["SITE_ID"], $arFields);
+						$event->SendImmediate("NEW_USER_CONFIRM", $arParams["SITE_ID"], $arFields, "Y", "", array(), $arUser["LANGUAGE_ID"]);
 
 						$result_message = array("MESSAGE"=>GetMessage("MAIN_SEND_PASS_CONFIRM")."<br>", "TYPE"=>"OK");
 						$f = true;
@@ -1398,6 +1446,7 @@ abstract class CAllUser extends CDBResult
 			"ACTIVE" => $bConfirmReq? "N": "Y",
 			"CONFIRM_CODE" => $bConfirmReq? randString(8): "",
 			"SITE_ID" => $SITE_ID,
+			"LANGUAGE_ID" => LANGUAGE_ID,
 			"USER_IP" => $_SERVER["REMOTE_ADDR"],
 			"USER_HOST" => @gethostbyaddr($_SERVER["REMOTE_ADDR"]),
 		);
@@ -1509,7 +1558,8 @@ abstract class CAllUser extends CDBResult
 			"LAST_NAME"=>"",
 			"USER_IP"=>$REMOTE_ADDR,
 			"USER_HOST"=>@gethostbyaddr($REMOTE_ADDR),
-			"SITE_ID" => $SITE_ID
+			"SITE_ID" => $SITE_ID,
+			"LANGUAGE_ID" => LANGUAGE_ID,
 		);
 
 		$def_group = COption::GetOptionString("main", "new_user_registration_def_group", "");
@@ -1700,6 +1750,7 @@ abstract class CAllUser extends CDBResult
 				$DB->Query("DELETE FROM b_user_stored_auth WHERE ID=".intval($_SESSION["SESS_AUTH"]["STORED_AUTH_ID"]));
 
 			$this->justAuthorized = false;
+			$this->admin = null;
 
 			$_SESSION["SESS_AUTH"] = array();
 			unset($_SESSION["SESS_AUTH"]);
@@ -1730,25 +1781,14 @@ abstract class CAllUser extends CDBResult
 
 	public static function GetUserGroup($ID)
 	{
-		global $DB;
-
 		$ID = (int)$ID;
 		if (!isset(self::$userGroupCache[$ID]))
 		{
-			$strSql =
-				"SELECT UG.GROUP_ID ".
-				"FROM b_user_group UG ".
-				"WHERE UG.USER_ID = ".$ID." ".
-				"	AND ((UG.DATE_ACTIVE_FROM IS NULL) OR (UG.DATE_ACTIVE_FROM <= ".$DB->CurrentTimeFunction().")) ".
-				"	AND ((UG.DATE_ACTIVE_TO IS NULL) OR (UG.DATE_ACTIVE_TO >= ".$DB->CurrentTimeFunction().")) ";
-
-			$res = $DB->Query($strSql, false, "FILE: ".__FILE__."<br> LINE: ".__LINE__);
 			$arr = array();
+			$res = static::GetUserGroupEx($ID);
 			while ($r = $res->Fetch())
 				$arr[] = $r["GROUP_ID"];
 
-			if (!in_array(2, $arr))
-				$arr[] = 2;
 			self::$userGroupCache[$ID] = $arr;
 		}
 
@@ -1765,8 +1805,9 @@ abstract class CAllUser extends CDBResult
 				".$DB->DateToCharFunction("UG.DATE_ACTIVE_TO", "FULL")." as DATE_ACTIVE_TO
 			FROM b_user_group UG INNER JOIN b_group G ON G.ID=UG.GROUP_ID
 			WHERE UG.USER_ID = ".intval($ID)."
-			and ((UG.DATE_ACTIVE_FROM IS NULL) OR (UG.DATE_ACTIVE_FROM <= ".$DB->CurrentTimeFunction()."))
-			and ((UG.DATE_ACTIVE_TO IS NULL) OR (UG.DATE_ACTIVE_TO >= ".$DB->CurrentTimeFunction()."))
+				and ((UG.DATE_ACTIVE_FROM IS NULL) OR (UG.DATE_ACTIVE_FROM <= ".$DB->CurrentTimeFunction()."))
+				and ((UG.DATE_ACTIVE_TO IS NULL) OR (UG.DATE_ACTIVE_TO >= ".$DB->CurrentTimeFunction()."))
+				and G.ACTIVE = 'Y'
 			UNION SELECT 2, 'everyone', NULL, NULL ".(strtoupper($DB->type) == "ORACLE"? " FROM dual " : "");
 
 		$res = $DB->Query($strSql, false, "FILE: ".__FILE__."<br> LINE: ".__LINE__);
@@ -1937,9 +1978,13 @@ abstract class CAllUser extends CDBResult
 		if(is_set($arFields, "PERSONAL_PHOTO") && $arFields["PERSONAL_PHOTO"]["name"] == '' && $arFields["PERSONAL_PHOTO"]["del"] == '')
 			unset($arFields["PERSONAL_PHOTO"]);
 
+		$maxWidth = COption::GetOptionInt("main", "profile_image_width", 0);
+		$maxHeight = COption::GetOptionInt("main", "profile_image_height", 0);
+		$maxSize = COption::GetOptionInt("main", "profile_image_size", 0);
+
 		if(is_set($arFields, "PERSONAL_PHOTO"))
 		{
-			$res = CFile::CheckImageFile($arFields["PERSONAL_PHOTO"]);
+			$res = CFile::CheckImageFile($arFields["PERSONAL_PHOTO"], $maxSize, $maxWidth, $maxHeight);
 			if($res <> '')
 				$this->LAST_ERROR .= $res."<br>";
 		}
@@ -1952,7 +1997,7 @@ abstract class CAllUser extends CDBResult
 
 		if(is_set($arFields, "WORK_LOGO"))
 		{
-			$res = CFile::CheckImageFile($arFields["WORK_LOGO"]);
+			$res = CFile::CheckImageFile($arFields["WORK_LOGO"], $maxSize, $maxWidth, $maxHeight);
 			if($res <> '')
 				$this->LAST_ERROR .= $res."<br>";
 		}
@@ -2210,7 +2255,7 @@ abstract class CAllUser extends CDBResult
 			$CACHE_MANAGER->ClearByTag("USER_CARD_".intval($ID / TAGGED_user_card_size));
 			$CACHE_MANAGER->ClearByTag("USER_CARD");
 
-			static $arNameFields = array("NAME", "LAST_NAME", "SECOND_NAME", "LOGIN", "EMAIL", "PERSONAL_GENDER", "PERSONAL_PHOTO", "WORK_POSITION", "PERSONAL_PROFESSION", "PERSONAL_BIRTHDAY", "TITLE", "EXTERNAL_AUTH_ID");
+			static $arNameFields = array("NAME", "LAST_NAME", "SECOND_NAME", "LOGIN", "EMAIL", "PERSONAL_GENDER", "PERSONAL_PHOTO", "WORK_POSITION", "PERSONAL_PROFESSION", "PERSONAL_WWW", "PERSONAL_BIRTHDAY", "TITLE", "EXTERNAL_AUTH_ID");
 			$bClear = false;
 			foreach($arNameFields as $val)
 			{
@@ -2316,6 +2361,42 @@ abstract class CAllUser extends CDBResult
 			}
 		}
 		return null;
+	}
+
+	/**
+	 * Appends groups to the list of existing user's groups.
+	 *
+	 * @param int $user_id
+	 * @param array|int $groups A single number, or an array of numbers, or an array of arrays("GROUP_ID"=>$val, "DATE_ACTIVE_FROM"=>$val, "DATE_ACTIVE_TO"=>$val)
+	 */
+	public static function AppendUserGroup($user_id, $groups)
+	{
+		$arGroups = array();
+		$res = CUser::GetUserGroupList($user_id);
+		while($res_arr = $res->Fetch())
+		{
+			$arGroups[] = array(
+				"GROUP_ID" => $res_arr["GROUP_ID"],
+				"DATE_ACTIVE_FROM" => $res_arr["DATE_ACTIVE_FROM"],
+				"DATE_ACTIVE_TO" => $res_arr["DATE_ACTIVE_TO"],
+			);
+		}
+
+		if(!is_array($groups))
+		{
+			$groups = array($groups);
+		}
+
+		foreach($groups as $group)
+		{
+			if(!is_array($group))
+			{
+				$group = array("GROUP_ID" => $group);
+			}
+			$arGroups[] = $group;
+		}
+
+		CUser::SetUserGroup($user_id, $arGroups);
 	}
 
 	public static function GetCount()
@@ -2590,8 +2671,8 @@ abstract class CAllUser extends CDBResult
 			if($ar["TEMP_HASH"]=="N")
 				$cnt++;
 			if($arPolicy["MAX_STORE_NUM"] < $cnt
-				|| ($ar["TEMP_HASH"]=="N" && mktime()-$arPolicy["STORE_TIMEOUT"]*60 > MakeTimeStamp($ar["LAST_AUTH"], $site_format))
-				|| ($ar["TEMP_HASH"]=="Y" && mktime()-$arPolicy["SESSION_TIMEOUT"]*60 > MakeTimeStamp($ar["LAST_AUTH"], $site_format))
+				|| ($ar["TEMP_HASH"]=="N" && time()-$arPolicy["STORE_TIMEOUT"]*60 > MakeTimeStamp($ar["LAST_AUTH"], $site_format))
+				|| ($ar["TEMP_HASH"]=="Y" && time()-$arPolicy["SESSION_TIMEOUT"]*60 > MakeTimeStamp($ar["LAST_AUTH"], $site_format))
 			)
 			{
 				$DB->Query("DELETE FROM b_user_stored_auth WHERE ID=".$ar["ID"]);

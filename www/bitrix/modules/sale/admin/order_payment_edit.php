@@ -45,6 +45,40 @@ $payment = null;
 $errors = array();
 $fields = array();
 
+if ($paymentId > 0)
+{
+	$paymentCollection = $saleOrder->getPaymentCollection();
+	$payment = $paymentCollection->getItemById($paymentId);
+
+	if (!$payment)
+		LocalRedirect("/bitrix/admin/sale_order.php?lang=".LANGUAGE_ID.GetFilterParams("filter_", false));
+}
+
+$isUserResponsible = false;
+$isAllowCompany = false;
+
+if ($saleModulePermissions == 'P')
+{
+	$userCompanyList = \Bitrix\Sale\Services\Company\Manager::getUserCompanyList($USER->GetID());
+
+	if ($saleOrder->getField('RESPONSIBLE_ID') == $USER->GetID()
+		|| ($payment && $payment->getField('RESPONSIBLE_ID') == $USER->GetID()))
+	{
+		$isUserResponsible = true;
+	}
+
+	if ((in_array($saleOrder->getField('COMPANY_ID'), $userCompanyList)
+		|| ($payment && in_array($payment->getField('COMPANY_ID'), $userCompanyList))))
+	{
+		$isAllowCompany = true;
+	}
+
+	if (!$isUserResponsible && !$isAllowCompany)
+	{
+		LocalRedirect("/bitrix/admin/sale_order.php?lang=".LANGUAGE_ID.GetFilterParams("filter_", false));
+	}
+}
+
 if ($request->get('delete') == 'Y' && check_bitrix_sessid())
 {
 	if(!$allowDelete)
@@ -52,8 +86,7 @@ if ($request->get('delete') == 'Y' && check_bitrix_sessid())
 		LocalRedirect('/bitrix/admin/sale_order_payment.php?lang='.$lang.GetFilterParams('filter_', false));
 	}
 
-	$paymentCollection = $saleOrder->getPaymentCollection();
-	$payment = $paymentCollection->getItemById($paymentId);
+
 	if ($payment)
 	{
 		$delResult = $payment->delete();
@@ -129,16 +162,16 @@ if ($request->isPost() && check_bitrix_sessid() && $request->get('update'))
 }
 else
 {
-	if ($paymentId > 0)
-		$payment = $saleOrder->getPaymentCollection()->getItemById($paymentId);
-	else
+	if ($paymentId == 0)
+	{
 		$payment = $saleOrder->getPaymentCollection()->createItem();
+	}
 
 	if (!$payment)
 		LocalRedirect("/bitrix/admin/sale_order_payment.php?lang=".$lang.GetFilterParams("filter_", false));
 }
 
-if(!$allowView || Order::isLocked($orderId))
+if ((!$allowView && !$allowUpdate) || Order::isLocked($orderId))
 	LocalRedirect('/bitrix/admin/sale_order_payment.php?lang=' . $lang . GetFilterParams('filter_', false));
 
 

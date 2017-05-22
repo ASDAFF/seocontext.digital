@@ -1037,7 +1037,10 @@ class CCatalogAdminProductSetEdit
 			)
 			?>
 <script type="text/javascript">
-var ob<? echo self::$strMainPrefix; ?> = new JCCatTblEditExt(<? echo CUtil::PhpToJSObject($arJSParams); ?>);
+if (!window.ob<? echo self::$strMainPrefix; ?>)
+{
+	window.ob<? echo self::$strMainPrefix; ?> = new JCCatTblEditExt(<? echo CUtil::PhpToJSObject($arJSParams); ?>);
+}
 </script>
 			<?
 			break;

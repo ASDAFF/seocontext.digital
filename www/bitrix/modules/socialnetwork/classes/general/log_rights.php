@@ -371,12 +371,17 @@ class CSocNetLogRights
 	{
 		global $DB;
 
+		$userID = intval($userID);
+
 		$strSql = "SELECT SLR.ID FROM b_sonet_log_right SLR
-			INNER JOIN b_user_access UA ON 0=1 ".
-			(intval($userID) > 0 ? " OR (SLR.GROUP_CODE = 'AU')" : "").
-			" OR (SLR.GROUP_CODE = 'G2')".
-			(intval($userID) > 0 ? " OR (UA.ACCESS_CODE = SLR.GROUP_CODE AND UA.USER_ID = ".intval($userID).")" : "")."
-			WHERE SLR.LOG_ID = ".intval($logID);
+			INNER JOIN b_user_access UA ON UA.ACCESS_CODE = SLR.GROUP_CODE 
+			WHERE 
+				SLR.LOG_ID = ".intval($logID)."
+				AND (
+					(SLR.GROUP_CODE IN ('G2'".($userID > 0 ? ", 'AU'" : "").") )
+					".($userID > 0 ? "OR UA.USER_ID = ".$userID : "")."
+				)
+			";
 
 		$result = $DB->Query($strSql, false, "FILE: ".__FILE__."<br> LINE: ".__LINE__);
 		if ($ar = $result->Fetch())

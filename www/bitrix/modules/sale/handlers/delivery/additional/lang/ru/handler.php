@@ -20,3 +20,5 @@ $MESS["SALE_DLVRS_ADD_LOC_TAB_TITLE"] = "Сопоставление местоп
 $MESS["SALE_DLVRS_ADD_CONFIG_RECEIVE_ERROR"] = "Ошибка получения конфигурации службы доставки";
 $MESS["SALE_DLVRS_ADD_PCONFIG_RECEIVE_ERROR"] = "Ошибка получения конфигурации профиля службы доставки";
 $MESS["SALE_DLVRS_ADD_LICENSE_WRONG"] = "В связи с тем, что лицензия недействительна, функциональность обработчика ограничена";
+$MESS["SALE_DLVRS_ADD_LIST_RECEIVE_ERROR"] = "Ошбка получени списка служб доставок";
+$MESS["SALE_DLVRS_ADD_LIST_LICENSE_WRONG"] = "В связи с тем, что лицензия недействительна, некоторые службы доставки недоступны для добавления";

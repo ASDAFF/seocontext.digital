@@ -96,6 +96,8 @@ $addWidthStyle = IsAmPmMode() ? ' ampm-width' : '';
 <input id="event-id<?=$id?>" type="hidden" value="0" name="id"/>
 <input id="event-month<?=$id?>" type="hidden" value="0" name="month"/>
 <input id="event-year<?=$id?>" type="hidden" value="0" name="year"/>
+<input id="event-current-date-from<?=$id?>" type="hidden" name="current_date_from" value="0"/>
+<input id="event-rec-edit-mode<?=$id?>" type="hidden" name="rec_edit_mode" value="0"/>
 <div id="bxec_edit_ed_<?=$id?>" class="bxec-popup">
 	<div style="width: 750px; height: 1px;"></div>
 	<div class="popup-window-tabs" id="<?=$id?>_edit_tabs">
@@ -248,7 +250,7 @@ $addWidthStyle = IsAmPmMode() ? ' ampm-width' : '';
 						"InputVideo",
 						"Table", "Justify", "InsertOrderedList",
 						"InsertUnorderedList",
-						"Source", "MentionUser", "Spoiler"
+						"Source", "MentionUser"
 					),
 					"BUTTONS" => IsModuleInstalled('disk') ? Array(
 						"UploadFile",
@@ -475,8 +477,26 @@ $addWidthStyle = IsAmPmMode() ? ' ampm-width' : '';
 				</div>
 
 				<div class="bxec-popup-row-bordered bxec-popup-repeat-details">
-					<label for="<?=$id_?>edit-ev-rep-diap-to" style="display: inline-block; margin: 8px 3px 0 0; vertical-align:top;"><?=GetMessage('EC_T_DIALOG_STOP_REPEAT')?>:</label>
-					<input name="rrule[UNTIL]" class="calendar-inp calendar-inp-cal" id="<?=$id?>edit-ev-rep-diap-to" type="text" style="width: 150px;"/>
+					<label class="bxec-popup-endson-label"><?= GetMessage('EC_ENDS_ON_LABEL')?>:</label>
+
+					<div class="bxec-popup-endson-wrap">
+						<span class="bxec-popup-endson-row">
+							<input id="<?=$id?>edit-ev-rep-endson-never" name="rrule_endson" type="radio" checked="checked" value="never">
+							<label for="<?=$id?>edit-ev-rep-endson-never"><?= GetMessage('EC_ENDS_ON_NEVER')?></label>
+						</span>
+						<span class="bxec-popup-endson-row">
+							<input id="<?=$id?>edit-ev-rep-endson-count" name="rrule_endson" type="radio" value="count">
+							<label for="<?=$id?>edit-ev-rep-endson-count">
+								<?= GetMessage('EC_ENDS_ON_COUNT', array('#COUNT#' => '<input class="calendar-inp" id="'.$id.'edit-ev-rep-endson-count-input" type="text" style="width: 30px" size="2" name="rrule[COUNT]" placeholder="'.GetMessage('EC_ENDS_ON_COUNT_PLACEHOLDER').'">'))?>
+							</label>
+						</span>
+						<span class="bxec-popup-endson-row">
+							<input id="<?=$id?>edit-ev-rep-endson-until" name="rrule_endson" type="radio" value="until">
+							<label for="<?=$id?>edit-ev-rep-endson-until">
+								<?= GetMessage('EC_ENDS_ON_UNTIL', array('#UNTIL_DATE#' => '<input name="rrule[UNTIL]" class="calendar-inp calendar-inp-cal" id="'.$id.'edit-ev-rep-diap-to" type="text" style="width: 100px;" placeholder="'.GetMessage('EC_ENDS_ON_UNTIL_PLACEHOLDER').'"/>'))?>
+							</label>
+						</span>
+					</div>
 				</div>
 			</div>
 

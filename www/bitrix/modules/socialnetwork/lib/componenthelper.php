@@ -8,6 +8,8 @@ use Bitrix\Main;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Config\Option;
 use Bitrix\Main\EventManager;
+use Bitrix\Socialnetwork\CommentAux\CreateTask;
+use Bitrix\Main\Update\Stepper;
 
 Loc::loadMessages(__FILE__);
 
@@ -324,7 +326,7 @@ class ComponentHelper
 
 			while ($comment = $res->fetch())
 			{
-				self::processCommentData($comment, $languageId, $p);
+				self::processCommentData($comment, $languageId, $p, array("MAIL" => (isset($params["MAIL"]) && $params["MAIL"] == "Y" ? "Y" : "N")));
 
 				$result[] = $comment;
 
@@ -444,9 +446,15 @@ class ComponentHelper
 	 * @param string $languageId Language Id (2-chars).
 	 * @param \blogTextParser $p TextParser object.
 	*/
-	private static function processCommentData(&$comment, $languageId, $p)
+	private static function processCommentData(&$comment, $languageId, $p, $params = array())
 	{
 		global $USER_FIELD_MANAGER;
+
+		$isMail = (
+			is_array($params)
+			&& isset($params["MAIL"])
+			&& $params["MAIL"] == 'Y'
+		);
 
 		$comment["ATTACHMENTS"] = $comment["PROPS"] = array();
 
@@ -468,6 +476,14 @@ class ComponentHelper
 			)
 			{
 				$comment["ATTACHMENTS"] = self::getAttachmentsData($userFields["UF_BLOG_COMMENT_FILE"]["VALUE"], $comment["BLOG_GROUP_SITE_ID"]);
+			}
+
+			if (
+				$isMail
+				&& isset($comment["PROPS"]["UF_BLOG_COMM_URL_PRV"])
+			)
+			{
+				unset($comment["PROPS"]["UF_BLOG_COMM_URL_PRV"]);
 			}
 		}
 
@@ -559,7 +575,7 @@ class ComponentHelper
 	 * @param string|bool|false $siteId Site Id (2-chars).
 	 * @return array
 	 * @throws Main\LoaderException
-     */
+	*/
 	public static function getAttachmentsData($valueList, $siteId = false)
 	{
 		$result = array();
@@ -779,10 +795,9 @@ class ComponentHelper
 				}
 			}
 
-			$p = new \blogTextParser();
-			$p->arUserfields = array();
-
-			$text = $p->convert($text, false, array(), array("HTML" => "Y", "ANCHOR" => "Y"), array());
+			$p = new \CTextParser();
+			$p->allow = array("HTML" => "Y", "ANCHOR" => "Y");
+			$text = $p->convertText($text);
 		}
 
 		return $text;
@@ -878,6 +893,70 @@ class ComponentHelper
 				preg_replace('/[\/.,\s:][s]/', '', \Bitrix\Main\Type\Date::convertFormatToPhp(FORMAT_DATETIME)),
 				($serverTs + $authorOffset)
 			).' ('.$authorGMTOffsetFormatted.')';
+		}
+
+		return $result;
+	}
+
+	/**
+	 * Returns (non-idea) blog group list
+	 *
+	 * @param array $params Parameters.
+	 * @return array
+	 */
+	public static function getSonetBlogGroupIdList($params)
+	{
+		$result = array();
+
+		if (!Loader::includeModule('blog'))
+		{
+			throw new Main\SystemException("Could not load 'blog' module.");
+		}
+
+		$cacheTtl = 3153600;
+		$cacheId = 'blog_group_list_'.md5(serialize($params));
+		$cacheDir = '/blog/group/';
+		$cache = new \CPHPCache;
+
+		if($cache->initCache($cacheTtl, $cacheId, $cacheDir))
+		{
+			$result = $cache->getVars();
+		}
+		else
+		{
+			$cache->startDataCache();
+
+			$ideaBlogGroupIdList = array();
+			if (ModuleManager::isModuleInstalled("idea"))
+			{
+				$res = \CSite::getList($by="sort", $order="desc", Array("ACTIVE" => "Y"));
+				while ($site = $res->fetch())
+				{
+					$val = Option::get("idea", "blog_group_id", false, $site["LID"]);
+					if ($val)
+					{
+						$ideaBlogGroupIdList[] = $val;
+					}
+				}
+			}
+
+			$filter = array();
+			if (!empty($params["SITE_ID"]))
+			{
+				$filter['SITE_ID'] = $params["SITE_ID"];
+			}
+			if (!empty($ideaBlogGroupIdList))
+			{
+				$filter['!@ID'] = $ideaBlogGroupIdList;
+			}
+
+			$res = \CBlogGroup::getList(array(), $filter, false, false, array("ID"));
+			while($blogGroup = $res->fetch())
+			{
+				$result[] = $blogGroup["ID"];
+			}
+
+			$cache->endDataCache($result);
 		}
 
 		return $result;
@@ -1061,7 +1140,7 @@ class ComponentHelper
 					: $res[1][0]
 			);
 
-			$metaData = \Bitrix\Main\UrlPreview\UrlPreview::getMetadataAndHtmlByUrl($url);
+			$metaData = \Bitrix\Main\UrlPreview\UrlPreview::getMetadataAndHtmlByUrl($url, true, false);
 			if (
 				!empty($metaData)
 				&& !empty($metaData["ID"])
@@ -1123,6 +1202,11 @@ class ComponentHelper
 		{
 			$result = array();
 
+			if (!ModuleManager::isModuleInstalled('extranet'))
+			{
+				return $result;
+			}
+
 			$ttl = (defined("BX_COMP_MANAGED_CACHE") ? 2592000 : 600);
 			$cacheId = 'sonet_ex_userid';
 			$cache = new \CPHPCache;
@@ -1134,7 +1218,7 @@ class ComponentHelper
 				$result = $tmpVal['EX_USER_ID'];
 				unset($tmpVal);
 			}
-			elseif (ModuleManager::isModuleInstalled('extranet'))
+			else
 			{
 				if (defined("BX_COMP_MANAGED_CACHE"))
 				{
@@ -1145,7 +1229,7 @@ class ComponentHelper
 					'UF_DEPARTMENT' => false
 				);
 
-				$externalAuthIdList = self::checkPredefinedAuthIdList(array('replica', 'bot', 'email', 'imconnector'));
+				$externalAuthIdList = self::checkPredefinedAuthIdList(array('bot', 'email', 'imconnector'));
 				if (!empty($externalAuthIdList))
 				{
 					$filter['!=EXTERNAL_AUTH_ID'] = $externalAuthIdList;
@@ -1186,6 +1270,14 @@ class ComponentHelper
 
 		$result = array();
 
+		if (
+			!ModuleManager::isModuleInstalled('mail')
+			|| !ModuleManager::isModuleInstalled('intranet')
+		)
+		{
+			return $result;
+		}
+
 		$ttl = (defined("BX_COMP_MANAGED_CACHE") ? 2592000 : 600);
 		$cacheId = 'sonet_email_userid';
 		$cache = new \CPHPCache;
@@ -1197,7 +1289,7 @@ class ComponentHelper
 			$result = $tmpVal['EMAIL_USER_ID'];
 			unset($tmpVal);
 		}
-		elseif (ModuleManager::isModuleInstalled('mail'))
+		else
 		{
 			if (defined("BX_COMP_MANAGED_CACHE"))
 			{
@@ -1357,11 +1449,10 @@ class ComponentHelper
 			if(\CBlogPost::update($postId, array("SOCNET_RIGHTS" => $sonetRights, "HAS_SOCNET_ALL" => "N")))
 			{
 				BXClearCache(true, "/blog/socnet_post/".intval($postId / 100)."/".$postId."/");
-				BXClearCache(true, "/blog/socnet_post/gen/".intval($postId / 100)."/".$postId."/");
+				BXClearCache(true, "/blog/socnet_post/gen/".intval($postId / 100)."/".$postId);
 				BXClearCache(True, "/".$siteId."/blog/popular_posts/");
 
 				$logSiteListNew = array();
-				$newRightsNameList = array();
 				$user2NotifyList = array();
 				$sonetPermissionList = \CBlogPost::getSocnetPermsName($postId);
 				$extranet = Loader::includeModule("extranet");
@@ -1383,52 +1474,38 @@ class ComponentHelper
 				}
 
 				$intranetUserIdList = ($extranet ? \CExtranet::getIntranetUsers() : false);
+				$auxLiveParamList = array();
 
 				foreach($sonetPermissionList as $type => $v)
 				{
 					foreach($v as $vv)
 					{
-						$name = "";
-						$link = "";
-						$id = "";
+						$name = $link = '';
+						$id = 0;
+
 						if (
 							$type == "SG"
 							&& in_array($type.$vv["ENTITY_ID"], $newRights)
 						)
 						{
+							$renderParts = new Livefeed\RenderParts\SonetGroup();
+							$renderData = $renderParts->getData($vv["ENTITY_ID"]);
+
 							if($sonetGroup = \CSocNetGroup::getByID($vv["ENTITY_ID"]))
 							{
-								$name = $sonetGroup["NAME"];
-								$link = \CComponentEngine::makePathFromTemplate(
-									$params["PATH_TO_GROUP"],
-									array(
-										"group_id" => $vv["ENTITY_ID"]
-									)
-								);
-
-								$groupSiteID = false;
-
 								$res = \CSocNetGroup::getSite($vv["ENTITY_ID"]);
 								while ($groupSiteList = $res->fetch())
 								{
 									$logSiteListNew[] = $groupSiteList["LID"];
-									if (
-										!$groupSiteID
-										&& (
-											!$extranet
-											|| $groupSiteList["LID"] != $extranetSite
-										)
-									)
-									{
-										$groupSiteID = $groupSiteList["LID"];
-									}
 								}
 
-								if ($groupSiteID)
-								{
-									$tmp = \CSocNetLogTools::processPath(array("GROUP_URL" => $link), $userId, $groupSiteID); // user_id is not important parameter
-									$link = (strlen($tmp["URLS"]["GROUP_URL"]) > 0 ? $tmp["SERVER_NAME"].$tmp["URLS"]["GROUP_URL"] : $link);
-								}
+								$auxLiveParamList[] = array(
+									"ENTITY_TYPE" => 'SG',
+									"ENTITY_ID" => $renderData['id'],
+									"NAME" => $renderData['name'],
+									"LINK" => $renderData['link'],
+									"VISIBILITY" => ($sonetGroup["VISIBLE"] == "Y" ? "all" : "group_members")
+								);
 							}
 						}
 						elseif ($type == "U")
@@ -1438,37 +1515,22 @@ class ComponentHelper
 								&& in_array("UA", $newRights)
 							)
 							{
-								$name = (
-									ModuleManager::isModuleInstalled("intranet")
-										? Loc::getMessage("BLG_SHARE_ALL")
-										: Loc::getMessage("BLG_SHARE_ALL_BUS")
-								);
+								$renderParts = new Livefeed\RenderParts\User();
+								$renderData = $renderParts->getData(0);
 
-								if (
-									!$currentExtranetSite
-									&& defined("BITRIX24_PATH_COMPANY_STRUCTURE_VISUAL")
-								)
-								{
-									$link = BITRIX24_PATH_COMPANY_STRUCTURE_VISUAL;
-								}
+								$auxLiveParamList[] = array(
+									"ENTITY_TYPE" => 'UA',
+									"ENTITY_ID" => 'UA',
+									"NAME" => $renderData['name'],
+									"LINK" => $renderData['link'],
+									"VISIBILITY" => 'all'
+								);
 							}
 							elseif(in_array($type.$vv["ENTITY_ID"], $newRights))
 							{
-								$tmpUser = array(
-									"NAME" => $vv["~U_NAME"],
-									"LAST_NAME" => $vv["~U_LAST_NAME"],
-									"SECOND_NAME" => $vv["~U_SECOND_NAME"],
-									"LOGIN" => $vv["~U_LOGIN"],
-									"NAME_LIST_FORMATTED" => "",
-								);
-								$name = \CUser::formatName($params["NAME_TEMPLATE"], $tmpUser, ($params["SHOW_LOGIN"] != "N" ? true : false));
-								$id = $vv["ENTITY_ID"];
-								$link = \CComponentEngine::makePathFromTemplate(
-									$params["PATH_TO_USER"],
-									array(
-										"user_id" => $vv["ENTITY_ID"]
-									)
-								);
+								$renderParts = new Livefeed\RenderParts\User();
+								$renderData = $renderParts->getData($vv["ENTITY_ID"]);
+
 								$user2NotifyList[] = $vv["ENTITY_ID"];
 
 								if (
@@ -1478,49 +1540,48 @@ class ComponentHelper
 								)
 								{
 									$logSiteListNew[] = $extranetSite;
+									$visibility = 'extranet';
 								}
-							}
-						}
-						elseif($type == "DR" && in_array($type.$vv["ENTITY_ID"], $newRights))
-						{
-							$name = $vv["EL_NAME"];
-							$id = $vv["ENTITY_ID"];
-							$link = \CComponentEngine::makePathFromTemplate(
-								$params["PATH_TO_CONPANY_DEPARTMENT"],
-								array(
-									"ID" => $vv["ENTITY_ID"]
-								)
-							);
-						}
+								else
+								{
+									$visibility = 'intranet';
+								}
 
-						if(strlen($name) > 0)
-						{
-							if(strlen($link) > 0)
-							{
-								$newRightsNameList[] = (
-									$type == "U"
-									&& intval($id) > 0
-										? "[user=".$id."]".htmlspecialcharsback($name)."[/user]"
-										: "[url=".$link."]".htmlspecialcharsback($name)."[/url]"
+								$auxLiveParamList[] = array(
+									"ENTITY_TYPE" => 'U',
+									"ENTITY_ID" => $renderData['id'],
+									"NAME" => $renderData['name'],
+									"LINK" => $renderData['link'],
+									"VISIBILITY" => $visibility
 								);
 							}
-							else
-							{
-								$newRightsNameList[] = htmlspecialcharsback($name);
-							}
+						}
+						elseif (
+							$type == "DR"
+							&& in_array($type.$vv["ENTITY_ID"], $newRights)
+						)
+						{
+							$renderParts = new Livefeed\RenderParts\Department();
+							$renderData = $renderParts->getData($vv["ENTITY_ID"]);
+
+							$auxLiveParamList[] = array(
+								"ENTITY_TYPE" => 'DR',
+								"ENTITY_ID" => $renderData['id'],
+								"NAME" => $renderData['name'],
+								"LINK" => $renderData['link'],
+								"VISIBILITY" => 'intranet'
+							);
 						}
 					}
 				}
 
 				$userIP = \CBlogUser::getUserIP();
+				$auxText = CommentAux\Share::getPostText();
+
 				$commentFields = Array(
 					"POST_ID" => $postId,
 					"BLOG_ID" => $blogId,
-					"POST_TEXT" => (
-						count($newRightsNameList) > 1
-							? Loc::getMessage("BLG_SHARE")
-							: Loc::getMessage("BLG_SHARE_1")
-						).implode(", ", $newRightsNameList),
+					"POST_TEXT" => $auxText,
 					"DATE_CREATE" => convertTimeStamp(time() + $tzOffset, "FULL"),
 					"AUTHOR_IP" => $userIP[0],
 					"AUTHOR_IP1" => $userIP[1],
@@ -1531,7 +1592,7 @@ class ComponentHelper
 
 				$userIdSent = array();
 
-				if($commentId = \CBlogComment::add($commentFields))
+				if($commentId = \CBlogComment::add($commentFields, false))
 				{
 					BXClearCache(true, "/blog/comment/".intval($postId / 100)."/".$postId."/");
 
@@ -1598,7 +1659,7 @@ class ComponentHelper
 					),
 					false,
 					false,
-					array("ID", "ENTITY_TYPE", "ENTITY_ID")
+					array("ID", "ENTITY_TYPE", "ENTITY_ID", "USER_ID", "EVENT_ID")
 				);
 				if ($logEntry = $res->fetch())
 				{
@@ -1652,15 +1713,31 @@ class ComponentHelper
 					{
 						\CSocNetLog::update($logId, array(
 							"ENTITY_TYPE" => $logEntry["ENTITY_TYPE"], // to use any real field
-							"SITE_ID" => $logSiteListNew,
-							"=LOG_UPDATE" => $helper->getCurrentDateTimeFunction(),
+							"SITE_ID" => $logSiteListNew
 						));
 					}
-					else
+
+					if ($commentId > 0)
 					{
-						\CSocNetLog::update($logId, array(
-							"=LOG_UPDATE" => $helper->getCurrentDateTimeFunction(),
-						));
+						$connection = \Bitrix\Main\Application::getConnection();
+						$helper = $connection->getSqlHelper();
+
+						$logCommentFields = array(
+							'ENTITY_TYPE' => SONET_ENTITY_USER,
+							'ENTITY_ID' => $post["AUTHOR_ID"],
+							'EVENT_ID' => 'blog_comment',
+							'=LOG_DATE' => $helper->getCurrentDateTimeFunction(),
+							'LOG_ID' => $logId,
+							'USER_ID' => $userId,
+							'MESSAGE' => $auxText,
+							"TEXT_MESSAGE" => $auxText,
+							'MODULE_ID' => false,
+							'SOURCE_ID' => $commentId,
+							'RATING_TYPE_ID' => 'BLOG_COMMENT',
+							'RATING_ENTITY_ID' => $commentId
+						);
+
+						\CSocNetLogComments::add($logCommentFields, false, false);
 					}
 
 					\CSocNetLogFollow::deleteByLogID($logId, "Y", true);
@@ -1708,6 +1785,11 @@ class ComponentHelper
 					"CODE" => \Bitrix\Main\FinderDestTable::convertRights($newRights)
 				));
 
+				if (\Bitrix\Main\Loader::includeModule('crm'))
+				{
+					\CCrmLiveFeedComponent::processCrmBlogPostRights($logId, $logEntry, $post, 'share');
+				}
+
 				if (
 					intval($commentId) > 0
 					&& (
@@ -1716,9 +1798,15 @@ class ComponentHelper
 					)
 				)
 				{
+					$provider = \Bitrix\Socialnetwork\CommentAux\Base::init(\Bitrix\Socialnetwork\CommentAux\Share::getType(), array(
+						'liveParamList' => $auxLiveParamList
+					));
+
 					\CBlogComment::addLiveComment($commentId, array(
 						"PATH_TO_USER" => $params["PATH_TO_USER"],
-						"LOG_ID" => ($logId ? intval($logId) : 0)
+						"LOG_ID" => ($logId ? intval($logId) : 0),
+						"AUX" => 'share',
+						"AUX_LIVE_PARAMS" => $provider->getLiveParams()
 					));
 				}
 			}
@@ -1788,32 +1876,20 @@ class ComponentHelper
 			return false;
 		}
 
-		$commentPath = false;
-		$userPage = Option::get('socialnetwork', 'user_page', SITE_DIR.'company/personal/');
-		$userPath = $userPage.'user/#user_id#/';
-
-		if ($sourceEntityType == 'BLOG_COMMENT')
-		{
-			$commentPath = $userPage.'user/'.$post['AUTHOR_ID'].'/blog/view/'.$post['ID'].'/?commentId='.$commentId.'#com'.$commentId;
-		}
-
-		$commentText = Loc::getMessage(($sourceEntityType == 'BLOG_COMMENT' ? 'BLG_TASK_CREATED_COMMENT' : 'BLG_TASK_CREATED_POST'), array(
-			'#TASK_NAME#' => $task['TITLE'],
-			'#LINK#' => ($commentPath ? '[URL='.$commentPath.']'.Loc::getMessage('BLG_TASK_CREATED_COMMENT_LINK').'[/URL]' : '')
-		));
-
 		$userIP = \CBlogUser::getUserIP();
+		$auxText = CommentAux\CreateTask::getPostText();
 
 		if(!($newCommentId = \CBlogComment::add(array(
 			"POST_ID" => $postId,
 			"BLOG_ID" => $blogId,
-			"POST_TEXT" => $commentText,
+			"POST_TEXT" => $auxText,
 			"DATE_CREATE" => convertTimeStamp(time() + \CTimeZone::getOffset(), "FULL"),
 			"AUTHOR_IP" => $userIP[0],
 			"AUTHOR_IP1" => $userIP[1],
 			"PARENT_ID" => false,
-			"AUTHOR_ID" => $task['CREATED_BY']
-		))))
+			"AUTHOR_ID" => $task['CREATED_BY'],
+			"SHARE_DEST" => 'sourcetype='.$sourceEntityType.'|sourceid='.$sourceEntityId.'|taskid='.$taskId,
+		), false)))
 		{
 			return false;
 		}
@@ -1840,19 +1916,53 @@ class ComponentHelper
 			$connection = \Bitrix\Main\Application::getConnection();
 			$helper = $connection->getSqlHelper();
 
-			\CSocNetLog::update($logId, array(
-				"=LOG_UPDATE" => $helper->getCurrentDateTimeFunction(),
-			));
+			$logCommentFields = array(
+				'ENTITY_TYPE' => SONET_ENTITY_USER,
+				'ENTITY_ID' => $post["AUTHOR_ID"],
+				'EVENT_ID' => 'blog_comment',
+				'=LOG_DATE' => $helper->getCurrentDateTimeFunction(),
+				'LOG_ID' => $logId,
+				'USER_ID' => $task['CREATED_BY'],
+				'MESSAGE' => $auxText,
+				"TEXT_MESSAGE" => $auxText,
+				'MODULE_ID' => false,
+				'SOURCE_ID' => $newCommentId,
+				'RATING_TYPE_ID' => 'BLOG_COMMENT',
+				'RATING_ENTITY_ID' => $newCommentId
+			);
+
+			\CSocNetLogComments::add($logCommentFields, false, false);
 
 			if (
 				isset($params["LIVE"])
 				&& $params["LIVE"] == "Y"
 			)
 			{
+				$userPage = Option::get('socialnetwork', 'user_page', SITE_DIR.'company/personal/');
+				$userPath = $userPage.'user/'.$post['AUTHOR_ID'].'/';
+
+				$auxLiveParamList = array(
+					'sourceEntityType' => $sourceEntityType,
+					'sourceEntityId' => $sourceEntityId,
+					'taskId' => $taskId,
+					'taskName' => htmlspecialcharsback($task['TITLE']),
+					'sourceEntityLink' => (
+						$sourceEntityType == CreateTask::SOURCE_TYPE_BLOG_COMMENT
+							? $userPath.'blog/'.$post['ID'].'/?commentId='.$sourceEntityId.'#com'.$sourceEntityId
+							: ''
+					)
+				);
+
+				$provider = \Bitrix\Socialnetwork\CommentAux\Base::init(\Bitrix\Socialnetwork\CommentAux\CreateTask::getType(), array(
+					'liveParamList' => $auxLiveParamList
+				));
+
 				\CBlogComment::addLiveComment($newCommentId, array(
 					"PATH_TO_USER" => $userPath,
 					"LOG_ID" => $logId,
-					'MODE' => 'PULL_MESSAGE'
+					'MODE' => 'PULL_MESSAGE',
+					"AUX" => 'createtask',
+					"AUX_LIVE_PARAMS" => $provider->getLiveParams()
 				));
 			}
 		}
@@ -1963,7 +2073,7 @@ class ComponentHelper
 				|| empty($value["VALUE"])
 			)
 			{
-				return false;
+				continue;
 			}
 
 			$optionValue = Option::get($value["OPTION"]["MODULE_ID"], $value["OPTION"]["NAME"], false, $siteId);
@@ -1984,43 +2094,51 @@ class ComponentHelper
 		return true;
 	}
 
-	public static function getSonetGroupAvailable()
+	public static function getSonetGroupAvailable($params = array(), &$limitReached = false)
 	{
 		global $USER;
 
 		$currentUserId = $USER->getId();
+		$limit = (isset($params['limit']) && intval($params['limit']) > 0 ? intval($params['limit']) : 500);
 
 		$currentCache = \Bitrix\Main\Data\Cache::createInstance();
 
 		$cacheTtl = defined("BX_COMP_MANAGED_CACHE") ? 3153600 : 3600*4;
-		$cacheId = 'dest_group_'.SITE_ID.'_'.$USER->getID();
-		$cacheDir = '/sonet/dest_sonet_groups/'.SITE_ID.'/'.$USER->getID();
+		$cacheId = 'dest_group_'.SITE_ID.'_'.$currentUserId.'_'.$limit;
+		$cacheDir = '/sonet/dest_sonet_groups/'.SITE_ID.'/'.$currentUserId;
 
 		if($currentCache->startDataCache($cacheTtl, $cacheId, $cacheDir))
 		{
 			global $CACHE_MANAGER;
 
+			$limitReached = false;
 			$groupList = \CSocNetLogDestination::getSocnetGroup(array(
-				'features' => array("blog", array("premoderate_post", "moderate_post", "write_post", "full_post"))
-			));
+				'features' => array("blog", array("premoderate_post", "moderate_post", "write_post", "full_post")),
+				'limit' => $limit
+			), $limitReached);
 
 			if(defined("BX_COMP_MANAGED_CACHE"))
 			{
-				$CACHE_MANAGER->StartTagCache($cacheDir);
+				$CACHE_MANAGER->startTagCache($cacheDir);
 				foreach($groupList as $group)
 				{
-					$CACHE_MANAGER->RegisterTag("sonet_features_G_".$group["entityId"]);
-					$CACHE_MANAGER->RegisterTag("sonet_group_".$group["entityId"]);
+					$CACHE_MANAGER->registerTag("sonet_features_G_".$group["entityId"]);
+					$CACHE_MANAGER->registerTag("sonet_group_".$group["entityId"]);
 				}
-				$CACHE_MANAGER->RegisterTag("sonet_user2group_U".$currentUserId);
-				$CACHE_MANAGER->EndTagCache();
+				$CACHE_MANAGER->registerTag("sonet_user2group_U".$currentUserId);
+				$CACHE_MANAGER->endTagCache();
 			}
-			$currentCache->EndDataCache($groupList);
+			$currentCache->endDataCache(array(
+				'groups' => $groupList,
+				'limitReached' => $limitReached
+			));
 
 		}
 		else
 		{
-			$groupList = $currentCache->GetVars();
+			$tmp = $currentCache->getVars();
+			$groupList = $tmp['groups'];
+			$limitReached = $tmp['limitReached'];
 		}
 
 		return $groupList;
@@ -2160,7 +2278,8 @@ class ComponentHelper
 			{
 				$canEdit = call_user_func($commentEvent["METHOD_CANEDIT"], array(
 					"LOG_SOURCE_ID" => $logEntry["SOURCE_ID"],
-					"COMMENT_SOURCE_ID" => $comment["SOURCE_ID"]
+					"COMMENT_SOURCE_ID" => $comment["SOURCE_ID"],
+					"USER_ID" => $comment["USER_ID"]
 				));
 			}
 			else
@@ -2239,7 +2358,7 @@ class ComponentHelper
 				$rights[] = $right["GROUP_CODE"];
 			}
 
-			\CSocNetLogTools::SetUFRights($comment["UF"]["UF_SONET_COM_DOC"]["VALUE"], $rights);
+			\CSocNetLogTools::setUFRights($comment["UF"]["UF_SONET_COM_DOC"]["VALUE"], $rights);
 		}
 
 		$dateFormated = FormatDate(
@@ -2357,39 +2476,46 @@ class ComponentHelper
 			isset($params["PULL"])
 			&& $params["PULL"] == "Y"
 			&& Loader::includeModule("pull")
-			&& \CPullOptions::GetNginxStatus()
+			&& \CPullOptions::getNginxStatus()
 		)
 		{
-			$forumMetaData = \CSocNetLogTools::getForumCommentMetaData($logEntry["EVENT_ID"]);
-
-			if (
-				$logEntry["ENTITY_TYPE"] == "CRMACTIVITY"
-				&& Loader::includeModule("crm")
-				&& ($activity = \CCrmActivity::getByID($logEntry["ENTITY_ID"], false))
-				&& ($activity["TYPE_ID"] == \CCrmActivityType::Task)
-			)
+			if (!empty($params["ENTITY_XML_ID"]))
 			{
-				$entityXMLId = "TASK_".$activity["ASSOCIATED_ENTITY_ID"];
-			}
-			elseif (
-				$logEntry["ENTITY_TYPE"] == "WF"
-				&& $logEntry["SOURCE_ID"] > 0
-				&& Loader::includeModule("bizproc")
-				&& ($workflowId = \CBPStateService::getWorkflowByIntegerId($logEntry["SOURCE_ID"]))
-			)
-			{
-				$entityXMLId = "WF_".$workflowId;
-			}
-			elseif (
-				$forumMetaData
-				&& $logEntry["SOURCE_ID"] > 0
-			)
-			{
-				$entityXMLId = $forumMetaData[0]."_".$logEntry["SOURCE_ID"];
+				$entityXMLId = $params["ENTITY_XML_ID"];
 			}
 			else
 			{
-				$entityXMLId = strtoupper($logEntry["EVENT_ID"])."_".$logEntry["ID"];
+				$forumMetaData = \CSocNetLogTools::getForumCommentMetaData($logEntry["EVENT_ID"]);
+
+				if (
+					$logEntry["ENTITY_TYPE"] == "CRMACTIVITY"
+					&& Loader::includeModule("crm")
+					&& ($activity = \CCrmActivity::getByID($logEntry["ENTITY_ID"], false))
+					&& ($activity["TYPE_ID"] == \CCrmActivityType::Task)
+				)
+				{
+					$entityXMLId = "TASK_".$activity["ASSOCIATED_ENTITY_ID"];
+				}
+				elseif (
+					$logEntry["ENTITY_TYPE"] == "WF"
+					&& $logEntry["SOURCE_ID"] > 0
+					&& Loader::includeModule("bizproc")
+					&& ($workflowId = \CBPStateService::getWorkflowByIntegerId($logEntry["SOURCE_ID"]))
+				)
+				{
+					$entityXMLId = "WF_".$workflowId;
+				}
+				elseif (
+					$forumMetaData
+					&& $logEntry["SOURCE_ID"] > 0
+				)
+				{
+					$entityXMLId = $forumMetaData[0]."_".$logEntry["SOURCE_ID"];
+				}
+				else
+				{
+					$entityXMLId = strtoupper($logEntry["EVENT_ID"])."_".$logEntry["ID"];
+				}
 			}
 
 			$listCommentId = (
@@ -2401,9 +2527,10 @@ class ComponentHelper
 			$eventHandlerID = EventManager::getInstance()->addEventHandlerCompatible("main", "system.field.view.file", array("CSocNetLogTools", "logUFfileShow"));
 			$rights = \CSocNetLogComponent::getCommentRights(array(
 				"EVENT_ID" => $logEntry["EVENT_ID"],
-				"SOURCE_ID" => $logEntry["SOURCE_ID"]
+				"SOURCE_ID" => $logEntry["SOURCE_ID"],
+				"USER_ID" => $comment["USER_ID"]
 			));
-			$res = $APPLICATION->IncludeComponent(
+			$res = $APPLICATION->includeComponent(
 				"bitrix:main.post.list",
 				"",
 				array(
@@ -2467,7 +2594,7 @@ class ComponentHelper
 										array(
 											"log_id" => $logEntry["ID"]
 										)
-									)."?commentId=#ID#"
+									).(strpos($params["PATH_TO_LOG_ENTRY"], "?") === false ? "?" : "&")."commentId=#ID#"
 									: ""
 							)
 					),
@@ -2504,5 +2631,376 @@ class ComponentHelper
 		}
 
 		return $result;
+	}
+
+	public static function fillSelectedUsersToInvite($HTTPPost, $componentParams, &$componentResult)
+	{
+		if(
+			!empty($HTTPPost["SPERM"])
+			&& !empty($HTTPPost["SPERM"]["UE"])
+			&& is_array($HTTPPost["SPERM"]["UE"])
+		)
+		{
+			$nameFormat = \CSite::getNameFormat(false);
+			foreach ($HTTPPost["SPERM"]["UE"] as $invitedEmail)
+			{
+				$name = (!empty($HTTPPost["INVITED_USER_NAME"][$invitedEmail]) ? $HTTPPost["INVITED_USER_NAME"][$invitedEmail] : '');
+				$lastName = (!empty($HTTPPost["INVITED_USER_LAST_NAME"][$invitedEmail]) ? $HTTPPost["INVITED_USER_LAST_NAME"][$invitedEmail] : '');
+
+				$createCrmContact = (
+					!empty($HTTPPost["INVITED_USER_CREATE_CRM_CONTACT"][$invitedEmail])
+					&& $HTTPPost["INVITED_USER_CREATE_CRM_CONTACT"][$invitedEmail] == 'Y'
+				);
+
+				$userName = \CUser::formatName(
+					empty($arParams["NAME_TEMPLATE"]) ? $nameFormat : $componentParams["NAME_TEMPLATE"],
+					array(
+						'NAME' => $name,
+						'LAST_NAME' => $lastName,
+						'LOGIN' => $invitedEmail
+					),
+					true,
+					false
+				);
+
+				$componentResult["PostToShow"]["FEED_DESTINATION"]['USERS'][$invitedEmail] = array(
+					'id' => $invitedEmail,
+					'email' => $invitedEmail,
+					'showEmail' => 'Y',
+					'name' => $userName,
+					'isEmail' => 'Y',
+					'isCrmEmail' => ($createCrmContact ? 'Y' : 'N'),
+					'params' => array(
+						'name' => $name,
+						'lastName' => $lastName,
+						'createCrmContact' => $createCrmContact
+					)
+				);
+				$componentResult["PostToShow"]["FEED_DESTINATION"]['SELECTED'][$invitedEmail] = 'users';
+			}
+		}
+	}
+
+	public static function processBlogPostNewMailUser(&$HTTPPost, &$componentResult)
+	{
+		self::processBlogPostNewCrmContact($HTTPPost, $componentResult);
+	}
+
+	public static function processBlogPostNewCrmContact(&$HTTPPost, &$componentResult)
+	{
+		$USent = (
+			isset($HTTPPost["SPERM"]["U"])
+			&& is_array($HTTPPost["SPERM"]["U"])
+			&& !empty($HTTPPost["SPERM"]["U"])
+		);
+
+		$UESent = (
+			$componentResult["ALLOW_EMAIL_INVITATION"]
+			&& isset($HTTPPost["SPERM"]["UE"])
+			&& is_array($HTTPPost["SPERM"]["UE"])
+			&& !empty($HTTPPost["SPERM"]["UE"])
+		);
+
+		if (
+			($USent || $UESent)
+			&& Loader::includeModule('mail')
+		)
+		{
+			if (
+				$USent
+				&& Loader::includeModule('crm')
+			) // process mail users/contacts
+			{
+				$userIdList = array();
+				foreach ($HTTPPost["SPERM"]["U"] as $code)
+				{
+					if 	(preg_match('/^U(\d+)$/i', $code, $matches))
+					{
+						$userIdList[] = intval($matches[1]);
+					}
+				}
+
+				if (!empty($userIdList))
+				{
+					$res = Main\UserTable::getList(array(
+						'filter' => array(
+							'ID' => $userIdList,
+							'!=UF_USER_CRM_ENTITY' => false
+						),
+						'select' => array('ID', 'UF_USER_CRM_ENTITY')
+					));
+					while ($user = $res->fetch())
+					{
+						$livefeedCrmEntity = \CCrmLiveFeedComponent::resolveLFEntutyFromUF($user['UF_USER_CRM_ENTITY']);
+
+						if (!empty($livefeedCrmEntity))
+						{
+							list($k, $v) = $livefeedCrmEntity;
+							if ($k && $v)
+							{
+								if (!isset($HTTPPost["SPERM"][$k]))
+								{
+									$HTTPPost["SPERM"][$k] = array();
+								}
+								$HTTPPost["SPERM"][$k][] = $k.$v;
+							}
+						}
+					}
+				}
+			}
+
+			if ($UESent) // process emails
+			{
+				foreach ($HTTPPost["SPERM"]["UE"] as $key => $userEmail)
+				{
+					if (!check_email($userEmail))
+					{
+						continue;
+					}
+
+					$found = false;
+
+					$res = \CUser::getList(
+						$o = "ID",
+						$b = "ASC",
+						array("=EMAIL" => $userEmail),
+						array("FIELDS" => array("ID", "EXTERNAL_AUTH_ID", "ACTIVE"))
+					);
+
+					while ($emailUser = $res->fetch())
+					{
+						if (
+							intval($emailUser["ID"]) > 0
+							&& (
+								$emailUser["ACTIVE"] == "Y"
+								|| $emailUser["EXTERNAL_AUTH_ID"] == "email"
+							)
+						)
+						{
+							if ($emailUser["ACTIVE"] == "N") // email only
+							{
+								$user = new \CUser;
+								$user->update($emailUser["ID"], array(
+									"ACTIVE" => "Y"
+								));
+							}
+
+							$HTTPPost["SPERM"]["U"][] = "U".$emailUser["ID"];
+							$found = true;
+						}
+					}
+
+					if ($found)
+					{
+						continue;
+					}
+
+					$userFields = array(
+						'EMAIL' => $userEmail,
+						'NAME' => (
+							isset($HTTPPost["INVITED_USER_NAME"])
+							&& isset($HTTPPost["INVITED_USER_NAME"][$userEmail])
+								? $HTTPPost["INVITED_USER_NAME"][$userEmail]
+								: ''
+						),
+						'LAST_NAME' => (
+							isset($HTTPPost["INVITED_USER_LAST_NAME"])
+							&& isset($HTTPPost["INVITED_USER_LAST_NAME"][$userEmail])
+								? $HTTPPost["INVITED_USER_LAST_NAME"][$userEmail]
+								: ''
+						)
+					);
+
+					if (!empty($HTTPPost["INVITED_USER_CRM_ENTITY"][$userEmail]))
+					{
+						$userFields['UF'] = array(
+							'UF_USER_CRM_ENTITY' => $HTTPPost["INVITED_USER_CRM_ENTITY"][$userEmail]
+						);
+						$res = \CCrmLiveFeedComponent::resolveLFEntutyFromUF($HTTPPost["INVITED_USER_CRM_ENTITY"][$userEmail]);
+						if (!empty($res))
+						{
+							list($k, $v) = $res;
+							if ($k && $v)
+							{
+								if (!isset($HTTPPost["SPERM"][$k]))
+								{
+									$HTTPPost["SPERM"][$k] = array();
+								}
+								$HTTPPost["SPERM"][$k][] = $k.$v;
+
+								if (
+									$k == \CCrmLiveFeedEntity::Contact
+									&& ($contact = \CCrmContact::getByID($v))
+									&& intval($contact['PHOTO']) > 0
+								)
+								{
+									$userFields['PERSONAL_PHOTO_ID'] = intval($contact['PHOTO']);
+								}
+							}
+						}
+					}
+					elseif (
+						$HTTPPost["INVITED_USER_CREATE_CRM_CONTACT"][$userEmail] == 'Y'
+						&& ($contactId = \CCrmLiveFeedComponent::createContact($userFields))
+					)
+					{
+						$userFields['UF'] = array(
+							'UF_USER_CRM_ENTITY' => 'C_'.$contactId
+						);
+						if (!isset($HTTPPost["SPERM"]["CRMCONTACT"]))
+						{
+							$HTTPPost["SPERM"]["CRMCONTACT"] = array();
+						}
+						$HTTPPost["SPERM"]["CRMCONTACT"][] = "CRMCONTACT".$contactId;
+					}
+
+					// invite extranet user by email
+					$invitedUserId = \Bitrix\Mail\User::create($userFields);
+
+					$errorMessage = false;
+
+					if (
+						intval($invitedUserId) <= 0
+						&& $invitedUserId->LAST_ERROR <> ''
+					)
+					{
+						$errorMessage = $invitedUserId->LAST_ERROR;
+					}
+
+					if (
+						!$errorMessage
+						&& intval($invitedUserId) > 0
+					)
+					{
+						if (!isset($HTTPPost["SPERM"]["U"]))
+						{
+							$HTTPPost["SPERM"]["U"] = array();
+						}
+						$HTTPPost["SPERM"]["U"][] = "U".$invitedUserId;
+					}
+					else
+					{
+						$componentResult["ERROR_MESSAGE"] .= $errorMessage;
+					}
+				}
+//				unset($HTTPPost["SPERM"]["UE"]);
+			}
+		}
+	}
+
+	public static function getUserSonetGroupIdList($userId = false, $siteId = false)
+	{
+		$result = array();
+
+		if (intval($userId) <= 0)
+		{
+			global $USER;
+			$userId = $USER->getId();
+		}
+
+		if (!$siteId)
+		{
+			$siteId = SITE_ID;
+		}
+
+		$currentCache = \Bitrix\Main\Data\Cache::createInstance();
+
+		$cacheTtl = defined("BX_COMP_MANAGED_CACHE") ? 3153600 : 3600*4;
+		$cacheId = 'user_group_member'.$siteId.'_'.$userId;
+		$cacheDir = '/sonet/user_group_member/'.$siteId.'/'.$userId;
+
+		if($currentCache->startDataCache($cacheTtl, $cacheId, $cacheDir))
+		{
+			global $CACHE_MANAGER;
+
+			$res = \Bitrix\Socialnetwork\UserToGroupTable::getList(array(
+				'filter' => array(
+					'<=ROLE' => \Bitrix\Socialnetwork\UserToGroupTable::ROLE_USER,
+					'=USER_ID' => $userId,
+					'=GROUP.ACTIVE' => 'Y',
+					'=GROUP.WorkgroupSite:GROUP.SITE_ID' => $siteId
+				),
+				'select' => array('GROUP_ID')
+			));
+
+			while ($record = $res->fetch())
+			{
+				$result[] = $record["GROUP_ID"];
+			}
+
+			if(defined("BX_COMP_MANAGED_CACHE"))
+			{
+				$CACHE_MANAGER->startTagCache($cacheDir);
+				$CACHE_MANAGER->registerTag("sonet_user2group_U".$userId);
+				$CACHE_MANAGER->endTagCache();
+			}
+			$currentCache->endDataCache($result);
+		}
+		else
+		{
+			$result = $currentCache->getVars();
+		}
+
+		return $result;
+	}
+
+	public static function getAllowToAllDestination($userId = false)
+	{
+		global $USER;
+
+		$userId = intval($userId);
+		if ($userId <= 0)
+		{
+			$userId = $USER->getId();
+		}
+
+		$allowToAll = (Option::get("socialnetwork", "allow_livefeed_toall", "Y") == "Y");
+
+		if ($allowToAll)
+		{
+			$toAllRightsList = unserialize(Option::get("socialnetwork", "livefeed_toall_rights", 'a:1:{i:0;s:2:"AU";}'));
+			if (!$toAllRightsList)
+			{
+				$toAllRightsList = array("AU");
+			}
+
+			$userGroupCodeList = array_merge(array("AU"), \CAccess::getUserCodesArray($userId));
+			if (count(array_intersect($toAllRightsList, $userGroupCodeList)) <= 0)
+			{
+				$allowToAll = false;
+			}
+		}
+
+		return $allowToAll;
+	}
+
+	public static function getLivefeedStepper()
+	{
+		$res = array();
+		if (ModuleManager::isModuleInstalled('blog'))
+		{
+			$res["blog"] = array('Bitrix\Blog\Update\LivefeedIndexPost', 'Bitrix\Blog\Update\LivefeedIndexComment');
+		}
+		if (ModuleManager::isModuleInstalled('tasks'))
+		{
+			$res["tasks"] = array('Bitrix\Tasks\Update\LivefeedIndexTask');
+		}
+		if (ModuleManager::isModuleInstalled('calendar'))
+		{
+			$res["calendar"] = array('Bitrix\Calendar\Update\LivefeedIndexCalendar');
+		}
+		if (ModuleManager::isModuleInstalled('forum'))
+		{
+			$res["forum"] = array('Bitrix\Forum\Update\LivefeedIndexMessage', 'Bitrix\Forum\Update\LivefeedIndexComment');
+		}
+		if (ModuleManager::isModuleInstalled('xdimport'))
+		{
+			$res["xdimport"] = array('Bitrix\XDImport\Update\LivefeedIndexLog', 'Bitrix\XDImport\Update\LivefeedIndexComment');
+		}
+		if (!empty($res))
+		{
+			echo Stepper::getHtml($res, Loc::getMessage('SONET_HELPER_STEPPER_LIVEFEED'));
+		}
+
 	}
 }

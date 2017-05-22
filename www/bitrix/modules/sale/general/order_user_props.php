@@ -27,6 +27,16 @@ class CAllSaleOrderUserProps
 	}
 	*/
 
+	/**
+	 * @param $userId
+	 * @param $profileId
+	 * @param $profileName
+	 * @param $personTypeId
+	 * @param $orderProps
+	 * @param $arErrors
+	 *
+	 * @return bool|int
+	 */
 	static function DoSaveUserProfile($userId, $profileId, $profileName, $personTypeId, $orderProps, &$arErrors)
 	{
 		$profileId = intval($profileId);
@@ -169,6 +179,8 @@ class CAllSaleOrderUserProps
 
 			CSaleOrderUserPropsValue::Delete($id);
 		}
+
+		return $profileId;
 	}
 
 	public static function DoLoadProfiles($userId, $personTypeId = null)

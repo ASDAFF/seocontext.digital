@@ -797,7 +797,7 @@ initReportControls();
 		<span class="webform-button-right"></span>
 	</a>
 	<a class="webform-button-link webform-button-link-cancel"
-		href="<?=$arParams['ACTION']=='edit'?$_SERVER['HTTP_REFERER']:CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_REPORT_LIST"], array());?>">
+		href="<?=$arParams['ACTION']=='edit'?htmlspecialcharsbx($_SERVER['HTTP_REFERER']):CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_REPORT_LIST"], array());?>">
 		<?=GetMessage('REPORT_CANCEL')?>
 	</a>
 </div>
@@ -1097,14 +1097,14 @@ $name = $APPLICATION->IncludeComponent(
 <div class="reports-title-buttons">
 	<? if($arParams['REPORT_ID'] && false): ?>
 	<a class="reports-title-button"
-	   onclick="BX.Report['<?=$jsClass?>'].export('<?=$arParams['REPORT_ID']?>')">
+		onclick="BX.Report['<?=$jsClass?>'].export('<?=$arParams['REPORT_ID']?>')">
 		<i class=""></i>
 		<span class="reports-link"><?=GetMessage('REPORT_TITLE_EXPORT')?></span>
 	</a>
 	&nbsp;
 	<? endif ?>
 	<a class="reports-title-button"
-	   href="<?=CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_REPORT_LIST"], array());?>">
+		href="<?=CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_REPORT_LIST"], array());?>">
 		<i class="reports-title-button-back-icon"></i>
 		<span class="reports-link"><?=GetMessage('REPORT_RETURN_TO_LIST')?></span>
 	</a>

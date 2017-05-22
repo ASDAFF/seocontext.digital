@@ -63,7 +63,6 @@ class CAllSocNetGroupSubject
 			return false;
 
 		$ID = IntVal($ID);
-		$bSuccess = True;
 
 		$bCanDelete = true;
 		$dbResult = CSocNetGroup::GetList(
@@ -89,8 +88,8 @@ class CAllSocNetGroupSubject
 
 		return $bSuccess;
 	}
-	
-	function Update($ID, $arFields)
+
+	public static function Update($ID, $arFields)
 	{
 		global $DB, $CACHE_MANAGER;
 
@@ -99,15 +98,7 @@ class CAllSocNetGroupSubject
 
 		$ID = IntVal($ID);
 
-		$arFields1 = array();
-		foreach ($arFields as $key => $value)
-		{
-			if (substr($key, 0, 1) == "=")
-			{
-				$arFields1[substr($key, 1)] = $value;
-				unset($arFields[$key]);
-			}
-		}
+		$arFields1 = \Bitrix\Socialnetwork\Util::getEqualityFields($arFields);
 
 		if (!CSocNetGroupSubject::CheckFields("UPDATE", $arFields, $ID))
 			return false;
@@ -132,13 +123,7 @@ class CAllSocNetGroupSubject
 		}
 
 		$strUpdate = $DB->PrepareUpdate("b_sonet_group_subject", $arFields);
-
-		foreach ($arFields1 as $key => $value)
-		{
-			if (strlen($strUpdate) > 0)
-				$strUpdate .= ", ";
-			$strUpdate .= $key."=".$value." ";
-		}
+		\Bitrix\Socialnetwork\Util::processEqualityFieldsToUpdate($arFields1, $strUpdate);
 
 		if (strlen($strUpdate) > 0)
 		{
@@ -187,7 +172,7 @@ class CAllSocNetGroupSubject
 		return False;
 	}
 
-	function GetSite($subject_id)
+	public static function GetSite($subject_id)
 	{
 		global $DB;
 		$strSql = "SELECT L.*, SGSS.* FROM b_sonet_group_subject_site SGSS, b_lang L WHERE L.LID=SGSS.SITE_ID AND SGSS.SUBJECT_ID=".IntVal($subject_id);

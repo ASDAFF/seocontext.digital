@@ -2,6 +2,8 @@
 
 namespace Bitrix\Main\UrlPreview\Parser;
 
+use Bitrix\Main\Context;
+use Bitrix\Main\Text\Encoding;
 use Bitrix\Main\UrlPreview\HtmlDocument;
 use Bitrix\Main\UrlPreview\Parser;
 
@@ -13,6 +15,8 @@ class SchemaOrg extends Parser
 	/** @var  array */
 	protected $schemaMetadata = array();
 
+	protected $documentEncoding;
+
 	/**
 	 * Parses HTML document's Schema.org metadata.
 	 *
@@ -20,6 +24,7 @@ class SchemaOrg extends Parser
 	 */
 	public function handle(HtmlDocument $document)
 	{
+		$this->documentEncoding = $document->getEncoding();
 		if(strpos($document->getHtml(), 'itemscope') === false)
 			return null;
 
@@ -122,6 +127,8 @@ class SchemaOrg extends Parser
 				break;
 		}
 
+		// dom extension's internal encoding is always utf-8
+		$result = Encoding::convertEncoding($result, 'utf-8', $this->documentEncoding);
 		$result = trim($result);
 		return (strlen($result) > 0 ? $result : null);
 	}

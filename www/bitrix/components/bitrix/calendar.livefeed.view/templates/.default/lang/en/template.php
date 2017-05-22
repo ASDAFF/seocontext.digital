@@ -13,4 +13,8 @@ $MESS["ECLFV_INVITE_DECLINE2"] = "Decline";
 $MESS["ECLFV_EVENT_ACCEPTED"] = "You are attending this event";
 $MESS["ECLFV_EVENT_DECLINED"] = "You are not attending this event";
 $MESS["ECLFV_CRM"] = "CRM";
+$MESS["ECLFV_REC_DECLINE"] = "Do you want to refuse your participation in recurring event?";
+$MESS["ECLFV_REC_DECLINE_THIS"] = "Only this event";
+$MESS["ECLFV_REC_DECLINE_NEXT"] = "This and all subsequent events";
+$MESS["ECLFV_REC_DECLINE_ALL"] = "All events";
 ?>

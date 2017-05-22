@@ -160,7 +160,7 @@ if(
 		$arWORK_LOGO = $_FILES["WORK_LOGO"];
 
 		$arUser = false;
-		if($ID>0)
+		if($ID > 0 && $COPY_ID <= 0)
 		{
 			$dbUser = CUser::GetById($ID);
 			$arUser = $dbUser->Fetch();
@@ -227,7 +227,10 @@ if(
 			if($_POST["LID"] <> '')
 				$arFields["LID"] = $_POST["LID"];
 
-			if(is_set($_POST, 'EXTERNAL_AUTH_ID'))
+			if(isset($_POST["LANGUAGE_ID"]))
+				$arFields["LANGUAGE_ID"] = $_POST["LANGUAGE_ID"];
+
+			if(isset($_POST['EXTERNAL_AUTH_ID']))
 				$arFields['EXTERNAL_AUTH_ID'] = $_POST["EXTERNAL_AUTH_ID"];
 
 			if ($ID == 1 && $COPY_ID <= 0)
@@ -373,10 +376,15 @@ if(
 				if($res_site_arr = $res_site->Fetch())
 					$arMess = IncludeModuleLangFile(__FILE__, $res_site_arr["LANGUAGE_ID"], true);
 
-				if($new=="Y")
-					CUser::SendUserInfo($ID, $_POST["LID"], ($arMess !== false? $arMess["ACCOUNT_INSERT"]:GetMessage("ACCOUNT_INSERT")), true);
+				if($new == "Y")
+				{
+					$text = ($arMess !== false? $arMess["ACCOUNT_INSERT"] : GetMessage("ACCOUNT_INSERT"));
+				}
 				else
-					CUser::SendUserInfo($ID, $_POST["LID"], ($arMess !== false? $arMess["ACCOUNT_UPDATE"]:GetMessage("ACCOUNT_UPDATE")), true);
+				{
+					$text = ($arMess !== false? $arMess["ACCOUNT_UPDATE"] : GetMessage("ACCOUNT_UPDATE"));
+				}
+				CUser::SendUserInfo($ID, $_POST["LID"], $text, true);
 			}
 
 			if($USER->CanDoOperation('edit_all_users') || $USER->CanDoOperation('edit_subordinate_users') || ($USER->CanDoOperation('edit_own_profile') && $ID==$uid))
@@ -648,7 +656,7 @@ endif;
 $tabControl->AddEditField("XML_ID", GetMessage("MAIN_USER_EDIT_EXT"), false, array("size"=>30, "maxlength"=>255), $str_XML_ID);
 ?>
 <?
-if($USER->CanDoOperation('view_subordinate_users') || $USER->CanDoOperation('view_all_users')):
+if($USER->CanDoOperation('view_subordinate_users') || $USER->CanDoOperation('view_all_users') || $USER->CanDoOperation('edit_all_users') || $USER->CanDoOperation('edit_subordinate_users')):
 	$tabControl->BeginCustomField("LID", GetMessage("MAIN_DEFAULT_SITE"));
 ?>
 	<tr>
@@ -658,6 +666,14 @@ if($USER->CanDoOperation('view_subordinate_users') || $USER->CanDoOperation('vie
 	</tr>
 <?
 	$tabControl->EndCustomField("LID", '<input type="hidden" name="LID" value="'.$str_LID.'">');
+
+	$langOptions = array("" => GetMessage("user_edit_lang_not_set"));
+	$languages = \Bitrix\Main\Localization\LanguageTable::getList(array("filter" => array("ACTIVE" => "Y"), "order" => array("SORT" => "ASC", "NAME" => "ASC")));
+	while($language = $languages->fetch())
+	{
+		$langOptions[$language["LID"]] = \Bitrix\Main\Text\HtmlFilter::encode($language["NAME"]);
+	}
+	$tabControl->AddDropDownField("LANGUAGE_ID", GetMessage("user_edit_lang"), false, $langOptions, $str_LANGUAGE_ID);
 
 	$params = array('id="bx_user_info_event"');
 	if(!$canSelfEdit || $str_EXTERNAL_AUTH_ID <> '')
@@ -691,6 +707,7 @@ if($showGroupTabs):
 			$dbGroups = CGroup::GetList(($b = "c_sort"), ($o = "asc"), array("ANONYMOUS" => "N"));
 			while ($arGroups = $dbGroups->Fetch())
 			{
+				$arGroups["ID"] = intval($arGroups["ID"]);
 				if (!$USER->CanDoOperation('edit_all_users') && $USER->CanDoOperation('edit_subordinate_users') && !in_array($arGroups["ID"], $arUserSubordinateGroups) || $arGroups["ID"] == 2)
 					continue;
 				if($arGroups["ID"]==1 && !$USER->IsAdmin())

@@ -92,6 +92,10 @@ class currency extends CModule
 		ModuleManager::registerModule('currency');
 		self::installCurrencies();
 
+		$eventManager = \Bitrix\Main\EventManager::getInstance();
+		$eventManager->registerEventHandlerCompatible('iblock', 'OnIBlockPropertyBuildList', 'currency',
+			'\Bitrix\Currency\Integration\IblockMoneyProperty', 'getUserTypeDescription');
+
 		return true;
 	}
 
@@ -110,6 +114,11 @@ class currency extends CModule
 				return false;
 			}
 		}
+
+		$eventManager = \Bitrix\Main\EventManager::getInstance();
+		$eventManager->unRegisterEventHandler('iblock', 'OnIBlockPropertyBuildList', 'currency',
+			'\Bitrix\Currency\Integration\IblockMoneyProperty', 'getUserTypeDescription');
+
 		CAgent::RemoveModuleAgents('currency');
 		ModuleManager::unRegisterModule('currency');
 
@@ -169,37 +178,59 @@ class currency extends CModule
 		if (!empty($currency))
 			return;
 
-		$languageID = '';
-		$siteIterator = SiteTable::getList(array(
-			'select' => array('LID', 'LANGUAGE_ID'),
-			'filter' => array('=DEF' => 'Y', '=ACTIVE' => 'Y')
-		));
-		if ($site = $siteIterator->fetch())
-			$languageID = (string)$site['LANGUAGE_ID'];
-		unset($site, $siteIterator);
-
-		if ($languageID == '')
-			$languageID = 'en';
-
-		$currencyList = array();
-		$currencySetID = '';
-		switch ($languageID)
+		$baseCurrency = '';
+		if ($bitrix24 && Loader::includeModule('bitrix24'))
 		{
-			case 'ua':
-			case 'de':
-			case 'en':
-			case 'la':
-			case 'tc':
-			case 'sc':
-			case 'in':
-			case 'kz':
-			case 'br':
-			case 'by':
-				$currencySetID = $languageID;
-				break;
-			case 'ru':
-				if (!$bitrix24)
-				{
+			$bitrix24Zone = CBitrix24::getCurrentAreaConfig();
+			if (!empty($bitrix24Zone) && is_array($bitrix24Zone))
+				$baseCurrency = $bitrix24Zone['CURRENCY'];
+		}
+		if ($baseCurrency == '')
+		{
+			$languageID = '';
+			$site = SiteTable::getList(array(
+				'select' => array('LID', 'LANGUAGE_ID'),
+				'filter' => array('=DEF' => 'Y', '=ACTIVE' => 'Y')
+			))->fetch();
+			if (!empty($site))
+				$languageID = (string)$site['LANGUAGE_ID'];
+			unset($site);
+
+			if ($languageID == '')
+				$languageID = 'en';
+
+			$currencyList = array();
+			switch ($languageID)
+			{
+				case 'ua':
+					$baseCurrency = 'UAH';
+					break;
+				case 'de':
+					$baseCurrency = 'EUR';
+					break;
+				case 'en':
+					$baseCurrency = 'USD';
+					break;
+				case 'la':
+					$baseCurrency = 'USD';
+					break;
+				case 'tc':
+				case 'sc':
+					$baseCurrency = 'CNY';
+					break;
+				case 'in':
+					$baseCurrency = 'INR';
+					break;
+				case 'kz':
+					$baseCurrency = 'KZT';
+					break;
+				case 'br':
+					$baseCurrency = 'BRL';
+					break;
+				case 'by':
+					$baseCurrency = 'BYN';
+					break;
+				case 'ru':
 					$languageList = array();
 					$languageIterator = LanguageTable::getList(array(
 						'select' => array('ID'),
@@ -209,24 +240,25 @@ class currency extends CModule
 						$languageList[$language['ID']] = $language['ID'];
 					unset($language, $languageIterator);
 					if (isset($languageList['kz']))
-						$currencySetID = 'kz';
+						$baseCurrency = 'KZT';
 					elseif (isset($languageList['by']))
-						$currencySetID = 'by';
+						$baseCurrency = 'BYN';
 					elseif (isset($languageList['ua']))
-						$currencySetID = 'ua';
-					unset($languageList);
-				}
-				if ($currencySetID == '')
-					$currencySetID = $languageID;
-				break;
-			default:
-				$currencySetID = 'en';
-				break;
+						$baseCurrency = 'UAH';
+					else
+						$baseCurrency = 'RUB';
+					break;
+				default:
+					$baseCurrency = 'USD';
+					break;
+			}
+			unset($languageID);
 		}
 		$datetimeEntity = new Main\DB\SqlExpression(Main\Application::getConnection()->getSqlHelper()->getCurrentDateTimeFunction());
-		switch ($currencySetID)
+		switch ($baseCurrency)
 		{
-			case 'by':
+			case 'BYR':
+			case 'BYN':
 				$addCurrency = array(
 					array('CURRENCY' => 'BYN', 'NUMCODE' => '933', 'AMOUNT' => 1, 'AMOUNT_CNT' => 1, 'SORT' => 100, 'BASE' => 'Y', 'CURRENT_BASE_RATE' => 1),
 					array('CURRENCY' => 'RUB', 'NUMCODE' => '643', 'AMOUNT' => 0.31, 'AMOUNT_CNT' => 1, 'SORT' => 200, 'BASE' => 'N', 'CURRENT_BASE_RATE' => 0.31),
@@ -234,7 +266,7 @@ class currency extends CModule
 					array('CURRENCY' => 'EUR', 'NUMCODE' => '978', 'AMOUNT' => 2.22, 'AMOUNT_CNT' => 1, 'SORT' => 400, 'BASE' => 'N', 'CURRENT_BASE_RATE' => 2.22)
 				);
 				break;
-			case 'kz':
+			case 'KZT':
 				$addCurrency = array(
 					array('CURRENCY' => 'KZT', 'NUMCODE' => '398', 'AMOUNT' => 1, 'AMOUNT_CNT' => 1, 'SORT' => 100, 'BASE' => 'Y', 'CURRENT_BASE_RATE' => 1),
 					array('CURRENCY' => 'RUB', 'NUMCODE' => '643', 'AMOUNT' => 4.67, 'AMOUNT_CNT' => 1, 'SORT' => 200, 'BASE' => 'N', 'CURRENT_BASE_RATE' => 4.67),
@@ -242,7 +274,7 @@ class currency extends CModule
 					array('CURRENCY' => 'EUR', 'NUMCODE' => '978', 'AMOUNT' => 390.37, 'AMOUNT_CNT' => 1, 'SORT' => 400, 'BASE' => 'N', 'CURRENT_BASE_RATE' => 390.37)
 				);
 				break;
-			case 'ua':
+			case 'UAH':
 				$addCurrency = array(
 					array('CURRENCY' => 'UAH', 'NUMCODE' => '980', 'AMOUNT' => 1, 'AMOUNT_CNT' => 1, 'SORT' => 100, 'BASE' => 'Y', 'CURRENT_BASE_RATE' => 1),
 					array('CURRENCY' => 'RUB', 'NUMCODE' => '643', 'AMOUNT' => 3.61, 'AMOUNT_CNT' => 10, 'SORT' => 200, 'BASE' => 'N', 'CURRENT_BASE_RATE' => 0.361),
@@ -250,7 +282,7 @@ class currency extends CModule
 					array('CURRENCY' => 'EUR', 'NUMCODE' => '978', 'AMOUNT' => 2548.19, 'AMOUNT_CNT' => 100, 'SORT' => 400, 'BASE' => 'N', 'CURRENT_BASE_RATE' => 25.4819)
 				);
 				break;
-			case 'ru':
+			case 'RUB':
 				$addCurrency = array(
 					array('CURRENCY' => 'RUB', 'NUMCODE' => '643', 'AMOUNT' => 1, 'AMOUNT_CNT' => 1, 'SORT' => 100, 'BASE' => 'Y', 'CURRENT_BASE_RATE' => 1),
 					array('CURRENCY' => 'USD', 'NUMCODE' => '840', 'AMOUNT' => 64.81, 'AMOUNT_CNT' => 1, 'SORT' => 200, 'BASE' => 'N', 'CURRENT_BASE_RATE' => 64.81),
@@ -259,7 +291,7 @@ class currency extends CModule
 					array('CURRENCY' => 'BYN', 'NUMCODE' => '933', 'AMOUNT' => 32.34, 'AMOUNT_CNT' => 1, 'SORT' => 500, 'BASE' => 'N', 'CURRENT_BASE_RATE' => 32.34)
 				);
 				break;
-			case 'de':
+			case 'EUR':
 				$addCurrency = array(
 					array('CURRENCY' => 'EUR', 'NUMCODE' => '978', 'AMOUNT' => 1, 'AMOUNT_CNT' => 1, 'SORT' => 100, 'BASE' => 'Y', 'CURRENT_BASE_RATE' => 1),
 					array('CURRENCY' => 'USD', 'NUMCODE' => '840', 'AMOUNT' => 0.91, 'AMOUNT_CNT' => 1, 'SORT' => 200, 'BASE' => 'N', 'CURRENT_BASE_RATE' => 0.91),
@@ -268,8 +300,7 @@ class currency extends CModule
 					array('CURRENCY' => 'INR', 'NUMCODE' => '356', 'AMOUNT' => 13.97, 'AMOUNT_CNT' => 1000, 'SORT' => 500, 'BASE' => 'N', 'CURRENT_BASE_RATE' => 0.01397)
 				);
 				break;
-			case 'tc':
-			case 'sc':
+			case 'CNY':
 				$addCurrency = array(
 					array('CURRENCY' => 'CNY', 'NUMCODE' => '156', 'AMOUNT' => 1, 'AMOUNT_CNT' => 1, 'SORT' => 100, 'BASE' => 'Y', 'CURRENT_BASE_RATE' => 1),
 					array('CURRENCY' => 'USD', 'NUMCODE' => '840', 'AMOUNT' => 6.36, 'AMOUNT_CNT' => 1, 'SORT' => 200, 'BASE' => 'N', 'CURRENT_BASE_RATE' => 6.36),
@@ -278,7 +309,7 @@ class currency extends CModule
 					array('CURRENCY' => 'INR', 'NUMCODE' => '356', 'AMOUNT' => 9.74, 'AMOUNT_CNT' => 100, 'SORT' => 500, 'BASE' => 'N', 'CURRENT_BASE_RATE' => 0.09737)
 				);
 				break;
-			case 'in':
+			case 'INR':
 				$addCurrency = array(
 					array('CURRENCY' => 'INR', 'NUMCODE' => '356', 'AMOUNT' => 1, 'AMOUNT_CNT' => 1, 'SORT' => 100, 'BASE' => 'Y', 'CURRENT_BASE_RATE' => 1),
 					array('CURRENCY' => 'USD', 'NUMCODE' => '840', 'AMOUNT' => 65.31, 'AMOUNT_CNT' => 1, 'SORT' => 200, 'BASE' => 'N', 'CURRENT_BASE_RATE' => 65.31),
@@ -287,7 +318,7 @@ class currency extends CModule
 					array('CURRENCY' => 'BRL', 'NUMCODE' => '986', 'AMOUNT' => 16.56, 'AMOUNT_CNT' => 1, 'SORT' => 500, 'BASE' => 'N', 'CURRENT_BASE_RATE' => 16.56)
 				);
 				break;
-			case 'br':
+			case 'BRL':
 				$addCurrency = array(
 					array('CURRENCY' => 'BRL', 'NUMCODE' => '986', 'AMOUNT' => 1, 'AMOUNT_CNT' => 1, 'SORT' => 100, 'BASE' => 'Y', 'CURRENT_BASE_RATE' => 1),
 					array('CURRENCY' => 'USD', 'NUMCODE' => '840', 'AMOUNT' => 3.90, 'AMOUNT_CNT' => 1, 'SORT' => 200, 'BASE' => 'N', 'CURRENT_BASE_RATE' => 3.90),
@@ -296,9 +327,8 @@ class currency extends CModule
 					array('CURRENCY' => 'INR', 'NUMCODE' => '356', 'AMOUNT' => 5.99, 'AMOUNT_CNT' => 100, 'SORT' => 500, 'BASE' => 'N', 'CURRENT_BASE_RATE' => 0.0599),
 				);
 				break;
+			case 'USD':
 			default:
-			case 'en':
-			case 'la':
 				$addCurrency = array(
 					array('CURRENCY' => 'USD', 'NUMCODE' => '840', 'AMOUNT' => 1, 'AMOUNT_CNT' => 1, 'SORT' => 100, 'BASE' => 'Y', 'CURRENT_BASE_RATE' => 1),
 					array('CURRENCY' => 'EUR', 'NUMCODE' => '978', 'AMOUNT' => 1.10, 'AMOUNT_CNT' => 1, 'SORT' => 200, 'BASE' => 'N', 'CURRENT_BASE_RATE' => 1.10),
@@ -308,7 +338,7 @@ class currency extends CModule
 				);
 				break;
 		}
-		foreach ($addCurrency as &$fields)
+		foreach ($addCurrency as $fields)
 		{
 			$fields['CREATED_BY'] = null;
 			$fields['MODIFIED_BY'] = null;
@@ -330,7 +360,7 @@ class currency extends CModule
 			while ($existLanguage = $languageIterator->fetch())
 			{
 				$messList = Loc::loadLanguageFile($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/currency/install_lang.php', $existLanguage['ID']);
-				foreach($currencyList as &$oneCurrency)
+				foreach($currencyList as $oneCurrency)
 				{
 					$fields = array(
 						'LID' => $existLanguage['ID'],

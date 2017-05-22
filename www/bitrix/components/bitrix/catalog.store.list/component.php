@@ -58,7 +58,7 @@ if ($this->startResultCache())
 		if ($storeSite != '' && $storeSite != SITE_ID)
 			continue;
 		unset($storeSite);
-		$url = CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_ELEMENT"], array("store_id" => $arProp["ID"]));
+		$url = CComponentEngine::makePathFromTemplate($arParams["PATH_TO_ELEMENT"], array("store_id" => $arProp["ID"]));
 
 		$storeImg = false;
 		$arProp['IMAGE_ID'] = (int)$arProp['IMAGE_ID'];
@@ -84,7 +84,7 @@ if ($this->startResultCache())
 		if($arProp["GPS_N"] && $arProp["GPS_S"])
 		{
 			$viewMap=true;
-			$this->AbortResultCache();
+			$this->abortResultCache();
 		}
 		$arResult["STORES"][] = array(
 			'ID' => $arProp["ID"],
@@ -94,13 +94,14 @@ if ($this->startResultCache())
 			'DETAIL_IMG' => $arProp['IMAGE_ID'],
 			'GPS_N' => $arProp["GPS_N"],
 			'GPS_S' => $arProp["GPS_S"],
-			'ADDRESS' => $arProp["TITLE"],
+			'STORE_TITLE' => $arProp['TITLE'],
+			'ADDRESS' => $arProp["ADDRESS"],
 			'URL' => $url,
 			'DESCRIPTION' => (string)$arProp['DESCRIPTION']
 		);
 	}
 	$arResult['VIEW_MAP'] = $viewMap;
-	$this->IncludeComponentTemplate();
+	$this->includeComponentTemplate();
 }
 if ($arParams["SET_TITLE"] == "Y")
 	$APPLICATION->SetTitle($arParams["TITLE"]);

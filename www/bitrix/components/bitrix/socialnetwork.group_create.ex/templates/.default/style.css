@@ -29,7 +29,7 @@ a.sonet-invitation-dash-link:hover{ color: #696969; border-color: #696969; text-
 .sonet-group-create-tabs-content { padding-top: 22px; }
 .sonet-group-create-tabs-content.sonet-group-create-tabs-content-invite { padding-top: 0; }
 .sonet-group-create-tabs-sep { background-color: #e4e4e4; height: 1px; margin: 14px 0; }
-.sonet-group-create-tabs-text-input-wrap { background-color: white; border: 1px solid #E0DAB2; height: 28px; -moz-box-shadow: inset 2px 2px 2px 1px #888; -webkit-box-shadow: inset -5px -5px 5px #888; box-shadow: inset 1px 1px 1px #f4f4f4; padding: 4px 9px; }
+.sonet-group-create-tabs-text-input-wrap { background-color: white; border: 1px solid #dadada; height: 28px; -moz-box-shadow: inset 2px 2px 2px 1px #888; -webkit-box-shadow: inset -5px -5px 5px #888; box-shadow: inset 1px 1px 1px #f4f4f4; padding: 4px 9px; }
 .sonet-group-create-tabs-text-input { background-color: white; border: none; color: #7F7F7F; font-size: 21px; outline: none; width: 98%; border-image: initial; }
 .sonet-group-create-tabs-text-input-active { color: #000; }
 .sonet-group-create-tabs-textarea-wrap { background-color: white; border: 1px solid #DADADA; -moz-box-shadow: inset 2px 2px 2px 1px #888; -webkit-box-shadow: inset -5px -5px 5px #888; box-shadow: inset 1px 1px 1px #f4f4f4; padding: 6px 10px; }
@@ -46,13 +46,13 @@ a.sonet-invitation-dash-link:hover{ color: #696969; border-color: #696969; text-
 .sonet-group-create-popup-tab-active .sonet-group-create-popup-tab-right {background-position:-18px -295px; background-color:#fff; height:28px; margin:0;}
 .sonet-group-create-popup-tab-active .sonet-group-create-popup-tab-text {background:#fff; border-top:1px solid #dedede; background-color:#fff; color:#000; height:22px; margin: 1px 0 0; padding-top: 4px; }
 
-.sonet-group-create-popup-main-fields { background-color: #F4F0D2; margin: 0 0 3px 0; }
-.sonet-group-create-popup-additional-fields { background-color: #EEE; min-height: 350px; position: relative; }
+.sonet-group-create-popup-main-fields { margin: 0 0 3px 0; }
+.sonet-group-create-popup-additional-fields { min-height: 350px; position: relative; }
 .sonet-group-create-popup-field-corners-top, .sonet-group-create-popup-field-corners-bottom { height: 4px; position: relative; overflow: hidden; }
 .sonet-group-create-popup-main-fields .sonet-group-create-popup-form-left-corner, .sonet-group-create-popup-main-fields .sonet-group-create-popup-form-right-corner { background: scroll transparent url(/bitrix/js/main/core/images/controls-sprite.png) no-repeat 0 0; }
 .sonet-group-create-popup-additional-fields .sonet-group-create-popup-form-left-corner, .sonet-group-create-popup-additional-fields .sonet-group-create-popup-form-right-corner { background: url("/bitrix/js/main/core/images/controls-sprite.png") no-repeat scroll 0 -34px transparent; }
 
-.sonet-group-create-popup-field-content { padding: 7px 20px 15px 16px; }
+.sonet-group-create-popup-field-content { padding: 7px 10px 15px 10px; }
 
 .sonet-group-create-popup-button-upload { margin-top: 10px; }
 .sonet-group-create-popup-button { margin: 0 10px 0 0; background: url(/bitrix/js/main/core/images/controls-sprite.png) repeat-x 0 -1110px; }
@@ -91,12 +91,12 @@ a.sonet-invitation-dash-link:hover{ color: #696969; border-color: #696969; text-
 .sonet-group-create-tabs-footer { margin-top: 0; text-align: center; padding: 8px 0 4px; width: 600px; }
 
 .sonet-group-create-popup-form-add-title { color: black; font-size: 14px; margin-bottom: 8px; }
-.sonet-group-create-popup-form-add { background-color: #EEE; padding: 0 0 4px; position: relative; }
+.sonet-group-create-popup-form-add { padding: 0 0 4px; position: relative; }
 .sonet-group-create-popup-form-add-select { margin-bottom: 9px; }
 .sonet-group-create-popup-form-add-select-uf { margin-bottom: 13px; }
 .sonet-group-create-popup-form-add select, .sonet-group-create-popup-form-add input  { color: #000000; outline: none; font-size: 14px; }
 .sonet-group-create-popup-form-add select  { width: 410px; }
-.sonet-group-create-popup-form-add input  { height: 16px; width: 403px; }
+.sonet-group-create-popup-form-add input[type="text"]  { height: 16px; width: 403px; }
 .sonet-group-create-popup-form-add textarea  { width: 403px; }
 .sonet-group-create-popup-select-perms { height: 22px; }
 
@@ -142,8 +142,6 @@ a.sonet-invitation-dash-link:hover{ color: #696969; border-color: #696969; text-
 .sonet-group-create-popup-form-email:hover .sonet-group-create-popup-del { background-position: 5px -244px; }
 
 .sonet-group-create-popup-field-content .search-tags { color: #000000; height: 16px; width: 403px; }
-.sonet-group-create-popup-field-content .webform-field-upload-list { display: none!important; }
-.sonet-group-create-popup-field-content .webform-field-upload { width: 250px!important; }
 
 .sonet-group-create-popup-field-upload-error .webform-button-text { color: #ff3c00!important; }
 
@@ -157,6 +155,7 @@ a.sonet-invitation-dash-link:hover{ color: #696969; border-color: #696969; text-
 .sonet-group-create-popup .invite-dialog-inv-form .invite-dialog-inv-form-table { width: 567px; }
 .sonet-group-create-popup .invite-dialog-inv-form .invite-dialog-inv-form-table .invite-dialog-inv-form-textarea { width: 450px; }
 #sonet_group_create_popup_action_block_invite_2 .invite-dialog-inv-form-textarea { width: 578px; }
+.popup-window-tabs-content .sonet-group-create-popup-uf-checkbox .fields.boolean { display: inline-block; vertical-align: middle; }
 
 .sonet-group-create-popup-content { padding: 7px 20px 15px 16px; }
 .sonet-group-create-popup-error-block { background-color:#ffebeb; margin-bottom:17px; width: 585px; }
@@ -168,3 +167,5 @@ a.sonet-invitation-dash-link:hover{ color: #696969; border-color: #696969; text-
 .sonet-group-create-popup-error-block .sonet-group-create-popup-corners-bottom { background: scroll transparent url(/bitrix/js/main/core/images/controls-sprite.png) repeat-x 0 -149px; }
 .sonet-group-create-popup-error-block .sonet-group-create-popup-left-corner, .sonet-group-create-popup-error-block .sonet-group-create-popup-right-corner { background: scroll transparent url(/bitrix/js/main/core/images/controls-sprite.png) no-repeat -15px -34px!important; }
 .sonet-group-create-popup-error-block .sonet-group-create-popup-content { border-left:1px solid #ffa7a7; border-right:1px solid #ffa7a7; padding: 6px 18px 6px 10px; color:#d10000; font: 12px "Helvetica Neue",Helvetica,Arial,sans-serif; }
+
+.sonet-group-create-popup-form-add-dept { padding-bottom: 10px; }

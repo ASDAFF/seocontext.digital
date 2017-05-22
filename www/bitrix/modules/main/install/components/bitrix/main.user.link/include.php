@@ -1,6 +1,10 @@
 <?php
 
-if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)
+use Bitrix\Main\Page\Asset;
+use Bitrix\Main\Page\AssetLocation;
+use Bitrix\Main\Page\AssetMode;
+
+if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)
 	die();
 
 if (!function_exists('MULChangeOnlineStatus'))
@@ -12,7 +16,7 @@ if (!function_exists('MULChangeOnlineStatus'))
 
 		if (!$bNotFirstCall)
 		{
-			$GLOBALS["APPLICATION"]->AddBufferContent("MULChangeOnlineStatus");
+			AddEventHandler("main", "OnBeforeEndBufferContent", "MULChangeOnlineStatus");
 			$bNotFirstCall = true;
 		}
 
@@ -43,7 +47,7 @@ if (!function_exists('MULChangeOnlineStatus'))
 			}
 
 
-			return '<script type="text/javascript">
+			$js = '<script type="text/javascript">
 
 			BX.ready(function() {
 				var arMULUserList = ['.implode(",", $arUserListHTML_ID).'];
@@ -70,6 +74,13 @@ if (!function_exists('MULChangeOnlineStatus'))
 				}
 			});
 			</script>';
+
+			Asset::getInstance()->addString(
+				$js,
+				false,
+				AssetLocation::AFTER_JS,
+				AssetMode::ALL
+			);
 		}
 	}
 }

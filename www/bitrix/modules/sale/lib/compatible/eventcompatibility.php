@@ -658,15 +658,17 @@ class EventCompatibility extends Sale\Compatible\Internals\EntityCompatibility
 			{
 				if (ExecuteModuleEventEx($oldEvent, array($id, $orderFields)) === false)
 				{
+					$error = null;
 					if ($ex = $APPLICATION->GetException())
 					{
-
-						return new Main\EventResult(
-							Main\EventResult::ERROR,
-							new Sale\ResultError($ex->GetString(), $ex->GetID()),
-							'sale'
-						);
+						$error = new Sale\ResultError($ex->GetString(), $ex->GetID());
 					}
+
+					return new Main\EventResult(
+						Main\EventResult::ERROR,
+						$error,
+						'sale'
+					);
 				}
 			}
 			static::setDisableEvent(false);
@@ -1219,8 +1221,13 @@ class EventCompatibility extends Sale\Compatible\Internals\EntityCompatibility
 		static::setDisableEvent(true);
 		foreach(GetModuleEvents("sale", static::EVENT_COMPATIBILITY_ON_BEFORE_ORDER_STATUS_CHANGE, true) as $oldEvent)
 		{
-			ExecuteModuleEventEx($oldEvent, array($order->getId(), $value));
+			if (ExecuteModuleEventEx($oldEvent, array($order->getId(), $value)) === false)
+			{
+				static::setDisableEvent(false);
+				return new Main\EventResult( Main\EventResult::ERROR, null, 'sale');
+			}
 		}
+
 		static::setDisableEvent(false);
 
 		return new Main\EventResult( Main\EventResult::SUCCESS, null, 'sale');

@@ -29,9 +29,9 @@ class forumTextParser extends CTextParser
 	public $arFilesIDParsed = array();
 
 
-	function forumTextParser($lang = false, $pathToSmiles = '', $type=false, $mode = 'full')
+	function __construct($lang = false, $pathToSmiles = '', $type=false, $mode = 'full')
 	{
-		$this->CTextParser();
+		parent::__construct();
 		$this->arFiles = array();
 		$this->arFilesParsed = array();
 		$this->serverName = (defined("SITE_SERVER_NAME") && strlen(SITE_SERVER_NAME) > 0 ? SITE_SERVER_NAME : COption::GetOptionString("main", "server_name", ""));
@@ -135,7 +135,7 @@ class forumTextParser extends CTextParser
 		$this->imageWidth = ($this->image_params["width"] > 0 ? $this->image_params["width"] : ($this->imageWidth > 0 ? $this->imageWidth : 300));
 		$this->imageHeight = ($this->image_params["height"] > 0 ? $this->image_params["height"] : ($this->imageHeight > 0 ? $this->imageHeight : 300));
 		
-		$this->userPath = (empty($this->userPath) && !empty($this->pathToUser) ? $this->pathToUser : $this->userPath);
+		$this->userPath = str_replace(array("#UID#", "#uid#"), "#user_id#", (empty($this->userPath) && !empty($this->pathToUser) ? $this->pathToUser : $this->userPath));
 
 		$this->type = $type;
 
@@ -227,6 +227,7 @@ class forumTextParser extends CTextParser
 		}
 		return $text;
 	}
+
 	function ParserSpoiler(&$text, &$obj)
 	{
 		$matches = array();
@@ -1458,10 +1459,44 @@ class CForumSimpleHTMLParser
 	var $replace_tag_begin = '/^\s*\w+\s*/';
 	var $parse_params = '/([a-z]+)\s*=\s*(?:([^\s]*)|(?:[\'"]([^\'"])[\'"]))/im';
 	var $lastError = '';
+	private $preg = array(
+			"counter" => 0,
+			"pattern" => array(),
+			"replace" => array()
+		);
 
 	function __construct ($data)
 	{
-		$this->data = $data;
+		$this->data = $this->prepare($data);
+	}
+	/**
+	 * @param string $text
+	 * @return string
+	 */
+	private function prepare($text)
+	{
+		$text = preg_replace_callback(
+			"/<pre>(.+?)<\\/pre>/is".BX_UTF_PCRE_MODIFIER,
+			array($this, "defendTags"),
+			(is_string($text) ? $text : strval($text))
+		);
+		$text = str_replace(array("\r\n", "\n", "\t"), "", $text);
+		$text = str_replace($this->preg["pattern"], $this->preg["replace"], $text);
+		$this->preg["pattern"] = array();
+		$this->preg["replace"] = array();
+		return $text;
+	}
+
+	/**
+	 * @param array $matches
+	 * @return string
+	 */
+	public function defendTags($matches)
+	{
+		$text = "<\017#".(++$this->preg["counter"]).">";
+		$this->preg["pattern"][] = $text;
+		$this->preg["replace"][] = $matches[0];
+		return $text;
 	}
 
 	function findTagStart($needle) // needle = input[name=input;class=red]

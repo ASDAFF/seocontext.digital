@@ -182,9 +182,12 @@ $MESS["SUP_SYSTEM_MESSAGE"] = "Attention";
 $MESS["SUP_CANT_LOCK_UPDATES"] = "The update system must not run in multiple web browser windows";
 $MESS["SUP_NEW_UPDATE_SYSTEM_HINT"] = "The update system needs to be updated.";
 $MESS["SUP_HTTP_BX_MASTER"] = "The web cluster may only be updated using a master copy at <a href=\"#ADDR#\">#ADDR#</a>";
-$MESS["SUP_CHECK_LIC"] = "<a href=\"http://www.bitrixsoft.com/support/key_info.php?license_key=#LICENSE_KEY#\" target=\"_blank\">Verify key</a>";
-$MESS["SUP_SUA_DOMAIN"] = "www.bitrixsoft.com";
+$MESS["SUP_CHECK_LIC"] = "<a href=\"https://store.bitrix24.com/profile/license-keys.php?license_key=#LICENSE_KEY#\" target=\"_blank\">Verify key</a>";
+$MESS["SUP_SUA_DOMAIN"] = "https://store.bitrix24.com/profile/license-keys.php";
 $MESS["SUP_CHECK_LIC_MESSAGE"] = "Verify key";
 $MESS["SUP_CANT_REPARE"] = "Error initializing the update system. Please contact helpdesk.";
 $MESS["SUP_CANT_EACCELERATOR"] = "As of current version, eAccelerator is no longer supported. Please contact your administrator or Helpdesk for more information.";
+$MESS["SUP_SALE_1500_HINT"] = "To continue installing updates you should perform <a href=\"#ADDR#\">the e-store module conversion</a>.";
+$MESS["SUP_DEVSRV_MESS"] = "A development installation is not intended as a publicly available resource.";
+$MESS["SUP_NO_MS_ORACLE"] = "As of January 1, 2017 we provide only limited support for Oracle Database and MS SQL Server based products. There will be no updates for these platforms. Should you have any questions, please contact our helpdesk.";
 ?>

@@ -31,7 +31,7 @@ if(strlen($arResult["ID"])>0)
 				<?=Loc::getMessage('SALE_PNAME')?>:<span class="req">*</span>
 			</label>
 			<div class="col-md-12">
-				<input class="form-control" type="text" name="NAME" maxlength="50" id="sale-personal-profile-detail-name" value="<?=$arResult["NAME"]?>" />
+				<input class="form-control" type="text" name="NAME" maxlength="50" id="sale-personal-profile-detail-name" value="<?=htmlspecialcharsbx($arResult["NAME"])?>" />
 			</div>
 		</div>
 		<?
@@ -206,6 +206,10 @@ if(strlen($arResult["ID"])>0)
 									<input type="hidden" name="<?=$name?>_del" class="profile-property-input-delete-file">
 									<?
 									$profileFiles = unserialize(htmlspecialchars_decode($currentValue));
+									if (!is_array($profileFiles))
+									{
+										$profileFiles = array($profileFiles);
+									}
 									foreach ($profileFiles as $file)
 									{
 										?>

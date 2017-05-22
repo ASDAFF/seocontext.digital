@@ -41,8 +41,12 @@ $arJSCoreConfig = array(
 	'dd' => array(
 		'js' => $pathJS.'/core_dd.js',
 	),
+	'dnd' => array(
+		'js' => '/bitrix/js/main/dd.js',
+	),
 	'webrtc' => array(
 		'js' => $pathJS.'/core_webrtc.js',
+		'rel' => array('webrtc_adapter')
 	),
 	'popup' => array(
 		'js' => $pathJS.'/core_popup.js',
@@ -79,6 +83,7 @@ $arJSCoreConfig = array(
 		'css' => $pathCSS.'/core_viewer.css',
 		'lang' => $pathLang.'/js_core_viewer.php',
 		'rel' => array('ls', 'ajax', 'popup'),
+		'lang_additional' => array('DISK_MYOFFICE' => COption::GetOptionString('disk', 'demo_myoffice', false))
 	),
 	'window' => array(
 		'js' => $pathJS.'/core_window.js',
@@ -118,7 +123,12 @@ $arJSCoreConfig = array(
 		'js' => $pathJS . '/core_frame_cache.js',
 		'rel' => array('db','ajax', 'ls', 'fx')
 	),
-
+	'avatar_editor' => array(
+		'js' => $pathJS.'/core_avatar_editor.js',
+		'css' => $pathCSS.'/core_avatar_editor.css',
+		'lang' => $pathLang.'/js_core_avatar_editor.php',
+		'rel' => array('canvas', 'popup', 'dd', 'uploader'),
+	),
 	'canvas' => array(
 		'js' => $pathJS.'/core_canvas.js',
 		'css' => $pathCSS.'/core_canvas.css',
@@ -137,10 +147,11 @@ $arJSCoreConfig = array(
 			"phpPostMaxSize" => CUtil::Unformat(ini_get("post_max_size")),
 			"phpUploadMaxFilesize" => CUtil::Unformat(ini_get("upload_max_filesize")),
 			"bxImageExtensions" => CFile::GetImageExtensions(),
-			"bxUploaderLog" => COption::GetOptionString("main", "uploaderLog", "N")
+			"bxUploaderLog" => COption::GetOptionString("main", "uploaderLog", "N"),
 		),
 		'lang' => $pathLang.'/js_core_uploader.php',
-		'rel' => array('ajax', 'dd')
+		'rel' => array('ajax', 'dd'),
+		'bundle_js' => 'coreuploader'
 	),
 	'site_speed' => array(
 		'js' => $pathJS.'/site_speed/site_speed.js',
@@ -163,9 +174,72 @@ $arJSCoreConfig = array(
 		'lang' => $pathLang.'/js_core_clipboard.php',
 		'rel' => array("popup")
 	),
+	'recorder' => array(
+		'js' => '/bitrix/js/main/recorder/recorder.js',
+		'rel' => array('lamejs')
+	),
+	'pin' => array(
+		'js' => '/bitrix/js/main/pin/pin.js',
+		'css' => '/bitrix/js/main/pin/css/pin.css'
+	),
+	'ui_select' => array(
+		'js' => $pathJS.'/core_ui_select.js',
+		'rel' => array('popup')
+	),
+	'ui_date' => array(
+		'js' => $pathJS.'/core_ui_date.js',
+		'css' => $pathCSS.'/core_ui_date.css',
+		'rel' => array('ui_factory')
+	),
+	'ui_factory' => array(
+		'js' => $pathJS.'/core_ui_factory.js',
+		'css' => $pathCSS.'/core_ui_control.css',
+		'rel' => array('decl')
+	),
+	'ui' => array(
+		'rel' => array(
+			'ui_factory',
+			'ui_select',
+			'ui_date'
+		)
+	),
+	'decl' => array(
+		'js' => $pathJS.'/core_decl.js'
+	),
+	'drag_drop' => array(
+		'js' => $pathJS.'/core_dragdrop.js'
+	),
+	'kanban' => array(
+		'js'  => array(
+			'/bitrix/js/main/kanban/grid.js',
+			'/bitrix/js/main/kanban/column.js',
+			'/bitrix/js/main/kanban/item.js',
+			'/bitrix/js/main/kanban/dropzone.js',
+			'/bitrix/js/main/kanban/utils.js'
+		),
+		'css' => array(
+			'/bitrix/js/main/kanban/css/kanban.css',
+		),
+		'lang' => $pathLang.'/js/kanban.php',
+		'rel' => array('color_picker', 'dnd'),
+		'bundle_js' => 'kanban',
+		'bundle_css' => 'kanban'
+	),
+	'color_picker' => array(
+		'js'  => array(
+			'/bitrix/js/main/colorpicker/colorpicker.js',
+		),
+		'css' => array(
+			'/bitrix/js/main/colorpicker/css/colorpicker.css',
+		),
+		'lang' => $pathLang.'/js/colorpicker.php',
+		'rel' => array('popup'),
+	),
+	'fullscreen' => array(
+		'js' => $pathJS.'/core_fullscreen.js'
+	),
 
 	/* external libs */
-
 	'jquery' => array(
 		'js' => '/bitrix/js/main/jquery/jquery-1.8.3.min.js',
 		'skip_core' => true,
@@ -232,9 +306,37 @@ $arJSCoreConfig = array(
 		'js' => '/bitrix/js/main/helper/helper.js',
 		'css' => '/bitrix/js/main/helper/css/helper.css',
 	),
-	'pin' => array(
-		'js' => '/bitrix/js/main/pin/pin.js',
-		'css' => '/bitrix/js/main/pin/css/pin.css'
+	'webrtc_adapter' => array(
+		'js' => '/bitrix/js/main/webrtc/adapter.js'
+	),
+	'lamejs' => array(
+		'js' => '/bitrix/js/main/recorder/recorder.js'
+	),
+	'update_stepper' => array(
+		'js' => $pathJS.'/core_update_stepper.js',
+		'css' => $pathCSS.'/core_update_stepper.css',
+		'lang' => $pathLang.'/js_core_update_stepper.php',
+		'rel' => array('ajax'),
+	),
+);
+
+\Bitrix\Main\Page\Asset::getInstance()->addJsKernelInfo(
+	'main',
+	array(
+		'/bitrix/js/main/core/core.js', '/bitrix/js/main/core/core_ajax.js', '/bitrix/js/main/json/json2.min.js',
+		'/bitrix/js/main/core/core_ls.js', '/bitrix/js/main/core/core_popup.js', '/bitrix/js/main/core/core_tooltip.js',
+		'/bitrix/js/main/core/core_date.js','/bitrix/js/main/core/core_timer.js', '/bitrix/js/main/core/core_fx.js',
+		'/bitrix/js/main/core/core_window.js', '/bitrix/js/main/core/core_autosave.js', '/bitrix/js/main/rating_like.js',
+		'/bitrix/js/main/session.js', '/bitrix/js/main/dd.js', '/bitrix/js/main/utils.js',
+		'/bitrix/js/main/core/core_dd.js', '/bitrix/js/main/core/core_webrtc.js'
+	)
+);
+
+\Bitrix\Main\Page\Asset::getInstance()->addCssKernelInfo(
+	'main',
+	array(
+		'/bitrix/js/main/core/css/core.css', '/bitrix/js/main/core/css/core_popup.css',
+		'/bitrix/js/main/core/css/core_tooltip.css', '/bitrix/js/main/core/css/core_date.css'
 	)
 );
 
@@ -242,4 +344,3 @@ foreach ($arJSCoreConfig as $ext => $arExt)
 {
 	CJSCore::RegisterExt($ext, $arExt);
 }
-?>

@@ -16,7 +16,7 @@ class CBPAllHistoryService
 		elseif ($useGZipCompressionOption === "N")
 			$this->useGZipCompression = false;
 		else
-			$this->useGZipCompression = (function_exists("gzcompress") && ($GLOBALS["DB"]->type != "ORACLE" || !defined('BX_UTF')));
+			$this->useGZipCompression = (function_exists("gzcompress") && !defined('BX_UTF'));
 	}
 
 	protected function ParseFields(&$arFields, $id = 0)

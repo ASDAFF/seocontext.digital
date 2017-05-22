@@ -15,6 +15,7 @@ class CIBlockPropertySKU extends CIBlockPropertyElementAutoComplete
 			"GetPropertyFieldHtml" => array(__CLASS__, "GetPropertyFieldHtml"),
 			"GetPropertyFieldHtmlMulty" => array(__CLASS__, "GetPropertyFieldHtml"),
 			"GetPublicViewHTML" => array(__CLASS__, "GetPublicViewHTML"),
+			"GetPublicEditHTML" => array(__CLASS__, "GetPublicEditHTML"),
 			"GetAdminListViewHTML" => array(__CLASS__,"GetAdminListViewHTML"),
 			"GetAdminFilterHTML" => array(__CLASS__,'GetAdminFilterHTML'),
 			"GetSettingsHTML" => array(__CLASS__,'GetSettingsHTML'),

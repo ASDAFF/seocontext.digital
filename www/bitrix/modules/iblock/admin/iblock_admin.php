@@ -451,7 +451,7 @@ $oFilter->Begin();
 		<td>
 			<?
 			$arr = array("reference"=>array(GetMessage("IBLOCK_YES"), GetMessage("IBLOCK_NO")), "reference_id"=>array("Y","N"));
-			echo SelectBoxFromArray("find_active", $arr, htmlspecialcharsex($find_active), GetMessage('IBLOCK_ALL'));
+			echo SelectBoxFromArray("find_active", $arr, htmlspecialcharsbx($find_active), GetMessage('IBLOCK_ALL'));
 			?>
 		</td>
 	</tr>

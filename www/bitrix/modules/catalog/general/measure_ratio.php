@@ -7,7 +7,7 @@ Loc::loadMessages(__FILE__);
 
 class CCatalogMeasureRatioAll
 {
-	protected static $whiteList = array('ID', 'PRODUCT_ID', 'RATIO');
+	protected static $whiteList = array('ID', 'PRODUCT_ID', 'RATIO', 'IS_DEFAULT');
 
 	protected static function checkFields($action, &$arFields)
 	{
@@ -44,6 +44,8 @@ class CCatalogMeasureRatioAll
 			}
 			if (!isset($clearFields['RATIO']))
 				$clearFields['RATIO'] = 1;
+			if (!isset($clearFields['IS_DEFAULT']))
+				$clearFields['IS_DEFAULT'] = 'N';
 		}
 		if (isset($clearFields['PRODUCT_ID']))
 		{
@@ -62,6 +64,8 @@ class CCatalogMeasureRatioAll
 			if ($clearFields['RATIO'] <= CATALOG_VALUE_EPSILON)
 				$clearFields['RATIO'] = 1;
 		}
+		if (isset($clearFields['IS_DEFAULT']))
+			$clearFields['IS_DEFAULT'] = ($clearFields['IS_DEFAULT'] == 'Y' ? 'Y' : 'N');
 		$arFields = $clearFields;
 		unset($clearFields);
 

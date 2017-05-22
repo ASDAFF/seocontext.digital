@@ -959,6 +959,19 @@ class CAdvBanner extends CAdvBanner_all
 		return "CAdvBanner::CleanUpDynamics();";
 	}
 
+	public static function CleanUpAllDynamics()
+	{
+		set_time_limit(0);
+		ignore_user_abort(true);
+		$err_mess = CAdvBanner::err_mess()."<br>Function: CleanUpAllDynamics<br>Line: ";
+		global $DB;
+		$strSql = "DELETE FROM b_adv_banner_2_day WHERE 1 = 1";
+		$DB->Query($strSql, false, $err_mess.__LINE__);
+		$strSql = "OPTIMIZE TABLE b_adv_banner_2_day";
+		$DB->Query($strSql, false, $err_mess.__LINE__);
+		return "CAdvBanner::CleanUpAllDynamics();";
+	}
+
 	public static function GetDynamicList_SQL($strSqlSearch)
 	{
 		global $DB;

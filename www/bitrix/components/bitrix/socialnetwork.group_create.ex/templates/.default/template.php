@@ -1,4 +1,10 @@
 <?if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
+/** @var CBitrixComponentTemplate $this */
+/** @var array $arParams */
+/** @var array $arResult */
+/** @global CDatabase $DB */
+/** @global CUser $USER */
+/** @global CMain $APPLICATION */
 
 if ($arResult["NEED_AUTH"] == "Y")
 {
@@ -31,7 +37,8 @@ else
 			SONET_GCE_T_DEST_EXTRANET_SELECTOR_INVITE : '<?=GetMessageJS("SONET_GCE_T_DEST_EXTRANET_SELECTOR_INVITE")?>',
 			SONET_GCE_T_DEST_EXTRANET_SELECTOR_ADD : '<?=GetMessageJS("SONET_GCE_T_DEST_EXTRANET_SELECTOR_ADD")?>',
 			SONET_GCE_T_DEST_LINK_1 : '<?=GetMessageJS(IsModuleInstalled("intranet") ? "SONET_GCE_T_ADD_EMPLOYEE" : "SONET_GCE_T_ADD_USER")?>',
-			SONET_GCE_T_DEST_LINK_2 : '<?=GetMessageJS('SONET_GCE_T_DEST_LINK_2')?>'
+			SONET_GCE_T_DEST_LINK_2 : '<?=GetMessageJS('SONET_GCE_T_DEST_LINK_2')?>',
+			SONET_GCE_T_AJAX_ERROR:  '<?=GetMessageJS('SONET_GCE_T_AJAX_ERROR')?>'
 			<?
 			if (array_key_exists("POST", $arResult) && array_key_exists("NAME", $arResult["POST"]) && strlen($arResult["POST"]["NAME"]) > 0)
 			{
@@ -176,73 +183,84 @@ else
 									<div class="sonet-group-create-popup-field-content">
 										<div class="sonet-group-create-tabs-textarea-wrap">
 											<textarea 
-												class="<?=(strlen($arResult["POST"]["DESCRIPTION"]) > 0 ? "sonet-group-create-tabs-textarea-active" : "");?>" 
+												class="<?=(strlen($arResult["POST"]["DESCRIPTION"]) > 0 ? "sonet-group-create-tabs-textarea-active" : "");?>"
 												name="GROUP_DESCRIPTION" 
 												id="GROUP_DESCRIPTION" 
-												onblur="if(this.value == ''){BX.removeClass(this, 'sonet-group-create-tabs-textarea-active'); this.value = this.value.replace(new RegExp(/^$/), '<?=GetMessage("SONET_GCE_T_DESCR")?>')}" 
+												onblur="if(this.value == ''){BX.removeClass(this, 'sonet-group-create-tabs-textarea-active'); this.value = this.value.replace(new RegExp(/^$/), '<?=GetMessage("SONET_GCE_T_DESCR")?>')}"
 												onfocus="BX.addClass(this, 'sonet-group-create-tabs-textarea-active'); this.value = this.value.replace('<?=GetMessage("SONET_GCE_T_DESCR")?>', '')"
 											><?=(strlen($arResult["POST"]["DESCRIPTION"]) > 0 ? $arResult["POST"]["DESCRIPTION"] : GetMessage("SONET_GCE_T_DESCR"));?></textarea>
 										</div>
 										<div style="margin-top: 10px;" class="<?=(in_array("GROUP_IMAGE_ID", $arResult["ErrorFields"]) ? "sonet-group-create-popup-field-upload-error" : "")?>"><?
-										
-											$APPLICATION->IncludeComponent('bitrix:main.file.input', '', array(
+
+											$APPLICATION->IncludeComponent('bitrix:main.file.input', '.default', array(
 												'INPUT_NAME' => 'GROUP_IMAGE_ID',
 												'INPUT_NAME_UNSAVED' => 'GROUP_IMAGE_ID_UNSAVED',
 												'CONTROL_ID' => 'GROUP_IMAGE_ID',
 												'INPUT_VALUE' => $arResult["POST"]["IMAGE_ID"],
 												'MULTIPLE' => 'N',
 												'ALLOW_UPLOAD' => 'I',
-												'INPUT_CAPTION' => GetMessage("SONET_GCE_T_UPLOAD_IMAGE")
+												'INPUT_CAPTION' => GetMessage("SONET_GCE_T_UPLOAD_IMAGE"),
+												'SHOW_AVATAR_EDITOR' => 'Y'
 											));
 
-											?><input type="hidden" id="sonet_group_create_group_image_cid" name="GROUP_IMAGE_CID" value="" />
-											<script>
-											function onFileUploaderChangeHandler(files) {
-												if (files && files.length > 0)
-												{
-													BX('sonet_group_create_popup_image').src = files[0].fileURL;
-													BX.show(BX('sonet_group_create_tabs_image_block'));
-													BX("sonet_group_create_tabs_image_block").style.visibility = "visible";
-													BX("sonet_group_create_group_image_cid").value = window.FILE_INPUT_GROUP_IMAGE_ID.CID;
-												}
-												else
-												{
-													BX.hide(BX('sonet_group_create_tabs_image_block'));
-													BX("sonet_group_create_tabs_image_block").style.visibility = "hidden";
-												}
-											}
-											BX.addCustomEvent(window.FILE_INPUT_GROUP_IMAGE_ID, 'onFileUploaderChange', onFileUploaderChangeHandler);
-											</script>
+											?>
 										</div><?
 
 										$bIsSepNeeded = false;
 
 										?><div class="sonet-group-create-tabs-filter-wrap"><?
-											if (!CModule::IncludeModule('extranet') || !CExtranet::IsExtranetSite() || intval($arResult["GROUP_ID"]) > 0):
-
+											if (
+												!$arResult["bExtranet"]
+												|| intval($arResult["GROUP_ID"]) > 0
+											)
+											{
 												?><div><?
 
-													if (!CModule::IncludeModule('extranet') || !CExtranet::IsExtranetSite()):
+													if (!$arResult["bExtranet"])
+													{
 														$bIsSepNeeded = true;
-														if ($arResult["bExtranetInstalled"]):
-															?><div id="GROUP_VISIBLE_block" class="<?=($arResult["POST"]["VISIBLE"] == "Y" ? "sonet-group-create-popup-checkbox-active" : "")?>" style="<?=($arResult["POST"]["IS_EXTRANET_GROUP"] == "Y" ? " display: none;" : "")?>"><input type="checkbox" onclick="BXSwitchNotVisible(this.checked)" class="sonet-group-create-popup-checkbox" id="GROUP_VISIBLE" value="Y" name="GROUP_VISIBLE"<?= ($arResult["POST"]["VISIBLE"] == "Y") ? " checked" : ""?>> <label for="GROUP_VISIBLE"><?= GetMessage("SONET_GCE_T_PARAMS_VIS") ?></label></div><?
-														else:
-															?><div id="GROUP_VISIBLE_block" class="<?=($arResult["POST"]["VISIBLE"] == "Y" ? "sonet-group-create-popup-checkbox-active" : "")?>"><input type="checkbox" onclick="BXSwitchNotVisible(this.checked)" class="sonet-group-create-popup-checkbox" id="GROUP_VISIBLE" value="Y" name="GROUP_VISIBLE"<?= ($arResult["POST"]["VISIBLE"] == "Y") ? " checked" : ""?>> <label for="GROUP_VISIBLE"><?= GetMessage("SONET_GCE_T_PARAMS_VIS") ?></label></div><?
-														endif;
-													else:
+														if ($arResult["bExtranetInstalled"])
+														{
+															?><div id="GROUP_VISIBLE_block" class="<?=($arResult["POST"]["VISIBLE"] == "Y" ? "sonet-group-create-popup-checkbox-active" : "")?>" style="<?=($arResult["POST"]["IS_EXTRANET_GROUP"] == "Y" ? " display: none;" : "")?>"><?
+																?><input type="checkbox" onclick="BXSwitchNotVisible(this.checked)" class="sonet-group-create-popup-checkbox" id="GROUP_VISIBLE" value="Y" name="GROUP_VISIBLE"<?= ($arResult["POST"]["VISIBLE"] == "Y") ? " checked" : ""?>><?
+																?> <label for="GROUP_VISIBLE"><?= GetMessage("SONET_GCE_T_PARAMS_VIS") ?></label><?
+															?></div><?
+														}
+														else
+														{
+															?><div id="GROUP_VISIBLE_block" class="<?=($arResult["POST"]["VISIBLE"] == "Y" ? "sonet-group-create-popup-checkbox-active" : "")?>"><?
+																?><input type="checkbox" onclick="BXSwitchNotVisible(this.checked)" class="sonet-group-create-popup-checkbox" id="GROUP_VISIBLE" value="Y" name="GROUP_VISIBLE"<?= ($arResult["POST"]["VISIBLE"] == "Y") ? " checked" : ""?>><?
+																?> <label for="GROUP_VISIBLE"><?= GetMessage("SONET_GCE_T_PARAMS_VIS") ?></label><?
+															?></div><?
+														}
+													}
+													else
+													{
 														?><input type="hidden" value="N" name="GROUP_VISIBLE"><?
-													endif;
+													}
 
-													if (!CModule::IncludeModule('extranet') || !CExtranet::IsExtranetSite()):
+													if (!$arResult["bExtranet"])
+													{
 														$bIsSepNeeded = true;
-														if ($arResult["bExtranetInstalled"]):
-															?><div id="GROUP_OPENED_block" class="<?=($arResult["POST"]["OPENED"] == "Y" ? "sonet-group-create-popup-checkbox-active" : "")?>" style="<?=($arResult["POST"]["IS_EXTRANET_GROUP"] == "Y" ? " display: none;" : "")?>"><input type="checkbox" onclick="BX.toggleClass(this.parentNode, 'sonet-group-create-popup-checkbox-active')" class="sonet-group-create-popup-checkbox" id="GROUP_OPENED" value="Y" name="GROUP_OPENED"<?= ($arResult["POST"]["OPENED"] == "Y") ? " checked" : ""?> <?= ($arResult["POST"]["VISIBLE"] == "Y") ? "" : " disabled"?>> <label for="GROUP_OPENED"><?= GetMessage("SONET_GCE_T_PARAMS_OPEN") ?></label></div><?
-														else:
-															?><div class="<?=($arResult["POST"]["OPENED"] == "Y" ? "sonet-group-create-popup-checkbox-active" : "")?>"><input type="checkbox"  onclick="BX.toggleClass(this.parentNode, 'sonet-group-create-popup-checkbox-active')"  class="sonet-group-create-popup-checkbox<?=($arResult["POST"]["IS_EXTRANET_GROUP"] == "Y" ? " sonet-group-create-popup-checkbox-active" : "")?>" id="GROUP_OPENED" value="Y" name="GROUP_OPENED"<?= ($arResult["POST"]["OPENED"] == "Y") ? " checked" : ""?> <?= ($arResult["POST"]["VISIBLE"] == "Y") ? "" : " disabled"?>> <label for="GROUP_OPENED"><?= GetMessage("SONET_GCE_T_PARAMS_OPEN") ?></label></div><?
-														endif;
-													else:
+														if ($arResult["bExtranetInstalled"])
+														{
+															?><div id="GROUP_OPENED_block" class="<?=($arResult["POST"]["OPENED"] == "Y" ? "sonet-group-create-popup-checkbox-active" : "")?>" style="<?=($arResult["POST"]["IS_EXTRANET_GROUP"] == "Y" ? " display: none;" : "")?>"><?
+																?><input type="checkbox" onclick="BX.toggleClass(this.parentNode, 'sonet-group-create-popup-checkbox-active')" class="sonet-group-create-popup-checkbox" id="GROUP_OPENED" value="Y" name="GROUP_OPENED"<?= ($arResult["POST"]["OPENED"] == "Y") ? " checked" : ""?> <?= ($arResult["POST"]["VISIBLE"] == "Y") ? "" : " disabled"?>><?
+																?> <label for="GROUP_OPENED"><?= GetMessage("SONET_GCE_T_PARAMS_OPEN") ?></label><?
+															?></div><?
+														}
+														else
+														{
+															?><div class="<?=($arResult["POST"]["OPENED"] == "Y" ? "sonet-group-create-popup-checkbox-active" : "")?>"><?
+																?><input type="checkbox"  onclick="BX.toggleClass(this.parentNode, 'sonet-group-create-popup-checkbox-active')"  class="sonet-group-create-popup-checkbox<?=($arResult["POST"]["IS_EXTRANET_GROUP"] == "Y" ? " sonet-group-create-popup-checkbox-active" : "")?>" id="GROUP_OPENED" value="Y" name="GROUP_OPENED"<?= ($arResult["POST"]["OPENED"] == "Y") ? " checked" : ""?> <?= ($arResult["POST"]["VISIBLE"] == "Y") ? "" : " disabled"?>><?
+																?> <label for="GROUP_OPENED"><?= GetMessage("SONET_GCE_T_PARAMS_OPEN") ?></label><?
+															?></div><?
+														}
+													}
+													else
+													{
 														?><input type="hidden" value="N" name="GROUP_OPENED"><?
-													endif;
+													}
 
 													if (intval($arParams["GROUP_ID"]) > 0):
 														$bIsSepNeeded = true;
@@ -252,51 +270,56 @@ else
 													endif;
 
 												?></div><?
+											}
 
-											endif;
-
-											if (CModule::IncludeModule('extranet') && strlen(COption::GetOptionString("extranet", "extranet_site")) > 0):
-												if (!CExtranet::IsExtranetSite()):
-													if ($bIsSepNeeded):
+											if ($arResult["bExtranetInstalled"])
+											{
+												if (!$arResult["bExtranet"])
+												{
+													if ($bIsSepNeeded)
+													{
 														?><div class="sonet-group-create-popup-sep"></div><?
-													endif;
+													}
 													$bIsSepNeeded = true;
-													?><div id="IS_EXTRANET_GROUP_block" class="<?=($arResult["POST"]["IS_EXTRANET_GROUP"] == "Y" ? " sonet-group-create-popup-checkbox-active" : "")?>"><input type="checkbox" class="sonet-group-create-popup-checkbox" id="IS_EXTRANET_GROUP" value="Y" name="IS_EXTRANET_GROUP"<?=($arResult["POST"]["IS_EXTRANET_GROUP"] == "Y" ? " checked" : "")?> onclick="BXSwitchExtranet(this.checked)"><label for="IS_EXTRANET_GROUP"><?= GetMessage("SONET_GCE_T_IS_EXTRANET_GROUP") ?></label></div><?
-												else:
+													?><div id="IS_EXTRANET_GROUP_block" class="<?=($arResult["POST"]["IS_EXTRANET_GROUP"] == "Y" ? " sonet-group-create-popup-checkbox-active" : "")?>"><?
+														?><input type="checkbox" class="sonet-group-create-popup-checkbox" id="IS_EXTRANET_GROUP" value="Y" name="IS_EXTRANET_GROUP"<?=($arResult["POST"]["IS_EXTRANET_GROUP"] == "Y" ? " checked" : "")?> onclick="BXSwitchExtranet(this.checked)"><?
+														?> <label for="IS_EXTRANET_GROUP"><?= GetMessage("SONET_GCE_T_IS_EXTRANET_GROUP") ?></label><?
+													?></div><?
+												}
+												else
+												{
 													?><input type="hidden" value="Y" name="IS_EXTRANET_GROUP"><?
-												endif;
-											endif;
+												}
+											}
 
-											if (count($arResult["Subjects"]) == 1):
+											if (count($arResult["Subjects"]) == 1)
+											{
 												$arKeysTmp = array_keys($arResult["Subjects"]);
 												?><input type="hidden" name="GROUP_SUBJECT_ID" value="<?=$arKeysTmp[0]?>"><?
-											else:
-												if ($bIsSepNeeded):
+											}
+											else
+											{
+												if ($bIsSepNeeded)
+												{
 													?><div class="sonet-group-create-popup-sep"></div><?
-												endif;
+												}
 												?><div class="sonet-group-create-tabs-select-wrap">
 													<label for="GROUP_SUBJECT_ID"><?= GetMessage("SONET_GCE_T_SUBJECT") ?></label>
-													<span class="<?=(in_array("GROUP_SUBJECT_ID", $arResult["ErrorFields"]) ? "sonet-group-create-tabs-select-error" : "")?>"><select name="GROUP_SUBJECT_ID" id="GROUP_SUBJECT_ID" class="sonet-group-create-popup-select">
-														<option value=""><?= GetMessage("SONET_GCE_T_TO_SELECT") ?></option>
-														<?foreach ($arResult["Subjects"] as $key => $value):?>
-															<option value="<?= $key ?>"<?= ($key == $arResult["POST"]["SUBJECT_ID"]) ? " selected" : "" ?>><?= $value ?></option>
-														<?endforeach;?>
-													</select></span>
+													<span class="<?=(in_array("GROUP_SUBJECT_ID", $arResult["ErrorFields"]) ? "sonet-group-create-tabs-select-error" : "")?>"><?
+														?><select name="GROUP_SUBJECT_ID" id="GROUP_SUBJECT_ID" class="sonet-group-create-popup-select">
+															<option value=""><?= GetMessage("SONET_GCE_T_TO_SELECT") ?></option><?
+															foreach ($arResult["Subjects"] as $key => $value)
+															{
+																?><option value="<?= $key ?>"<?= ($key == $arResult["POST"]["SUBJECT_ID"]) ? " selected" : "" ?>><?= $value ?></option><?
+															}
+														?></select><?
+													?></span>
 												</div><?
-											endif;
+											}
+										?></div>
+									</div><?
 
-											?><div class="sonet-group-create-tabs-image-block" id="sonet_group_create_tabs_image_block">
-												<input type="hidden" name="GROUP_IMAGE_ID_DEL" id="GROUP_IMAGE_ID_DEL" value=""/>
-												<span class="sonet-group-create-tabs-image-wrap"><?
-													if (strlen($arResult["POST"]["IMAGE_ID_IMG"]) > 0):?>
-														<?=$arResult["POST"]["IMAGE_ID_IMG"];?><br /><?
-													endif;
-													?><a class="sonet-group-create-popup-del" id="sonet_group_create_popup_del" href="javascript:void(0);" onclick="BXDeleteImage();"></a>
-												</span>
-											</div>
-										</div>
-									</div>
-									<div class="sonet-group-create-popup-field-corners-bottom">
+									?><div class="sonet-group-create-popup-field-corners-bottom">
 										<div class="sonet-group-create-popup-form-left-corner"></div>
 										<div class="sonet-group-create-popup-form-right-corner"></div>
 									</div>
@@ -403,15 +426,15 @@ else
 											?>var departmentRelation = <?=CUtil::PhpToJSObject($arStructure['department_relation'])?>;<?
 										}
 										?>
-
 										BX.ready(function() {
 											BX.SocNetLogDestination.init({
 												name : '<?=$selectorName?>',
 												searchInput : BX('sonet_group_create_popup_users_input_post_<?=$selectorName?>'),
-												departmentSelectDisable : true,
+												departmentSelectDisable : <?=(isset($arResult["GROUP_PROPERTIES"]["UF_SG_DEPT"]) && !$arResult["bExtranet"] ? 'false' : 'true')?>,
 												userSearchArea : <?=($arResult["bExtranetInstalled"] ? "'I'" : "false")?>,
 												extranetUser :  false, // ??
 												allowAddSocNetGroup: false,
+												allowSearchSelf: false,
 												siteDepartmentID : <?=(isset($arResult["siteDepartmentID"]) && intval($arResult["siteDepartmentID"]) > 0 ? intval($arResult["siteDepartmentID"]) : "false")?>,
 												bindMainPopup : {
 													node : BX('sonet_group_create_popup_users_container_post_<?=$selectorName?>'),
@@ -719,13 +742,13 @@ else
 												{
 													echo htmlspecialcharsbx($_POST["MESSAGE_TEXT"]);
 												}
-												elseif ($userMessage = CUserOptions::GetOption("bitrix24", "invite_message_text"))
+												elseif ($userMessage = CUserOptions::GetOption((IsModuleInstalled("bitrix24") ? "bitrix24" : "intranet"), "invite_message_text"))
 												{
 													echo $userMessage;
 												}
 												else
 												{
-													echo GetMessage("BX24_INVITE_DIALOG_INVITE_MESSAGE_TEXT");
+													echo GetMessage("SONET_GCE_T_INVITE_MESSAGE_TEXT");
 												}
 											?></textarea><?
 										?></div><?
@@ -762,49 +785,64 @@ else
 
 									if (
 										$arResult["POST"]["CLOSED"] != "Y"
-										&& (!CModule::IncludeModule('extranet') || !CExtranet::IsExtranetSite())
+										&& !$arResult["bExtranet"]
 										&& !IsModuleInstalled("im")
-									):
-										?><div class="sonet-group-create-popup-form-add-title"><?= GetMessage("SONET_GCE_T_SPAM_PERMS") ?></div>
-										<div class="sonet-group-create-popup-form-add-select"><select name="GROUP_SPAM_PERMS" class="sonet-group-create-popup-select-perms<?=(in_array("GROUP_SPAM_PERMS", $arResult["ErrorFields"]) ? " sonet-group-create-tabs-select-error" : "")?>">
-											<option value=""><?= GetMessage("SONET_GCE_T_TO_SELECT") ?>-</option><?
-											foreach ($arResult["SpamPerms"] as $key => $value):
-												?><option value="<?= $key ?>"<?= ($key == $arResult["POST"]["SPAM_PERMS"]) ? " selected" : "" ?>><?= $value ?></option><?
-											endforeach;
-										?></select></div><?
-									else:
-										?><input type="hidden" value="<?=$arResult["POST"]["SPAM_PERMS"]?>" name="GROUP_SPAM_PERMS"><?
-									endif;
-
-									if ($arParams["USE_KEYWORDS"] == "Y"):
-										?><div class="sonet-group-create-popup-form-add-title"><?= GetMessage("SONET_GCE_T_KEYWORDS") ?></div><div class="sonet-group-create-popup-form-add-select"><?
-										if (IsModuleInstalled("search")):?><?
-											$APPLICATION->IncludeComponent(
-												"bitrix:search.tags.input",
-												".default",
-												Array(
-													"NAME" => "GROUP_KEYWORDS",
-													"ID" => "GROUP_KEYWORDS",
-													"VALUE" => $arResult["POST"]["KEYWORDS"],
-													"arrFILTER" => "socialnetwork",
-													"PAGE_ELEMENTS" => "10",
-													"SORT_BY_CNT" => "Y",
-												)
-											);
-											?><?
-										else:
-											?><input type="text" name="GROUP_KEYWORDS" style="width:98%" value="<?= $arResult["POST"]["KEYWORDS"]; ?>"><?
-										endif;
-										?></div><?
-									endif;
-									//user fields
-									if (is_array($arResult["GROUP_PROPERTIES"]) && count($arResult["GROUP_PROPERTIES"]) > 0)
+									)
 									{
-										?>
-										<div class="sonet-group-create-uf-header"><?=GetMessage("SONET_GCE_UF_HEADER")?></div>
-										<div class="sonet-group-create-uf-content">
-										<?
-										foreach ($arResult["GROUP_PROPERTIES"] as $FIELD_NAME => $arUserField):
+										?><div class="sonet-group-create-popup-form-add-title"><?= GetMessage("SONET_GCE_T_SPAM_PERMS") ?></div><?
+										?><div class="sonet-group-create-popup-form-add-select"><?
+											?><select name="GROUP_SPAM_PERMS" class="sonet-group-create-popup-select-perms<?=(in_array("GROUP_SPAM_PERMS", $arResult["ErrorFields"]) ? " sonet-group-create-tabs-select-error" : "")?>"><?
+												?><option value=""><?= GetMessage("SONET_GCE_T_TO_SELECT") ?>-</option><?
+												foreach ($arResult["SpamPerms"] as $key => $value)
+												{
+													?><option value="<?= $key ?>"<?= ($key == $arResult["POST"]["SPAM_PERMS"]) ? " selected" : "" ?>><?= $value ?></option><?
+												}
+											?></select><?
+										?></div><?
+									}
+									else
+									{
+										?><input type="hidden" value="<?=$arResult["POST"]["SPAM_PERMS"]?>" name="GROUP_SPAM_PERMS"><?
+									}
+
+									if ($arParams["USE_KEYWORDS"] == "Y")
+									{
+										?><div class="sonet-group-create-popup-form-add-title"><?= GetMessage("SONET_GCE_T_KEYWORDS") ?></div><?
+										?><div class="sonet-group-create-popup-form-add-select"><?
+											if (IsModuleInstalled("search"))
+											{
+												$APPLICATION->IncludeComponent(
+													"bitrix:search.tags.input",
+													".default",
+													Array(
+														"NAME" => "GROUP_KEYWORDS",
+														"ID" => "GROUP_KEYWORDS",
+														"VALUE" => $arResult["POST"]["KEYWORDS"],
+														"arrFILTER" => "socialnetwork",
+														"PAGE_ELEMENTS" => "10",
+														"SORT_BY_CNT" => "Y",
+													)
+												);
+											}
+											else
+											{
+												?><input type="text" name="GROUP_KEYWORDS" style="width:98%" value="<?= $arResult["POST"]["KEYWORDS"]; ?>"><?
+											}
+										?></div><?
+									}
+
+									//user fields
+									if (isset($arResult["GROUP_PROPERTIES"]))
+									{
+										unset($arResult["GROUP_PROPERTIES"]["UF_SG_DEPT"]);
+									}
+									if (!empty($arResult["GROUP_PROPERTIES"]))
+									{
+										?><div class="sonet-group-create-uf-header"><?=GetMessage("SONET_GCE_UF_HEADER")?></div>
+										<div class="sonet-group-create-uf-content"><?
+
+										foreach ($arResult["GROUP_PROPERTIES"] as $FIELD_NAME => $arUserField)
+										{
 											?><div class="sonet-group-create-tabs-select-wrap<?=(in_array($FIELD_NAME, $arResult["ErrorFields"]) ? " sonet-group-create-tabs-uf-error" : "")?>">
 												<div class="sonet-group-create-popup-form-add-title"><label><?= $arUserField["EDIT_FORM_LABEL"] ?><?= ($arUserField["MANDATORY"] == "Y") ? '<span class="sonet-group-create-uf-required">&nbsp;*</span>' : ''?></label></div>
 												<div class="sonet-group-create-popup-form-add-select-uf"><?
@@ -817,7 +855,7 @@ else
 												);
 												?></div>
 											</div><?
-										endforeach;
+										}
 									}
 
 									?>

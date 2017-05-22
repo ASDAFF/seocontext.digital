@@ -324,6 +324,7 @@ if(
 	isset($arVariables["document_state_id"])
 	&& !isset($arVariables["element_id"])
 	&& CModule::IncludeModule("bizproc")
+	&& CBPRuntime::isFeatureEnabled()
 )
 {
 	$arWorkflowState = CBPStateService::GetWorkflowState($arVariables["document_state_id"]);

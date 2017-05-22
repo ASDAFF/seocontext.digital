@@ -10,13 +10,13 @@ function __forum_chapter_menu_gen()
 	while ($res = $db_res->Fetch())
 	{
 		$Dict[$res["TYPE"]][] = array(
-			"text" => htmlspecialcharsEx($res["TITLE"]),
+			"text" => htmlspecialcharsbx($res["TITLE"]),
 			"url" => "/bitrix/admin/forum_".($res["TYPE"]=="T"?"letter":"words").".php?DICTIONARY_ID=".$res["ID"]."&amp;lang=".LANG,
 			"more_url" => array(
 					"/bitrix/admin/forum_".($res["TYPE"]=="T"?"letter":"words").".php?DICTIONARY_ID=".$res["ID"]."&lang=".LANG,
 					"/bitrix/admin/forum_dictionary_edit.php?DICTIONARY_ID=".$res["ID"]."&lang=".LANG,
 					"/bitrix/admin/forum_".($res["TYPE"]=="T"?"letter":"words")."_edit.php?DICTIONARY_ID=".$res["ID"]."&lang=".LANG),
-			"title" => htmlspecialcharsEx($res["TITLE"]));
+			"title" => htmlspecialcharsbx($res["TITLE"]));
 	}
 	return $Dict;
 }

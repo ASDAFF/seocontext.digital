@@ -62,6 +62,17 @@ class CIMSettings
 		{
 			CIMStatus::Set($userId, Array('STATUS' => $value[self::STATUS]));
 		}
+		if (isset($value['openDesktopFromPanel']) && CModule::IncludeModule('pull'))
+		{
+			CPullStack::AddByUser($userId, Array(
+				'module_id' => 'im',
+				'command' => 'updateSettings',
+				'expiry' => 5,
+				'params' => Array(
+					'openDesktopFromPanel' => $value['openDesktopFromPanel'],
+				),
+			));
+		}
 
 		$arDefault = self::GetDefaultSettings($type);
 		foreach ($value as $key => $val)
@@ -102,6 +113,17 @@ class CIMSettings
 		if (isset($value[self::STATUS]))
 		{
 			CIMStatus::Set($userId, Array('STATUS' => $value[self::STATUS]));
+		}
+		if (isset($value['openDesktopFromPanel']) && CModule::IncludeModule('pull'))
+		{
+			CPullStack::AddByUser($userId, Array(
+				'module_id' => 'im',
+				'command' => 'updateSettings',
+				'expiry' => 5,
+				'params' => Array(
+					'openDesktopFromPanel' => $value['openDesktopFromPanel'],
+				),
+			));
 		}
 
 		$arDefault = self::GetDefaultSettings($type);
@@ -179,16 +201,20 @@ class CIMSettings
 		{
 			$arDefault = Array(
 				'status' => 'online',
+				'backgroundImage' => false,
 				'bxdNotify' => true,
 				'sshNotify' => true,
 				'generalNotify' => true,
 				'trackStatus' => '',
 				'nativeNotify' => true,
+				'openDesktopFromPanel' => true,
 				'viewOffline' => COption::GetOptionString("im", "view_offline"),
 				'viewGroup' => COption::GetOptionString("im", "view_group"),
 				'viewLastMessage' => true,
 				'enableSound' => true,
 				'enableBigSmile' => true,
+				'linesTabEnable' => true,
+				'linesTabOrder' => 'group',
 				'sendByEnter' => COption::GetOptionString("im", "send_by_enter"),
 				'correctText' => COption::GetOptionString("im", "correct_text"),
 				'panelPositionHorizontal' => COption::GetOptionString("im", "panel_position_horizontal"),
@@ -252,6 +278,10 @@ class CIMSettings
 				{
 					$arValues[$key] = in_array($value[$key], Array('top', 'bottom'))? $value[$key]: $default;
 				}
+				else if ($key == 'linesTabOrder')
+				{
+					$arValues[$key] = in_array($value[$key], Array('group', 'support', 'classic'))? $value[$key]: $default;
+				}
 				else if ($key == 'notifyScheme')
 				{
 					$arValues[$key] = in_array($value[$key], Array('simple', 'expert'))? $value[$key]: $default;
@@ -271,6 +301,10 @@ class CIMSettings
 				else if ($key == 'enableSound' && $value[$key] === 'N') // for legacy
 				{
 					$arValues[$key] = false;
+				}
+				else if ($key == 'backgroundImage') 
+				{
+					$arValues[$key] = $value[$key];
 				}
 				else if ($key == 'notifySchemeLevel')
 				{

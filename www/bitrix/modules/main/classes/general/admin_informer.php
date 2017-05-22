@@ -197,7 +197,7 @@ class CAdminInformer
 		}
 
 		//Disk space (quota)
-		$maxQuota = COption::GetOptionInt("main", "disk_space", 0)*1048576;
+		$maxQuota = (int)COption::GetOptionInt("main", "disk_space", 0)*1048576;
 		if ($maxQuota > 0)
 		{
 			$quota = new CDiskQuota();

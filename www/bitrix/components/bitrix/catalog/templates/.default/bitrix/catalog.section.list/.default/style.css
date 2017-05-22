@@ -104,12 +104,19 @@
 	padding: 0;
 	vertical-align: top;
 	line-height: 14px;
-}
-.bx_catalog_text .bx_catalog_text_title a{
-	color: #4c7da6;
-	white-space: nowrap;
 	font-size: 14px;
 }
+
+.bx_catalog_tile .bx_catalog_tile_title a{
+	-ms-text-overflow: ellipsis;
+	text-overflow: ellipsis;
+	display: inline-block;
+	max-width:100%;
+	overflow: hidden;
+	color: #4c7da6;
+	font-size: 14px;
+}
+
 .bx_catalog_text .bx_catalog_text_title a:hover{text-decoration: none}
 .bx_catalog_text .bx_catalog_text_title span{font-size: 12px;}
 

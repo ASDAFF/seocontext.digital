@@ -3,7 +3,7 @@ if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true) die();
 
 use Bitrix\Highloadblock as HL;
 
-class CBitrixBasketComponent extends CBitrixComponent
+class CBitrixBasketBasketSmallMailComponent extends CBitrixComponent
 {
 	public $arCustomSelectFields = array();
 	public $arIblockProps = array();
@@ -204,7 +204,8 @@ class CBitrixBasketComponent extends CBitrixComponent
 			array(
 				"ID", "NAME", "CALLBACK_FUNC", "MODULE", "PRODUCT_ID", "QUANTITY", "DELAY", "CAN_BUY",
 				"PRICE", "WEIGHT", "DETAIL_PAGE_URL", "NOTES", "CURRENCY", "VAT_RATE", "CATALOG_XML_ID",
-				"PRODUCT_XML_ID", "SUBSCRIBE", "DISCOUNT_PRICE", "PRODUCT_PROVIDER_CLASS", "TYPE", "SET_PARENT_ID"
+				"PRODUCT_XML_ID", "SUBSCRIBE", "DISCOUNT_PRICE", "PRODUCT_PROVIDER_CLASS", "TYPE", "SET_PARENT_ID",
+				"PRODUCT_PRICE_ID", 'CUSTOM_PRICE', 'BASE_PRICE'
 			)
 		);
 		while ($arItem = $dbItems->GetNext())

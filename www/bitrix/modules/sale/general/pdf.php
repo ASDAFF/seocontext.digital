@@ -129,6 +129,119 @@ class CSaleTfpdf extends tFPDF
 		return $info;
 	}
 
+	public function calculateRowsWidth($cols, $cells, $countItems, $docWidth, $margin = null)
+	{
+		$arRowsWidth = array();
+		$arRowsContentWidth = array();
+
+		if ($margin === null || $margin < 0)
+			$margin = 5;
+		else
+			$margin = (int)$margin;
+
+		// last columns always digital
+		end($cols);
+		$lastColumn = key($cols);
+		$cols[$lastColumn]['IS_DIGIT'] = true;
+
+		$digitWidth = 0;
+		foreach ($cols as $columnId => $column)
+		{
+			$max = $this->GetStringWidth($column['NAME']);
+			foreach ($cells as $i => $cell)
+			{
+				if ($i <= $countItems || $lastColumn === $columnId)
+				{
+					$max = max($max, $this->GetStringWidth($cell[$columnId]));
+				}
+			}
+
+			$arRowsWidth[$columnId] = $max + $margin * 2;
+			$arRowsContentWidth[$columnId] = $max;
+
+			if ($cols[$columnId]['IS_DIGIT'] === true)
+				$digitWidth += $arRowsWidth[$columnId];
+		}
+
+		$noDigitWidth = array_sum($arRowsWidth) - $digitWidth;
+
+		$requiredWidth = $docWidth - $digitWidth;
+		if ($requiredWidth < $noDigitWidth)
+		{
+			$colNameTitle = $this->GetStringWidth($cols['NAME']['NAME']);
+			if ($colNameTitle < $requiredWidth)
+			{
+				$arRowsWidth['NAME'] = $requiredWidth;
+				$arRowsContentWidth['NAME'] = $requiredWidth - $margin * 2;
+			}
+
+			$noDigitWidth = array_sum($arRowsWidth) - $digitWidth;
+			if ($requiredWidth < $noDigitWidth)
+			{
+				$tmp = array('PRICE', 'SUM', 'VAT_SUM', 'TOTAL');
+				foreach ($tmp as $columnId)
+				{
+					if (isset($cols[$columnId]))
+						$digitWidth -= $arRowsWidth[$columnId];
+				}
+
+				if (!in_array($lastColumn, $tmp))
+				{
+					$digitWidth -= $arRowsWidth[$lastColumn];
+					$cols[$lastColumn]['IS_DIGIT'] = true;
+					$tmp[] = $lastColumn;
+				}
+
+				foreach ($tmp as $columnId)
+				{
+					if (!isset($cols[$columnId]))
+						continue;
+
+					$max = 0;
+					foreach ($cells as $i => $cell)
+					{
+						$string = $cell[$columnId];
+						if ($columnId === 'PRICE' || $columnId === 'SUM' || $columnId === 'VAT_SUM'
+							|| $columnId === 'TOTAL' || $columnId == $lastColumn)
+						{
+							if (preg_match('/[^0-9 ,\.]/u', $string) !== 0)
+							{
+								$p = mb_strrpos($string, ' ', 0, 'UTF-8');
+								$string = mb_substr($string, 0, $p, 'UTF-8');
+							}
+						}
+
+						if ($i <= $countItems || $lastColumn === $columnId)
+						{
+							$max = max($max, $this->GetStringWidth($string));
+						}
+					}
+
+					$arRowsWidth[$columnId] = $max + $margin * 2;
+					$arRowsContentWidth[$columnId] = $max;
+					$digitWidth += $arRowsWidth[$columnId];
+				}
+
+				$requiredWidth = $docWidth - $digitWidth;
+			}
+		}
+
+		foreach ($arRowsWidth as $columnId => $rowWidth)
+		{
+			if ($cols[$columnId]['IS_DIGIT'] !== true)
+			{
+				$ratio = $requiredWidth / $noDigitWidth;
+				$arRowsWidth[$columnId] *= $ratio;
+				$arRowsContentWidth[$columnId] *= $ratio;
+			}
+		}
+
+		return array(
+			'ROWS_WIDTH' => $arRowsWidth,
+			'ROWS_CONTENT_WIDTH' => $arRowsContentWidth
+		);
+	}
+
 }
 
 class CSalePdf
@@ -158,7 +271,7 @@ class CSalePdf
 
 	public function splitString($text, $width)
 	{
-		if ($this->generator->GetStringWidth($text) <= $width)
+		if ($width <= 0 || $this->generator->GetStringWidth($text) <= $width)
 		{
 			return array($text, '');
 		}
@@ -173,9 +286,12 @@ class CSalePdf
 				$string = mb_substr($string, 0, $p, 'UTF-8');
 			}
 
+			if ($p == 0)
+				$p++;
+
 			return array(
 				$string,
-				mb_substr($text, $p+1, mb_strlen($text, 'UTF-8'), 'UTF-8')
+				mb_substr($text, $p, mb_strlen($text, 'UTF-8'), 'UTF-8')
 			);
 		}
 	}

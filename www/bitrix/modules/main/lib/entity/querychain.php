@@ -48,6 +48,31 @@ class QueryChain
 		$this->size++;
 	}
 
+	/**
+	 * @param QueryChainElement $element
+	 */
+	public function prependElement(QueryChainElement $element)
+	{
+		$this->chain = array_merge(array($element), $this->chain);
+		$this->definition = null;
+		$this->alias = null;
+
+		$this->size++;
+	}
+
+	/**
+	 * @param QueryChain $chain
+	 */
+	public function prepend(QueryChain $chain)
+	{
+		$elements = $chain->getAllElements();
+
+		for ($i=count($elements)-1; $i>=0; $i--)
+		{
+			$this->prependElement($elements[$i]);
+		}
+	}
+
 	public function getFirstElement()
 	{
 		return $this->chain[0];
@@ -76,6 +101,15 @@ class QueryChain
 		$this->alias = null;
 
 		$this->last_element = end($this->chain);
+		$this->size--;
+	}
+
+	public function removeFirstElement()
+	{
+		$this->chain = array_slice($this->chain, 1);
+		$this->definition = null;
+		$this->alias = null;
+
 		$this->size--;
 	}
 

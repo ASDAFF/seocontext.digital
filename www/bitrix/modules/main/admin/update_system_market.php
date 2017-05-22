@@ -41,7 +41,10 @@ if(in_array(LANGUAGE_ID, array("ru", "ua", "bg")))
 	if(intval($_REQUEST["category"]) > 0)
 		$category = intval($_REQUEST["category"]);
 	if(strlen($_REQUEST["module"]) > 0)
+	{
 		$moduleCode = $_REQUEST["module"];
+		$moduleCode = preg_replace("/[^a-zA-Z0-9.]/is", "", $moduleCode);
+	}
 
 	$_SESSION["mp_sort"] = $sort;
 	$_SESSION["mp_show"] = $show;
@@ -166,11 +169,12 @@ else
 		$sectionName = GetMessage("USM_SEARCH");
 	
 	$arModules = array();
-	if($res = $ht->Get("http://marketplace.1c-bitrix.ru/".$url."?".$getData))
+	if($res = $ht->Get("https://marketplace.1c-bitrix.ru/".$url."?".$getData))
 	{
 		if(in_array($ht->status, array("200")))
 		{
 			$res = $APPLICATION->ConvertCharset($res, "windows-1251", SITE_CHARSET);
+
 			require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/classes/general/xml.php");
 			$objXML = new CDataXML();
 			$objXML->LoadString($res);

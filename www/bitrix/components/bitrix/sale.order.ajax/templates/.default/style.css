@@ -375,6 +375,7 @@
 .bx-soa-coupon-input {
     display: inline-block;
     position:relative;
+	vertical-align: middle;
 }
 .bx-soa-coupon-input:after {
     content:"";
@@ -593,7 +594,7 @@
     }
 }
 .bx-soa-cart-total-line {
-    padding: 5px 0;
+    padding: 5px 7px;
     font-size: 13px;
     border-top: 1px solid #e5e5e5;
     line-height: 25px;
@@ -607,10 +608,22 @@
     border-bottom: none;
 }
 .bx-soa-cart-t {float: left;}
-.bx-soa-cart-d {float: right;}
+.bx-soa-cart-d {
+    float: right;
+    text-align: right;
+}
 .bx-soa-cart-total .bx-soa-cart-total-line-total .bx-soa-cart-t {font-weight: bold;}
 .bx-soa-cart-total .bx-soa-cart-total-line-total .bx-soa-cart-d {font-size: 28px;}
 .bx-soa-cart-total .bx-soa-cart-total-line-total .bx-soa-cart-d span {font-size: 18px;}
+
+.bx-soa-cart-total-line.bx-soa-cart-total-line-highlighted {
+    background-color: #d4ffb8;
+    border-color: transparent;
+}
+.bx-soa-cart-total-line-highlighted + .bx-soa-cart-total-line {
+     border-top: none;
+}
+
 .bx-soa-cart-total-button-container{
     padding-top: 20px;
     text-align: center;
@@ -633,6 +646,9 @@
 .bx-soa-price-not-calc:hover{
     border-color:transparent;
     color:#A94442;
+}
+.bx-soa-price-free{
+    color: #257210;
 }
 
 @media (max-width: 991px) {
@@ -1022,10 +1038,10 @@ ul.bx-soa-pp-list li {
 
 /*CHECKBOX*/
 @media (min-width:1200px) {
-    .bx-soa-pp .bx-soa-pp-company:nth-child(4n+1) {clear: both;}
+    .bx-soa-pp .bx-soa-pp-company:nth-child(3n+1) {clear: both;}
 }
 
-@media (min-width:992px) and (max-width:1199px) {
+@media (min-width:992px) {
     .bx-soa-pp .bx-soa-pp-company:nth-child(3n+1) {clear: both;}
 }
 

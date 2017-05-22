@@ -40,3 +40,5 @@ $MESS["SALE_COMPANY_LINK_TO_PAYMENT"] = "Оплата";
 $MESS["SALE_COMPANY_LINK_TO_SHIPMENT"] = "Доставка";
 $MESS["SALE_COMPANY_LINK_NOT"] = "Нет";
 $MESS["SALE_COMPANY_CHANGE_FORM_VALUE"] = "'Внимание, данные формы были изменены. Все несохраненные данные будут потеряны. Вы действительно хотите уйти с этой страницы?'";
+$MESS["COMPANY_GROUPS"] = "Группы относящиеся к компании:";
+$MESS["COMPANY_RESPONSIBLE_GROUPS"] = "Группы ответственного:";

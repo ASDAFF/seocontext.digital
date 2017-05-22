@@ -1658,8 +1658,9 @@ echo BeginNote();
 		echo GetMessage("CES_NOTES10");?><br><br>
 		<?echo GetMessage("CES_NOTES11");?><br>
 		<?echo $_SERVER["DOCUMENT_ROOT"];?>/bitrix/php_interface/include/catalog_import/cron_frame.php<br>
-		<?echo GetMessage("CES_NOTES12");?>
-	<?endif;
+		<?echo GetMessage("CES_NOTES12");?><br>
+		<?=GetMessage('CES_NOTES13', array('#FOLDER#' => $_SERVER["DOCUMENT_ROOT"].'/bitrix/modules/catalog/load_import/'));
+	endif;
 
 echo EndNote();
 

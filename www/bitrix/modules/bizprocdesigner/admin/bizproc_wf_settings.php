@@ -65,7 +65,12 @@ if(!is_array($arWorkflowParameters))
 $arWorkflowParameterTypesTmp = $documentService->GetDocumentFieldTypes(array(MODULE_ID, ENTITY, $_POST['document_type']));
 $arWorkflowParameterTypes = array();
 foreach ($arWorkflowParameterTypesTmp as $key => $value)
+{
+	if ($key === 'N:Sequence')
+		continue;
+
 	$arWorkflowParameterTypes[$key] = $value["Name"];
+}
 
 CBPDocument::AddShowParameterInit(MODULE_ID, "only_users", $_POST['document_type'], ENTITY);
 ?>

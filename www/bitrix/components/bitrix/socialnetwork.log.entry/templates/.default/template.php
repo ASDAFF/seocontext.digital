@@ -139,8 +139,8 @@ else
 		}
 
 		if (
-			array_key_exists("EVENT_FORMATTED", $arEvent) 
-			&& array_key_exists("STYLE", $arEvent["EVENT_FORMATTED"]) 
+			array_key_exists("EVENT_FORMATTED", $arEvent)
+			&& array_key_exists("STYLE", $arEvent["EVENT_FORMATTED"])
 			&& strlen($arEvent["EVENT_FORMATTED"]["STYLE"]) > 0
 		)
 		{
@@ -200,7 +200,7 @@ else
 			}
 
 			?>"><?
-			
+
 				if ($_REQUEST["action"] == "get_entry")
 				{
 					$APPLICATION->RestartBuffer();
@@ -208,11 +208,21 @@ else
 					ob_start();
 				}
 
-				?><div class="feed-user-avatar<?=(isset($arEvent["AVATAR_SRC"]) && strlen($arEvent["AVATAR_SRC"]) > 0 ? " feed-user-avatar-white" : "")?>"><?
-					?><img src="<?=(isset($arEvent["AVATAR_SRC"]) && strlen($arEvent["AVATAR_SRC"]) > 0 ? $arEvent["AVATAR_SRC"] : "/bitrix/images/1.gif")?>" width="<?=$arParams["AVATAR_SIZE"]?>" height="<?=$arParams["AVATAR_SIZE"]?>"><?
-				?></div>
+				$avatar = false;
+				if (isset($arEvent["AVATAR_SRC"]) && strlen($arEvent["AVATAR_SRC"]) > 0)
+				{
+					$avatar = $arEvent["AVATAR_SRC"];
+				}
+
+				?>
+				<div class="feed-user-avatar"
+					<? if ($avatar):?>
+						style="background: url('<?=$avatar?>'); background-size: cover;"
+					<? endif ?>
+				></div>
 				<div class="feed-post-title-block"><?
 					$strDestination = "";
+
 					if (
 						isset($arEvent["EVENT_FORMATTED"]["DESTINATION"])
 						&& is_array($arEvent["EVENT_FORMATTED"]["DESTINATION"])
@@ -245,10 +255,31 @@ else
 							$i = 0;
 							foreach($arEvent["EVENT_FORMATTED"]["DESTINATION"] as $arDestination)
 							{
-								$bDestinationExtranet = (
-									array_key_exists("IS_EXTRANET", $arDestination)
+								$classAdditional = $classPrefixAdditional = "";
+								if (
+									(!isset($arParams["PUBLIC_MODE"]) || $arParams["PUBLIC_MODE"] != "Y")
+									&& array_key_exists("CRM_USER_ID", $arDestination)
+									&& intval($arDestination["CRM_USER_ID"]) > 0
+								)
+								{
+									$classPrefixAdditional = " feed-add-post-destination-prefix-crmuser";
+								}
+								elseif (
+									(!isset($arParams["PUBLIC_MODE"]) || $arParams["PUBLIC_MODE"] != "Y")
+									&& array_key_exists("IS_EMAIL", $arDestination)
+									&& $arDestination["IS_EMAIL"] == "Y"
+								)
+								{
+									$classAdditional = " feed-add-post-destination-new-email";
+								}
+								elseif (
+									(!isset($arParams["PUBLIC_MODE"]) || $arParams["PUBLIC_MODE"] != "Y")
+									&& array_key_exists("IS_EXTRANET", $arDestination)
 									&& $arDestination["IS_EXTRANET"] == "Y"
-								);
+								)
+								{
+									$classAdditional = " feed-add-post-destination-new-extranet";
+								}
 
 								if ($i > 0)
 								{
@@ -257,12 +288,12 @@ else
 
 								if (!empty($arDestination["CRM_PREFIX"]))
 								{
-									$strDestination .= ' <span class="feed-add-post-destination-prefix">'.$arDestination["CRM_PREFIX"].':&nbsp;</span>';
+									$strDestination .= ' <span class="feed-add-post-destination-prefix'.$classPrefixAdditional.'">'.$arDestination["CRM_PREFIX"].':&nbsp;</span>';
 								}
 
 								$strDestination .= (strlen($arDestination["URL"]) > 0
-									? '<a class="feed-add-post-destination-new'.($bDestinationExtranet ? " feed-add-post-destination-new-extranet" : "").'" href="'.$arDestination["URL"].'">'.$arDestination["TITLE"].'</a>'
-									: '<span class="feed-add-post-destination-new'.($bDestinationExtranet ? " feed-add-post-destination-new-extranet" : "").'">'.$arDestination["TITLE"].'</span>'
+									? '<a class="feed-add-post-destination-new'.$classAdditional.'" href="'.$arDestination["URL"].'">'.$arDestination["TITLE"].'</a>'
+									: '<span class="feed-add-post-destination-new'.$classAdditional.'">'.$arDestination["TITLE"].'</span>'
 								);
 								$i++;
 							}
@@ -413,10 +444,10 @@ else
 								?><div class="feed-add-post-destination-title"><span class="feed-add-post-files-title feed-add-post-p"><?=$arEvent["EVENT_FORMATTED"]["TITLE_24"]?></span></div><?
 								break;
 							case "timeman_entry":
-								?><div class="feed-add-post-files-title"><?=$arEvent["EVENT_FORMATTED"]["TITLE_24"]?><a href="<?=$arEvent['ENTITY']['FORMATTED']['URL']?>" class="feed-work-time-link"><?=GetMessage("SONET_C30_MENU_ENTRY_TIMEMAN")?><span class="feed-work-time-icon"></span></a></div><?
+								?><div class="feed-add-post-files-title"><?=$arEvent["EVENT_FORMATTED"]["TITLE_24"]?><a href="<?=htmlspecialcharsbx($arEvent['ENTITY']['FORMATTED']['URL'])?>" class="feed-work-time-link"><?=GetMessage("SONET_C30_MENU_ENTRY_TIMEMAN")?><span class="feed-work-time-icon"></span></a></div><?
 								break;
 							case "report":
-								?><div class="feed-add-post-files-title"><?=$arEvent["EVENT_FORMATTED"]["TITLE_24"]?><a href="<?=$arEvent['ENTITY']['FORMATTED']['URL']?>" class="feed-work-time-link"><?=GetMessage("SONET_C30_MENU_ENTRY_REPORTS")?><span class="feed-work-time-icon"></span></a></div><?
+								?><div class="feed-add-post-files-title"><?=$arEvent["EVENT_FORMATTED"]["TITLE_24"]?><a href="<?=htmlspecialcharsbx($arEvent['ENTITY']['FORMATTED']['URL'])?>" class="feed-work-time-link"><?=GetMessage("SONET_C30_MENU_ENTRY_REPORTS")?><span class="feed-work-time-icon"></span></a></div><?
 								break;
 							case "tasks":
 								?><div class="feed-add-post-destination-title"><?=$arEvent["EVENT_FORMATTED"]["TITLE_24"]?><span class="feed-work-time"><?=GetMessage("SONET_C30_MENU_ENTRY_TASKS")?><span class="feed-work-time-icon"></span></span></div><?
@@ -491,7 +522,7 @@ else
 							{
 								var arMoreButtonID = [];
 							}
-							arMoreButtonID[arMoreButtonID.length] = { 
+							arMoreButtonID[arMoreButtonID.length] = {
 								'bodyBlockID' : 'log_entry_body_<?=$arEvent["EVENT"]["ID"]?>',
 								'moreButtonBlockID' : 'log_entry_more_<?=$arEvent["EVENT"]["ID"]?>'
 							};
@@ -583,7 +614,7 @@ else
 							{
 								$photo_detail_url = $arEventParams["DETAIL_URL"];
 								if (
-									$photo_detail_url 
+									$photo_detail_url
 									&& $arEvent["EVENT"]["ENTITY_TYPE"] == SONET_ENTITY_GROUP
 									&& (
 										IsModuleInstalled("extranet")
@@ -760,7 +791,7 @@ else
 							{
 								var arMoreButtonID = [];
 							}
-							arMoreButtonID[arMoreButtonID.length] = { 
+							arMoreButtonID[arMoreButtonID.length] = {
 								'bodyBlockID' : 'log_entry_body_<?=$arEvent["EVENT"]["ID"]?>',
 								'moreButtonBlockID' : 'log_entry_more_<?=$arEvent["EVENT"]["ID"]?>'
 							};
@@ -792,7 +823,7 @@ else
 						}
 					}
 					if (
-						$eventHandlerID !== false 
+						$eventHandlerID !== false
 						&& intval($eventHandlerID) > 0
 					)
 					{
@@ -894,7 +925,7 @@ else
 							$arMenuItemsAdditional = array();
 						}
 
-						$serverName = (CMain::IsHTTPS() ? "https" : "http")."://".((defined("SITE_SERVER_NAME") && strlen(SITE_SERVER_NAME) > 0) ? SITE_SERVER_NAME : COption::GetOptionString("main", "server_name", ""));
+						$serverName = (CMain::IsHTTPS() ? "https" : "http")."://".Bitrix\Main\Text\HtmlFilter::encode((defined("SITE_SERVER_NAME") && strlen(SITE_SERVER_NAME) > 0) ? SITE_SERVER_NAME : COption::GetOptionString("main", "server_name", ""));
 						$strLogEntryURL = $serverName.CComponentEngine::MakePathFromTemplate(
 							$arParams["PATH_TO_LOG_ENTRY"],
 							array(
@@ -1003,7 +1034,6 @@ else
 								array($arEvent["EVENT"]["ID"], $arComment["EVENT"]["ID"]);
 
 						$event_date_log_ts = (isset($arComment["EVENT"]["LOG_DATE_TS"]) ? $arComment["EVENT"]["LOG_DATE_TS"] : (MakeTimeStamp($arComment["EVENT"]["LOG_DATE"]) - intval($arResult["TZ_OFFSET"])));
-
 						$arRecords[$commentId] = array(
 							"ID" => $commentId,
 							"NEW" => ($GLOBALS["USER"]->IsAuthorized()
@@ -1025,7 +1055,9 @@ else
 								"LAST_NAME" => $arComment["CREATED_BY"]["TOOLTIP_FIELDS"]["LAST_NAME"],
 								"SECOND_NAME" => $arComment["CREATED_BY"]["TOOLTIP_FIELDS"]["SECOND_NAME"],
 								"LOGIN" => $arComment["CREATED_BY"]["TOOLTIP_FIELDS"]["LOGIN"],
-								"AVATAR" => $arComment["AVATAR_SRC"]
+								"AVATAR" => $arComment["AVATAR_SRC"],
+								"EXTERNAL_AUTH_ID" => (isset($arComment["CREATED_BY"]["TOOLTIP_FIELDS"]["EXTERNAL_AUTH_ID"]) ? $arComment["CREATED_BY"]["TOOLTIP_FIELDS"]["EXTERNAL_AUTH_ID"] : false),
+								"UF_USER_CRM_ENTITY" => (isset($arComment["CREATED_BY"]["TOOLTIP_FIELDS"]["UF_USER_CRM_ENTITY"]) ? $arComment["CREATED_BY"]["TOOLTIP_FIELDS"]["UF_USER_CRM_ENTITY"] : false)
 							),
 							"APPROVED" => "Y",
 							"POST_TIMESTAMP" => $arComment["LOG_DATE_TS"],
@@ -1086,7 +1118,7 @@ else
 								}
 							}
 							if (
-								$eventHandlerID !== false 
+								$eventHandlerID !== false
 								&& intval($eventHandlerID) > 0
 							)
 							{
@@ -1191,7 +1223,11 @@ else
 						),
 
 					"IMAGE_SIZE" => $arParams["IMAGE_SIZE"],
-					"mfi" => $arParams["mfi"]
+					"mfi" => $arParams["mfi"],
+					"AUTHOR_URL_PARAMS" => array(
+						"entityType" => 'LOG_ENTRY',
+						"entityId" => $arEvent["EVENT"]["ID"]
+					),
 					),
 					$this->__component
 				);

@@ -358,10 +358,7 @@ abstract class SqlHelper
 	 *
 	 * @return array (merge)
 	 */
-	public function prepareMerge($tableName, array $primaryFields, array $insertFields, array $updateFields)
-	{
-		return array();
-	}
+	abstract public function prepareMerge($tableName, array $primaryFields, array $insertFields, array $updateFields);
 
 	/**
 	 * Performs additional processing of CLOB fields.
@@ -454,13 +451,18 @@ abstract class SqlHelper
 		}
 		elseif($field instanceof Entity\FloatField)
 		{
+			$value = doubleval($value);
+			if(!is_finite($value))
+			{
+				$value = 0;
+			}
 			if(($scale = $field->getScale()) !== null)
 			{
-				$result = "'".round(doubleval($value), $scale)."'";
+				$result = "'".round($value, $scale)."'";
 			}
 			else
 			{
-				$result = "'".doubleval($value)."'";
+				$result = "'".$value."'";
 			}
 		}
 		elseif($field instanceof Entity\StringField)

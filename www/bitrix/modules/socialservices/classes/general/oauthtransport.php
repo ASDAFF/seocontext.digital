@@ -144,4 +144,9 @@ class CSocServOAuthTransport
 	{
 		return (($this->accessTokenExpires - 30) < time()) ? false : true;
 	}
+
+	public function getResult()
+	{
+		return array();
+	}
 }

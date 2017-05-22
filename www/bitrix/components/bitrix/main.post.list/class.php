@@ -96,7 +96,7 @@ HTML;
 					\CPullWatch::Add($this->getUser()->GetId(), 'UNICOMMENTSMOBILEEXTENDED'.$this->arParams["ENTITY_XML_ID"]);
 					$text .= <<<HTML
 						<script>
-							app.onCustomEvent('onPullExtendWatch', {'id': "UNICOMMENTSMOBILEEXTENDED{$this->arParams["ENTITY_XML_ID"]}"});
+							BXMobileApp.onCustomEvent('onPullExtendWatch', {'id': "UNICOMMENTSMOBILEEXTENDED{$this->arParams["ENTITY_XML_ID"]}"}, true);
 						</script>
 HTML;
 				}
@@ -105,7 +105,7 @@ HTML;
 					\CPullWatch::Add($this->getUser()->GetId(), 'UNICOMMENTSMOBILE'.$this->arParams["ENTITY_XML_ID"]);
 					$text = <<<HTML
 						<script>
-							app.onCustomEvent('onPullExtendWatch', {'id': "UNICOMMENTSMOBILE{$this->arParams["ENTITY_XML_ID"]}"});
+							BXMobileApp.onCustomEvent('onPullExtendWatch', {'id': "UNICOMMENTSMOBILE{$this->arParams["ENTITY_XML_ID"]}"}, true);
 						</script>
 HTML;
 				}
@@ -140,6 +140,10 @@ HTML;
 					unset($comment["MOBILE"]);
 					$comment["ACTION"] = $arParams["PUSH&PULL"]["ACTION"];
 					$comment["USER_ID"] = (isset($arParams["PUSH&PULL"]) && isset($arParams["PUSH&PULL"]["AUTHOR_ID"]) && intval($arParams["PUSH&PULL"]["AUTHOR_ID"]) > 0 ? intval($arParams["PUSH&PULL"]["AUTHOR_ID"]) : $this->getUser()->getId());
+					if ($this->request->getPost("EXEMPLAR_ID") !== null)
+						$comment["EXEMPLAR_ID"] = $this->request->getPost("EXEMPLAR_ID");
+					if ($this->request->getPost("COMMENT_EXEMPLAR_ID") !== null)
+						$comment["COMMENT_EXEMPLAR_ID"] = $this->request->getPost("COMMENT_EXEMPLAR_ID");
 
 					\CPullWatch::AddToStack('UNICOMMENTSEXTENDED'.$arParams["ENTITY_XML_ID"],
 						array(
@@ -306,21 +310,28 @@ HTML;
 		$res["LAST_NAME"] = htmlspecialcharsbx($res["LAST_NAME"]);
 		$res["SECOND_NAME"] = htmlspecialcharsbx($res["SECOND_NAME"]);
 		$res["IS_EXTRANET"] = is_array($extranetUserIdList) && in_array($res["ID"], $extranetUserIdList) ? "Y" : "N";
-		$res["TYPE"] = (
-			isset($res["TYPE"])
-				? $res["TYPE"]
-				: (
-					isset($res["EXTERNAL_AUTH_ID"])
-					&& $res["EXTERNAL_AUTH_ID"] == 'email'
-						? "EMAIL"
-						: (
-							$res["IS_EXTRANET"] == 'Y'
-								? "EXTRANET"
-								: false
-						)
-				)
-		);
-
+		if (!isset($res["TYPE"]))
+		{
+			if (!empty($res["UF_USER_CRM_ENTITY"]))
+			{
+				$res["TYPE"] = "EMAILCRM";
+			}
+			elseif (
+				isset($res["EXTERNAL_AUTH_ID"])
+				&& $res["EXTERNAL_AUTH_ID"] == 'email'
+			)
+			{
+				$res["TYPE"] = "EMAIL";
+			}
+			elseif ($res["IS_EXTRANET"] == 'Y')
+			{
+				$res["TYPE"] = "EXTRANET";
+			}
+			else
+			{
+				$res["TYPE"] = false;
+			}
+		}
 		return $res;
 	}
 
@@ -334,6 +345,8 @@ HTML;
 			"ENTITY_XML_ID" => $arParams["ENTITY_XML_ID"], // string
 			"FULL_ID" => array($arParams["ENTITY_XML_ID"], $res["ID"]),
 			"NEW" => $res["NEW"], //"Y" | "N"
+			"AUX" => (isset($res["AUX"]) ? $res["AUX"] : ''),
+			"AUX_LIVE_PARAMS" => (isset($res["AUX_LIVE_PARAMS"]) ? $res["AUX_LIVE_PARAMS"] : array()),
 			"APPROVED" => $res["APPROVED"], //"Y" | "N"
 			"POST_TIMESTAMP" => ($res["POST_TIMESTAMP"] - CTimeZone::GetOffset()),
 			"~POST_MESSAGE_TEXT" => $res["~POST_MESSAGE_TEXT"],
@@ -556,6 +569,7 @@ HTML;
 			$result["CLASSNAME"] .= " feed-com-block-uf";
 		}
 		$result = array_merge($result, ($this->isWeb() ? $result["WEB"] : $result["MOBILE"]));
+
 		return $result;
 	}
 
@@ -571,16 +585,25 @@ HTML;
 			$extranetSiteId = (CModule::IncludeModule('extranet') ? CExtranet::GetExtranetSiteID() : false);
 		}
 
-		$authorUrl = str_replace(
-			array("#ID#", "#id#", "#USER_ID#", "#user_id#"),
-			array($res["ID"], $res["ID"], $res["AUTHOR"]["ID"], $res["AUTHOR"]["ID"]),
-			$arParams["AUTHOR_URL"]);
+		$authorUrl = (
+			$res["AUTHOR"]["ID"]
+				? str_replace(
+					array("#ID#", "#id#", "#USER_ID#", "#user_id#"),
+					array($res["ID"], $res["ID"], $res["AUTHOR"]["ID"], $res["AUTHOR"]["ID"]),
+					$arParams["AUTHOR_URL"]
+				)
+				: "javascript:void();"
+		);
 
 		$authorStyle = '';
 		$authorTooltipParams = array();
 
 		if (!empty($res["AUTHOR"]["TYPE"]))
 		{
+			if ($res["AUTHOR"]["TYPE"] == 'EMAILCRM')
+			{
+				$authorStyle = ' feed-com-name-emailcrm';
+			}
 			if ($res["AUTHOR"]["TYPE"] == 'EMAIL')
 			{
 				$authorStyle = ' feed-com-name-email';
@@ -600,7 +623,7 @@ HTML;
 			&& (
 				(isset($arParams["bPublicPage"]) && $arParams["bPublicPage"])
 				|| SITE_ID == $extranetSiteId
-				|| (!empty($res["AUTHOR"]["TYPE"]) && in_array($res["AUTHOR"]["TYPE"], array('EMAIL', 'EXTRANET')))
+				|| (!empty($res["AUTHOR"]["TYPE"]) && in_array($res["AUTHOR"]["TYPE"], array('EMAIL', 'EMAILCRM', 'EXTRANET')))
 			)
 		)
 		{
@@ -643,9 +666,15 @@ HTML;
 				($arParams["VIEW_URL"] == "" ? "N" : "Y"),
 			"#EDIT_URL#" =>
 				str_replace(array("#ID#", "#id#"), $res["ID"], $arParams["EDIT_URL"]),
-			"#EDIT_SHOW#" =>
-				($arParams["RIGHTS"]["EDIT"] == "Y" || $arParams["RIGHTS"]["EDIT"] == "ALL" ||
-				$arParams["RIGHTS"]["EDIT"] == "OWN" && $USER->GetID() == intval($res["AUTHOR"]["ID"]) ? "Y" : "N"),
+			"#EDIT_SHOW#" => (
+				empty($res["AUX"])
+				&& (
+					$arParams["RIGHTS"]["EDIT"] == "Y" || $arParams["RIGHTS"]["EDIT"] == "ALL" ||
+					$arParams["RIGHTS"]["EDIT"] == "OWN" && $USER->GetID() == intval($res["AUTHOR"]["ID"])
+				)
+					? "Y"
+					: "N"
+			),
 			"#MODERATE_URL#" =>
 				str_replace(array("#ID#", "#id#"), $res["ID"], $arParams["MODERATE_URL"]),
 			"#MODERATE_SHOW#" =>
@@ -656,8 +685,12 @@ HTML;
 			"#DELETE_SHOW#" =>
 				($arParams["RIGHTS"]["DELETE"] == "Y" || $arParams["RIGHTS"]["DELETE"] == "ALL" ||
 				$arParams["RIGHTS"]["DELETE"] == "OWN" && $USER->GetID() == intval($res["AUTHOR"]["ID"]) ? "Y" : "N"),
-			"#CREATETASK_SHOW#" =>
-				($arParams["RIGHTS"]["CREATETASK"] == "Y" ? "Y" : "N"),
+			"#CREATETASK_SHOW#" => (
+				empty($res["AUX"])
+				&& $arParams["RIGHTS"]["CREATETASK"] == "Y"
+					? "Y"
+					: "N"
+			),
 			"#BEFORE_HEADER#" => $res["BEFORE_HEADER"],
 			"#BEFORE_ACTIONS#" => $res["BEFORE_ACTIONS"],
 			"#AFTER_ACTIONS#" => $res["AFTER_ACTIONS"],
@@ -716,7 +749,7 @@ HTML;
 		//$arParams["NAV_RESULT"] = (!!$arParams["NAV_STRING"] && is_object($arParams["NAV_RESULT"]) ? $arParams["NAV_RESULT"] : false);
 		$arParams["PREORDER"] = ($arParams["PREORDER"] == "Y" ? "Y" : "N");
 		$arParams["RIGHTS"] = (is_array($arParams["RIGHTS"]) ? $arParams["RIGHTS"] : array());
-		foreach (array("MODERATE", "EDIT", "DELETE") as $act)
+		foreach (array("MODERATE", "EDIT", "DELETE", "CREATETASK") as $act)
 			$arParams["RIGHTS"][$act] = in_array(strtoupper($arParams["RIGHTS"][$act]), array("Y", "ALL", "OWN", "OWNLAST")) ? $arParams["RIGHTS"][$act] : "N";
 		$arParams["LAST_RECORD"] = array();
 		// Answer params
@@ -734,11 +767,11 @@ HTML;
 		// Template params
 		$arParams["VISIBLE_RECORDS_COUNT"] = (!!$arParams["NAV_RESULT"] ? intval($arParams["VISIBLE_RECORDS_COUNT"]) : 0);
 		$arParams["TEMPLATE_ID"] = (!!$arParams["TEMPLATE_ID"] ? $arParams["TEMPLATE_ID"] : 'COMMENT_'.$arParams["ENTITY_XML_ID"].'_');
-		$arParams["AVATAR_SIZE"] = ($arParams["AVATAR_SIZE"] > 0 ? $arParams["AVATAR_SIZE"] : 39);
+		$arParams["AVATAR_SIZE"] = ($arParams["AVATAR_SIZE"] > 0 ? $arParams["AVATAR_SIZE"] : 100);
 		//$arParams["IMAGE_SIZE"] = ($arParams["IMAGE_SIZE"] > 0 ? $arParams["IMAGE_SIZE"] : 30);
 		$arParams['SHOW_MINIMIZED'] = ($arParams['SHOW_MINIMIZED'] == "Y" ? "Y" : "N");
 
-		$arParams["NAME_TEMPLATE"] = (!!$_REQUEST["NAME_TEMPLATE"] ? $_REQUEST["NAME_TEMPLATE"] : \CSite::GetNameFormat());
+		$arParams["NAME_TEMPLATE"] = (!!$_REQUEST["NAME_TEMPLATE"] ? $_REQUEST["NAME_TEMPLATE"] : (!!$arParams["NAME_TEMPLATE"] ? $arParams["NAME_TEMPLATE"] : \CSite::GetNameFormat()));
 		$arParams["SHOW_LOGIN"] = ($_REQUEST["SHOW_LOGIN"] == "Y" ? "Y" : ($arParams["SHOW_LOGIN"] == "Y" ? "Y" : "N"));
 		$arParams["DATE_TIME_FORMAT"] = trim($arParams["DATE_TIME_FORMAT"]);
 		$arParams["SHOW_POST_FORM"] = ($arParams["SHOW_POST_FORM"] == "Y" ? "Y" : "N");
@@ -829,33 +862,42 @@ HTML;
 
 	public function executeComponent()
 	{
-		$this->prepareParams($this->arParams, $this->arResult);
-		ob_start();
-
-		$this->includeComponentTemplate();
-
-		$output = ob_get_clean();
-		$json = false;
-
-		foreach (GetModuleEvents('main.post.list', 'OnCommentsDisplayTemplate', true) as $arEvent)
+		try
 		{
-			ExecuteModuleEventEx($arEvent, array(&$output, &$this->arParams, &$this->arResult));
-		}
-		$this->sendIntoPull($this->arParams, $this->arResult);
+			$this->prepareParams($this->arParams, $this->arResult);
+			ob_start();
 
-		if ($this->arParams["MODE"] == "PULL_MESSAGE")
+			$this->includeComponentTemplate();
+
+			$output = ob_get_clean();
+			$json = false;
+
+			foreach (GetModuleEvents('main.post.list', 'OnCommentsDisplayTemplate', true) as $arEvent)
+			{
+				ExecuteModuleEventEx($arEvent, array(&$output, &$this->arParams, &$this->arResult));
+			}
+			$this->sendIntoPull($this->arParams, $this->arResult);
+
+			if ($this->arParams["MODE"] == "PULL_MESSAGE")
+			{
+				$json = $this->parseHTML($output, "RECORD");
+			}
+			else if ($this->getMode() == "RECORD" || $this->getMode() == "LIST")
+			{
+				$json = $this->parseHTML($output, $this->getMode());
+				$this->sendJsonResponse($json);
+			}
+
+			$output .= $this->joinToPull();
+			return array("HTML" => $output, "JSON" => $json);
+		}
+		catch (\Exception $e)
 		{
-			$json = $this->parseHTML($output, "RECORD");
+			$this->sendJsonResponse(array(
+				"status" => "error",
+				"message" => $e->getMessage()
+			));
 		}
-		else if ($this->getMode() == "RECORD" || $this->getMode() == "LIST")
-		{
-			$json = $this->parseHTML($output, $this->getMode());
-			$this->sendJsonResponse($json);
-		}
-
-		$output .= $this->joinToPull();
-
-		return array("HTML" => $output, "JSON" => $json);
 	}
 
 	protected function sendJsonResponse($response)

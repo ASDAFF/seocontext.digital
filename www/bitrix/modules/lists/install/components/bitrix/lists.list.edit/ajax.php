@@ -34,32 +34,25 @@ class ListsEditAjaxController extends Controller
 
 	protected function processActionCopyIblock()
 	{
-		$this->checkRequiredPostParams(
-			array('iblockTypeId', 'iblockId', 'socnetGroupId')
-		);
+		$this->checkRequiredPostParams(array('iblockTypeId', 'iblockId', 'socnetGroupId'));
 
 		$this->fillDataForCheckPermission();
 		$this->checkPermission();
 		if($this->errorCollection->hasErrors())
-		{
 			$this->sendJsonErrorResponse();
-		}
 
 		$errors = array();
-		CLists::copyIblock($this->iblockId, $errors);
+		$copyIblockId = CLists::copyIblock($this->iblockId, $errors);
 		if(!empty($errors))
 		{
 			foreach($errors as $error)
-			{
 				$this->errorCollection->addOne(new Error($error));
-			}
 		}
 		if($this->errorCollection->hasErrors())
-		{
 			$this->sendJsonErrorResponse();
-		}
 
-		$this->sendJsonSuccessResponse(array('message' => Loc::getMessage('LISTS_MESSAGE_SUCCESS')));
+		$this->sendJsonSuccessResponse(
+			array('copyIblockId' => $copyIblockId, 'message' => Loc::getMessage('LISTS_MESSAGE_SUCCESS')));
 	}
 
 	protected function fillDataForCheckPermission()

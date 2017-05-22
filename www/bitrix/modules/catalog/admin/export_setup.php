@@ -1493,7 +1493,7 @@ if ($_GET["success_export"]=="Y")
 						{
 							if ($APPLICATION->GetFileAccessPermission($strSetupFileName) >= "R")
 							{
-								echo "<p>".GetMessage("CES_EXPORT_FILE")." <a href=\"".htmlspecialcharsbx($strSetupFileName)."\">".htmlspecialcharsex($strSetupFileName)."</a></p>";
+								echo "<p>".GetMessage("CES_EXPORT_FILE")." <a href=\"".htmlspecialcharsbx($strSetupFileName)."\">".htmlspecialcharsbx($strSetupFileName)."</a></p>";
 							}
 						}
 					}
@@ -1550,8 +1550,9 @@ echo BeginNote();
 		echo GetMessage("CES_NOTES10");?><br><br>
 		<?echo GetMessage("CES_NOTES11");?><br>
 		<?echo $_SERVER["DOCUMENT_ROOT"];?>/bitrix/php_interface/include/catalog_export/cron_frame.php<br>
-		<?echo GetMessage("CES_NOTES12");?>
-	<?endif;
+		<?echo GetMessage("CES_NOTES12");?><br>
+		<?=GetMessage('CES_NOTES13', array('#FOLDER#' => $_SERVER["DOCUMENT_ROOT"].'/bitrix/modules/catalog/load/'));
+	endif;
 
 echo EndNote();
 

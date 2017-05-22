@@ -12,8 +12,11 @@ class CSaleExport
 {
 	const DEFAULT_VERSION = 2.05;
 	const PARTIAL_VERSION = 2.1;
+	const CONTAINER_VERSION = 3;
 
 	const LAST_ORDER_PREFIX = 'LAST_ORDER_ID';
+
+	const DIVIDER_NUMBER_POSITION = 100000;
 
 	static $versionSchema;
 	static $crmMode;
@@ -33,6 +36,10 @@ class CSaleExport
 
 	protected static $lid = null;
 
+	static public function getNumberBasketPosition($basketId)
+	{
+	    return intval($basketId) % self::DIVIDER_NUMBER_POSITION;
+	}
 
 	public static function setLanguage($value)
 	{
@@ -80,6 +87,22 @@ class CSaleExport
 	{
 		return doubleval(str_replace(" ", "", str_replace(",", ".", (!empty(self::$versionSchema) ? self::$versionSchema : self::DEFAULT_VERSION))));
 	}
+
+	/**
+	 * @return int|null
+	 */
+	public static function getCashBoxOneCId()
+    {
+		static $cashBoxOneCId = null;
+
+		if($cashBoxOneCId === null)
+        {
+			$cashBoxOneCId = \Bitrix\Sale\Cashbox\Cashbox1C::getId();
+        }
+
+        return $cashBoxOneCId;
+    }
+
 	function isExportFromCRM($arOptions)
 	{
 		return (isset($arOptions["EXPORT_FROM_CRM"]) && $arOptions["EXPORT_FROM_CRM"] === "Y");
@@ -100,9 +123,9 @@ class CSaleExport
 		else
 			return false;
 	}
-	function getOrderPrefix()
+	static function getOrderPrefix()
 	{
-		return CSaleExport::LAST_ORDER_PREFIX;
+		return self::LAST_ORDER_PREFIX;
 	}
 	function getAccountNumberShopPrefix()
 	{
@@ -254,34 +277,8 @@ class CSaleExport
 		return $arAgent;
 	}
 
-	/**
-	 * @param \Bitrix\Sale\Order $order
-	 * @param $arOrder
-	 * @param $agentParams
-	 * @param $bExportFromCrm
-	 * @param $bCrmModuleIncluded
-	 * @param $paySystems
-	 * @param $delivery
-	 * @param array $options
-	 *
-	 * @return array|void
-	 */
-	function getSaleProperties(Bitrix\Sale\Order $order, $arOrder, $agentParams, $bExportFromCrm, $bCrmModuleIncluded, $paySystems, $delivery, array $options = array())
+	function prepareSaleProperty($arOrder, $bExportFromCrm, $bCrmModuleIncluded, $paySystems, $delivery, &$locationStreetPropertyValue)
 	{
-		$providersInstance = self::getProvidersInstanceByOrder($order);
-
-        $personTypeId = $order->getPersonTypeId();
-
-		$personTypes = BusinessValue::getPersonTypes();
-
-		if (! $personType = $personTypes[$personTypeId])
-		{
-			self::logError($order->getId(), 'Undefined DOMAIN for person type id "'.$personTypeId.'"');
-			return;
-		}
-
-		$systemCodes1C = array_flip(self::$systemCodes[$personType['DOMAIN']]);
-
 		$arProp = Array();
 		$arProp["ORDER"] = $arOrder;
 
@@ -444,6 +441,34 @@ class CSaleExport
 			}
 		}
 
+		return $arProp;
+	}
+
+	function prepareSalePropertyRekv(\Bitrix\Sale\IBusinessValueProvider $entity, $agentParams, $arProp, $locationStreetPropertyValue = '')
+	{
+	    if(!($entity instanceof \Bitrix\Sale\Order))
+        {
+			/** @var \Bitrix\Sale\PaymentCollection|\Bitrix\Sale\ShipmentCollection $collection */
+			$collection = $entity->getCollection();
+			$order = $collection->getOrder();
+        }
+        else
+			$order = $entity;
+
+		$providersInstance = self::getProvidersInstanceByEntity($entity);
+
+        $personTypeId = $order->getPersonTypeId();
+
+		$personTypes = BusinessValue::getPersonTypes();
+
+		if (! $personType = $personTypes[$personTypeId])
+		{
+			self::logError($order->getId(), 'Undefined DOMAIN for person type id "'.$personTypeId.'"');
+			return false;
+		}
+
+		$systemCodes1C = array_flip(self::$systemCodes[$personType['DOMAIN']]);
+		
 		foreach($agentParams as $k => $v)
 		{
 			if(strpos($k, "REKV_") !== false)
@@ -464,11 +489,12 @@ class CSaleExport
 					            $agent["REKV"][$k] = $arProp[$v["TYPE"]][$v["VALUE"]];//value
 					            break;
 					        default:
+
                                 if (! ($codeKey = $systemCodes1C[$k])
                                     && substr($k, 0, 5) === 'REKV_'
                                     && ($codeIndex = substr($k, 5)) !== ''
                                     && ($codeKey = BusinessValueConsumer1C::getRekvCodeKey($order->getPersonTypeId(), $codeIndex))
-                                    && ($providerInstance = $providersInstance[$order->getId()][$v["TYPE"]])
+                                    && ($providerInstance = $providersInstance[$v["TYPE"]])
                                     && is_set($providerInstance))
                                 {
                                     $agent["REKV"][$k] = Bitrix\Sale\BusinessValue::getValueFromProvider($providerInstance, $codeKey, BusinessValueConsumer1C::CONSUMER_KEY);
@@ -496,12 +522,11 @@ class CSaleExport
                                 break;
                             default:
                                 if (($codeKey = $systemCodes1C[$k])
-                                    && ($providerInstance = $providersInstance[$order->getId()][$v["TYPE"]])
+                                    && ($providerInstance = $providersInstance[$v["TYPE"]])
                                     && is_set($providerInstance))
                                 {
                                     $agent[$k] = Bitrix\Sale\BusinessValue::getValueFromProvider($providerInstance, $codeKey, BusinessValueConsumer1C::CONSUMER_KEY);
                                 }
-
                         }
 					}
 
@@ -511,7 +536,29 @@ class CSaleExport
 			}
 		}
 
-		return array('agent'=>$agent,'arProp'=>$arProp);
+		return $agent;
+	}
+	
+	/**
+	 * @deprecated
+     * @param \Bitrix\Sale\Order $order
+	 * @param $arOrder
+	 * @param $agentParams
+	 * @param $bExportFromCrm
+	 * @param $bCrmModuleIncluded
+	 * @param $paySystems
+	 * @param $delivery
+	 * @param array $options
+	 *
+	 * @return array|void
+	 */
+	function getSaleProperties(Bitrix\Sale\Order $order, $arOrder, $agentParams, $bExportFromCrm, $bCrmModuleIncluded, $paySystems, $delivery, array $options = array())
+	{
+		$arProp = self::prepareSaleProperty($arOrder, $bExportFromCrm, $bCrmModuleIncluded, $paySystems, $delivery, $locationStreetPropertyValue);
+
+		$agent = self::prepareSalePropertyRekv($order, $agentParams, $arProp, $locationStreetPropertyValue);
+
+		return array('agent'=>$agent, 'arProp'=>$arProp);
 	}
 
 	function getSite()
@@ -614,6 +661,7 @@ class CSaleExport
 				"REASON_CANCELED",
 				"REASON_MARKED",
 				"ORDER_ID",
+                "TRACKING_NUMBER"
 			);
 
 		$ShipmentParams['filter']['ORDER_ID'] = $arOrder['ID'];
@@ -646,7 +694,27 @@ class CSaleExport
 		return $result;
 	}
 
-	function ExportOrders2Xml($arFilter = Array(), $nTopCount = 0, $currency = "", $crmMode = false, $time_limit = 0, $version = false, $arOptions = Array())
+	/**
+	 * @return array
+	 */
+    protected static function prepareFilter($arFilter=array())
+    {
+		if(IntVal($_SESSION["BX_CML2_EXPORT"][self::getOrderPrefix()]) > 0)
+		{
+			$arFilter[">DATE_UPDATE"] = ConvertTimeStamp($_SESSION["BX_CML2_EXPORT"][self::getOrderPrefix()], "FULL");
+		}
+		return $arFilter;
+    }
+
+	/**
+	 * @param array $arOrder
+	 */
+    protected static function saveExportParams(array $arOrder)
+    {
+		$_SESSION["BX_CML2_EXPORT"][self::getOrderPrefix()] = MakeTimeStamp($arOrder["DATE_UPDATE"], CSite::GetDateFormat("FULL"));
+    }
+
+	static function ExportOrders2Xml($arFilter = Array(), $nTopCount = 0, $currency = "", $crmMode = false, $time_limit = 0, $version = false, $arOptions = Array())
 	{
 		self::setVersionSchema($version);
 		self::setCrmMode($crmMode);
@@ -660,22 +728,16 @@ class CSaleExport
 
 		if(IntVal($time_limit) > 0)
 		{
-			$lastOrderPrefix = self::getOrderPrefix();
-
 			if(self::$crmMode)
 			{
 				$lastOrderPrefix = md5(serialize($arFilter));
 				if(!empty($_SESSION["BX_CML2_EXPORT"][$lastOrderPrefix]) && IntVal($nTopCount) > 0)
 					$count["nTopCount"] = $count["nTopCount"]+count($_SESSION["BX_CML2_EXPORT"][$lastOrderPrefix]);
 			}
-			else
-			{
-				if(IntVal($_SESSION["BX_CML2_EXPORT"][$lastOrderPrefix]) > 0)
-				{
-					$arFilter["<ID"] = $_SESSION["BX_CML2_EXPORT"][$lastOrderPrefix];
-				}
-			}
 		}
+
+		if(!self::$crmMode)
+			$arFilter = static::prepareFilter($arFilter);
 
 		self::$arResultStat = array(
 			"ORDERS" => 0,
@@ -684,8 +746,6 @@ class CSaleExport
 		);
 
 		$bExportFromCrm = self::isExportFromCRM($arOptions);
-		//$paySystems = self::getSalePaySystem();
-		//$delivery = self::getSaleDelivery();
 
 		$arStore = self::getCatalogStore();
 		$arMeasures = self::getCatalogMeasure();
@@ -702,10 +762,7 @@ class CSaleExport
 
 <<?=CSaleExport::getTagName("SALE_EXPORT_COM_INFORMATION")?> <?=self::getCmrXmlRootNameParams()?>><?
 
-		$arOrder = array("ID" => "DESC");
-
-		if (self::$crmMode)
-			$arOrder = array("DATE_UPDATE" => "ASC");
+		$arOrder = array("DATE_UPDATE" => "ASC");
 
 		$arSelect = array(
 			"ID", "LID", "PERSON_TYPE_ID", "PAYED", "DATE_PAYED", "EMP_PAYED_ID", "CANCELED", "DATE_CANCELED",
@@ -727,6 +784,8 @@ class CSaleExport
 				$bCrmModuleIncluded = true;
 		}
 
+		$arFilter['RUNNING'] = 'N';
+
 		$filter = array(
 			'select' => $arSelect,
 			'filter' => $arFilter,
@@ -740,7 +799,6 @@ class CSaleExport
 		}
 
         $dbOrderList = \Bitrix\Sale\Internals\OrderTable::getList($filter);
-		//$dbOrderList = CSaleOrder::GetList($arOrder, $arFilter, false, $count, $arSelect);
 
 		while($arOrder = $dbOrderList->Fetch())
 		{
@@ -781,10 +839,8 @@ class CSaleExport
 			self::setDeliveryAddress('');
 			self::setSiteNameByOrder($arOrder);
 
-			$saleProperties = self::getSaleProperties($order, $arOrder, $agentParams, $bExportFromCrm, $bCrmModuleIncluded, $paySystems, $delivery, $arOptions);
-
-			$arProp = $saleProperties['arProp'];
-			$agent = $saleProperties['agent'];
+			$arProp = self::prepareSaleProperty($arOrder, $bExportFromCrm, $bCrmModuleIncluded, $paySystems, $delivery, $locationStreetPropertyValue);
+			$agent = self::prepareSalePropertyRekv($order, $agentParams, $arProp, $locationStreetPropertyValue);
 
 			$arOrderTax = CSaleExport::getOrderTax($arOrder["ID"]);
 			$xmlResult['OrderTax'] = self::getXMLOrderTax($arOrderTax);
@@ -796,17 +852,47 @@ class CSaleExport
 			$xmlResult['ShipmentsStoreList'] = self::getShipmentsStoreList($order);
 			// self::getXmlSaleStoreBasket($arOrder,$arStore);
 			$basketItems = self::getXmlBasketItems('Order', $arOrder, array('ORDER_ID'=>$arOrder['ID']), array(), $arShipment);
+
+            $numberItems = array();
+            foreach($basketItems['result'] as $basketItem)
+            {
+                $number = self::getNumberBasketPosition($basketItem["ID"]);
+
+                if(in_array($number, $numberItems))
+                {
+                    $order->setField('MARKED','Y');
+                    $order->setField('REASON_MARKED', GetMessage("SALE_EXPORT_REASON_MARKED_BASKET_PROPERTY").'1C_Exchange:Order.export.basket.properties');
+                    $order->save();
+                    break;
+                }
+                else
+                {
+                    $numberItems[] = $number;
+                }
+            }
+
 			$xmlResult['BasketItems'] = $basketItems['outputXML'];
 			$xmlResult['SaleProperties'] = self::getXmlSaleProperties($arOrder, $arShipment, $arPayment, $agent, $agentParams, $bExportFromCrm);
+			$xmlResult['RekvProperties'] = self::getXmlRekvProperties($agent, $agentParams);
+
+
+			if(self::getVersionSchema() >= self::CONTAINER_VERSION)
+            {
+				echo '<'.CSaleExport::getTagName("SALE_EXPORT_CONTAINER").'>';
+            }
 
 			self::OutputXmlDocument('Order', $xmlResult, $arOrder);
 
-
 			if(self::getVersionSchema() >= self::PARTIAL_VERSION)
 			{
-				self::OutputXmlDocumentsByType('Payment',$xmlResult,$arOrder, $arPayment);
-				self::OutputXmlDocumentsByType('Shipment',$xmlResult,$arOrder, $arShipment);
+				self::OutputXmlDocumentsByType('Payment',$xmlResult, $arOrder, $arPayment, $order, $agentParams, $arProp, $locationStreetPropertyValue);
+				self::OutputXmlDocumentsByType('Shipment',$xmlResult, $arOrder, $arShipment, $order, $agentParams, $arProp, $locationStreetPropertyValue);
 				self::OutputXmlDocumentRemove('Shipment',$arOrder);
+			}
+
+			if(self::getVersionSchema() >= self::CONTAINER_VERSION)
+			{
+				echo '</'.CSaleExport::getTagName("SALE_EXPORT_CONTAINER").'>';
 			}
 
 			if (self::$crmMode)
@@ -818,10 +904,10 @@ class CSaleExport
 			}
 			else
 			{
-				$_SESSION["BX_CML2_EXPORT"][$lastOrderPrefix] = $arOrder["ID"];
+				static::saveExportParams($arOrder);
 			}
 
-			if(self::checkTimeIsOver($time_limit,$end_time))
+			if(self::checkTimeIsOver($time_limit, $end_time))
 			{
 				break;
 			}
@@ -1061,6 +1147,21 @@ class CSaleExport
 
 		return $bufer;
 	}
+
+	/**
+	 * @param string $code
+	 * @return string
+	 */
+	public static function normalizeExternalCode($code)
+    {
+		$xml_id = $code;
+		list($productXmlId, $offerXmlId) = explode("#", $xml_id, 2);
+		if ($productXmlId === $offerXmlId)
+			$xml_id = $productXmlId;
+
+		return $xml_id;
+	}
+
 	function getXmlBasketItems($type, $arOrder, $arFilter, $arSelect=array(), $arShipment=array())
 	{
 		$bufer = '';
@@ -1093,7 +1194,7 @@ class CSaleExport
 				$priceType = $arBasket["NOTES"];
 			?>
 			<<?=CSaleExport::getTagName("SALE_EXPORT_ITEM")?>>
-				<<?=CSaleExport::getTagName("SALE_EXPORT_ID")?>><?=htmlspecialcharsbx($arBasket["PRODUCT_XML_ID"])?></<?=CSaleExport::getTagName("SALE_EXPORT_ID")?>>
+				<<?=CSaleExport::getTagName("SALE_EXPORT_ID")?>><?=htmlspecialcharsbx(self::normalizeExternalCode($arBasket["PRODUCT_XML_ID"]))?></<?=CSaleExport::getTagName("SALE_EXPORT_ID")?>>
 				<<?=CSaleExport::getTagName("SALE_EXPORT_CATALOG_ID")?>><?=htmlspecialcharsbx($arBasket["CATALOG_XML_ID"])?></<?=CSaleExport::getTagName("SALE_EXPORT_CATALOG_ID")?>>
 				<<?=CSaleExport::getTagName("SALE_EXPORT_ITEM_NAME")?>><?=htmlspecialcharsbx($arBasket["NAME"])?></<?=CSaleExport::getTagName("SALE_EXPORT_ITEM_NAME")?>>
 				<?
@@ -1148,6 +1249,14 @@ class CSaleExport
 					<<?=CSaleExport::getTagName("SALE_EXPORT_PROPERTY_VALUE")?>>
 						<<?=CSaleExport::getTagName("SALE_EXPORT_ITEM_NAME")?>><?=CSaleExport::getTagName("SALE_EXPORT_TYPE_OF_NOMENKLATURA")?></<?=CSaleExport::getTagName("SALE_EXPORT_ITEM_NAME")?>>
 						<<?=CSaleExport::getTagName("SALE_EXPORT_VALUE")?>><?=CSaleExport::getTagName("SALE_EXPORT_ITEM")?></<?=CSaleExport::getTagName("SALE_EXPORT_VALUE")?>>
+					</<?=CSaleExport::getTagName("SALE_EXPORT_PROPERTY_VALUE")?>>
+
+					<?
+					$number = self::getNumberBasketPosition($arBasket["ID"]);
+					?>
+					<<?=CSaleExport::getTagName("SALE_EXPORT_PROPERTY_VALUE")?>>
+						<<?=CSaleExport::getTagName("SALE_EXPORT_ITEM_NAME")?>><?=CSaleExport::getTagName("SALE_EXPORT_BASKET_NUMBER")?></<?=CSaleExport::getTagName("SALE_EXPORT_ITEM_NAME")?>>
+						<<?=CSaleExport::getTagName("SALE_EXPORT_VALUE")?>><?=$number?></<?=CSaleExport::getTagName("SALE_EXPORT_VALUE")?>>
 					</<?=CSaleExport::getTagName("SALE_EXPORT_PROPERTY_VALUE")?>>
 					<?
 					$dbProp = CSaleBasket::GetPropsList(Array("SORT" => "ASC", "ID" => "ASC"), Array("BASKET_ID" => $arBasket["ID"]), false, false, array("NAME", "VALUE", "CODE"));
@@ -1220,8 +1329,6 @@ class CSaleExport
 			$arShipment = $arShipment[0];
 			$arPayment = $arPayment[0];
 		}
-        //$arShipment["DATE_ALLOW_DELIVERY"]
-
 
 		?><<?=CSaleExport::getTagName("SALE_EXPORT_PROPERTIES_VALUES")?>><?
 		if(strlen($arOrder["DATE_PAYED"])>0)
@@ -1351,21 +1458,7 @@ class CSaleExport
 			}
 			self::OutputXmlSiteName($arOrder);
 
-			if(!empty($agent["REKV"]))
-			{
-				foreach($agent["REKV"] as $k => $v)
-				{
-					if(strlen($agentParams[$k]["NAME"]) > 0 && strlen($v) > 0)
-					{
-						?>
-						<<?=CSaleExport::getTagName("SALE_EXPORT_PROPERTY_VALUE")?>>
-							<<?=CSaleExport::getTagName("SALE_EXPORT_ITEM_NAME")?>><?=htmlspecialcharsbx($agentParams[$k]["NAME"])?></<?=CSaleExport::getTagName("SALE_EXPORT_ITEM_NAME")?>>
-							<<?=CSaleExport::getTagName("SALE_EXPORT_VALUE")?>><?=htmlspecialcharsbx($v)?></<?=CSaleExport::getTagName("SALE_EXPORT_VALUE")?>>
-						</<?=CSaleExport::getTagName("SALE_EXPORT_PROPERTY_VALUE")?>>
-						<?
-					}
-				}
-			}
+			self::OutputXmlRekvProperties($agent, $agentParams);
 
 			self::OutputXmlDeliveryAddress();
 
@@ -1375,6 +1468,35 @@ class CSaleExport
 	$bufer = ob_get_clean();
 	return $bufer;
 }
+
+    function getXmlRekvProperties($agent, $agentParams)
+    {
+		ob_start();
+		self::OutputXmlRekvProperties($agent, $agentParams);
+		$bufer = ob_get_clean();
+		return $bufer;
+    }
+
+    function OutputXmlRekvProperties($agent, $agentParams)
+    {
+		if(!empty($agent["REKV"]))
+		{
+			foreach($agent["REKV"] as $k => $v)
+			{
+				if(strlen($agentParams[$k]["NAME"]) > 0 && strlen($v) > 0)
+				{
+					?>
+                    <<?=CSaleExport::getTagName("SALE_EXPORT_PROPERTY_VALUE")?>>
+                    <<?=CSaleExport::getTagName("SALE_EXPORT_ITEM_NAME")?>><?=htmlspecialcharsbx($agentParams[$k]["NAME"])?></<?=CSaleExport::getTagName("SALE_EXPORT_ITEM_NAME")?>>
+                    <<?=CSaleExport::getTagName("SALE_EXPORT_VALUE")?>><?=htmlspecialcharsbx($v)?></<?=CSaleExport::getTagName("SALE_EXPORT_VALUE")?>>
+                    </<?=CSaleExport::getTagName("SALE_EXPORT_PROPERTY_VALUE")?>>
+					<?
+				}
+			}
+		}
+    }
+
+
 	function getXmlContragents($arOrder = array(), $arProp = array(), $agent = array(), $arOptions = array())
 	{
 		ob_start();
@@ -1382,7 +1504,7 @@ class CSaleExport
 		$ec_bufer = ob_get_clean();
 		return $ec_bufer;
 	}
-	function OutputXmlDocumentsByType($typeDocument, $xmlResult, $arOrder, $documents)
+	function OutputXmlDocumentsByType($typeDocument, $xmlResult, $arOrder, $documents, \Bitrix\Sale\Order $order=null, $agentParams, $arProp, $locationStreetPropertyValue)
 	{
 		if(is_array($documents) && count($documents)>0)
 		{
@@ -1398,11 +1520,37 @@ class CSaleExport
 					    if($document['DATE_BILL']=='')
 					        $document['DATE_BILL'] = $arOrder['DATE_INSERT_FORMAT'];
 
+						if(($paymentCollection = $order->getPaymentCollection()))
+                        {
+							foreach($paymentCollection as $payment)
+							{
+								if($payment->getId() == $document['ID'])
+								{
+									$agent = self::prepareSalePropertyRekv($payment, $agentParams, $arProp, $locationStreetPropertyValue);
+									$xmlResult['RekvProperties'] = self::getXmlRekvProperties($agent, $agentParams);
+									break;
+								}
+							}
+                        }
+
 						self::OutputXmlDocument('Payment',$xmlResult, $document);
 					break;
 					case 'Shipment':
 
-						 $basketItems = self::getXmlBasketItems('Shipment', $document, array(
+						if(($shipmentCollection = $order->getShipmentCollection()))
+                        {
+							foreach($shipmentCollection as $shipment)
+							{
+								if($shipment->getId() == $document['ID'])
+								{
+									$agent = self::prepareSalePropertyRekv($shipment, $agentParams, $arProp, $locationStreetPropertyValue);
+									$xmlResult['RekvProperties'] = self::getXmlRekvProperties($agent, $agentParams);
+									break;
+								}
+							}
+                        }
+
+					    $basketItems = self::getXmlBasketItems('Shipment', $document, array(
 							'ORDER_ID'=>$document['ORDER_ID'],
 							'SHIPMENT_ITEM.ORDER_DELIVERY_ID'=>$document['ID'],
 							),
@@ -1522,7 +1670,7 @@ class CSaleExport
 			case 'Shipment':
 			?>
 		<<?=CSaleExport::getTagName("SALE_EXPORT_ID")?>><?=(strlen($document["ID_1C"])>0 ? $document["ID_1C"]:$document["ID"])?></<?=CSaleExport::getTagName("SALE_EXPORT_ID")?>>
-		<<?=CSaleExport::getTagName("SALE_EXPORT_NUMBER")?>><?=(strlen($document["ID_1C"])>0 ? $document["ID_1C"]:$document["ID"])?></<?=CSaleExport::getTagName("SALE_EXPORT_NUMBER")?>>
+		<<?=CSaleExport::getTagName("SALE_EXPORT_NUMBER")?>><?=$document["ID"]?></<?=CSaleExport::getTagName("SALE_EXPORT_NUMBER")?>>
 		<?	switch($typeDocument)
 			{
 				case 'Payment':
@@ -1584,7 +1732,40 @@ class CSaleExport
 		<?	switch($typeDocument)
 			{
 				case 'Payment':
+
+					$checkData = false;
+				    $cashBoxOneCId = self::getCashBoxOneCId();
+					if(isset($cashBoxOneCId) && $cashBoxOneCId>0)
+                    {
+                        $checks = \Bitrix\Sale\Cashbox\CheckManager::getPrintableChecks(array($cashBoxOneCId), array($document['ORDER_ID']));
+						foreach($checks as $checkId=>$check)
+                        {
+							if($check['PAYMENT_ID']==$document["ID"])
+                            {
+								$checkData = $check;
+                                break;
+                            }
+                        }
+                    }
 		?>
+        <?
+             if($checkData)
+             {
+        ?>
+                 <<?=CSaleExport::getTagName("SALE_EXPORT_CASHBOX_CHECKS")?>>
+                    <<?=CSaleExport::getTagName("SALE_EXPORT_CASHBOX_CHECK")?>>
+                        <<?=CSaleExport::getTagName("SALE_EXPORT_ID")?>><?=($checkData['ID'])?></<?=CSaleExport::getTagName("SALE_EXPORT_ID")?>>
+                        <<?=CSaleExport::getTagName("SALE_EXPORT_PROP_VALUES")?>>
+                            <<?=CSaleExport::getTagName("SALE_EXPORT_PROP_VALUE")?>>
+                                <<?=CSaleExport::getTagName("SALE_EXPORT_ID")?>>PRINT_CHECK</<?=CSaleExport::getTagName("SALE_EXPORT_ID")?>>
+                                <<?=CSaleExport::getTagName("SALE_EXPORT_VALUE")?>>true</<?=CSaleExport::getTagName("SALE_EXPORT_VALUE")?>>
+                            </<?=CSaleExport::getTagName("SALE_EXPORT_PROP_VALUE")?>>
+                        </<?=CSaleExport::getTagName("SALE_EXPORT_PROP_VALUES")?>>
+                    </<?=CSaleExport::getTagName("SALE_EXPORT_CASHBOX_CHECK")?>>
+                 </<?=CSaleExport::getTagName("SALE_EXPORT_CASHBOX_CHECKS")?>>
+        <?
+             }
+        ?>
 		<<?=CSaleExport::getTagName("SALE_EXPORT_PROPERTIES_VALUES")?>>
 			<<?=CSaleExport::getTagName("SALE_EXPORT_PROPERTY_VALUE")?>>
 				<<?=CSaleExport::getTagName("SALE_EXPORT_ITEM_NAME")?>><?=CSaleExport::getTagName("SALE_EXPORT_DATE_PAID")?></<?=CSaleExport::getTagName("SALE_EXPORT_ITEM_NAME")?>>
@@ -1615,6 +1796,7 @@ class CSaleExport
 				<<?=CSaleExport::getTagName("SALE_EXPORT_VALUE")?>><?=$document["PAY_RETURN_COMMENT"]?></<?=CSaleExport::getTagName("SALE_EXPORT_VALUE")?>>
 			</<?=CSaleExport::getTagName("SALE_EXPORT_PROPERTY_VALUE")?>>
 			<?self::OutputXmlSiteName($document);?>
+            <?if(isset($xmlResult['RekvProperties']) && strlen($xmlResult['RekvProperties'])>0) echo $xmlResult['RekvProperties'];?>
 		</<?=CSaleExport::getTagName("SALE_EXPORT_PROPERTIES_VALUES")?>>
 			<?	break;
 
@@ -1682,8 +1864,13 @@ class CSaleExport
 				<<?=CSaleExport::getTagName("SALE_EXPORT_ITEM_NAME")?>><?=CSaleExport::getTagName("SALE_EXPORT_REASON_MARKED")?></<?=CSaleExport::getTagName("SALE_EXPORT_ITEM_NAME")?>>
 				<<?=CSaleExport::getTagName("SALE_EXPORT_VALUE")?>><?=$document["REASON_MARKED"]?></<?=CSaleExport::getTagName("SALE_EXPORT_VALUE")?>>
 			</<?=CSaleExport::getTagName("SALE_EXPORT_PROPERTY_VALUE")?>>
+            <<?=CSaleExport::getTagName("SALE_EXPORT_PROPERTY_VALUE")?>>
+                <<?=CSaleExport::getTagName("SALE_EXPORT_ITEM_NAME")?>><?=CSaleExport::getTagName("SALE_EXPORT_TRACKING_NUMBER")?></<?=CSaleExport::getTagName("SALE_EXPORT_ITEM_NAME")?>>
+                <<?=CSaleExport::getTagName("SALE_EXPORT_VALUE")?>><?=$document["TRACKING_NUMBER"]?></<?=CSaleExport::getTagName("SALE_EXPORT_VALUE")?>>
+            </<?=CSaleExport::getTagName("SALE_EXPORT_PROPERTY_VALUE")?>>
 			<?self::OutputXmlSiteName($document);?>
 			<?self::OutputXmlDeliveryAddress();?>
+			<?if(isset($xmlResult['RekvProperties']) && strlen($xmlResult['RekvProperties'])>0) echo $xmlResult['RekvProperties'];?>
 	</<?=CSaleExport::getTagName("SALE_EXPORT_PROPERTIES_VALUES")?>>
 			<?
 				break;
@@ -1708,8 +1895,11 @@ class CSaleExport
 		else: ?>
 				<?if(strlen($arOrder["SALE_INTERNALS_ORDER_USER_XML_ID"])>0):?>
 				    <<?=CSaleExport::getTagName("SALE_EXPORT_ID")?>><?=htmlspecialcharsbx($arOrder["SALE_INTERNALS_ORDER_USER_XML_ID"])?></<?=CSaleExport::getTagName("SALE_EXPORT_ID")?>>
-                <?else:?>
-				    <<?=CSaleExport::getTagName("SALE_EXPORT_ID")?>><?=htmlspecialcharsbx(substr($arOrder["USER_ID"]."#".$arProp["USER"]["LOGIN"]."#".$arProp["USER"]["LAST_NAME"]." ".$arProp["USER"]["NAME"]." ".$arProp["USER"]["SECOND_NAME"], 0, 80))?></<?=CSaleExport::getTagName("SALE_EXPORT_ID")?>>
+                <?else:
+				    $xmlId = htmlspecialcharsbx(substr($arOrder["USER_ID"]."#".$arProp["USER"]["LOGIN"]."#".$arProp["USER"]["LAST_NAME"]." ".$arProp["USER"]["NAME"]." ".$arProp["USER"]["SECOND_NAME"], 0, 80));
+                    \Bitrix\Sale\Exchange\Entity\UserImportBase::updateEmptyXmlId($arOrder["USER_ID"], $xmlId);
+                ?>
+				    <<?=CSaleExport::getTagName("SALE_EXPORT_ID")?>><?=$xmlId?></<?=CSaleExport::getTagName("SALE_EXPORT_ID")?>>
 				<?endif;?><?
 		endif; ?>
 
@@ -2236,6 +2426,18 @@ class CSaleExport
 			'BUYER_COMPANY_OKFC'         => 'OKFC'          ,
 			'BUYER_COMPANY_OKPO'         => 'OKPO'          ,
 			'BUYER_COMPANY_BANK_ACCOUNT' => 'ACCOUNT_NUMBER',
+			'BUYER_COMPANY_BANK_NAME'    => 'B_NAME',
+			'BUYER_COMPANY_BANK_BIK'     => 'B_BIK',
+			'BUYER_COMPANY_BANK_ADDRESS_FULL' => 'B_ADDRESS_FULL',
+			'BUYER_COMPANY_BANK_INDEX'   => 'B_INDEX',
+			'BUYER_COMPANY_BANK_COUNTRY' => 'B_COUNTRY',
+			'BUYER_COMPANY_BANK_REGION'  => 'B_REGION',
+			'BUYER_COMPANY_BANK_STATE'   => 'B_STATE',
+			'BUYER_COMPANY_BANK_TOWN'    => 'B_TOWN',
+			'BUYER_COMPANY_BANK_CITY'    => 'B_CITY',
+			'BUYER_COMPANY_BANK_STREET'  => 'B_STREET',
+			'BUYER_COMPANY_BANK_BUILDING' => 'B_BUILDING',
+			'BUYER_COMPANY_BANK_HOUSE'   => 'B_HOUSE',
 			'BUYER_COMPANY_F_ADDRESS_FULL'=> 'F_ADDRESS_FULL',
 			'BUYER_COMPANY_F_INDEX'		 => 'F_INDEX'		,
 			'BUYER_COMPANY_F_COUNTRY'	 => 'F_COUNTRY'		,
@@ -2352,73 +2554,92 @@ class CSaleExport
 			return $result;
 		}
 	}
-    protected function getProvidersInstanceByOrder(Bitrix\Sale\Order $order)
+
+	/**
+	 * @param \Bitrix\Sale\IBusinessValueProvider $entity
+	 * @return array
+	 */
+	protected function getProvidersInstanceByEntity(\Bitrix\Sale\IBusinessValueProvider $entity)
+	{
+        $providersInstance = array(
+            'ORDER'     =>  self::getProviderInstanceByProviderCode($entity, 'ORDER'     ),
+            'USER'      =>  self::getProviderInstanceByProviderCode($entity, 'USER'      ),
+            'COMPANY'   =>  self::getProviderInstanceByProviderCode($entity, 'COMPANY'   ),
+            'SHIPMENT'  =>  self::getProviderInstanceByProviderCode($entity, 'SHIPMENT'  ),
+            'PAYMENT'   =>  self::getProviderInstanceByProviderCode($entity, 'PAYMENT'   ),
+            'PROPERTY'  =>  self::getProviderInstanceByProviderCode($entity, 'PROPERTY'  ),
+        );
+
+		return $providersInstance;
+	}
+
+	/**
+     * @deprecated
+	 * @param \Bitrix\Sale\Order $order
+	 * @return array
+	 */
+	protected function getProvidersInstanceByOrder(Bitrix\Sale\Order $order)
     {
         static $providersInstance = array();
 
         if(! is_set($providersInstance, $order->getId()))
         {
-            $providersInstance[$order->getId()] = array(
-                'ORDER'     =>  self::getProviderInstanceByProviderCode($order, 'ORDER'     ),
-                'USER'      =>  self::getProviderInstanceByProviderCode($order, 'USER'      ),
-                'COMPANY'   =>  self::getProviderInstanceByProviderCode($order, 'COMPANY'   ),
-                'SHIPMENT'  =>  self::getProviderInstanceByProviderCode($order, 'SHIPMENT'  ),
-                'PAYMENT'   =>  self::getProviderInstanceByProviderCode($order, 'PAYMENT'   ),
-                'PROPERTY'  =>  self::getProviderInstanceByProviderCode($order, 'PROPERTY'  ),
-            );
+            $providersInstance[$order->getId()] = self::getProvidersInstanceByEntity($order);
         }
 
         return $providersInstance;
     }
-    protected function getProviderInstanceByProviderCode(Bitrix\Sale\Order $order, $providerCode)
+
+    protected function getProviderInstanceByProviderCode(\Bitrix\Sale\IBusinessValueProvider $entity, $providerCode)
 	{
 		$providerInstance = null;
+		$order = null;
+		/** @var \Bitrix\Sale\Order $order */
+		if($entity instanceof \Bitrix\Sale\Order)
+			$order = $entity;
+		else
+		{
+			/** @var \Bitrix\Sale\PaymentCollection|\Bitrix\Sale\ShipmentCollection $collection */
+			$collection = $entity->getCollection();
+			$order = $collection->getOrder();
+		}
 
 		switch($providerCode)
 		{
 			case 'ORDER':
 			case 'USER':
 			case 'PROPERTY':
-				$providerInstance = $order;
+			    $providerInstance = $order;
 				break;
 			case 'COMPANY':
-				$paymentCollection = $order->getPaymentCollection();
-				foreach($paymentCollection as $payment)
-				{
-					if($payment->getField('COMPANY_ID')>0)
-					{
-					    $providerInstance = $payment;
-					    break;
-					}
-				}
-				if(!$providerInstance)
-				{
-					$shipmentCollection = $order->getShipmentCollection();
-					foreach($shipmentCollection as $shipment)
-					{
-					    if($shipment->getField('COMPANY_ID')>0)
-					    {
-					        $providerInstance = $shipment;
-					        break;
-					    }
-					}
-				}
+				$providerInstance = $entity;
 				break;
 			case 'PAYMENT':
-				$paymentCollection = $order->getPaymentCollection();
-				foreach($paymentCollection as $payment)
-				{
-					$providerInstance = $payment;
-					break;
-				}
+				if($order instanceof \Bitrix\Sale\Order)
+                {
+					$collection = $order->getPaymentCollection();
+					foreach($collection as $payment)
+					{
+						$providerInstance = $payment;
+						break;
+					}
+                }
+                else
+					$providerInstance = $entity;
+
 				break;
 			case 'SHIPMENT':
-				$shipmentCollection = $order->getShipmentCollection();
-				foreach($shipmentCollection as $shipment)
+				if($order instanceof \Bitrix\Sale\Order)
 				{
-					$providerInstance = $shipment;
-					break;
+					$collection = $order->getShipmentCollection();
+					foreach($collection as $shipment)
+					{
+						$providerInstance = $shipment;
+						break;
+					}
 				}
+				else
+					$providerInstance = $entity;
 				break;
 		}
 
@@ -2526,7 +2747,7 @@ class CSaleExport
 	{
 		$allPersonTypes = BusinessValue::getPersonTypes(true);
 
-		Bitrix\Main\Application::getConnection()->query('DELETE FROM b_sale_bizval_code_1C');
+		Bitrix\Main\Application::getConnection()->query('DELETE FROM b_sale_bizval_code_1c');
 
 		$result = Bitrix\Main\Application::getConnection()->query('SELECT * FROM b_sale_export');
 

@@ -1,5 +1,6 @@
 <?
 /** @global CUser $USER */
+/** @global CMain $APPLICATION */
 use Bitrix\Main,
 	Bitrix\Currency,
 	Bitrix\Catalog;
@@ -18,6 +19,15 @@ if ($USER->CanDoOperation('catalog_read') || $USER->CanDoOperation('catalog_pric
 		$currencyList[$currency]['FULL_NAME_JS'] = CUtil::JSEscape($currencyList[$currency]['FULL_NAME']);
 	}
 	unset($currency, $currencyName);
+
+	$bDiscount = $USER->CanDoOperation('catalog_discount');
+	$bStore = $USER->CanDoOperation('catalog_store');
+	$bUseStoreControl = (COption::GetOptionString('catalog', 'default_use_store_control') == "Y");
+	$bEnableReservation = ('N' != COption::GetOptionString('catalog', 'enable_reservation'));
+
+	$availQuantityTrace = COption::GetOptionString("catalog", "default_quantity_trace");
+	$availCanBuyZero = COption::GetOptionString("catalog", "default_can_buy_zero");
+	$strGlobalSubscribe = COption::GetOptionString("catalog", "default_subscribe");
 
 	$IBLOCK_ID = intval($IBLOCK_ID);
 	if ($IBLOCK_ID <= 0)
@@ -45,17 +55,8 @@ if ($USER->CanDoOperation('catalog_read') || $USER->CanDoOperation('catalog_pric
 		$arBaseProduct['QUANTITY'] = '';
 		$arBaseProduct['QUANTITY_RESERVED'] = '';
 	}
-	$bDiscount = $USER->CanDoOperation('catalog_discount');
-	$bStore = $USER->CanDoOperation('catalog_store');
-	$bUseStoreControl = (COption::GetOptionString('catalog', 'default_use_store_control') == "Y");
-	$bEnableReservation = ('N' != COption::GetOptionString('catalog', 'enable_reservation'));
 
-	$availQuantityTrace = COption::GetOptionString("catalog", "default_quantity_trace");
-	$availCanBuyZero = COption::GetOptionString("catalog", "default_can_buy_zero");
-	$strGlobalSubscribe = COption::GetOptionString("catalog", "default_subscribe");
-
-	$subscribeEnabled = $arBaseProduct["SUBSCRIBE_ORIG"] == 'Y'
-		|| ($arBaseProduct["SUBSCRIBE_ORIG"] == 'D' && $strGlobalSubscribe == 'Y');
+	$subscribeEnabled = $arBaseProduct["SUBSCRIBE"] == 'Y';
 	$activitySubscribeTab = $PRODUCT_ID > 0 && !$bCopy && $subscribeEnabled;
 
 	$arExtraList = array();
@@ -246,6 +247,7 @@ function toggleSubPriceType()
 		$subtabControl1->Begin();
 
 		// Define boundaries
+		$usedRanges = false;
 		$arProductFilter = array("PRODUCT_ID" => $PRODUCT_ID);
 		if (!CBXFeatures::IsFeatureEnabled('CatMultiPrice'))
 		{
@@ -259,22 +261,30 @@ function toggleSubPriceType()
 			);
 		while ($arPrice = $dbPrice->Fetch())
 		{
+			$arPrice['RAW_QUANTITY_FROM'] = $arPrice['QUANTITY_FROM'];
+			$arPrice['RAW_QUANTITY_TO'] = $arPrice['QUANTITY_TO'];
+			$arPrice['QUANTITY_FROM'] = (int)$arPrice['QUANTITY_FROM'];
+			$arPrice['QUANTITY_TO'] = (int)$arPrice['QUANTITY_TO'];
+			if ($arPrice['RAW_QUANTITY_FROM'] !== null && $arPrice['QUANTITY_FROM'] > 0)
+				$usedRanges = true;
+			if ($arPrice['RAW_QUANTITY_TO'] !== null && $arPrice['QUANTITY_TO'] > 0)
+				$usedRanges = true;
 			if ($arPrice["BASE"] == "Y")
 			{
 				$arPriceBoundaries[] = array(
-						"FROM" => intval($arPrice["QUANTITY_FROM"]),
-						"TO" => intval($arPrice["QUANTITY_TO"])
+						"FROM" => $arPrice["QUANTITY_FROM"],
+						"TO" => $arPrice["QUANTITY_TO"]
 					);
-				if (intval($arPrice["QUANTITY_FROM"]) > intval($arPrice["QUANTITY_TO"])
-					&& intval($arPrice["QUANTITY_TO"]) != 0)
+				if ($arPrice["QUANTITY_FROM"] > $arPrice["QUANTITY_TO"]
+					&& $arPrice["QUANTITY_TO"] != 0)
 				{
 					$arPriceBoundariesError[] = str_replace("#RIGHT#", $arPrice["QUANTITY_TO"], str_replace("#LEFT#", $arPrice["QUANTITY_FROM"], GetMessage("C2IT_BOUND_LR")));
 				}
 			}
 			else
 			{
-				if (intval($arPrice["QUANTITY_FROM"]) > intval($arPrice["QUANTITY_TO"])
-					&& intval($arPrice["QUANTITY_TO"]) != 0)
+				if ($arPrice["QUANTITY_FROM"] > $arPrice["QUANTITY_TO"]
+					&& $arPrice["QUANTITY_TO"] != 0)
 				{
 					$arPriceBoundariesError[] = str_replace("#TYPE#", $arPrice["CATALOG_GROUP_NAME"], str_replace("#RIGHT#", $arPrice["QUANTITY_TO"], str_replace("#LEFT#", $arPrice["QUANTITY_FROM"], GetMessage("C2IT_BOUND_LR1"))));
 				}
@@ -284,9 +294,9 @@ function toggleSubPriceType()
 					$intCount = count($arPriceBoundaries);
 					for ($i = 0; $i < $intCount; $i++)
 					{
-						if ($arPriceBoundaries[$i]["FROM"] == intval($arPrice["QUANTITY_FROM"]))
+						if ($arPriceBoundaries[$i]["FROM"] == $arPrice["QUANTITY_FROM"])
 						{
-							if ($arPriceBoundaries[$i]["TO"] != intval($arPrice["QUANTITY_TO"]))
+							if ($arPriceBoundaries[$i]["TO"] != $arPrice["QUANTITY_TO"])
 							{
 								$arPriceBoundariesError[] = str_replace("#TYPE#", $arPrice["CATALOG_GROUP_NAME"], str_replace("#RIGHT#", $arPrice["QUANTITY_TO"], str_replace("#LEFT#", $arPrice["QUANTITY_FROM"], GetMessage("C2IT_BOUND_DIAP"))));
 							}
@@ -295,9 +305,9 @@ function toggleSubPriceType()
 						}
 						else
 						{
-							if ($arPriceBoundaries[$i]["FROM"] < intval($arPrice["QUANTITY_FROM"])
-								&& $arPriceBoundaries[$i]["TO"] >= intval($arPrice["QUANTITY_TO"])
-								&& intval($arPrice["QUANTITY_TO"]) != 0)
+							if ($arPriceBoundaries[$i]["FROM"] < $arPrice["QUANTITY_FROM"]
+								&& $arPriceBoundaries[$i]["TO"] >= $arPrice["QUANTITY_TO"]
+								&& $arPrice["QUANTITY_TO"] != 0)
 							{
 								$arPriceBoundariesError[] = str_replace("#TYPE#", $arPrice["CATALOG_GROUP_NAME"], str_replace("#RIGHT#", $arPrice["QUANTITY_TO"], str_replace("#LEFT#", $arPrice["QUANTITY_FROM"], GetMessage("C2IT_BOUND_DIAP"))));
 								$bNewSegment = false;
@@ -307,30 +317,29 @@ function toggleSubPriceType()
 					}
 					if ($bNewSegment)
 					{
-						$arPriceBoundaries[] = array("FROM" => intval($arPrice["QUANTITY_FROM"]), "TO" => intval($arPrice["QUANTITY_TO"]));
+						$arPriceBoundaries[] = array("FROM" => $arPrice["QUANTITY_FROM"], "TO" => $arPrice["QUANTITY_TO"]);
 					}
 				}
 			}
 		}
 
-		$intCount = count($arPriceBoundaries);
-		for ($i = 0; $i < $intCount - 1; $i++)
+		if (!empty($arPriceBoundaries))
 		{
-			for ($j = $i + 1; $j < $intCount; $j++)
+			if (count($arPriceBoundaries) > 1)
 			{
-				if ($arPriceBoundaries[$i]["FROM"] > $arPriceBoundaries[$j]["FROM"])
-				{
-					$tmp = $arPriceBoundaries[$i];
-					$arPriceBoundaries[$i] = $arPriceBoundaries[$j];
-					$arPriceBoundaries[$j] = $tmp;
-				}
+				Main\Type\Collection::sortByColumn($arPriceBoundaries, array('FROM' => SORT_ASC));
+			}
+			elseif (!$usedRanges)
+			{
+				$arPriceBoundaries[0]['FROM'] = false;
+				$arPriceBoundaries[0]['TO'] = false;
 			}
 		}
 
 // prices tab
 		$subtabControl1->BeginNextTab();
 $arCatPricesExist = array(); // attr for exist prices for range
-$bUseExtendedPrice = $bVarsFromForm ? $subprice_useextform == 'Y' : count($arPriceBoundaries) > 1;
+$bUseExtendedPrice = $bVarsFromForm ? $subprice_useextform == 'Y' : $usedRanges;
 $str_CAT_VAT_ID = $bVarsFromForm ? $SUBCAT_VAT_ID : ($arBaseProduct['VAT_ID'] == 0 ? $arCatalog['VAT_ID'] : $arBaseProduct['VAT_ID']);
 $str_CAT_VAT_INCLUDED = (string)($bVarsFromForm ? $SUBCAT_VAT_INCLUDED : $arBaseProduct['VAT_INCLUDED']);
 if ($str_CAT_VAT_INCLUDED != 'Y' && $str_CAT_VAT_INCLUDED != 'N')
@@ -1704,22 +1713,28 @@ function HideNotice()
 				</td>
 				<td width="60%">
 					<?
-					$str_CAT_MEASURE = $arBaseProduct["MEASURE"];
 					$arAllMeasure = array();
-					$dbResultList = CCatalogMeasure::getList(array(), array(), false, false, array("ID", "CODE", "MEASURE_TITLE", "SYMBOL_INTL", "IS_DEFAULT"));
+					$dbResultList = CCatalogMeasure::getList(
+						array(),
+						array(),
+						false,
+						false,
+						array("ID", "CODE", "MEASURE_TITLE", "SYMBOL_INTL", "IS_DEFAULT")
+					);
 					while($arMeasure = $dbResultList->Fetch())
 					{
 						$arAllMeasure[] = $arMeasure;
 					}
-					if($bVarsFromForm) $str_CAT_MEASURE = $SUBCAT_MEASURE;
+					$str_CAT_MEASURE = $arBaseProduct["MEASURE"];
+					if ($bVarsFromForm)
+						$str_CAT_MEASURE = $SUBCAT_MEASURE;
 					?>
 					<?if(!empty($arAllMeasure)):?>
 						<select style="max-width:220px" id="SUBCAT_MEASURE" name="SUBCAT_MEASURE" <?if ($bReadOnly) echo "disabled readonly" ?>>
-							<?foreach($arAllMeasure as &$arMeasure):?>
-								<option <?if(($arBaseProduct["MEASURE"] == $arMeasure["ID"]) || ($str_CAT_MEASURE == '' && $arMeasure["IS_DEFAULT"] == 'Y')) echo " selected";?> value="<?=$arMeasure["ID"]?>"><?=htmlspecialcharsbx($arMeasure["MEASURE_TITLE"])?></option>
+							<?foreach($arAllMeasure as $arMeasure):?>
+								<option <?if($str_CAT_MEASURE == $arMeasure["ID"] || ($str_CAT_MEASURE == '' && $arMeasure["IS_DEFAULT"] == 'Y')) echo " selected";?> value="<?=$arMeasure["ID"]?>"><?=htmlspecialcharsbx($arMeasure["MEASURE_TITLE"])?></option>
 							<?endforeach;
-							if (isset($arMeasure))
-								unset($arMeasure);
+							unset($arMeasure);
 							?>
 						</select>
 					<?else:?>
@@ -2131,6 +2146,13 @@ SetSubFieldsStyle('subcatalog_properties_table');
 		}
 		else
 		{
+			$showDiscountUrl = $bDiscount;
+			$discountUrl = '/bitrix/admin/cat_discount_edit.php?ID=';
+			if (Main\ModuleManager::isModuleInstalled('sale') && (string)Main\Config\Option::get('sale', 'use_sale_discount_only') == 'Y')
+			{
+				$showDiscountUrl = ($APPLICATION->GetGroupRight('sale') >= 'W');
+				$discountUrl = '/bitrix/admin/sale_discount_edit.php?ID=';
+			}
 			?><table border="0" cellspacing="0" cellpadding="0" class="internal" align="center" width="100%">
 				<tr class="heading">
 					<td>ID</td>
@@ -2138,7 +2160,7 @@ SetSubFieldsStyle('subcatalog_properties_table');
 					<td><?echo GetMessage("C2IT_ACTIVITY")?></td>
 					<td><?echo GetMessage("C2IT_NAME")?></td>
 					<td><?echo GetMessage("C2IT_AMOUNT")?></td>
-					<? if ($bDiscount)
+					<? if ($showDiscountUrl)
 					{
 					?><td><?echo GetMessage("C2IT_ACTIONS")?></td><?
 					}
@@ -2169,11 +2191,11 @@ SetSubFieldsStyle('subcatalog_properties_table');
 							?>
 						</td>
 						<?
-						if ($bDiscount)
+						if ($showDiscountUrl)
 						{
 						?>
 						<td style="text-align: center;">
-							<a href="/bitrix/admin/cat_discount_edit.php?ID=<? echo $arProductDiscounts["ID"] ?>&lang=<? echo LANGUAGE_ID; ?>#tb" target="_blank"><?echo GetMessage("C2IT_MODIFY")?></a>
+							<a href="<?=$discountUrl.$arProductDiscounts["ID"] ?>&lang=<?=LANGUAGE_ID; ?>#tb" target="_blank"><?echo GetMessage("C2IT_MODIFY")?></a>
 						</td>
 						<?
 						}
@@ -2225,8 +2247,8 @@ SetSubFieldsStyle('subcatalog_properties_table');
 			{
 				foreach ($storeIds as $store)
 				{
-					if (isset($_POST['SUBAR_AMOUNT'][$store]))
-						$storeLink[$store]['PRODUCT_AMOUNT'] = htmlspecialcharsbx($_POST['SUBAR_AMOUNT'][$store]);
+					if (isset($_POST['SUBAR_AMOUNT'][$store]) && is_string($_POST['SUBAR_AMOUNT'][$store]))
+						$storeLink[$store]['PRODUCT_AMOUNT'] = $_POST['SUBAR_AMOUNT'][$store];
 				}
 				unset($store);
 			}
@@ -2252,15 +2274,15 @@ SetSubFieldsStyle('subcatalog_properties_table');
 				if ($bStore)
 				{
 					$storeId = $row['ID'];
-					$address = ('' != $row['ADDRESS'] ? $row['ADDRESS'] : '<a href="/bitrix/admin/cat_store_edit.php?ID='.$row['ID'].'&lang='.LANGUAGE_ID.'">'.GetMessage("C2IT_EDIT").'</a>');
+					$address = ('' != $row['ADDRESS'] ? htmlspecialcharsbx($row['ADDRESS']) : '<a href="/bitrix/admin/cat_store_edit.php?ID='.$row['ID'].'&lang='.LANGUAGE_ID.'">'.GetMessage("C2IT_EDIT").'</a>');
 					$storeUrl = '<a href="/bitrix/admin/cat_store_edit.php?ID='.$row['ID'].'&lang='.LANGUAGE_ID.'">'.$storeUrl.'</a>';
 				}
 				?><tr>
 				<td style="text-align:center;"><?=$storeUrl; ?></td>
 				<td style="text-align:center;"><?=$storeId; ?></td>
-				<td style="text-align:center;"><?=$row['TITLE']; ?></td>
+				<td style="text-align:center;"><?=htmlspecialcharsbx($row['TITLE']); ?></td>
 				<td style="text-align:center;"><?=$address; ?></td>
-				<td style="text-align:center;"><input type="text" id="SUBAR_AMOUNT_<?=$row['ID']; ?>" name="SUBAR_AMOUNT[<?=$row['ID']?>]" size="12" value="<?=$row['PRODUCT_AMOUNT']; ?>" <? echo ((!$bStore || $bUseStoreControl) ? 'disabled readonly' : ''); ?>><?
+				<td style="text-align:center;"><input type="text" id="SUBAR_AMOUNT_<?=$row['ID']; ?>" name="SUBAR_AMOUNT[<?=$row['ID']?>]" size="12" value="<?=htmlspecialcharsbx($row['PRODUCT_AMOUNT']); ?>" <? echo ((!$bStore || $bUseStoreControl) ? 'disabled readonly' : ''); ?>><?
 				if ($bStore)
 				{
 					?><input type="hidden" name="SUBAR_STORE_ID[<?=$row['ID']?>]" value="<?=$row['ID']?>"><?

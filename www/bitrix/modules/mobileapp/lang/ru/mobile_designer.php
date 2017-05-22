@@ -11,6 +11,7 @@ $MESS["MOBILEAPP_ADD_IMAGE"] = "Добавить изображение";
 $MESS["MOBILEAPP_ADD_FILE"] = "Добавить файл";
 $MESS["MOBILEAPP_EMPTY_VALUE"] = "Не выбрано";
 $MESS["MOBILEAPP_SELECT_IMAGE"] = "Выбрать картинку";
+$MESS["MOBILEAPP_SELECT_FILE"] = $MESS["MOBILEAPP_SELECT_FILE_NAME"] = "выберите файл";
 $MESS["MOBILEAPP_APP_PLATFORM"] = "Добавить платформу";
 $MESS["MOBILEAPP_CONNECT_TO_APP"] = "Подключиться";
 $MESS["MOBILEAPP_CONNECT_BUTTON_CLOSE"] = "Закрыть";
@@ -48,3 +49,5 @@ $MESS["MOBILEAPP_APP_SAVE_CONFIG_WAIT"] = "Сохранение конфигур
 $MESS["MOBILEAPP_APP_REMOVE_CONFIG_WAIT"] = "Удаление конфигурации";
 $MESS["MOBILEAPP_APP_CREATE_CONFIG_WAIT"] = "Создание конфигурации";
 $MESS["MOBILEAPP_APP_IS_ALREADY_EXISTS"] = "Приложение с заданным символьным кодом уже существует!";
+$MESS["MOBILEAPP_REMOVE_CONFIG_ASK"] = "Все сохраненные настройки конфигурации будут утеряны.\nУдалить конфигурацию?";
+$MESS["MOBILEAPP_REMOVE_APP_ASK"] = "Все сохраненные настройки приложения будут утеряны.\nФайлы, созданные приложением, удалены не будут.\nУдалить приложение из конструктора?";

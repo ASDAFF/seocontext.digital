@@ -50,6 +50,14 @@ class Network
 	 */
 	public function isEnabled()
 	{
+		if(Loader::includeModule('bitrix24'))
+		{
+			if(method_exists('CBitrix24', 'isEmailConfirmed') && !\CBitrix24::isEmailConfirmed())
+			{
+				return false;
+			}
+		}
+
 		return Option::get('socialservices', 'network_enable', 'N') == 'Y';
 	}
 
@@ -269,12 +277,6 @@ class Network
 	 */
 	public function addUser($params)
 	{
-		if (!$this->isEnabled())
-		{
-			$this->errorCollection[] = new Error(Loc::getMessage('B24NET_NETWORK_IN_NOT_ENABLED'), self::ERROR_NETWORK_IN_NOT_ENABLED);
-			return false;
-		}
-
 		$password = md5($params['XML_ID'].'|'.$params['CLIENT_DOMAIN'].'|'.rand(1000,9999).'|'.time().'|'.uniqid());
 		$photo = \CFile::MakeFileArray($params['PERSONAL_PHOTO_ORIGINAL']);
 		$groups = Array();

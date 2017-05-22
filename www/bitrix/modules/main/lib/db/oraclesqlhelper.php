@@ -509,13 +509,18 @@ class OracleSqlHelper extends SqlHelper
 		}
 		elseif ($field instanceof Entity\FloatField)
 		{
+			$value = doubleval($value);
+			if(!is_finite($value))
+			{
+				$value = 0;
+			}
 			if (($scale = $field->getScale()) !== null)
 			{
-				$result = "'".round(doubleval($value), $scale)."'";
+				$result = "'".round($value, $scale)."'";
 			}
 			else
 			{
-				$result = "'".doubleval($value)."'";
+				$result = "'".$value."'";
 			}
 		}
 		elseif ($field instanceof Entity\StringField)
@@ -744,7 +749,15 @@ class OracleSqlHelper extends SqlHelper
 			if (in_array($columnName, $primaryFields))
 			{
 				$sourceSelectColumns[] = $this->convertToDb($insertFields[$columnName], $tableField)." AS ".$quotedName;
-				$targetConnectColumns[] = "source.".$quotedName." = target.".$quotedName;
+				if($insertFields[$columnName] === null)
+				{
+					//can't just compare NULLs
+					$targetConnectColumns[] = "(source.".$quotedName." IS NULL AND target.".$quotedName." IS NULL)";
+				}
+				else
+				{
+					$targetConnectColumns[] = "(source.".$quotedName." = target.".$quotedName.")";
+				}
 			}
 
 			if (isset($updateFields[$columnName]) || array_key_exists($columnName, $updateFields))

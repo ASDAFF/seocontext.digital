@@ -60,25 +60,25 @@ class CatalogViewedProductTable extends Main\Entity\DataManager
 			)),
 			'ELEMENT' => new Main\Entity\ReferenceField(
 				'ELEMENT',
-				'Bitrix\Iblock\ElementTable',
+				'\Bitrix\Iblock\Element',
 				array('=this.PRODUCT_ID' => 'ref.ID'),
 				array('join_type' => 'INNER')
 			),
 			'PRODUCT' => new Main\Entity\ReferenceField(
 				'PRODUCT',
-				'Bitrix\Sale\Internals\ProductTable',
+				'\Bitrix\Sale\Internals\Product',
 				array('=this.PRODUCT_ID' => 'ref.ID'),
 				array('join_type' => 'INNER')
 			),
 			'PARENT_ELEMENT' => new Main\Entity\ReferenceField(
 				'PARENT_ELEMENT',
-				'Bitrix\Iblock\ElementTable',
+				'\Bitrix\Iblock\Element',
 				array('=this.ELEMENT_ID' => 'ref.ID'),
 				array('join_type' => 'INNER')
 			),
 			'FUSER' => new Main\Entity\ReferenceField(
 				'FUSER',
-				'Bitrix\Sale\Internals\FuserTable',
+				'\Bitrix\Sale\Internals\Fuser',
 				array('=this.FUSER_ID' => 'ref.ID'),
 				array('join_type' => 'LEFT')
 			)
@@ -406,21 +406,23 @@ class CatalogViewedProductTable extends Main\Entity\DataManager
 	}
 
 	/**
-	 * Clear table b_catalog_viewed_product.
+	 * Clear old records.
 	 *
-	 * @param int $liveTime			Live time.
+	 * @param int $liveTime			Live time (in days).
 	 * @return void
 	 */
 	public static function clear($liveTime = 10)
 	{
+		$liveTime = (int)$liveTime;
+		if ($liveTime <= 0)
+			return;
+
 		$connection = Application::getConnection();
 		$helper = $connection->getSqlHelper();
-		$liveTime = (int)$liveTime;
-		$liveTo = $helper->addSecondsToDateTime($liveTime * 24 * 3600, "DATE_VISIT");
-		$now = $helper->getCurrentDateTimeFunction();
+		$liveTo = $helper->addSecondsToDateTime($liveTime * 86400, $helper->quote('DATE_VISIT'));
 
-		$deleteSql = "delete from b_catalog_viewed_product where ".$now." > ".$liveTo;
-		$connection->query($deleteSql);
+		$connection->query('delete from '.$helper->quote(self::getTableName()).' where '.$liveTo.' < '.$helper->getCurrentDateTimeFunction());
+		unset($liveTo, $helper, $connection);
 	}
 
 	/**

@@ -28,8 +28,16 @@ class FrameComponent
 		{
 			return false;
 		}
-		
-		if (in_array($this->component->getName(), array("bitrix:breadcrumb")))
+
+		if (in_array($this->component->getName(), array("bitrix:breadcrumb", "bitrix:main.include")))
+		{
+			return false;
+		}
+
+		if ($this->component->getName() === "bitrix:menu" &&
+			isset($this->component->arParams["DELAY"]) &&
+			$this->component->arParams["DELAY"] === "Y"
+		)
 		{
 			return false;
 		}

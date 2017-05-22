@@ -133,6 +133,21 @@ class CurrencyManager
 	}
 
 	/**
+	 * Verifying the existence of the currency by its code.
+	 *
+	 * @param string $currency		Currency code.
+	 * @return bool
+	 */
+	public static function isCurrencyExist($currency)
+	{
+		$currency = static::checkCurrencyID($currency);
+		if ($currency === false)
+			return false;
+		$currencyList = static::getCurrencyList();
+		return isset($currencyList[$currency]);
+	}
+
+	/**
 	 * Return currency list, create to install module.
 	 *
 	 * @return array

@@ -12,4 +12,11 @@ $MESS["BOT_ENTITY_COUNT_MESSAGE_FIELD"] = "Processed messages counter";
 $MESS["BOT_ENTITY_COUNT_SLASH_FIELD"] = "Processed commands counter";
 $MESS["BOT_ENTITY_COUNT_CHAT_FIELD"] = "Invites to group chat counter";
 $MESS["BOT_ENTITY_COUNT_USER_FIELD"] = "Invites to public chat counter";
+$MESS["BOT_ENTITY_LANGUAGE_FIELD"] = "Bot language";
+$MESS["BOT_ENTITY_TEXT_PRIVATE_WELCOME_MESSAGE_FIELD"] = "Welcome message text";
+$MESS["BOT_ENTITY_TEXT_CHAT_WELCOME_MESSAGE_FIELD"] = "Class method for adding a welcome message (group chat)";
+$MESS["BOT_ENTITY_VERIFIED_FIELD"] = "Identification flag";
+$MESS["BOT_ENTITY_OPENLINE_FIELD"] = "Open channel support flag";
+$MESS["BOT_ENTITY_METHOD_MESSAGE_UPDATE_FIELD"] = "Message update handler (class method)";
+$MESS["BOT_ENTITY_METHOD_MESSAGE_DELETE_FIELD"] = "Message delete handler (class method)";
 ?>
