@@ -8,7 +8,7 @@ $arComponentDescription = array(
 	'CACHE_PATH' => 'Y',
 	'PATH' => array(
 		'ID' => 'aspro',
-		'NAME' => GetMessage('ASPRO')
+		'NAME' => GetMessage('SECONTEXT')
 	),
 );
 

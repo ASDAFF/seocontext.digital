@@ -1,5 +1,5 @@
 <?
-$MESS ['T_ASPRO_INSTAGRAM_NAME'] = "Аспро: Instagram";
-$MESS ['T_ASPRO_INSTAGRAM_DESCRIPTION'] = "Аспро: Instagram";
-$MESS['ASPRO'] = 'Аспро';
+$MESS ['T_SECONTEXT_INSTAGRAM_NAME'] = "SeoКонтекст: Instagram";
+$MESS ['T_SECONTEXT_INSTAGRAM_DESCRIPTION'] = "SeoКонтекст: Instagram";
+$MESS['SECONTEXT'] = 'SeoКонтекст';
 ?>

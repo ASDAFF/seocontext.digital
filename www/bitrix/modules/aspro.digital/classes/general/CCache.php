@@ -1,7 +1,7 @@
 <?
 // Cache functions
 // Tagged cache. After add/delete/update cached objects need to clear tag cache. This events see farther
-// (C) Konstantin Chechetkin - ASPRO
+// (C) Konstantin Chechetkin - SECONTEXT
 if(!class_exists("CCache")){
 	class CCache {
 		static public $arIBlocks = NULL;

@@ -1,5 +1,5 @@
 <?
-$MESS['T_ASPRO_SOCIAL_NAME'] = 'Аспро: Социальные сети';
-$MESS['T_ASPRO_SOCIAL_DESCRIPTION'] = 'Вывод иконок социальных сетей';
-$MESS['ASPRO'] = 'Аспро';
+$MESS['T_SECONTEXT_SOCIAL_NAME'] = 'SeoКонтекст: Социальные сети';
+$MESS['T_SECONTEXT_SOCIAL_DESCRIPTION'] = 'Вывод иконок социальных сетей';
+$MESS['SECONTEXT'] = 'SeoКонтекст';
 ?>

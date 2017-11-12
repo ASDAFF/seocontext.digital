@@ -1,5 +1,5 @@
 <?
-$MESS ['T_ASPRO_TABS_NAME'] = "Аспро: Табы на главной";
-$MESS ['T_ASPRO_TABS_DESCRIPTION'] = "Аспро: Табы на главной";
-$MESS['ASPRO'] = 'Аспро';
+$MESS ['T_SECONTEXT_TABS_NAME'] = "SeoКонтекст: Табы на главной";
+$MESS ['T_SECONTEXT_TABS_DESCRIPTION'] = "SeoКонтекст: Табы на главной";
+$MESS['SECONTEXT'] = 'SeoКонтекст';
 ?>

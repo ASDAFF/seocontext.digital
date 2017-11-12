@@ -44,31 +44,31 @@ if($_REQUEST && isset($_REQUEST['mid'])){
 			<?if($bSupportLess14 || !$bSupportActive):?>
 				<?if($bSupportActive):?>
 					<?$cnt = floor(($dateSupportTo - time()) / 86400)?>
-					<div class="aspro-gadgets-title2 pink"><?=GetMessage('GD_ASPRO_EXPIRED_SOON', array('#DAYS_STR#' => ($cnt ? GetMessage('GD_ASPRO_THROUGH')._vail_($cnt, array(GetMessage('GD_ASPRO_DAYS0'), GetMessage('GD_ASPRO_DAYS1'), GetMessage('GD_ASPRO_DAYS2'))) : GetMessage('GD_ASPRO_DAYS0_TODAY'))))?></div>
+					<div class="aspro-gadgets-title2 pink"><?=GetMessage('GD_SECONTEXT_EXPIRED_SOON', array('#DAYS_STR#' => ($cnt ? GetMessage('GD_SECONTEXT_THROUGH')._vail_($cnt, array(GetMessage('GD_SECONTEXT_DAYS0'), GetMessage('GD_SECONTEXT_DAYS1'), GetMessage('GD_SECONTEXT_DAYS2'))) : GetMessage('GD_SECONTEXT_DAYS0_TODAY'))))?></div>
 				<?else:?>
-					<div class="aspro-gadgets-title2 pink"><?=GetMessage('GD_ASPRO_EXPIRED')?></div>
+					<div class="aspro-gadgets-title2 pink"><?=GetMessage('GD_SECONTEXT_EXPIRED')?></div>
 				<?endif;?>
 				<div class="aspro-gadget-bottom">
 					<a class="aspro-gadgets-button" href="/bitrix/admin/aspro.<?=$moduleID?>_mc.php">
 						<div class="aspro-gadgets-button-lamp"></div>
-						<div class="aspro-gadgets-button-text"><?=GetMessage('GD_ASPRO_GET_MORE')?></div>
+						<div class="aspro-gadgets-button-text"><?=GetMessage('GD_SECONTEXT_GET_MORE')?></div>
 					</a>
 					<a class="aspro-gadgets-button aspro-gadgets-button-buy" href="https://aspro.ru/shop/" target="_blank">
-						<div class="aspro-gadgets-button-text"><?=GetMessage('GD_ASPRO_BUY')?></div>
+						<div class="aspro-gadgets-button-text"><?=GetMessage('GD_SECONTEXT_BUY')?></div>
 					</a>
 				</div>
 			<?else:?>
-				<div class="aspro-gadgets-title2"><?=GetMessage('GD_ASPRO_DATE_SUPPORT_TO', array('#DATE#' => date('d.m.Y', $dateSupportTo)))?></div>
+				<div class="aspro-gadgets-title2"><?=GetMessage('GD_SECONTEXT_DATE_SUPPORT_TO', array('#DATE#' => date('d.m.Y', $dateSupportTo)))?></div>
 				<div class="aspro-gadget-bottom">
 					<a class="aspro-gadgets-button" href="/bitrix/admin/aspro.<?=$moduleID?>_mc.php">
 						<div class="aspro-gadgets-button-lamp"></div>
-						<div class="aspro-gadgets-button-text"><?=GetMessage('GD_ASPRO_GET_MORE')?></div>
+						<div class="aspro-gadgets-button-text"><?=GetMessage('GD_SECONTEXT_GET_MORE')?></div>
 					</a>
-					<span class="aspro-gadgets-desc"><?=GetMessage('GD_ASPRO_DESCRIPTION')?></span>
+					<span class="aspro-gadgets-desc"><?=GetMessage('GD_SECONTEXT_DESCRIPTION')?></span>
 				</div>
 			<?endif;?>
 		<?else:?>
-			<div class="aspro-gadgets-title2 pink"><?=GetMessage('GD_ASPRO_ERROR')?></div>
+			<div class="aspro-gadgets-title2 pink"><?=GetMessage('GD_SECONTEXT_ERROR')?></div>
 		<?endif;?>
 		<?
 	}

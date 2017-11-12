@@ -6,7 +6,7 @@ if(!CModule::IncludeModule('iblock')){
 	return;
 }
 if(!CModule::IncludeModule('aspro.digital')){
-	ShowError(GetMessage('ASPRO_DIGITAL_MODULE_NOT_INSTALLED'));
+	ShowError(GetMessage('SECONTEXT_DIGITAL_MODULE_NOT_INSTALLED'));
 	return;
 }
 

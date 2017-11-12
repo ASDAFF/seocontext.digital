@@ -1,5 +1,5 @@
 <?
-$MESS["COMPONENT_NAME"] = "Аспро: Форма";
-$MESS["COMPONENT_DESCRIPTION"] = "Аспро: Форма";
-$MESS["ASPRO"] = "Аспро";
+$MESS["COMPONENT_NAME"] = "SeoКонтекст: Форма";
+$MESS["COMPONENT_DESCRIPTION"] = "SeoКонтекст: Форма";
+$MESS["SECONTEXT"] = "SeoКонтекст";
 ?>

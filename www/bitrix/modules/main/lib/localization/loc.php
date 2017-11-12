@@ -238,7 +238,6 @@ final class Loc
 			{
 				$currentFile = Path::normalize($trace[$i]["file"]);
 
-
 				//we suppose there is a language file even if it wasn't registered via loadMessages()
 				self::$lazyLoadFiles[$currentFile] = $currentFile;
 				break;

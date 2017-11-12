@@ -1,0 +1,3 @@
+<?php
+$MESS["SEOCONTEXT_CONTENT_SAVE_BUTTON"] = "Сохранить";
+$MESS["SEOCONTEXT_CONTENT_DEFAULT"] = "По умолчанию";

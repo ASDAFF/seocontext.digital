@@ -46,7 +46,7 @@ $GLOBALS['APPLICATION']->SetAdditionalCSS('/bitrix/gadgets/aspro/'.$moduleID.'/s
                             BX.addClass(obAsproGadget[0], 'aspro-gadgets-ready');
                         }
                         if(obAsproGadgetLayout.length){
-                            BX.adjust(obAsproGadgetLayout[0], {html: '<div class="aspro-gadgets-title2 pink"><?=GetMessage('GD_ASPRO_ERROR')?></div>'});
+                            BX.adjust(obAsproGadgetLayout[0], {html: '<div class="aspro-gadgets-title2 pink"><?=GetMessage('GD_SECONTEXT_ERROR')?></div>'});
                         }
                     }
                 }

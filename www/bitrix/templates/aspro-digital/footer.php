@@ -58,13 +58,7 @@
 		<?CDigital::ShowPageType('search_title_component');?>
 		<?CDigital::ShowPageType('basket_component');?>
 		<?CDigital::AjaxAuth();?>
-	<script data-skip-moving="true">
-        (function(w,d,u,b){
-                s=d.createElement('script');r=(Date.now()/1000|0);s.async=1;s.src=u+'?'+r;
-                h=d.getElementsByTagName('script')[0];h.parentNode.insertBefore(s,h);
-        })(window,document,'https://24.seocontext.su/upload/crm/site_button/loader_4_oo7zwd.js');
-</script>
-                    <!-- Yandex.Metrika counter -->
+	                    <!-- Yandex.Metrika counter -->
                     <script type="text/javascript">
                         (function (d, w, c) {
                             (w[c] = w[c] || []).push(function() {

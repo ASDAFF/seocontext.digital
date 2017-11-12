@@ -43,7 +43,7 @@ if( CModule::IncludeModule("iblock") ){
 			$arResult["ERROR"] = "FORM_NOT_FOUND";
 		}
 
-		$arResult["EVENT_TYPE"] = "ASPRO_SEND_FORM";
+		$arResult["EVENT_TYPE"] = "SECONTEXT_SEND_FORM";
 
 		$arIBlock = CIBlock::GetList( false, array( "ID" => $arParams["IBLOCK_ID"] ) )->Fetch();
 		$arResult["IBLOCK_CODE"] = $arIBlock["CODE"];

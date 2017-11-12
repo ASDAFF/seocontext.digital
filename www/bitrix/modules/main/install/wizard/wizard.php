@@ -1175,11 +1175,11 @@ RewriteRule ^.+\.php$ /bitrix/httest/404.php
 		</tr>
 		<tr>
 			<td valign="top">
-				<a href="http://php.net/manual/en/book.mcrypt.php" target="_blank">MCrypt</a>
+				<a href="http://php.net/manual/en/book.openssl.php" target="_blank">OpenSSL</a>
 			</td>
 			<td valign="top">'.InstallGetMessage("SC_SETTED").'</td>
 			<td valign="top">
-					'.(extension_loaded("mcrypt") && function_exists("mcrypt_encrypt") ? $this->ShowResult(InstallGetMessage("SC_SETTED"), "OK") : $this->ShowResult(InstallGetMessage("SC_NOT_SETTED"), "ERROR")).'
+					'.(function_exists("openssl_encrypt") ? $this->ShowResult(InstallGetMessage("SC_SETTED"), "OK") : $this->ShowResult(InstallGetMessage("SC_NOT_SETTED"), "ERROR")).'
 			</td>
 		</tr>
 		<tr>

@@ -46,7 +46,7 @@ Class bitrix_sitecorporate extends CModule
 	{
 		global $DB, $DBType, $APPLICATION;
 
-		UnRegisterModuleDependences("main", "OnBeforeProlog", "bitrix.sitecorporate", "CSiteCorporate", "ShowPanel"); 
+		UnRegisterModuleDependences("main", "OnBeforeProlog", "bitrix.sitecorporate", "CSiteCorporate", "ShowPanel");
 		UnRegisterModule("bitrix.sitecorporate");
 
 		return true;

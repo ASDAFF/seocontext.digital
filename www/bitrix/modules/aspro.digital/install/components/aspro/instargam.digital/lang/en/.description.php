@@ -1,4 +1,4 @@
 <?
-$MESS ['INSTARGARM'] = "Аспро: Instagram";
-$MESS['ASPRO'] = 'Аспро';
+$MESS ['INSTARGARM'] = "SeoКонтекст: Instagram";
+$MESS['SECONTEXT'] = 'SeoКонтекст';
 ?>

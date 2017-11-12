@@ -67,7 +67,12 @@ class CAllFile
 			//transliteration
 			if(COption::GetOptionString("main", "translit_original_file_name", "N") == "Y")
 			{
-				$fileName = CUtil::translit($fileName, LANGUAGE_ID, array("max_len"=>1024, "safe_chars"=>".", "replace_space" => '-'));
+				$fileName = CUtil::translit($fileName, LANGUAGE_ID, array(
+					"max_len" => 1024,
+					"safe_chars" => ".",
+					"replace_space" => '-',
+					"change_case" => false,
+				));
 			}
 
 			//replace invalid characters
@@ -2795,7 +2800,12 @@ function ImgShw(ID, width, height, alt)
 			}
 
 			$utfName = CHTTP::urnEncode($attachment_name, "UTF-8");
-			$translitName = CUtil::translit($attachment_name, LANGUAGE_ID, array("max_len"=>1024, "safe_chars"=>".", "replace_space" => '-'));
+			$translitName = CUtil::translit($attachment_name, LANGUAGE_ID, array(
+				"max_len" => 1024,
+				"safe_chars" => ".",
+				"replace_space" => '-',
+				"change_case" => false,
+			));
 
 			if($force_download)
 			{
@@ -2850,7 +2860,7 @@ function ImgShw(ID, width, height, alt)
 				}
 				else
 				{
-					$filename = $APPLICATION->ConvertCharset($filename, SITE_CHARSET, "UTF-8");
+					$filename = CHTTP::urnEncode($filename, "UTF-8");
 					header('X-Accel-Redirect: '.$filename);
 				}
 			}
@@ -3410,6 +3420,7 @@ function ImgShw(ID, width, height, alt)
 				"rtf" => "application/msword",
 				"rar" => "application/x-rar-compressed",
 				"zip" => "application/zip",
+				"pdf" => "application/pdf",
 				"ogv" => "video/ogg",
 				"mp4" => "video/mp4",
 				"mp4v" => "video/mp4",

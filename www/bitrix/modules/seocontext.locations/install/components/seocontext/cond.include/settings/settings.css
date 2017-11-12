@@ -1,0 +1,7 @@
+input.seocontext-error[name='INCLUDE_ID_alt'] {
+    border: 1px red solid;
+}
+
+input.seocontext-error[name='INCLUDE_ID_alt']+div {
+    color: red;
+}

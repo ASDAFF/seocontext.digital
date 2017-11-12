@@ -1,6 +1,6 @@
 <?
-$MESS['DIGITAL_GLOBAL_MENU_TEXT'] = 'Аспро: Digital';
-$MESS['DIGITAL_GLOBAL_MENU_TITLE'] = 'Аспро: Digital';
+$MESS['DIGITAL_GLOBAL_MENU_TEXT'] = 'SeoКонтекст: Digital';
+$MESS['DIGITAL_GLOBAL_MENU_TITLE'] = 'SeoКонтекст: Digital';
 $MESS['DIGITAL_MENU_CONTROL_CENTER_TEXT'] = 'Центр управления';
 $MESS['DIGITAL_MENU_CONTROL_CENTER_TITLE'] = 'Центр управления';
 $MESS['DIGITAL_MENU_TYPOGRAPHY_TEXT'] = 'Настройки';

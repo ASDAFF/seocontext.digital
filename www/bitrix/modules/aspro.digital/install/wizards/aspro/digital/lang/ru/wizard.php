@@ -6,7 +6,7 @@ $MESS["wiz_restructure_data"] = "Переустановить демонстра
 $MESS["wiz_rewrite_index"] = "Перезаписать главную страницу. <br><br>В выбранном вами шаблоне главная страница отличается структурой от текущей.<br>Для корректного отображения шаблона желательно ее перезаписать.<br><br> <b>Внимание!</b> Все внесенные вами изменения на главной странице будут удалены.";
 $MESS["WIZ_COMPANY_LOGO"] = "Логотип (рекомендуемый размер 180 X 40)";
 $MESS["WIZ_COMPANY_NAME"] = "Название сайта:";
-$MESS["WIZ_COMPANY_NAME_DEF"] = "Аспро: Digital-компания";
+$MESS["WIZ_COMPANY_NAME_DEF"] = "SeoКонтекст: Digital-компания";
 $MESS["WIZ_COMPANY_COPY"] = "Подпись сайта:";
 $MESS["WIZ_COMPANY_COPY_DEF"] = "Все права защищены.";
 $MESS["WIZ_COMPANY_COPY_NOTE"] = "<b>&copy; ".date('Y', time())."</b> будут подставлены вначале подписи";
@@ -138,7 +138,7 @@ $MESS["wiz_meta_description"] = "Описание сайта:";
 $MESS["wiz_meta_keywords"] = "Ключевые слова:";
 $MESS["wizard_store_mobile"] = "Создать мобильный магазин";
 $MESS["WIZ_NO_MODULE_CATALOG"] = "Не установлен модуль торгового каталога. Для продолжения работы мастера <a href='/bitrix/admin/module_admin.php'>перейдите по ссылке</a> и установите модуль.";
-$MESS["WIZ_NO_MODULE_"] = "Не установлен модуль &laquo;Аспро: Digital-компания&raquo;. Для продолжения работы мастера <a href='/bitrix/admin/partner_modules.php'>перейдите по ссылке</a> и установите модуль.";
+$MESS["WIZ_NO_MODULE_"] = "Не установлен модуль &laquo;SeoКонтекст: Digital-компания&raquo;. Для продолжения работы мастера <a href='/bitrix/admin/partner_modules.php'>перейдите по ссылке</a> и установите модуль.";
 $MESS["WIZ_LOCATION_TITLE"] = "Местоположения";
 $MESS["WSL_STEP2_GFILE_USSR"] = "Россия и СНГ (страны и города)";
 $MESS["WSL_STEP2_GFILE_USA"] = "США (города)";

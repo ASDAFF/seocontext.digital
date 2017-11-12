@@ -2133,7 +2133,7 @@ class CDigital{
 		if($arFields['ID'] && $arFields['IBLOCK_ID'])
 		{
 			// find aspro form event for this iblock
-			$arEventIDs = array('ASPRO_SEND_FORM_'.$arFields['IBLOCK_ID'], 'ASPRO_SEND_FORM_ADMIN_'.$arFields['IBLOCK_ID']);
+			$arEventIDs = array('SECONTEXT_SEND_FORM_'.$arFields['IBLOCK_ID'], 'SECONTEXT_SEND_FORM_ADMIN_'.$arFields['IBLOCK_ID']);
 			$arLangIDs = array('ru', 'en');
 			static $arEvents;
 			if($arEvents == NULL)

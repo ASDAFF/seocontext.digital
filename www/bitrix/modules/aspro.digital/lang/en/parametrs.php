@@ -202,15 +202,15 @@ $MESS['YA_REMOVE4CART_TITLE'] = 'Удаление товара из корзин
 $MESS['YA_ORDER_START_TITLE'] = 'Начало оформления заказа';
 $MESS['YA_ORDER_SUCCESS_TITLE'] = 'Успешное оформление заказа';
 
-$MESS['YA_FORM_SUCCESS_ASPRO_DIGITAL_FORMS_TITLE'] = 'Формы';
-$MESS['YA_FORM_SUCCESS_ASPRO_DIGITAL_CALLBACK_TITLE'] = 'Успешная отправка формы "Заказать звонок"';
-$MESS['YA_FORM_SUCCESS_ASPRO_DIGITAL_QUESTION_TITLE'] = 'Успешная отправка формы "Задать вопрос"';
-$MESS['YA_FORM_SUCCESS_ASPRO_DIGITAL_ORDER_PRODUCT_TITLE'] = 'Успешная отправка формы "Заказать продукт"';
-$MESS['YA_FORM_SUCCESS_ASPRO_DIGITAL_ORDER_SERVICES_TITLE'] = 'Успешная отправка формы "Заказать услугу"';
-$MESS['YA_FORM_SUCCESS_ASPRO_DIGITAL_ORDER_PROJECT_TITLE'] = 'Успешная отправка формы "Заказать проект"';
-$MESS['YA_FORM_SUCCESS_ASPRO_DIGITAL_RESUME_TITLE'] = 'Успешная отправка формы "Отправить резюме"';
-$MESS['YA_FORM_SUCCESS_ASPRO_DIGITAL_DIRECTOR_TITLE'] = 'Успешная отправка формы "Написать директору"';
-$MESS['YA_FORM_SUCCESS_ASPRO_DIGITAL_CONSULTATION_TITLE'] = 'Успешная отправка формы "Нужна консультация"';
+$MESS['YA_FORM_SUCCESS_SECONTEXT_DIGITAL_FORMS_TITLE'] = 'Формы';
+$MESS['YA_FORM_SUCCESS_SECONTEXT_DIGITAL_CALLBACK_TITLE'] = 'Успешная отправка формы "Заказать звонок"';
+$MESS['YA_FORM_SUCCESS_SECONTEXT_DIGITAL_QUESTION_TITLE'] = 'Успешная отправка формы "Задать вопрос"';
+$MESS['YA_FORM_SUCCESS_SECONTEXT_DIGITAL_ORDER_PRODUCT_TITLE'] = 'Успешная отправка формы "Заказать продукт"';
+$MESS['YA_FORM_SUCCESS_SECONTEXT_DIGITAL_ORDER_SERVICES_TITLE'] = 'Успешная отправка формы "Заказать услугу"';
+$MESS['YA_FORM_SUCCESS_SECONTEXT_DIGITAL_ORDER_PROJECT_TITLE'] = 'Успешная отправка формы "Заказать проект"';
+$MESS['YA_FORM_SUCCESS_SECONTEXT_DIGITAL_RESUME_TITLE'] = 'Успешная отправка формы "Отправить резюме"';
+$MESS['YA_FORM_SUCCESS_SECONTEXT_DIGITAL_DIRECTOR_TITLE'] = 'Успешная отправка формы "Написать директору"';
+$MESS['YA_FORM_SUCCESS_SECONTEXT_DIGITAL_CONSULTATION_TITLE'] = 'Успешная отправка формы "Нужна консультация"';
 
 $MESS['EMAIL_IS_ALREADY_EXISTS_MESSAGE_DEFAULT'] = 'Email #EMAIL# уже используется';
 
